@@ -11,6 +11,8 @@ class DatabaseSeeder extends Seeder
         $this->call([
             JobSeeder::class,
             MasterFileSeeder::class,
+            OutdoorCoordinatorSeeder::class, // 👈 tambahkan ini
+
         ]);
     }
 }

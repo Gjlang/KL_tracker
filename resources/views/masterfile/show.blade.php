@@ -1,300 +1,315 @@
 <x-app-layout>
-    <div class="flex h-screen bg-gray-100">
+    <div class="min-h-screen bg-gray-50">
         <!-- Main content -->
-        <div class="flex flex-col w-0 flex-1 overflow-hidden">
-            <!-- Mobile menu button -->
-            <div class="relative z-10 flex-shrink-0 flex h-16 bg-white shadow md:hidden">
-                <button type="button" class="border-r border-gray-200 px-4 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 md:hidden" id="open-sidebar">
-                    <span class="sr-only">Open sidebar</span>
-                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path>
-                    </svg>
-                </button>
-                <div class="flex-1 px-4 flex justify-between">
-                    <div class="flex-1 flex">
-                        <div class="w-full flex md:ml-0">
-                            <div class="relative w-full text-gray-400 focus-within:text-gray-600">
-                                <div class="absolute inset-y-0 left-0 flex items-center pointer-events-none">
-                                    <h2 class="font-semibold text-xl text-gray-800 leading-tight ml-3">
-                                        Company Details
-                                    </h2>
-                                </div>
-                            </div>
-                        </div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Header with back button -->
+            <div class="mb-8">
+                <div class="flex items-center space-x-4">
+                    <a href="{{ route('dashboard') }}" class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-150">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                        </svg>
+                        Back to Dashboard
+                    </a>
+                    <div class="text-sm text-gray-500">
+                        <span>Company Details</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Main content area -->
-            <main class="flex-1 relative overflow-y-auto focus:outline-none">
-                <div class="py-6">
-                    <div class="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
-                        <!-- Header for desktop with back button -->
-                        <div class="hidden md:block mb-6">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center space-x-4">
-                                    <a href="{{ route('dashboard') }}" class="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 transition-colors duration-150">
+            <form method="POST" action="{{ route('masterfile.update', $file->id) }}" id="mf-edit-form">
+                @csrf
+                @method('PUT')
+
+                <!-- Company Header Card -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-8 overflow-hidden">
+                    <div class="px-8 py-6">
+                        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                            <div class="flex-1">
+                                <div class="mb-4">
+                                    <input name="company" class="text-3xl font-bold text-gray-900 bg-transparent border-0 p-0 w-full editable read-mode focus:ring-0" value="{{ old('company', $file->company) }}" disabled>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-3">
+                                    <div class="flex items-center">
+                                        <span class="text-sm font-medium text-gray-500 mr-2">Status:</span>
+                                        <select name="status" class="editable read-mode status-badge px-3 py-1 text-sm font-medium rounded-full border-0 focus:ring-0" disabled>
+                                            @foreach(['pending','ongoing','completed'] as $s)
+                                                <option value="{{ $s }}" @selected(old('status',$file->status)===$s)>{{ ucfirst($s) }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <span class="text-sm font-medium text-gray-500 mr-2">Product:</span>
+                                        <input name="product" class="editable read-mode bg-blue-50 text-blue-800 px-3 py-1 text-sm font-medium rounded-full border-0 focus:ring-0" value="{{ old('product',$file->product) }}" disabled>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 lg:gap-6">
+                                <div class="text-right text-sm text-gray-500">
+                                    <div class="font-medium text-gray-900">ID: #{{ $file->id }}</div>
+                                    <div>Created: {{ $file->created_at ? $file->created_at->format('M d, Y') : 'N/A' }}</div>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="flex items-center gap-3">
+                                    <button type="button" id="btnEdit" class="inline-flex items-center px-6 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-150">
                                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                         </svg>
-                                        Back to Dashboard
-                                    </a>
-                                    <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                                        Company Details
-                                    </h2>
+                                        Edit
+                                    </button>
+                                    <button type="submit" id="btnSave" class="hidden inline-flex items-center px-6 py-2.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-150">
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                        Save
+                                    </button>
+                                    <button type="button" id="btnCancel" class="hidden inline-flex items-center px-6 py-2.5 bg-gray-200 text-gray-800 text-sm font-medium rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors duration-150">
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                        Cancel
+                                    </button>
                                 </div>
-                            </div>
-                        </div>
-
-                        <!-- Company Information Card -->
-                        <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
-                            <div class="p-6">
-                                <div class="flex justify-between items-start mb-6">
-                                    <div>
-                                        <h3 class="text-2xl font-bold text-gray-900 mb-2">{{ $file->company }}</h3>
-                                        <div class="flex items-center space-x-4">
-                                            <span class="inline-flex px-3 py-1 text-sm font-semibold rounded-full
-                                                {{ $file->status === 'completed' ? 'bg-green-100 text-green-800' :
-                                                   ($file->status === 'ongoing' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800') }}">
-                                                {{ ucfirst($file->status) }}
-                                            </span>
-                                            <span class="inline-flex px-3 py-1 text-sm font-medium rounded-full bg-blue-100 text-blue-800">
-                                                {{ $file->product }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div class="text-right text-sm text-gray-500">
-                                        <div>ID: #{{ $file->id }}</div>
-                                        <div>Created: {{ $file->created_at ? $file->created_at->format('M d, Y') : 'N/A' }}</div>
-                                    </div>
-                                </div>
-
-                                <!-- Company Details Grid -->
-                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    <div class="space-y-4">
-                                        <h4 class="font-semibold text-gray-900 border-b pb-2">Project Information</h4>
-                                        <div class="space-y-3">
-                                            <div>
-                                                <span class="text-sm font-medium text-gray-500">Date:</span>
-                                                <div class="text-sm text-gray-900">{{ $file->date }}</div>
-                                            </div>
-                                            <div>
-                                                <span class="text-sm font-medium text-gray-500">Month:</span>
-                                                <div class="text-sm text-gray-900">{{ $file->month }}</div>
-                                            </div>
-                                            <div>
-                                                <span class="text-sm font-medium text-gray-500">Traffic:</span>
-                                                <div class="text-sm text-gray-900">{{ $file->traffic }}</div>
-                                            </div>
-                                            <div>
-                                                <span class="text-sm font-medium text-gray-500">Duration:</span>
-                                                <div class="text-sm text-gray-900">{{ $file->duration }}</div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="space-y-4">
-                                        <h4 class="font-semibold text-gray-900 border-b pb-2">Client & Job Details</h4>
-                                        <div class="space-y-3">
-                                            <div>
-                                                <span class="text-sm font-medium text-gray-500">Client:</span>
-                                                <div class="text-sm text-gray-900">{{ $file->client }}</div>
-                                            </div>
-                                            <div>
-                                                <span class="text-sm font-medium text-gray-500">Job Number:</span>
-                                                <div class="text-sm text-gray-900">{{ $file->job_number ?? '-' }}</div>
-                                            </div>
-                                            <div>
-                                                <span class="text-sm font-medium text-gray-500">Date Finish:</span>
-                                                <div class="text-sm text-gray-900">{{ $file->date_finish ?? '-' }}</div>
-                                            </div>
-                                            <div>
-                                                <span class="text-sm font-medium text-gray-500">Artwork:</span>
-                                                <div class="text-sm text-gray-900">{{ $file->artwork ?? '-' }}</div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="space-y-4">
-                                        <h4 class="font-semibold text-gray-900 border-b pb-2">Invoice Information</h4>
-                                        <div class="space-y-3">
-                                            <div>
-                                                <span class="text-sm font-medium text-gray-500">Invoice Date:</span>
-                                                <div class="text-sm text-gray-900">{{ $file->invoice_date ?? '-' }}</div>
-                                            </div>
-                                            <div>
-                                                <span class="text-sm font-medium text-gray-500">Invoice Number:</span>
-                                                <div class="text-sm text-gray-900">{{ $file->invoice_number ?? '-' }}</div>
-                                            </div>
-                                            <div>
-                                                <span class="text-sm font-medium text-gray-500">Current Location:</span>
-                                                <div class="text-sm text-gray-900">{{ $file->location ?? 'Not specified' }}</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Editable Fields Card -->
-                        <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                            <div class="p-6">
-                                <h3 class="text-lg font-semibold text-gray-900 mb-4">Edit Information</h3>
-
-                                @if(session('success'))
-                                    <div class="mb-4 bg-green-50 border border-green-200 rounded-md p-4">
-                                        <div class="flex">
-                                            <svg class="w-5 h-5 text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                                            </svg>
-                                            <div class="text-sm text-green-800">{{ session('success') }}</div>
-                                        </div>
-                                    </div>
-                                @endif
-
-                                <form method="POST" action="{{ route('confirmation.update', $file->id) }}" class="space-y-6">
-                                    @csrf
-
-                                    <!-- Remarks Section -->
-                                    <div>
-                                        <label for="remarks" class="block text-sm font-medium text-gray-700 mb-2">
-                                            <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
-                                            </svg>
-                                            Remarks
-                                        </label>
-                                        <textarea name="remarks" id="remarks" rows="4"
-                                                  class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-150"
-                                                  placeholder="Add any remarks or notes...">{{ $file->remarks }}</textarea>
-                                    </div>
-
-                                    <!-- Location Section -->
-                                    <div>
-                                        <label for="location" class="block text-sm font-medium text-gray-700 mb-2">
-                                            <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                            </svg>
-                                            Location
-                                        </label>
-                                        <input type="text" name="location" id="location" value="{{ $file->location }}"
-                                               class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-150"
-                                               placeholder="Enter current location..." />
-                                    </div>
-
-                                    <!-- Monthly Checkboxes Section -->
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-3">
-                                            <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2z"></path>
-                                            </svg>
-                                            Monthly Tracking
-                                        </label>
-                                        <div class="bg-gray-50 rounded-lg p-4">
-                                            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                                                @foreach(['jan' => 'January', 'feb' => 'February', 'mar' => 'March', 'apr' => 'April', 'may' => 'May', 'jun' => 'June', 'jul' => 'July', 'aug' => 'August', 'sep' => 'September', 'oct' => 'October', 'nov' => 'November', 'dec' => 'December'] as $monthCode => $monthName)
-                                                    <label class="flex items-center space-x-2 p-2 rounded-md hover:bg-white transition-colors duration-150 cursor-pointer">
-                                                        <input type="checkbox" name="check_{{ $monthCode }}"
-                                                               class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
-                                                               {{ $file["check_$monthCode"] ? 'checked' : '' }}>
-                                                        <span class="text-sm text-gray-700">{{ $monthName }}</span>
-                                                    </label>
-                                                @endforeach
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <h2 class="text-lg font-semibold mt-8">Timeline</h2>
-
-                                    <form method="POST" action="{{ route('masterfile.timeline.update', $file->id) }}">
-                                        @csrf
-
-                                        @foreach(['product','site','client','payment','material_received','artwork','approval','sent_to_printer','installation','dismantle'] as $field)
-                                            <div class="flex items-center mb-2">
-                                                <input type="checkbox" id="{{ $field }}" name="{{ $field }}"
-                                                    {{ optional($file->timeline)->$field ? 'checked disabled' : '' }}>
-                                                <label for="{{ $field }}" class="ml-2 capitalize">{{ str_replace('_', ' ', $field) }}</label>
-                                                @if(optional($file->timeline)->$field)
-                                                    <span class="ml-4 text-sm text-gray-600">{{ \Carbon\Carbon::parse($file->timeline->$field)->format('M d, Y H:i') }}</span>
-                                                @endif
-                                            </div>
-                                        @endforeach
-
-                                        <div class="mt-4">
-                                            <label>Remarks:</label>
-                                            <textarea name="remarks" class="w-full border rounded-md p-2">{{ old('remarks', optional($file->timeline)->remarks) }}</textarea>
-                                        </div>
-
-                                        <div class="mt-2">
-                                            <label>Next Follow Up:</label>
-                                            <input type="text" name="next_follow_up" class="w-full border rounded-md p-2"
-                                                value="{{ old('next_follow_up', optional($file->timeline)->next_follow_up) }}">
-                                        </div>
-
-                                        <button class="mt-4 bg-indigo-600 text-white px-4 py-2 rounded">Update Timeline</button>
-                                    </form>
-
-
-                                    <!-- Action Buttons -->
-                                    <div class="flex items-center justify-between pt-6 border-t border-gray-200">
-                                        <a href="{{ route('dashboard') }}" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-150">
-                                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                                            </svg>
-                                            Back to Dashboard
-                                        </a>
-
-                                        <button type="submit" class="inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-150">
-                                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                            </svg>
-                                            Update Information
-                                        </button>
-                                    </div>
-                                </form>
                             </div>
                         </div>
                     </div>
                 </div>
-            </main>
+
+                <!-- Details Cards Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Project Information Card -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div class="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                Project Information
+                            </h3>
+                        </div>
+                        <div class="p-6 space-y-6">
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-500">Date</label>
+                                <input type="date" name="date" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="{{ old('date', \Illuminate\Support\Str::of($file->date)->substr(0,10)) }}" disabled>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-500">Month</label>
+                                <input name="month" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="{{ old('month',$file->month) }}" disabled>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-500">Traffic</label>
+                                <input name="traffic" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="{{ old('traffic',$file->traffic) }}" disabled>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-500">Duration</label>
+                                <input name="duration" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="{{ old('duration',$file->duration) }}" disabled>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Client & Job Details Card -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div class="px-6 py-4 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                </svg>
+                                Person In Charge & Job Details
+                            </h3>
+                        </div>
+                        <div class="p-6 space-y-6">
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-500">Client</label>
+                                <input name="client" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" value="{{ old('client',$file->client) }}" disabled>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-500">Job Number</label>
+                                <input name="job_number" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" value="{{ old('job_number',$file->job_number) }}" disabled>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-500">Date Finish</label>
+                                <input type="date" name="date_finish" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" value="{{ old('date_finish', \Illuminate\Support\Str::of($file->date_finish)->substr(0,10)) }}" disabled>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-500">Artwork</label>
+                                <input name="artwork" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" value="{{ old('artwork',$file->artwork) }}" disabled>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Invoice Information Card -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div class="px-6 py-4 bg-gradient-to-r from-purple-50 to-pink-50 border-b border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                Invoice Information
+                            </h3>
+                        </div>
+                        <div class="p-6 space-y-6">
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-500">Invoice Date</label>
+                                <input type="date" name="invoice_date" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500" value="{{ old('invoice_date', \Illuminate\Support\Str::of($file->invoice_date)->substr(0,10)) }}" disabled>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-500">Invoice Number</label>
+                                <input name="invoice_number" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500" value="{{ old('invoice_number',$file->invoice_number) }}" disabled>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-500">Current Location</label>
+                                <input name="location" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500" value="{{ old('location',$file->location) }}" disabled>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 
+    <!-- Enhanced JavaScript -->
     <script>
-        // Mobile sidebar functionality (if needed)
-        const openSidebarBtn = document.getElementById('open-sidebar');
-        if (openSidebarBtn) {
-            openSidebarBtn.addEventListener('click', function() {
-                // Add your sidebar functionality here
-            });
+    document.addEventListener('DOMContentLoaded', function () {
+        const btnEdit = document.getElementById('btnEdit');
+        const btnSave = document.getElementById('btnSave');
+        const btnCancel = document.getElementById('btnCancel');
+        const editables = document.querySelectorAll('.editable');
+        const statusSelect = document.querySelector('select[name="status"]');
+
+        function updateStatusBadge() {
+            const status = statusSelect.value;
+            statusSelect.className = statusSelect.className.replace(/bg-\w+-\d+/g, '').replace(/text-\w+-\d+/g, '');
+
+            if (statusSelect.disabled) {
+                // Read mode - styled as badge
+                statusSelect.classList.add('status-badge');
+                if (status === 'completed') {
+                    statusSelect.classList.add('bg-green-100', 'text-green-800');
+                } else if (status === 'ongoing') {
+                    statusSelect.classList.add('bg-yellow-100', 'text-yellow-800');
+                } else {
+                    statusSelect.classList.add('bg-red-100', 'text-red-800');
+                }
+            } else {
+                // Edit mode - normal select styling
+                statusSelect.classList.remove('status-badge');
+                statusSelect.classList.add('border-gray-200', 'bg-white');
+            }
         }
 
-        // Success message auto-hide
-        window.addEventListener('load', function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('success')) {
-                const message = document.createElement('div');
-                message.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-                message.textContent = 'Information updated successfully!';
-                document.body.appendChild(message);
+        const setDisabled = (disabled) => {
+            editables.forEach(el => {
+                el.disabled = disabled;
 
-                setTimeout(() => {
-                    message.remove();
-                }, 3000);
-            }
+                if (disabled) {
+                    // Read mode styling
+                    el.classList.add('read-mode');
+                    if (el.name === 'company') {
+                        el.classList.add('bg-transparent', 'border-0');
+                    } else if (el.name === 'product') {
+                        el.classList.add('bg-blue-50', 'text-blue-800', 'border-0');
+                    } else {
+                        el.classList.add('bg-gray-50', 'border-gray-100', 'text-gray-700');
+                    }
+                } else {
+                    // Edit mode styling
+                    el.classList.remove('read-mode');
+                    if (el.name === 'company') {
+                        el.classList.remove('bg-transparent', 'border-0');
+                        el.classList.add('border-gray-200', 'bg-white');
+                    } else if (el.name === 'product') {
+                        el.classList.remove('bg-blue-50', 'text-blue-800', 'border-0');
+                        el.classList.add('border-gray-200', 'bg-white', 'text-gray-900');
+                    } else {
+                        el.classList.remove('bg-gray-50', 'border-gray-100', 'text-gray-700');
+                        el.classList.add('bg-white', 'border-gray-200', 'text-gray-900');
+                    }
+                }
+            });
+
+            updateStatusBadge();
+        };
+
+        btnEdit.addEventListener('click', () => {
+            setDisabled(false);
+            btnEdit.classList.add('hidden');
+            btnSave.classList.remove('hidden');
+            btnCancel.classList.remove('hidden');
         });
 
-        // Form validation
-        document.querySelector('form').addEventListener('submit', function(e) {
-            const submitButton = this.querySelector('button[type="submit"]');
-            submitButton.innerHTML = `
-                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Updating...
-            `;
-            submitButton.disabled = true;
+        btnCancel.addEventListener('click', () => {
+            window.location.reload();
         });
+
+        statusSelect.addEventListener('change', updateStatusBadge);
+
+        // Initialize read mode
+        setDisabled(true);
+    });
     </script>
+
+    <!-- Enhanced Styling -->
+    <style>
+    .read-mode {
+        cursor: default !important;
+        pointer-events: none;
+    }
+
+    .read-mode:focus {
+        outline: none !important;
+        ring: 0 !important;
+        border-color: inherit !important;
+        box-shadow: none !important;
+    }
+
+    .status-badge {
+        appearance: none;
+        cursor: default;
+        pointer-events: none;
+    }
+
+    .status-badge:focus {
+        outline: none;
+        box-shadow: none;
+    }
+
+    /* Smooth transitions */
+    .editable {
+        transition: all 0.2s ease-in-out;
+    }
+
+    /* Mobile responsiveness */
+    @media (max-width: 640px) {
+        .grid {
+            grid-template-columns: 1fr;
+        }
+
+        .flex-col.sm\\:flex-row {
+            flex-direction: column;
+        }
+
+        .text-3xl {
+            font-size: 1.875rem;
+        }
+    }
+
+    /* Card hover effects */
+    .bg-white {
+        transition: box-shadow 0.2s ease-in-out;
+    }
+
+    .bg-white:hover {
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    </style>
 </x-app-layout>

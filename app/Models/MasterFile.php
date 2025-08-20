@@ -32,15 +32,16 @@ class MasterFile extends Model
         'artwork',
         'invoice_date',
         'invoice_number',
+        'product_category'
     ];
 
     /**
      * The attributes that should be cast to native types.
      */
     protected $casts = [
-        'date' => 'date',
-        'date_finish' => 'date',
-        'invoice_date' => 'date',
+        'date' => 'datetime',
+        'date_finish' => 'datetime',
+        'invoice_date' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -132,6 +133,26 @@ class MasterFile extends Model
         return $this->date ? Carbon::parse($this->date)->format('Y-m-d') : null;
     }
 
+    // app/Models/MasterFile.php
+    public function mediaCoordinator() {
+        return $this->hasOne(MediaCoordinatorTracking::class);
+    }
+
+    public function outdoorTrackCoordinator()
+    {
+        return $this->hasOne(OutdoorTrackCoordinator::class);
+    }
+
+    // Add to app/Models/MasterFile.php
+    public function kltgCoordinatorList()
+    {
+        return $this->hasOne(KltgCoordinatorList::class, 'master_file_id');
+    }
+
+    public function kltgDetails()
+    {
+        return $this->hasMany(KltgMonthlyDetail::class, 'master_file_id');
+    }
     /**
      * Get formatted date finish attribute
      */
@@ -169,4 +190,66 @@ class MasterFile extends Model
                 return 'status-pending';
         }
     }
+
+    /**
+     * Auto-detect product category based on product type
+     */
+    public static function detectCategory($product)
+    {
+        $product = strtolower(trim($product));
+
+        $outdoor = ['hm', 'tb', 'ttm', 'bb', 'star', 'flyers', 'bunting', 'signages'];
+        $kltg = ['kltg', 'kltg listing', 'kltg quarter page'];
+        $media = ['fb ig ad'];
+
+        if (in_array($product, $outdoor)) {
+            return 'Outdoor';
+        } elseif (in_array($product, $kltg)) {
+            return 'KLTG';
+        } elseif (in_array($product, $media)) {
+            return 'Media';
+        }
+
+        return 'Other'; // fallback
+    }
+
+    public function mediaOngoingJobs()
+    {
+        return $this->hasMany(MediaOngoingJob::class);
+    }
+
+    public function scopeCategory($query, $category)
+    {
+        return $query->where('product_category', $category);
+    }
+
+      public function kltgMatrix()
+    {
+        return $this->hasMany(KltgMonthlyDetail::class);
+    }
+
+    public function mediaOngoingJob()
+    {
+        return $this->hasOne(MediaOngoingJob::class, 'master_file_id');
+    }
+
+    public function kltgMonthlyDetail()
+    {
+        return $this->hasOne(KltgMonthlyDetail::class);
+    }
+
+    public function kltgMonthly()
+    {
+        return $this->hasOne(KltgMonthlyDetail::class, 'master_file_id');
+    }
+
+
+    public function outdoorTracking()
+    {
+        return $this->hasOne(OutdoorCoordinatorTracking::class);
+    }
+
+
+
+
 }

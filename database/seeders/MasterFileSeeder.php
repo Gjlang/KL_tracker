@@ -15,19 +15,19 @@ class MasterFileSeeder extends Seeder
      */
     public function run()
     {
-        // ✅ Disable foreign key constraints
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 
-        // 🚫 Cannot use truncate if related via foreign key — delete instead
         \App\Models\MasterFileTimeline::truncate();
-        \App\Models\MasterFile::truncate();
+        MasterFile::truncate();
 
-        // Seed data here...
-        \App\Models\MasterFile::factory()->count(10)->create();
+        // 👇 CALL YOUR FIXED & CSV SEEDING FUNCTIONS
+        $this->insertFixedData();
+        $this->importFromCSV();
 
-        // ✅ Enable foreign key constraints again
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
     }
+
+
 
 
     /**
@@ -40,7 +40,7 @@ class MasterFileSeeder extends Seeder
                 'month' => 'February',
                 'date' => '2024-02-05',
                 'company' => 'Media House Sdn Bhd',
-                'product' => 'BB',
+                'product' => 'Outdoor',
                 'traffic' => '1800',
                 'duration' => '30',
                 'status' => 'completed',
@@ -54,8 +54,8 @@ class MasterFileSeeder extends Seeder
             [
                 'month' => 'February',
                 'date' => '2024-02-12',
-                'company' => 'Outdoor Advertising Co',
-                'product' => 'Star',
+                'company' => 'FB IG Ad	',
+                'product' => 'FB IG Ad',
                 'traffic' => '2500',
                 'duration' => '90',
                 'status' => 'ongoing',
@@ -69,7 +69,7 @@ class MasterFileSeeder extends Seeder
             [
                 'month' => 'March',
                 'date' => '2024-03-01',
-                'company' => 'Print & Display Ltd',
+                'company' => ' titit',
                 'product' => 'KLTG',
                 'traffic' => '1200',
                 'duration' => '15',
@@ -85,7 +85,7 @@ class MasterFileSeeder extends Seeder
                 'month' => 'March',
                 'date' => '2024-03-08',
                 'company' => 'Event Marketing Group',
-                'product' => 'Flyers',
+                'product' => 'Outdoor',
                 'traffic' => '500',
                 'duration' => '7',
                 'status' => 'completed',
@@ -100,7 +100,7 @@ class MasterFileSeeder extends Seeder
                 'month' => 'March',
                 'date' => '2024-03-15',
                 'company' => 'Festival Organizers',
-                'product' => 'Bunting',
+                'product' => 'Outdoor',
                 'traffic' => '800',
                 'duration' => '10',
                 'status' => 'pending',
@@ -115,7 +115,7 @@ class MasterFileSeeder extends Seeder
                 'month' => 'April',
                 'date' => '2024-04-01',
                 'company' => 'Social Media Agency',
-                'product' => 'FB IG Ad',
+                'product' => 'Media Social Management',
                 'traffic' => '5000',
                 'duration' => '30',
                 'status' => 'ongoing',
@@ -130,7 +130,7 @@ class MasterFileSeeder extends Seeder
                 'month' => 'April',
                 'date' => '2024-04-10',
                 'company' => 'Signage Solutions',
-                'product' => 'Signages',
+                'product' => 'KLTG',
                 'traffic' => '1000',
                 'duration' => '20',
                 'status' => 'completed',
