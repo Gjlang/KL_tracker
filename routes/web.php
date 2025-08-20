@@ -152,6 +152,9 @@ Route::prefix('kltg')->name('kltg.')->group(function () {
     Route::post('/details/upsert', [KltgMonthlyController::class, 'upsert'])->name('details.upsert');
 });
 
+Route::get('/kltg/export/xlsx', [KltgMonthlyController::class, 'exportXlsx'])->name('kltg.export.xlsx');
+
+
 
 // ===============================================
 // MEDIA COORDINATOR ROUTES

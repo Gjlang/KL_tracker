@@ -8,6 +8,14 @@
 <div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
   <h2 class="text-2xl font-bold">📊 MONTHLY Ongoing Job – KL The Guide</h2>
 
+                    <!-- Back to Dashboard -->
+                    <button onclick="window.history.back()" class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                        </svg>
+                        Dashboard
+                    </button>
+
   {{-- Use a plain anchor to avoid form submission to the same page --}}
   <a href="{{ route('coordinator.kltg.index') }}"
      class="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition shadow-sm">
@@ -94,10 +102,10 @@
         <th class="sticky left-[280px] z-30 bg-yellow-100 border border-gray-400 px-3 py-2 text-left font-bold text-gray-700 whitespace-nowrap">Company</th>
         <th class="sticky left-[430px] z-30 bg-yellow-100 border border-gray-400 px-3 py-2 text-left font-bold text-gray-700 whitespace-nowrap">Product</th>
         <th class="sticky left-[530px] z-30 bg-yellow-100 border border-gray-400 px-3 py-2 text-left font-bold text-gray-700 whitespace-nowrap">Publication</th>
-        <th class="sticky left-[680px] z-30 bg-yellow-100 border border-gray-400 px-3 py-2 text-left font-bold text-gray-700 whitespace-nowrap">Status</th>
+        <th class="sticky left-[680px] z-30 bg-yellow-100 border border-gray-400 px-3 py-2 text-left font-bold text-gray-700 whitespace-nowrap">Edition</th>
+        <th class="sticky left-[830px] z-30 bg-yellow-100 border border-gray-400 px-3 py-2 text-left font-bold text-gray-700 whitespace-nowrap">Status</th>
         <th class="border border-gray-400 px-3 py-2 text-left font-bold text-gray-700 whitespace-nowrap">Start</th>
         <th class="border border-gray-400 px-3 py-2 text-left font-bold text-gray-700 whitespace-nowrap">End</th>
-        <th class="border border-gray-400 px-3 py-2 text-left font-bold text-gray-700 whitespace-nowrap">Edition</th>
 
         @for ($m=1; $m<=12; $m++)
           <th class="px-3 py-2 text-center border-l bg-gray-100 font-bold text-gray-700 min-w-[900px]">
@@ -137,20 +145,36 @@
               </span>
             </td>
 
-            {{-- Publication (always editable with enhanced styling) --}}
+            {{-- 3a) Publication input (left sticky column) - FIXED with correct data attributes --}}
             <td class="sticky left-[530px] z-10 bg-inherit border border-gray-300 px-3 py-2 align-top">
               <input
                 class="w-32 border rounded px-2 py-1 text-sm auto-save-input"
                 value="{{ $r['publication'] ?? '' }}"
                 data-master="{{ $r['id'] ?? '' }}"
                 data-year="{{ $year ?? date('Y') }}"
+                data-category="KLTG"
+                data-type="PUBLICATION"
                 data-field="publication"
                 oninput="debouncedSave(this)"
                 placeholder="Type name…">
             </td>
 
-            {{-- Status with enhanced styling --}}
+            {{-- 3b) Add the Edition input (it's missing) --}}
             <td class="sticky left-[680px] z-10 bg-inherit border border-gray-300 px-3 py-2 align-top">
+              <input
+                class="w-32 border rounded px-2 py-1 text-sm auto-save-input"
+                value="{{ $r['edition'] ?? '' }}"
+                data-master="{{ $r['id'] ?? '' }}"
+                data-year="{{ $year ?? date('Y') }}"
+                data-category="KLTG"
+                data-type="EDITION"
+                data-field="edition"
+                oninput="debouncedSave(this)"
+                placeholder="Type name…">
+            </td>
+
+            {{-- Status with enhanced styling --}}
+            <td class="sticky left-[830px] z-10 bg-inherit border border-gray-300 px-3 py-2 align-top">
               <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
                   {{ strtolower($r['status'] ?? '') === 'completed' ? 'bg-green-100 text-green-800 border border-green-200' :
                      (strtolower($r['status'] ?? '') === 'ongoing' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
@@ -161,16 +185,6 @@
 
             <td class="border border-gray-300 px-3 py-2 align-top text-gray-900">{{ $r['start'] ?? '' }}</td>
             <td class="border border-gray-300 px-3 py-2 align-top text-gray-900">{{ $r['end'] ?? '' }}</td>
-            <td class="sticky left-[530px] z-10 bg-inherit border border-gray-300 px-3 py-2 align-top">
-              <input
-                class="w-32 border rounded px-2 py-1 text-sm auto-save-input"
-                value="{{ $r['publication'] ?? '' }}"
-                data-master="{{ $r['id'] ?? '' }}"
-                data-year="{{ $year ?? date('Y') }}"
-                data-field="publication"
-                oninput="debouncedSave(this)"
-                placeholder="Type name…">
-            </td>
 
             {{-- Monthly Category Input Cells --}}
             @for ($m=1; $m<=12; $m++)
@@ -202,12 +216,11 @@
 
                         <!-- Input container -->
                         <div class="flex flex-col flex-1 p-2 space-y-2">
-                          <!-- Text input -->
+                          <!-- Status select with data-type="STATUS" -->
                           @php
                             $gridKey = sprintf('%02d_%s', $m, $c['code']);
                           @endphp
 
-                          <!-- ✅ Fixed: Text input uses correct category code, not "PUBLICATION" -->
                           <select
                             class="border border-gray-300 rounded px-2 py-2 text-xs w-full bg-white focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
                             data-input="text"
@@ -215,41 +228,45 @@
                             data-year="{{ $year ?? date('Y') }}"
                             data-month="{{ $m }}"
                             data-category="{{ $c['code'] }}"
-                             onchange="saveCell(this); setDropdownColor(this);"
-                                >
-                                    <option value=""></option>
-                                    <option value="Installation" style="color:red;" {{ ($r['grid'][$gridKey]['text'] ?? '') == 'Installation' ? 'selected' : '' }}>Installation</option>
-                                    <option value="Dismentel" style="color:red;" {{ ($r['grid'][$gridKey]['text'] ?? '') == 'Dismentel' ? 'selected' : '' }}>Dismentel</option>
-                                    <option value="Artwork" style="color:orange;" {{ ($r['grid'][$gridKey]['text'] ?? '') == 'Artwork' ? 'selected' : '' }}>Artwork</option>
-                                    <option value="Payment" style="color:red;" {{ ($r['grid'][$gridKey]['text'] ?? '') == 'Payment' ? 'selected' : '' }}>Payment</option>
-                                    <option value="Ongoing" style="color:lightblue;" {{ ($r['grid'][$gridKey]['text'] ?? '') == 'Ongoing' ? 'selected' : '' }}>Ongoing</option>
-                                    <option value="Renewal" style="color:red;" {{ ($r['grid'][$gridKey]['text'] ?? '') == 'Renewal' ? 'selected' : '' }}>Renewal</option>
-                                    <option value="Completed" style="color:green;" {{ ($r['grid'][$gridKey]['text'] ?? '') == 'Completed' ? 'selected' : '' }}>Completed</option>
-                                    <option value="Material" style="color:orange;" {{ ($r['grid'][$gridKey]['text'] ?? '') == 'Material' ? 'selected' : '' }}>Material</option>
-                                    <option value="Whatsapp" style="color:green;" {{ ($r['grid'][$gridKey]['text'] ?? '') == 'Whatsapp' ? 'selected' : '' }}>Whatsapp</option>
-                                    <option value="Posted" style="color:green;" {{ ($r['grid'][$gridKey]['text'] ?? '') == 'Posted' ? 'selected' : '' }}>Posted</option>
-                                </select>
-                          <!-- Date input - STAYS FILLED after save -->
+                            data-type="STATUS"
+                            onchange="saveCell(this); setDropdownColor(this);">
+                                <option value=""></option>
+                                <option value="Installation" style="color:red;" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Installation' ? 'selected' : '' }}>Installation</option>
+                                <option value="Dismentel" style="color:red;" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Dismentel' ? 'selected' : '' }}>Dismentel</option>
+                                <option value="Artwork" style="color:orange;" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Artwork' ? 'selected' : '' }}>Artwork</option>
+                                <option value="Payment" style="color:red;" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Payment' ? 'selected' : '' }}>Payment</option>
+                                <option value="Ongoing" style="color:lightblue;" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Ongoing' ? 'selected' : '' }}>Ongoing</option>
+                                <option value="Renewal" style="color:red;" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Renewal' ? 'selected' : '' }}>Renewal</option>
+                                <option value="Completed" style="color:green;" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Completed' ? 'selected' : '' }}>Completed</option>
+                                <option value="Material" style="color:orange;" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Material' ? 'selected' : '' }}>Material</option>
+                                <option value="Whatsapp" style="color:green;" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Whatsapp' ? 'selected' : '' }}>Whatsapp</option>
+                                <option value="Posted" style="color:green;" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Posted' ? 'selected' : '' }}>Posted</option>
+                          </select>
+
+                          <!-- 3c) Split date inputs into START and END -->
                           @php
-                            $inputId = "date-y{$year}-m{$m}-{$c['code']}-{$r['id']}-" . uniqid();
+                            $inputIdStart = "date-start-y{$year}-m{$m}-{$c['code']}-{$r['id']}-" . uniqid();
+                            $inputIdEnd = "date-end-y{$year}-m{$m}-{$c['code']}-{$r['id']}-" . uniqid();
                           @endphp
 
+                          <!-- START date input -->
                           <div class="flex items-center gap-1">
                             <input
-                              id="{{ $inputId }}"
+                              id="{{ $inputIdStart }}"
                               type="date"
                               class="border rounded px-2 py-1 w-full text-xs"
-                              value="{{ $r['grid'][$gridKey]['date'] ?? '' }}"
+                              value="{{ $r['grid'][$gridKey]['start'] ?? '' }}"
                               data-input="date"
                               data-master="{{ $r['id'] ?? '' }}"
                               data-year="{{ $year }}"
                               data-month="{{ $m }}"
                               data-category="{{ $c['code'] }}"
+                              data-type="START"
                               onchange="saveCell(this)">
                             <button type="button"
                               class="p-1 border rounded text-xs hover:bg-gray-100 flex-shrink-0"
-                              onclick="document.getElementById('{{ $inputId }}').showPicker()"
-                              title="Open calendar">📅</button>
+                              onclick="document.getElementById('{{ $inputIdStart }}').showPicker()"
+                              title="Start date">📅</button>
                           </div>
                         </div>
                       </div>
@@ -262,7 +279,7 @@
         @endforeach
       @else
         <tr>
-          <td colspan="21" class="border border-gray-300 px-6 py-12 text-center text-gray-500">
+          <td colspan="22" class="border border-gray-300 px-6 py-12 text-center text-gray-500">
             <div class="flex flex-col items-center">
               <svg class="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
@@ -297,117 +314,60 @@ function getCSRFToken() {
 // ✅ DEBOUNCED SAVE FOR ALL FIELDS INCLUDING PUBLICATION
 let saveTimeout;
 function debouncedSave(el) {
-    clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(() => {
-        saveCell(el);
-    }, 500);
+  // Publication & Edition should NOT go to saveCell()
+  const f = (el.dataset.field || '').toLowerCase();
+  const t = (el.dataset.type || '').toUpperCase();
+
+  if (f === 'publication' || t === 'PUBLICATION' || f === 'edition' || t === 'EDITION') {
+    return savePublicationField(el); // this sets a fixed month internally
+  }
+  return saveCell(el);
 }
 
 // ✅ SPECIALIZED FUNCTION FOR PUBLICATION FIELD
 function savePublicationField(el) {
-    console.log('🔍 savePublicationField called for element:', el);
+  const csrfToken = getCSRFToken();
+  const master = parseInt(el.dataset.master, 10);
+  const year   = parseInt(el.dataset.year, 10);
+  const value  = (el.value || '').trim();
 
-    // Get CSRF Token
-    const csrfToken = getCSRFToken();
-    if (!csrfToken) {
-        console.error('❌ CSRF token not found');
-        alert('CSRF token missing. Please refresh the page.');
-        return;
-    }
+  // Use provided category (KLTG) and mark the field type explicitly
+  const category = (el.dataset.category || 'KLTG').toUpperCase(); // must be one of KLTG/VIDEO/ARTICLE/LB/EM
+  const type     = (el.dataset.type || 'PUBLICATION').toUpperCase();
 
-    // Get master file ID
-    let master = parseInt(el.dataset.master, 10);
-    if (!master || isNaN(master)) {
-        const tr = el.closest('tr');
-        master = parseInt(tr?.dataset.master, 10);
-    }
+  const payload = {
+    master_file_id: master,
+    year: year,
+    month: 1,                  // non-month-specific; use 1 as sentinel
+    category: category,
+    type: type,                // <-- crucial
+    field_type: 'text',
+    value: value || null
+  };
 
-    console.log('🔍 Master file ID found:', master);
-
-    if (!master || isNaN(master)) {
-        console.error('❌ Missing data-master attribute');
-        alert('Error: Could not find master file ID. Please refresh the page.');
-        return;
-    }
-
-    const year = parseInt(el.dataset.year, 10);
-    const field = el.dataset.field; // Should be 'publication'
-    const value = (el.value || '').trim();
-
-    console.log('🔍 Publication data:', { master, year, field, value });
-
-    if (!year || !field) {
-        console.error('❌ Missing required data:', { year, field });
-        alert('Error: Missing required data. Please refresh the page.');
-        return;
-    }
-
-    // For publication field, we use a special category
-    const payload = {
-        master_file_id: master,
-        year: year,
-        month: 1, // Publication is not month-specific, but backend requires it
-        category: 'PUBLICATION',
-        field_type: 'text',
-        value: value || null
-    };
-
-    console.log('🚀 Publication payload being sent:', payload);
-
-    // Show loading
-    el.classList.add('opacity-50');
-    el.disabled = true;
-
-    fetch(UPDATE_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRF-TOKEN': csrfToken,
-        },
-        body: JSON.stringify(payload),
-    })
-    .then(response => {
-        console.log('📡 Response status:', response.status);
-        return response.text().then(text => {
-            console.log('📡 Raw response:', text);
-            let data;
-            try {
-                data = JSON.parse(text);
-            } catch (e) {
-                console.error('❌ Failed to parse JSON:', e);
-                throw new Error('Invalid JSON response: ' + text.slice(0, 200));
-            }
-
-            if (!response.ok) {
-                throw new Error(data.message || `HTTP ${response.status}: ${text}`);
-            }
-
-            return data;
-        });
-    })
-    .then(data => {
-        console.log('✅ Publication saved successfully:', data);
-
-        // Success feedback with green ring
-        el.classList.add('ring-2', 'ring-green-400');
-        setTimeout(() => el.classList.remove('ring-2', 'ring-green-400'), 1000);
-    })
-    .catch(error => {
-        console.error('❌ Publication save error:', error);
-        alert('Save failed: ' + error.message);
-
-        // Error feedback
-        el.classList.add('ring-2', 'ring-red-400');
-        setTimeout(() => el.classList.remove('ring-2', 'ring-red-400'), 2000);
-    })
-    .finally(() => {
-        // Remove loading state
-        el.classList.remove('opacity-50');
-        el.disabled = false;
-    });
+  fetch(UPDATE_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+      'X-CSRF-TOKEN': csrfToken,
+    },
+    body: JSON.stringify(payload),
+  })
+  .then(r => r.json().then(j => (r.ok ? j : Promise.reject(j))))
+  .then(() => {
+    el.classList.add('ring-2','ring-green-400');
+    setTimeout(() => el.classList.remove('ring-2','ring-green-400'), 800);
+  })
+  .catch(err => {
+    console.error(err);
+    el.classList.add('ring-2','ring-red-400');
+    setTimeout(() => el.classList.remove('ring-2','ring-red-400'), 1200);
+    alert(err?.message || 'Save failed');
+  });
 }
+
 
 function normalizeDate(v, year) {
     const s = (v || '').trim();
@@ -422,123 +382,133 @@ function normalizeDate(v, year) {
 }
 
 function saveCell(el) {
-    console.log('🔍 saveCell called for element:', el);
+  console.log('🔍 saveCell called for element:', el);
 
-    // Special handling for publication field
-    if (el.dataset.field === 'publication') {
-        return savePublicationField(el);
+  // 0) Route Publication & Edition to their specialized saver
+  const field  = (el.dataset.field || '').toLowerCase();
+  const tHint  = (el.dataset.type  || '').toUpperCase();
+  if (
+    field === 'publication' || tHint === 'PUBLICATION' ||
+    field === 'edition'     || tHint === 'EDITION'
+  ) {
+    return savePublicationField(el); // uses month=1 sentinel
+  }
+
+  // 1) CSRF
+  const csrfToken = getCSRFToken();
+  if (!csrfToken) {
+    console.error('❌ CSRF token not found');
+    alert('CSRF token missing. Please refresh the page.');
+    return;
+  }
+
+  // 2) Resolve master id
+  let master = parseInt(el.dataset.master || (el.closest('tr')?.dataset.master ?? ''), 10);
+  if (!Number.isInteger(master)) {
+    console.error('❌ Missing data-master attribute');
+    alert('Error: Could not find master file ID. Please refresh the page.');
+    return;
+  }
+
+  // 3) Resolve year (fallbacks to a global holder or current year)
+  let year = parseInt(
+    el.dataset.year ||
+    document.querySelector('[data-active-year]')?.dataset.activeYear ||
+    new Date().getFullYear(),
+    10
+  );
+
+  // 4) Resolve month (look up the tree if not on the element)
+  const monthRaw =
+    el.dataset.month ||
+    el.closest('[data-month]')?.dataset.month ||
+    el.closest('td')?.dataset.month ||
+    el.closest('div[data-month]')?.dataset.month;
+
+  let month = parseInt(monthRaw, 10);
+
+  // 5) Resolve category (fallback from closest container if needed)
+  let category = (el.dataset.category ||
+                  el.closest('[data-category]')?.dataset.category ||
+                  '').toUpperCase();
+
+  // 6) Value + type
+  const isDate = (el.dataset.input === 'date') || (el.type === 'date');
+  let value    = (el.value ?? '').trim();
+  if (value === '') value = null;
+
+  // DEFAULT type if not explicitly provided on the element
+  let type = (tHint || (isDate ? 'START' : 'STATUS')).toUpperCase();
+
+  // Normalize date to YYYY-MM-DD (in case browser/localization returns something else)
+  if (isDate && value) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const d = new Date(value);
+      if (!isNaN(d.getTime())) value = d.toISOString().slice(0, 10);
     }
+  }
 
-    // Get CSRF Token
-    const csrfToken = getCSRFToken();
-    if (!csrfToken) {
-        console.error('❌ CSRF token not found');
-        alert('CSRF token missing. Please refresh the page.');
-        return;
+  console.log('🔍 Form data collected:', { master, year, month, category, isDate, type, value });
+
+  // 7) Validate requireds for month-based cells
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12 || !category) {
+    console.error('❌ Missing required data:', { year, month, category });
+    alert('Error: Missing required data (year/month/category). Please refresh the page.');
+    return;
+  }
+
+  const payload = {
+    master_file_id: master,
+    year,
+    month,
+    category,                        // KLTG/VIDEO/ARTICLE/LB/EM
+    type,                            // STATUS | START | END (or explicit via data-type)
+    field_type: isDate ? 'date' : 'text',
+    value
+  };
+
+  console.log('🚀 Payload being sent:', payload);
+
+  // UI: loading state
+  el.classList.add('opacity-50');
+  el.disabled = true;
+
+  fetch(UPDATE_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+      'X-CSRF-TOKEN': csrfToken,
+    },
+    body: JSON.stringify(payload),
+  })
+  .then(response => response.text().then(text => {
+    let data;
+    try { data = JSON.parse(text); } catch (e) {
+      console.error('❌ Failed to parse JSON:', e, text);
+      throw new Error('Invalid JSON response');
     }
-
-    // Get master file ID
-    let master = parseInt(el.dataset.master, 10);
-    if (!master || isNaN(master)) {
-        const tr = el.closest('tr');
-        master = parseInt(tr?.dataset.master, 10);
-    }
-
-    console.log('🔍 Master file ID found:', master);
-
-    if (!master || isNaN(master)) {
-        console.error('❌ Missing data-master attribute');
-        console.log('Element:', el);
-        console.log('Closest TR:', el.closest('tr'));
-        alert('Error: Could not find master file ID. Please refresh the page.');
-        return;
-    }
-
-    const year = parseInt(el.dataset.year, 10);
-    const month = parseInt(el.dataset.month, 10);
-    const category = (el.dataset.category || '').toUpperCase();
-    const isDate = el.dataset.input === 'date';
-    const raw = (el.value || '').trim();
-
-    console.log('🔍 Form data collected:', { master, year, month, category, isDate, raw });
-
-    if (!year || !month || !category) {
-        console.error('❌ Missing required data:', { year, month, category });
-        alert('Error: Missing required data. Please refresh the page.');
-        return;
-    }
-
-    const payload = {
-        master_file_id: master,
-        year,
-        month,
-        category,
-        field_type: isDate ? 'date' : 'text',
-        value: raw || null
-    };
-
-    console.log('🚀 Payload being sent:', payload);
-
-    // Show loading
-    el.classList.add('opacity-50');
-    el.disabled = true;
-
-    fetch(UPDATE_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRF-TOKEN': csrfToken,
-        },
-        body: JSON.stringify(payload),
-    })
-    .then(response => {
-        console.log('📡 Response status:', response.status);
-        console.log('📡 Response URL:', response.url);
-
-        return response.text().then(text => {
-            console.log('📡 Raw response:', text);
-
-            let data;
-            try {
-                data = JSON.parse(text);
-            } catch (e) {
-                console.error('❌ Failed to parse JSON:', e);
-                throw new Error('Invalid JSON response: ' + text.slice(0, 200));
-            }
-
-            if (!response.ok) {
-                throw new Error(data.message || `HTTP ${response.status}: ${text}`);
-            }
-
-            return data;
-        });
-    })
-    .then(data => {
-        console.log('✅ Success response:', data);
-
-        // ✅ DATA PERSISTENCE - Keep values in both text and date fields
-        console.log('✅ Data saved successfully - input value stays:', el.value);
-
-        // Success feedback with green ring
-        el.classList.add('ring-2', 'ring-green-400');
-        setTimeout(() => el.classList.remove('ring-2', 'ring-green-400'), 1000);
-    })
-    .catch(error => {
-        console.error('❌ Fetch error:', error);
-        alert('Save failed: ' + error.message);
-
-        // Error feedback
-        el.classList.add('ring-2', 'ring-red-400');
-        setTimeout(() => el.classList.remove('ring-2', 'ring-red-400'), 2000);
-    })
-    .finally(() => {
-        // Remove loading state
-        el.classList.remove('opacity-50');
-        el.disabled = false;
-    });
+    if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
+    return data;
+  }))
+  .then(data => {
+    console.log('✅ Success response:', data);
+    el.classList.add('ring-2', 'ring-green-400');
+    setTimeout(() => el.classList.remove('ring-2', 'ring-green-400'), 1000);
+  })
+  .catch(error => {
+    console.error('❌ Fetch error:', error);
+    alert('Save failed: ' + error.message);
+    el.classList.add('ring-2', 'ring-red-400');
+    setTimeout(() => el.classList.remove('ring-2', 'ring-red-400'), 2000);
+  })
+  .finally(() => {
+    el.classList.remove('opacity-50');
+    el.disabled = false;
+  });
 }
+
 
 
 function setDropdownColor(selectEl) {

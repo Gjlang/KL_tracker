@@ -24,6 +24,15 @@
     <main class="flex-1 overflow-y-auto">
       <div class="p-4 md:p-8 max-w-[100vw]">
 
+
+        <!-- Back to Dashboard -->
+                    <button onclick="window.history.back()" class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                        </svg>
+                        Dashboard
+                    </button>
+
         {{-- Header Section --}}
         <div class="mb-8">
           <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">

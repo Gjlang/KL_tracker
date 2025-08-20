@@ -32,37 +32,35 @@ class KltgCoordinatorController extends Controller
         return $map[$k] ?? 'KLTG';
     }
 
-    /** UI tab token -> stored value in DB */
+
+    // UI tab -> nilai yang DISIMPAN di DB
     private function tabToStored(string $tab): string
-{
-    // Your database ENUM is: 'print','video','article','lb','em'
-    // So we store exactly these values
-    return match(strtolower(trim($tab))) {
-        'print' => 'print',
-        'video' => 'video',
-        'article' => 'article',
-        'lb' => 'lb',
-        'em' => 'em',
-        default => 'print',
-    };
-}
+    {
+        return match (strtolower(trim($tab))) {
+            'print'   => 'KLTG',
+            'video'   => 'Video',
+            'article' => 'Article',
+            'lb'      => 'LB',
+            'em'      => 'EM',
+            default   => 'KLTG',
+        };
+    }
 
-    /** Stored value in DB -> UI tab token */
+    // nilai di DB -> UI tab
     private function storedToTab(string $stored): string
-{
-    // Since DB stores the same as UI tabs, just return as-is
-    return match(trim($stored)) {
-        'print' => 'print',
-        'video' => 'video',
-        'article' => 'article',
-        'lb' => 'lb',
-        'em' => 'em',
-        default => 'print',
-    };
-}
+    {
+        return match (trim($stored)) {
+            'KLTG'    => 'print',
+            'Video'   => 'video',
+            'Article' => 'article',
+            'LB'      => 'lb',
+            'EM'      => 'em',
+            default   => 'print',
+        };
+    }
 
 
-     public function index(Request $request)
+    public function index(Request $request)
     {
         $activeTab = $request->get('tab', 'print'); // default KLTG/Print
         $month     = $request->get('month');        // 1..12 or null
@@ -90,11 +88,13 @@ class KltgCoordinatorController extends Controller
             ->get();
 
         $ids = $rows->pluck('id')->all();
+        $storedSub = $this->tabToStored(strtolower($activeTab));
 
         $existing = KltgCoordinatorList::query()
             ->whereIn('master_file_id', $ids)
+            ->where('subcategory', $storedSub)
             ->get()
-            ->keyBy(fn($m) => "{$m->master_file_id}|".$this->storedToTab($m->subcategory));
+            ->keyBy('master_file_id');
 
         // column metadata per tab
         $columns = [
@@ -169,11 +169,11 @@ class KltgCoordinatorController extends Controller
      */
      public function upsert(Request $request)
 {
-    Log::info('KLTG Upsert Request:', $request->all());
+    // 1) Normalize tab/subcategory
+    $tab = strtolower((string)$request->input('subcategory', ''));
+    $storedSub = $this->tabToStored($tab); // e.g. print->KLTG, video->Video, ...
 
-    $tab = strtolower($request->input('subcategory'));
-    $storedSub = $this->tabToStored($tab); // Now stores: 'print', 'video', etc.
-
+    // 2) Validate basic payload
     $validated = $request->validate([
         'master_file_id' => ['required','integer', Rule::exists('master_files','id')],
         'subcategory'    => ['required', Rule::in(['print','video','article','lb','em'])],
@@ -181,131 +181,122 @@ class KltgCoordinatorController extends Controller
         'value'          => ['nullable'],
     ]);
 
-    // MATCH YOUR ACTUAL DATABASE COLUMN NAMES
-    $aliases = [
-        // Map UI field names to your actual DB column names
-        'artwork_party' => 'artwork_party',  // DB column exists
-        'artwork_reminder_date' => 'artwork_reminder_date',  // DB column exists
-        'material_received_date' => 'material_received_date',  // DB column exists
-        'artwork_done_date' => 'artwork_done_date',  // DB column exists
-        'send_chop_sign_date' => 'send_chop_sign_date',  // DB column exists
-        'chop_sign_approval_date' => 'chop_sign_approval_date',  // DB column exists
-        'park_in_server_date' => 'park_in_server_date',  // DB column exists
-
-        // Add any other aliases you need
-    ];
-
+    $sub   = $validated['subcategory'];
     $field = $validated['field'];
-    if (isset($aliases[$field])) {
-        $field = $aliases[$field];
-    }
-
-    // ALLOW FIELDS THAT ACTUALLY EXIST IN YOUR DATABASE
-    $allow = [
-        'print' => [
-            'title','client_bp','x','edition','publication','artwork_party',
-            'artwork_reminder_date','artwork_done_date','send_chop_sign_date',
-            'chop_sign_approval_date','park_in_server_date',
-        ],
-        'video' => [
-            'title','client_bp','x','material_reminder_text','material_received_date',
-            'video_done_date','pending_approval_date','video_scheduled_date',
-            'video_posted_date','post_link'
-        ],
-        'lb' => [
-            'title','client_bp','x','material_reminder_text','material_received_date',
-            'video_done_date','pending_approval_date','video_approved_date',
-            'video_scheduled_date','video_posted_date','post_link'
-        ],
-        'article' => [
-            'title','client_bp','x','material_reminder_text','material_received_date',
-            'article_done_date','pending_approval_date','article_approved_date',
-            'article_scheduled_date','article_posted_date','post_link'
-        ],
-        'em' => [
-            'client_bp','em_date_write','em_date_to_post','em_post_date',
-            'em_qty','blog_link'
-        ],
-    ];
-
-    $sub = $validated['subcategory'];
-
-    if (!in_array($field, $allow[$sub], true)) {
-        Log::error("Invalid field for subcategory", [
-            'field' => $field,
-            'subcategory' => $sub,
-            'allowed' => $allow[$sub]
-        ]);
-        abort(422, "The selected field key '{$field}' is invalid for subcategory '{$sub}'");
-    }
-
     $value = $validated['value'];
 
-    // Handle dates - your DB columns are already DATE type
-    $dateFields = [
-        'material_received_date','video_done_date','pending_approval_date',
-        'video_approved_date','video_scheduled_date','video_posted_date',
-        'article_done_date','article_approved_date','article_scheduled_date',
-        'article_posted_date','artwork_reminder_date','artwork_done_date',
-        'send_chop_sign_date','chop_sign_approval_date','park_in_server_date',
+    // 3) Normalize *_date keys -> canonical DB columns
+    $dateKeyMap = [
+        'artwork_reminder_date'    => 'artwork_reminder',
+        'material_received_date'   => 'material_record',
+        'artwork_done_date'        => 'artwork_done',
+        'send_chop_sign_date'      => 'send_chop_sign',
+        'chop_sign_approval_date'  => 'chop_sign_approval',
+        'park_in_server_date'      => 'park_in_file_server',
+        'video_done_date'          => 'video_done',
+        'pending_approval_date'    => 'pending_approval',
+        'video_approved_date'      => 'video_approved',
+        'video_scheduled_date'     => 'video_scheduled',
+        'video_posted_date'        => 'video_posted',
+        'article_done_date'        => 'article_done',
+        'article_approved_date'    => 'article_approved',
+        'article_scheduled_date'   => 'article_scheduled',
+        'article_posted_date'      => 'article_posted',
+    ];
+    if (isset($dateKeyMap[$field])) $field = $dateKeyMap[$field];
+
+    // 4) UI -> DB aliases
+    $aliases = [
+        'title'        => 'title_snapshot',
+        'company'      => 'company_snapshot',
+        'client_bp'    => 'client_bp',
+        'x'            => 'x',
+        'edition'      => 'edition',
+        'publication'  => 'publication',
+        'remarks'      => 'remarks',
+        'artwork_party'      => 'artwork_bp_client',
+        'material_received'  => 'material_record',
+        'park_in_server'     => 'park_in_file_server',
+        'material_reminder_text' => 'material_reminder_text',
+        'post_link'              => 'post_link',
+        'video_done'             => 'video_done',
+        'pending_approval'       => 'pending_approval',
+        'video_approved'         => 'video_approved',
+        'video_scheduled'        => 'video_scheduled',
+        'video_posted'           => 'video_posted',
+        'article_done'           => 'article_done',
+        'article_approved'       => 'article_approved',
+        'article_scheduled'      => 'article_scheduled',
+        'article_posted'         => 'article_posted',
+        'em_date_write'          => 'em_date_write',
+        'em_date_to_post'        => 'em_date_to_post',
+        'em_post_date'           => 'em_post_date',
+        'em_qty'                 => 'em_qty',
+        'blog_link'              => 'blog_link',
+    ];
+    $column = $aliases[$field] ?? $field;
+
+    // 5) Allowed DB columns per tab
+    $allow = [
+        'print' => ['title_snapshot','company_snapshot','client_bp','x','edition','publication','artwork_bp_client','artwork_reminder','material_record','artwork_done','send_chop_sign','chop_sign_approval','park_in_file_server','remarks'],
+        'video' => ['title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text','material_record','video_done','pending_approval','video_approved','video_scheduled','video_posted','post_link'],
+        'article' => ['title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text','material_record','article_done','pending_approval','article_approved','article_scheduled','article_posted','post_link'],
+        'lb' => ['title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text','material_record','video_done','pending_approval','video_approved','video_scheduled','video_posted','post_link'],
+        'em' => ['company_snapshot','client_bp','remarks','em_date_write','em_date_to_post','em_post_date','em_qty','blog_link'],
+    ];
+    if (!in_array($column, $allow[$sub], true)) {
+        return response()->json(['ok'=>false,'error'=>"The selected field key '{$column}' is invalid for subcategory '{$sub}'",'allowed'=>$allow[$sub]], 422);
+    }
+
+    // 6) Coerce types
+    if ($column === 'x') {
+        $value = filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+    }
+    $dateColumns = [
+        'artwork_reminder','material_record','artwork_done','send_chop_sign','chop_sign_approval','park_in_file_server',
+        'video_done','pending_approval','video_approved','video_scheduled','video_posted',
+        'article_done','article_approved','article_scheduled','article_posted',
         'em_date_write','em_date_to_post','em_post_date',
     ];
-
-    if (in_array($field, $dateFields, true)) {
-        if ($value && $value !== '') {
-            try {
-                $value = date('Y-m-d', strtotime($value));
-            } catch (\Exception $e) {
-                $value = null;
-            }
-        } else {
-            $value = null;
-        }
+    if (in_array($column, $dateColumns, true)) {
+        $value = ($value !== null && $value !== '') ? date('Y-m-d', strtotime((string)$value)) : null;
     }
-
+    if ($column === 'em_qty') {
+        $value = ($value === '' || $value === null) ? null : (int)$value;
+    }
     if ($value === '') $value = null;
 
-    Log::info('About to save:', [
+    // 7) Upsert with composite keys (master_file_id + subcategory)
+    $keys = [
         'master_file_id' => (int)$validated['master_file_id'],
-        'subcategory' => $storedSub,  // Now: 'print', 'video', etc.
-        'field' => $field,
-        'value' => $value
+        'subcategory'    => $storedSub, // e.g. 'KLTG'
+    ];
+
+    // buat nilai default saat insert pertama kali (optional)
+    $insertDefaults = [
+        'company_snapshot' => $request->input('company') ?? null,
+        'title_snapshot'   => $request->input('title') ?? null,
+        'created_at'       => now(),
+    ];
+
+    $update = array_merge($insertDefaults, [
+        $column      => $value,
+        'updated_at' => now(),
     ]);
 
-    try {
-        $row = KltgCoordinatorList::updateOrCreate(
-            [
-                'master_file_id' => (int)$validated['master_file_id'],
-                'subcategory' => $storedSub  // Store: 'print', 'video', etc.
-            ],
-            [$field => $value]
-        );
+    DB::table('kltg_coordinator_lists')->updateOrInsert($keys, $update);
 
-        Log::info('Successfully saved:', ['id' => $row->id]);
+    // 8) Read-back for debug/confirmation
+    $row = DB::table('kltg_coordinator_lists')->where($keys)->first();
 
-        return response()->json([
-            'ok' => true,
-            'id' => $row->id,
-            'updated_at' => $row->updated_at?->toDateTimeString(),
-            'stored' => compact('field','value')
-        ]);
-
-    } catch (\Exception $e) {
-        Log::error('Failed to save KLTG data:', [
-            'error' => $e->getMessage(),
-            'master_file_id' => $validated['master_file_id'],
-            'subcategory' => $storedSub,
-            'field' => $field,
-            'value' => $value
-        ]);
-
-        return response()->json([
-            'ok' => false,
-            'error' => $e->getMessage()
-        ], 500);
-    }
+    return response()->json([
+        'ok'          => true,
+        'where'       => $keys,
+        'column'      => $column,
+        'value'       => $value,
+        'row_after'   => $row,    // handy to see in Network tab
+    ]);
 }
-
     /** Masters that DON'T yet have a coordinator row for the selected subcategory */
     public function getEligibleMasterFiles(Request $request)
     {

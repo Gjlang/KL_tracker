@@ -5,10 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\MasterFile;
 use App\Models\OutdoorCoordinatorTracking;
-use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-
 
 class OutdoorCoordinatorController  extends Controller
 {
@@ -161,39 +159,110 @@ class OutdoorCoordinatorController  extends Controller
     }
 
     /**
-     * 🔥 NEW: AJAX Update Field for Inline Editing
+     * 🔥 UPDATED: AJAX Update Field for Inline Editing - Enhanced version
      */
     public function updateField(Request $request)
     {
-        $job = OutdoorCoordinatorTracking::with('masterFile')->findOrFail($request->id);
+        try {
+            $validated = $request->validate([
+                'id' => 'required|exists:outdoor_coordinator_trackings,id',
+                'field' => 'required|string',
+                'value' => 'nullable|string'
+            ]);
 
-        $field = $request->field;
-        $value = $request->value;
+            $job = OutdoorCoordinatorTracking::with('masterFile')->findOrFail($validated['id']);
+            $field = $validated['field'];
+            $value = $validated['value'];
 
-        // Daftar field yang ada di master_files
-        $masterFields = [
-            'check_jan', 'check_feb', 'check_mar', 'check_apr',
-            'check_may', 'check_jun', 'check_jul', 'check_aug',
-            'check_sep', 'check_oct', 'check_nov', 'check_dec',
-        ];
+            // Handle month checkboxes that need to go to master_files table
+            $masterFields = [
+                'check_jan', 'check_feb', 'check_mar', 'check_apr',
+                'check_may', 'check_jun', 'check_jul', 'check_aug',
+                'check_sep', 'check_oct', 'check_nov', 'check_dec',
+            ];
 
-        if (in_array($field, $masterFields)) {
-            if ($job->masterFile) {
-                $job->masterFile->{$field} = $value;
-                $job->masterFile->save();
-                return response()->json(['success' => true]);
-            } else {
-                return response()->json(['error' => 'No master file found.'], 404);
+            if (in_array($field, $masterFields)) {
+                if ($job->masterFile) {
+                    // Convert value to boolean for checkboxes
+                    $boolValue = filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+                    $job->masterFile->{$field} = $boolValue;
+                    $job->masterFile->save();
+                    return response()->json(['success' => true, 'value' => $boolValue]);
+                } else {
+                    return response()->json(['error' => 'No master file found.'], 404);
+                }
             }
+
+            // Fields that go to outdoor_coordinator_trackings table
+            $allowedFields = [
+                'site', 'payment', 'material', 'artwork', 'received_approval',
+                'sent_to_printer', 'collection_printer', 'installation',
+                'dismantle', 'remarks', 'next_follow_up', 'status'
+            ];
+
+            if (!in_array($field, $allowedFields)) {
+                return response()->json(['error' => 'Field not allowed for editing.'], 400);
+            }
+
+            // Handle date fields
+            $dateFields = [
+                'received_approval', 'sent_to_printer', 'collection_printer',
+                'installation', 'dismantle', 'next_follow_up'
+            ];
+
+            if (in_array($field, $dateFields) && !empty($value)) {
+                // Validate date format
+                $date = \DateTime::createFromFormat('Y-m-d', $value);
+                if (!$date || $date->format('Y-m-d') !== $value) {
+                    return response()->json(['error' => 'Invalid date format. Use YYYY-MM-DD.'], 400);
+                }
+            }
+
+            // Handle status field validation
+            if ($field === 'status' && !in_array($value, ['pending', 'ongoing', 'completed', null])) {
+                return response()->json(['error' => 'Invalid status value.'], 400);
+            }
+
+            // Update the field
+            $job->{$field} = $value;
+            $job->save();
+
+            // Auto-update status based on progress if we're not directly updating status
+            if ($field !== 'status') {
+                $newStatus = $this->calculateStatus($job);
+                if ($newStatus !== $job->status) {
+                    $job->status = $newStatus;
+                    $job->save();
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'value' => $value,
+                'status' => $job->status // Return updated status
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        } catch (\Exception $e) {
+            Log::error('updateField error', ['error' => $e->getMessage()]);
+            return response()->json(['error' => 'Server error occurred.'], 500);
         }
-
-        // Kalau field bukan bulan, update normal
-        $job->{$field} = $value;
-        $job->save();
-
-        return response()->json(['success' => true]);
     }
 
+    /**
+     * Calculate status based on progress
+     */
+    private function calculateStatus($job)
+    {
+        if (!empty($job->dismantle)) {
+            return 'completed';
+        } elseif (!empty($job->installation)) {
+            return 'ongoing';
+        } else {
+            return 'pending';
+        }
+    }
 
     public function syncWithMasterFiles()
     {
@@ -391,31 +460,39 @@ class OutdoorCoordinatorController  extends Controller
         return view('coordinator.outdoor.edit', compact('tracking', 'masterFiles'));
     }
 
+    /**
+     * 🔥 FIXED: Update method now handles both full forms and AJAX partial updates
+     */
     public function update(Request $request, $id)
     {
         $tracking = OutdoorCoordinatorTracking::findOrFail($id);
 
-        $validated = $request->validate([
-            'master_file_id' => 'required|exists:master_files,id',
-            'site' => 'nullable|string|max:255',
-            'payment' => 'nullable|string|max:100',
-            'material' => 'nullable|string|max:100',
-            'artwork' => 'nullable|string|max:100',
-            'received_approval' => 'nullable|date',
-            'sent_to_printer' => 'nullable|date',
-            'collection_printer' => 'nullable|date',
-            'installation' => 'nullable|date',
-            'dismantle' => 'nullable|date',
-            'remarks' => 'nullable|string',
-            'next_follow_up' => 'nullable|date',
-            'status' => 'nullable|in:pending,ongoing,completed'
-        ]);
+        // Use 'sometimes' validation rules to allow partial updates
+        $rules = [
+            'master_file_id'     => 'sometimes|required|exists:master_files,id',
+            'site'               => 'sometimes|nullable|string|max:255',
+            'payment'            => 'sometimes|nullable|string|max:100',
+            'material'           => 'sometimes|nullable|string|max:100',
+            'artwork'            => 'sometimes|nullable|string|max:100',
+            'received_approval'  => 'sometimes|nullable|date',
+            'sent_to_printer'    => 'sometimes|nullable|date',
+            'collection_printer' => 'sometimes|nullable|date',
+            'installation'       => 'sometimes|nullable|date',
+            'dismantle'          => 'sometimes|nullable|date',
+            'remarks'            => 'sometimes|nullable|string',
+            'next_follow_up'     => 'sometimes|nullable|date',
+            'status'             => 'sometimes|nullable|in:pending,ongoing,completed'
+        ];
 
-        // Auto-update status based on progress
+        $validated = $request->validate($rules);
+
+        // Auto-update status based on progress if status not explicitly provided
         if (!isset($validated['status'])) {
-            if (!empty($validated['dismantle'])) {
+            $tracking->fill($validated); // Fill with new data to check latest state
+
+            if (!empty($tracking->dismantle)) {
                 $validated['status'] = 'completed';
-            } elseif (!empty($validated['installation'])) {
+            } elseif (!empty($tracking->installation)) {
                 $validated['status'] = 'ongoing';
             } else {
                 $validated['status'] = 'pending';
@@ -424,32 +501,85 @@ class OutdoorCoordinatorController  extends Controller
 
         $tracking->update($validated);
 
+        // Return appropriate response based on request type
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Record updated successfully',
+                'data' => $tracking->load('masterFile')
+            ]);
+        }
+
         return redirect()->route('coordinator.outdoor.index')
                         ->with('success', 'Outdoor tracking record updated successfully!');
     }
 
+    /**
+     * 🔥 ENHANCED: Better inline update method
+     */
     public function updateInline(Request $request)
     {
-        $validated = $request->validate([
-            'id' => 'required|exists:outdoor_coordinator_trackings,id',
-            'field' => 'required|string',
-            'value' => 'nullable|string',
-        ]);
+        try {
+            $validated = $request->validate([
+                'id' => 'required|exists:outdoor_coordinator_trackings,id',
+                'field' => 'required|string',
+                'value' => 'nullable|string',
+            ]);
 
-        $job = OutdoorCoordinatorTracking::find($validated['id']);
+            $job = OutdoorCoordinatorTracking::with('masterFile')->findOrFail($validated['id']);
 
-        // Only allow these fields for inline edit
-        $allowed = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec','remarks','status','site','start_date','end_date'];
-        if (!in_array($validated['field'], $allowed)) {
-            return response()->json(['success' => false, 'error' => 'Invalid field']);
+            // Define allowed fields for inline editing
+            $allowedFields = [
+                'site', 'payment', 'material', 'artwork', 'remarks', 'status',
+                'received_approval', 'sent_to_printer', 'collection_printer',
+                'installation', 'dismantle', 'next_follow_up'
+            ];
+
+            if (!in_array($validated['field'], $allowedFields)) {
+                return response()->json(['success' => false, 'error' => 'Invalid field']);
+            }
+
+            // Handle date validation
+            $dateFields = [
+                'received_approval', 'sent_to_printer', 'collection_printer',
+                'installation', 'dismantle', 'next_follow_up'
+            ];
+
+            if (in_array($validated['field'], $dateFields) && !empty($validated['value'])) {
+                $date = \DateTime::createFromFormat('Y-m-d', $validated['value']);
+                if (!$date || $date->format('Y-m-d') !== $validated['value']) {
+                    return response()->json(['success' => false, 'error' => 'Invalid date format']);
+                }
+            }
+
+            // Handle status validation
+            if ($validated['field'] === 'status' && !in_array($validated['value'], ['pending', 'ongoing', 'completed', null])) {
+                return response()->json(['success' => false, 'error' => 'Invalid status']);
+            }
+
+            $job->{$validated['field']} = $validated['value'];
+            $job->save();
+
+            // Auto-update status if we modified a progress field
+            if ($validated['field'] !== 'status') {
+                $newStatus = $this->calculateStatus($job);
+                if ($newStatus !== $job->status) {
+                    $job->status = $newStatus;
+                    $job->save();
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'status' => $job->status,
+                'value' => $validated['value']
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('updateInline error', ['error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'error' => 'Server error']);
         }
-
-        $job->{$validated['field']} = $validated['value'];
-        $job->save();
-
-        return response()->json(['success' => true]);
     }
-
 
     public function destroy($id)
     {
@@ -543,56 +673,6 @@ class OutdoorCoordinatorController  extends Controller
         );
 
         return response()->json(['ok' => true, 'id' => $row->id]);
-    }
-
-    public function export()
-    {
-
-        Log::info('HIT OUTDOOR EXPORT');
-        $data = OutdoorCoordinatorTracking::with('masterFile')
-            ->whereHas('masterFile', function ($query) {
-                $query->whereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages'])
-                      ->orWhere('product_category', 'LIKE', '%outdoor%')
-                      ->orWhere('product_category', 'Outdoor');
-            })
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        $csv = "ID,Client,Product,Site,Payment,Material,Artwork,Approval Date,Sent Date,Collection Date,Install Date,Dismantle Date,Status,Remarks,Next Follow Up\n";
-
-        foreach ($data as $item) {
-            $csv .= sprintf(
-                "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n",
-                $item->id,
-                $this->escapeCsv(optional($item->masterFile)->client ?? ''),
-                $this->escapeCsv(optional($item->masterFile)->product ?? ''),
-                $this->escapeCsv($item->site ?? ''),
-                $this->escapeCsv($item->payment ?? ''),
-                $this->escapeCsv($item->material ?? ''),
-                $this->escapeCsv($item->artwork ?? ''),
-                $item->received_approval ? $item->received_approval->format('Y-m-d') : '',
-                $item->sent_to_printer ? $item->sent_to_printer->format('Y-m-d') : '',
-                $item->collection_printer ? $item->collection_printer->format('Y-m-d') : '',
-                $item->installation ? $item->installation->format('Y-m-d') : '',
-                $item->dismantle ? $item->dismantle->format('Y-m-d') : '',
-                ucfirst($item->status ?? 'pending'),
-                $this->escapeCsv($item->remarks ?? ''),
-                $item->next_follow_up ? $item->next_follow_up->format('Y-m-d') : ''
-            );
-        }
-
-        return Response::make($csv, 200, [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="outdoor_tracking_' . date('Y-m-d') . '.csv"',
-        ]);
-    }
-
-    private function escapeCsv($value)
-    {
-        if (strpos($value, ',') !== false || strpos($value, '"') !== false || strpos($value, "\n") !== false) {
-            return '"' . str_replace('"', '""', $value) . '"';
-        }
-        return $value;
     }
 
     /**

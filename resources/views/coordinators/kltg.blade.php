@@ -1,12 +1,68 @@
-{{-- resources/views/coordinators/kltg.blade.php --}}
+@push('head')
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+@endpush
+
 @php
   /** @var \Illuminate\Support\Collection $rows */
   /** @var \Illuminate\Support\Collection $existing */
-  function cellVal($existing, $id, $sub, $key, $type){
-      $m = $existing->get("{$id}|{$sub}");
-      if (!$m) return '';
-      if ($type === 'date') return optional($m->{$key})->format('Y-m-d');
-      return $m->{$key} ?? '';
+
+  // Display key (yang dipakai di $columns) -> nama kolom di DB
+  function _dbcol($k){
+    static $map = [
+      // umum
+      'title'                   => 'title_snapshot',
+      'company'                 => 'company_snapshot',
+      'client_bp'               => 'client_bp',
+      'x'                       => 'x',
+      'edition'                 => 'edition',
+      'publication'             => 'publication',
+      'remarks'                 => 'remarks',
+      'artwork_party'           => 'artwork_bp_client',
+
+      // KLTG/Print dates (di DB disimpan tanpa _date)
+      'artwork_reminder_date'   => 'artwork_reminder',
+      'material_received_date'  => 'material_record',
+      'artwork_done_date'       => 'artwork_done',
+      'send_chop_sign_date'     => 'send_chop_sign',
+      'chop_sign_approval_date' => 'chop_sign_approval',
+      'park_in_server_date'     => 'park_in_file_server',
+
+      // Video/LB/Article
+      'material_reminder_text'  => 'material_reminder_text',
+      'video_done_date'         => 'video_done',
+      'pending_approval_date'   => 'pending_approval',
+      'video_approved_date'     => 'video_approved',
+      'video_scheduled_date'    => 'video_scheduled',
+      'video_posted_date'       => 'video_posted',
+      'article_done_date'       => 'article_done',
+      'article_approved_date'   => 'article_approved',
+      'article_scheduled_date'  => 'article_scheduled',
+      'article_posted_date'     => 'article_posted',
+      'post_link'               => 'post_link',
+
+      // EM
+      'em_date_write'           => 'em_date_write',
+      'em_date_to_post'         => 'em_date_to_post',
+      'em_post_date'            => 'em_post_date',
+      'em_qty'                  => 'em_qty',
+      'blog_link'               => 'blog_link',
+    ];
+    return $map[$k] ?? $k;
+  }
+
+  // BACA nilai yang sudah disimpan (existing di-keyBy master_file_id)
+  function cellVal($existing, $id, $key, $type){
+      $row = $existing->get($id);
+      if (!$row) return '';
+
+      $col = _dbcol($key);
+      $v   = $row->{$col} ?? '';
+
+      // Jika kolom berupa Carbon/DateTime, format. Jika string 'Y-m-d', biarkan.
+      if ($v && is_object($v) && method_exists($v, 'format')) {
+          $v = $v->format('Y-m-d');
+      }
+      return $v ?? '';
   }
 @endphp
 
@@ -72,7 +128,7 @@
               <td class="px-3 py-2">{{ $r->client }}</td>
 
               @foreach ($columns[$activeTab] as $col)
-                @php $val = cellVal($existing, $r->id, $activeTab, $col['key'], $col['type']); @endphp
+                @php $val = cellVal($existing, $r->id, $col['key'], $col['type']); @endphp
                 <td class="px-3 py-2">
                   @if($col['type']==='date')
                     <input type="date"
@@ -99,79 +155,87 @@
     </div>
   </div>
 
-{{-- Improved Autosave Script --}}
+{{-- KLTG Configuration (MUST come before autosave script) --}}
 <script>
-(function () {
-  const meta = document.querySelector('meta[name="csrf-token"]');
-  const CSRF = meta ? meta.getAttribute('content') : '';
-
-  const ENDPOINT = "{{ route('coordinator.kltg.upsert') }}";
-
-  function log(...a){ try { console.log('[KLTG]', ...a); } catch(_){} }
-
-  async function save(el) {
-    if (!el || !el.classList.contains('kltg-input')) return;
-
-    const mf  = el.dataset.masterFileId;
-    const sub = el.dataset.subcategory;
-    const fld = el.dataset.field;
-
-    if (!mf || !sub || !fld) {
-      log('❌ Missing data-*', {mf, sub, fld});
-      return;
-    }
-
-    const body = new URLSearchParams({
-      master_file_id: mf,
-      subcategory: sub,   // UI token: print|video|article|lb|em
-      field: fld,
-      value: el.value ?? '',
-      _token: CSRF
-    });
-
-    // Visual feedback
-    el.classList.remove('bg-red-50','ring-red-300','bg-green-50','ring-green-300');
-    el.classList.add('bg-yellow-50','ring-2','ring-yellow-300');
-
-    log('➡️ POST', Object.fromEntries(body));
-
-    try {
-      const res = await fetch(ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest',
-          'X-CSRF-TOKEN': CSRF,
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body
-      });
-      const txt = await res.text(); // keep raw to see 419/422 body
-      log('⬅️ RESP', res.status, txt);
-
-      if (!res.ok) throw new Error('HTTP '+res.status);
-
-      el.classList.remove('bg-yellow-50','ring-yellow-300');
-      el.classList.add('bg-green-50','ring-2','ring-green-300');
-      setTimeout(()=>el.classList.remove('bg-green-50','ring-2','ring-green-300'), 800);
-    } catch (e) {
-      el.classList.remove('bg-yellow-50','ring-yellow-300');
-      el.classList.add('bg-red-50','ring-2','ring-red-300');
-      log('❌ SAVE ERR', e);
-    }
-  }
-
-  // Event delegation so it works for all inputs
-  const handler = (e) => {
-    const el = e.target.closest('.kltg-input');
-    if (!el) return;
-    // debounce per-input
-    clearTimeout(el._t);
-    el._t = setTimeout(()=>save(el), 350);
+  window.KLTG = {
+    upsertUrl: @json(route('coordinator.kltg.upsert')),
+    csrf: @json(csrf_token())
   };
-
-  document.addEventListener('input', handler);
-  log('✅ Autosave listener attached:', document.querySelectorAll('.kltg-input').length, 'inputs found');
-})();
 </script>
 
+{{-- Improved Autosave Script --}}
+<script>
+(async function () {
+  const upsertUrl = window.KLTG?.upsertUrl;
+  const csrf = window.KLTG?.csrf;
+
+  if (!upsertUrl || !csrf) {
+    console.error('[KLTG] Missing upsertUrl or CSRF meta');
+    return;
+  }
+
+  // Attach once to all inputs with data-master-file-id + data-field
+  const inputs = document.querySelectorAll('[data-master-file-id][data-field]');
+  console.log(`[KLTG] ✅ Autosave listener attached: ${inputs.length} inputs found`);
+
+  inputs.forEach(el => {
+    el.addEventListener('change', () => save(el));
+    el.addEventListener('blur',   () => save(el));
+  });
+function buildPayload(el) {
+  const masterId    = Number(el.dataset.masterFileId);
+  const subcategory = el.dataset.subcategory;   // "print" | "video" | "article" | "lb" | "em"
+  const field       = el.dataset.field;         // e.g. "title", "artwork_reminder", etc.
+
+  if (!masterId || !subcategory || !field) return null;
+
+  const value = (el.type === 'checkbox')
+    ? (el.checked ? 1 : 0)
+    : (el.value ?? '');
+
+  return {
+    master_file_id: masterId,
+    subcategory,
+    field,
+    value
+  };
+}
+
+  async function save(el) {
+    const payload = buildPayload(el);
+    if (!payload) return;
+
+    // inline feedback
+    el.classList.remove('bg-red-50','border-red-300','bg-green-50','border-green-300');
+    el.classList.add('bg-yellow-50','border-yellow-300');
+
+    try {
+      const resp = await fetch(upsertUrl, {
+        method: 'POST',
+        credentials: 'same-origin',              // IMPORTANT: send session cookie
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': csrf,                  // IMPORTANT: token header
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => '');
+        console.error('[KLTG] ❌ SAVE ERR', resp.status, text);
+        throw new Error(`HTTP ${resp.status}`);
+      }
+
+      // success
+      el.classList.remove('bg-yellow-50','border-yellow-300');
+      el.classList.add('bg-green-50','border-green-300');
+
+    } catch (e) {
+      el.classList.remove('bg-yellow-50','border-yellow-300');
+      el.classList.add('bg-red-50','border-red-300');
+    }
+  }
+})();
+</script>
 </x-app-layout>
