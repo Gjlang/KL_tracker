@@ -285,26 +285,6 @@
                                             </svg>
                                         </div>
                                         <h4 class="text-lg font-semibold text-gray-900 mb-2">No tracking records found</h4>
-                                        <p class="text-gray-600 mb-8 text-center">Start tracking your outdoor advertising projects to monitor progress and deadlines.</p>
-                                        <div class="flex flex-col sm:flex-row gap-3">
-                                            <a href="{{ route('coordinator.outdoor.create') }}" class="inline-flex items-center justify-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl hover:bg-indigo-700 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                                                </svg>
-                                                Add New Tracking
-                                            </a>
-                                            @if(Route::has('coordinator.outdoor.seed'))
-                                                <form method="POST" action="{{ route('coordinator.outdoor.seed') }}" class="inline">
-                                                    @csrf
-                                                    <button type="submit" class="inline-flex items-center justify-center gap-2 bg-green-600 text-white px-6 py-3 rounded-xl hover:bg-green-700 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                                                        </svg>
-                                                        Sync from Master Files
-                                                    </button>
-                                                </form>
-                                            @endif
-                                        </div>
                                     </div>
                                 </td>
                             </tr>

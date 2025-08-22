@@ -7,6 +7,8 @@ use App\Models\MasterFile;
 use App\Models\KltgCoordinatorList;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Schema; // 🔧 NEW: Added Schema facade
+
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
@@ -60,108 +62,213 @@ class KltgCoordinatorController extends Controller
     }
 
 
-    public function index(Request $request)
-    {
-        $activeTab = $request->get('tab', 'print'); // default KLTG/Print
-        $month     = $request->get('month');        // 1..12 or null
-        $year      = $request->get('year');         // 4-digit or null
+  public function index(Request $request)
+{
+    $activeTab = $request->get('tab', 'print');   // print|video|article|lb|em
 
-        $rows = MasterFile::query()
-            ->where(function ($q) {
-                $q->where('product_category', 'KLTG')
-                  ->orWhereRaw('LOWER(product_category) LIKE ?', ['%kltg%']);
-            })
-            ->when($month, function ($q) use ($month) {
-                $q->whereMonth(DB::raw('COALESCE(`date`, `created_at`)'), $month);
-            })
-            ->when($year, function ($q) use ($year) {
-                $q->whereYear(DB::raw('COALESCE(`date`, `created_at`)'), $year);
-            })
-            ->select([
-                'id',
-                'date',
-                'company as company_name',
-                'client',
-                DB::raw("COALESCE(NULLIF(product,''), '') as mf_title")
-            ])
-            ->orderByRaw('COALESCE(`date`, `created_at`) DESC')
-            ->get();
+    // ========= Normalize filters =========
+    $rawMonth = $request->get('month');
+    $month = null;
+    if ($rawMonth !== null && $rawMonth !== '') {
+        if (is_numeric($rawMonth)) {
+            $month = max(1, min(12, (int)$rawMonth));
+        } else {
+            try { $month = Carbon::parse('1 '.$rawMonth)->month; } catch (\Throwable $e) { $month = null; }
+        }
+    }
+    $rawYear = $request->get('year');
+    $year = ($rawYear !== null && $rawYear !== '' && ctype_digit((string)$rawYear)) ? (int)$rawYear : null;
 
+    // Default ONLY if no params at all
+    if (!$request->has('month') && !$request->has('year')) {
+        $month = now()->month;
+        $year  = now()->year;
+    } elseif ($month && !$year) {
+        // month_only mode — do not auto-fill year
+        $year = null;
+    }
+
+    // Scope & UI label
+    $scope = $month && $year ? 'month_year' : ($month ? 'month_only' : ($year ? 'year_only' : 'all'));
+    if ($scope === 'month_year') {
+        $periodLabel = Carbon::create($year, $month, 1)->format('F Y');
+    } elseif ($scope === 'month_only') {
+        $periodLabel = Carbon::create(null, $month, 1)->format('F'). ' (All Years)';
+    } elseif ($scope === 'year_only') {
+        $periodLabel = 'All Months ' . $year;
+    } else {
+        $periodLabel = 'All Months (All Years)';
+    }
+
+    // Map UI tab -> stored category in monthly table
+    $storedSub = $this->tabToStored(strtolower($activeTab)); // e.g. "KLTG" | "Video" | "Article" | "LB" | "EM"
+
+    // ========= Column definitions (unchanged; used for grid rendering only) =========
+    $columns = [
+        'print' => [
+            ['key'=>'title','label'=>'Title','type'=>'text'],
+            ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
+            ['key'=>'x','label'=>'X (text)','type'=>'text'],
+            ['key'=>'edition','label'=>'Edition','type'=>'text'],
+            ['key'=>'publication','label'=>'Publication','type'=>'text'],
+            ['key'=>'artwork_party','label'=>'Artwork (BP/Client)','type'=>'text'],
+            ['key'=>'artwork_reminder_date','label'=>'Artwork Reminder','type'=>'date'],
+            ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
+            ['key'=>'artwork_done_date','label'=>'Artwork Done','type'=>'date'],
+            ['key'=>'send_chop_sign_date','label'=>'Send Chop & Sign','type'=>'date'],
+            ['key'=>'chop_sign_approval_date','label'=>'Chop & Sign Approval','type'=>'date'],
+            ['key'=>'park_in_server_date','label'=>'Park in file server','type'=>'date'],
+        ],
+        'video' => [
+            ['key'=>'title','label'=>'Title','type'=>'text'],
+            ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
+            ['key'=>'x','label'=>'X (text)','type'=>'text'],
+            ['key'=>'material_reminder_text','label'=>'Material Reminder','type'=>'text'],
+            ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
+            ['key'=>'video_done_date','label'=>'Video Done','type'=>'date'],
+            ['key'=>'pending_approval_date','label'=>'Pending Approval','type'=>'date'],
+            ['key'=>'video_scheduled_date','label'=>'Video Scheduled','type'=>'date'],
+            ['key'=>'video_posted_date','label'=>'Video Posted','type'=>'date'],
+            ['key'=>'post_link','label'=>'Post Link','type'=>'text'],
+        ],
+        'lb' => [
+            ['key'=>'title','label'=>'Title','type'=>'text'],
+            ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
+            ['key'=>'x','label'=>'X (text)','type'=>'text'],
+            ['key'=>'material_reminder_text','label'=>'Material Reminder','type'=>'text'],
+            ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
+            ['key'=>'video_done_date','label'=>'Video Done','type'=>'date'],
+            ['key'=>'pending_approval_date','label'=>'Pending Approval','type'=>'date'],
+            ['key'=>'video_approved_date','label'=>'Video Approved','type'=>'date'],
+            ['key'=>'video_scheduled_date','label'=>'Video Scheduled','type'=>'date'],
+            ['key'=>'video_posted_date','label'=>'Video Posted','type'=>'date'],
+            ['key'=>'post_link','label'=>'Post Link','type'=>'text'],
+        ],
+        'article' => [
+            ['key'=>'title','label'=>'Title','type'=>'text'],
+            ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
+            ['key'=>'x','label'=>'X (text)','type'=>'text'],
+            ['key'=>'material_reminder_text','label'=>'Material Reminder','type'=>'text'],
+            ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
+            ['key'=>'article_done_date','label'=>'Article Done','type'=>'date'],
+            ['key'=>'pending_approval_date','label'=>'Pending Approval','type'=>'date'],
+            ['key'=>'article_approved_date','label'=>'Article Approved','type'=>'date'],
+            ['key'=>'article_scheduled_date','label'=>'Article Scheduled','type'=>'date'],
+            ['key'=>'article_posted_date','label'=>'Article Posted','type'=>'date'],
+            ['key'=>'post_link','label'=>'Post Link','type'=>'text'],
+        ],
+        'em' => [
+            ['key'=>'client_bp','label'=>'Clients (from master_files)','type'=>'text'],
+            ['key'=>'em_date_write','label'=>'Date Write','type'=>'date'],
+            ['key'=>'em_date_to_post','label'=>'Date to post','type'=>'date'],
+            ['key'=>'em_post_date','label'=>'Post date','type'=>'date'],
+            ['key'=>'em_qty','label'=>'EM-qty','type'=>'text'],
+            ['key'=>'blog_link','label'=>'Blog Link','type'=>'text'],
+        ],
+    ];
+
+    // ========= Use monthly table as source of truth =========
+    $monthlyTable = 'kltg_monthly_details'; // <-- your actual table
+
+    $rowsQuery = MasterFile::query()
+        ->where(function ($q) {
+            $q->where('product_category', 'KLTG')
+              ->orWhereRaw('LOWER(product_category) LIKE ?', ['%kltg%']);
+        })
+        ->select([
+            'id',
+            'date',
+            'company as company_name',
+            'client',
+            DB::raw("COALESCE(NULLIF(product,''), '') as mf_title"),
+        ]);
+
+    // STRICT filter: hanya MasterFiles yang punya satu/baris yg MATCH di monthly table untuk tab + periode
+    $rowsQuery->whereExists(function ($q) use ($monthlyTable, $storedSub, $scope, $month, $year) {
+    // normalisasi agar tahan format: 12 / '12' / 'December' / value_date
+    $monthName = $month ? strtolower(\Carbon\Carbon::create(null, $month, 1)->format('F')) : null;
+
+    $q->selectRaw('1')
+      ->from("$monthlyTable as md")
+      ->whereColumn('md.master_file_id', 'master_files.id')
+      // kategori case-insensitive (hindari mismatch)
+      ->whereRaw('TRIM(UPPER(md.category)) = ?', [strtoupper($storedSub)])
+
+      // (OPSIONAL) kalau mau baris yang memang “valid tanggal”
+      ->where(function($v){
+          $v->where('is_date', 1)->orWhereNotNull('value_date')
+            // kalau monthly kamu berupa flag/value, biarkan salah satu kondisi di atas terpenuhi
+            ->orWhereNotNull('month'); // fallback: minimal ada nilai month
+      })
+
+      // ========= SCOPE =========
+      ->when($scope === 'month_year', function ($w) use ($month, $year, $monthName) {
+          $w->where(function($x) use ($month, $year, $monthName) {
+              // tahun: kolom year ATAU dari value_date
+              $x->where(function($y) use ($year) {
+                    $y->where('md.year', (int)$year)
+                      ->orWhereYear('md.value_date', (int)$year);
+                })
+                // bulan: angka / cast angka / teks / dari value_date
+                ->where(function($m) use ($month, $monthName) {
+                    $m->where('md.month', (int)$month)
+                      ->orWhereRaw('CAST(md.month AS UNSIGNED) = ?', [(int)$month])
+                      ->orWhereRaw('LOWER(md.month) = ?', [$monthName])
+                      ->orWhereMonth('md.value_date', (int)$month);
+                });
+          });
+      })
+
+      ->when($scope === 'month_only', function ($w) use ($month, $monthName) {
+          $w->where(function($m) use ($month, $monthName) {
+              $m->where('md.month', (int)$month)
+                ->orWhereRaw('CAST(md.month AS UNSIGNED) = ?', [(int)$month])
+                ->orWhereRaw('LOWER(md.month) = ?', [$monthName])
+                ->orWhereMonth('md.value_date', (int)$month);
+          });
+      })
+
+      ->when($scope === 'year_only', function ($w) use ($year) {
+          $w->where(function($y) use ($year) {
+              $y->where('md.year', (int)$year)
+                ->orWhereYear('md.value_date', (int)$year);
+          })
+          // pastikan ada salah satu bulan apa pun terisi
+           ->where(function($m){
+              $m->whereNotNull('md.month')->orWhereNotNull('md.value_date');
+          });
+      });
+      // scope 'all' → cukup ada baris kategori tersebut (dibatasi valid-date di atas)
+});
+
+
+    $rows = $rowsQuery
+        ->orderByRaw('COALESCE(`date`, `created_at`) DESC')
+        ->get();
+
+    // Existing coordinator values for the grid (from kltg_coordinator_lists)
+    $existing = collect();
+    if ($rows->isNotEmpty()) {
         $ids = $rows->pluck('id')->all();
-        $storedSub = $this->tabToStored(strtolower($activeTab));
-
         $existing = KltgCoordinatorList::query()
             ->whereIn('master_file_id', $ids)
             ->where('subcategory', $storedSub)
             ->get()
             ->keyBy('master_file_id');
-
-        // column metadata per tab
-        $columns = [
-            'print' => [
-                ['key'=>'title','label'=>'Title','type'=>'text'],
-                ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
-                ['key'=>'x','label'=>'X (text)','type'=>'text'],
-                ['key'=>'edition','label'=>'Edition','type'=>'text'],
-                ['key'=>'publication','label'=>'Publication','type'=>'text'],
-                ['key'=>'artwork_party','label'=>'Artwork (BP/Client)','type'=>'text'],
-                ['key'=>'artwork_reminder_date','label'=>'Artwork Reminder','type'=>'date'],
-                ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
-                ['key'=>'artwork_done_date','label'=>'Artwork Done','type'=>'date'],
-                ['key'=>'send_chop_sign_date','label'=>'Send Chop & Sign','type'=>'date'],
-                ['key'=>'chop_sign_approval_date','label'=>'Chop & Sign Approval','type'=>'date'],
-                ['key'=>'park_in_server_date','label'=>'Park in file server','type'=>'date'],
-            ],
-            'video' => [
-                ['key'=>'title','label'=>'Title','type'=>'text'],
-                ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
-                ['key'=>'x','label'=>'X (text)','type'=>'text'],
-                ['key'=>'material_reminder_text','label'=>'Material Reminder','type'=>'text'],
-                ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
-                ['key'=>'video_done_date','label'=>'Video Done','type'=>'date'],
-                ['key'=>'pending_approval_date','label'=>'Pending Approval','type'=>'date'],
-                ['key'=>'video_scheduled_date','label'=>'Video Scheduled','type'=>'date'],
-                ['key'=>'video_posted_date','label'=>'Video Posted','type'=>'date'],
-                ['key'=>'post_link','label'=>'Post Link','type'=>'text'],
-            ],
-            'lb' => [
-                ['key'=>'title','label'=>'Title','type'=>'text'],
-                ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
-                ['key'=>'x','label'=>'X (text)','type'=>'text'],
-                ['key'=>'material_reminder_text','label'=>'Material Reminder','type'=>'text'],
-                ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
-                ['key'=>'video_done_date','label'=>'Video Done','type'=>'date'],
-                ['key'=>'pending_approval_date','label'=>'Pending Approval','type'=>'date'],
-                ['key'=>'video_approved_date','label'=>'Video Approved','type'=>'date'],
-                ['key'=>'video_scheduled_date','label'=>'Video Scheduled','type'=>'date'],
-                ['key'=>'video_posted_date','label'=>'Video Posted','type'=>'date'],
-                ['key'=>'post_link','label'=>'Post Link','type'=>'text'],
-            ],
-            'article' => [
-                ['key'=>'title','label'=>'Title','type'=>'text'],
-                ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
-                ['key'=>'x','label'=>'X (text)','type'=>'text'],
-                ['key'=>'material_reminder_text','label'=>'Material Reminder','type'=>'text'],
-                ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
-                ['key'=>'article_done_date','label'=>'Article Done','type'=>'date'],
-                ['key'=>'pending_approval_date','label'=>'Pending Approval','type'=>'date'],
-                ['key'=>'article_approved_date','label'=>'Article Approved','type'=>'date'],
-                ['key'=>'article_scheduled_date','label'=>'Article Scheduled','type'=>'date'],
-                ['key'=>'article_posted_date','label'=>'Article Posted','type'=>'date'],
-                ['key'=>'post_link','label'=>'Post Link','type'=>'text'],
-            ],
-            'em' => [
-                ['key'=>'client_bp','label'=>'Clients (from master_files)','type'=>'text'],
-                ['key'=>'em_date_write','label'=>'Date Write','type'=>'date'],
-                ['key'=>'em_date_to_post','label'=>'Date to post','type'=>'date'],
-                ['key'=>'em_post_date','label'=>'Post date','type'=>'date'],
-                ['key'=>'em_qty','label'=>'EM-qty','type'=>'text'],
-                ['key'=>'blog_link','label'=>'Blog Link','type'=>'text'],
-            ],
-        ];
-
-        return view('coordinators.kltg', compact('rows','existing','columns','activeTab','month','year'));
     }
+
+    return view('coordinators.kltg', [
+        'rows'        => $rows,
+        'existing'    => $existing,
+        'columns'     => $columns,
+        'activeTab'   => $activeTab,
+        'month'       => $month,
+        'year'        => $year,
+        'scope'       => $scope,
+        'periodLabel' => $periodLabel,
+    ]);
+}
+
 
     /**
      * UPSERT: create or update ONE row per (master_file_id, subcategory)
@@ -297,10 +404,11 @@ class KltgCoordinatorController extends Controller
         'row_after'   => $row,    // handy to see in Network tab
     ]);
 }
-    /** Masters that DON'T yet have a coordinator row for the selected subcategory */
-    public function getEligibleMasterFiles(Request $request)
-    {
-        $activeSubcat = $this->normalizeSubcat($request->get('subcategory'));
+
+/** Masters that DON'T yet have a coordinator row for the selected subcategory */
+public function getEligibleMasterFiles(Request $request)
+{
+    $activeSubcat = $this->normalizeSubcat($request->get('subcategory'));
 
         $eligible = MasterFile::query()
             ->where(function($q) {

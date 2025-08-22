@@ -172,8 +172,8 @@ class KltgMonthlyController extends Controller
             'company'     => $mf->company,
             'product'     => $mf->product,
             'status'      => 'Pending',
-            'start'       => $mf->start_date ? \Carbon\Carbon::parse($mf->start_date)->format('d/m') : null,
-            'end'         => $mf->end_date   ? \Carbon\Carbon::parse($mf->end_date)->format('d/m')   : null,
+            'start'       => $mf->start_date ? Carbon::parse($mf->start_date)->format('d/m') : null,
+            'end'         => $mf->end_date   ? Carbon::parse($mf->end_date)->format('d/m')   : null,
             'duration'    => $mf->duration_days,
             'publication' => $publication,   // used only if your Blade still reads these
             'edition'     => $edition,       // (you're now binding via map in the inputs)
@@ -227,12 +227,12 @@ class KltgMonthlyController extends Controller
     }
 
     // === NEW: Excel (two sheets) ===
-    public function exportXlsx(Request $request)
-    {
-        $payload = $this->buildKltgPayload($request);
-        $file = 'KLTG_'.$payload['activeYear'].'_'.now()->format('Ymd_His').'.xlsx';
-        return Excel::download(new KltgMonthlyExport($payload), $file);
-    }
+    // public function exportXlsx(Request $request)
+    // {
+    //     $payload = $this->buildKltgPayload($request);
+    //     $file = 'KLTG_'.$payload['activeYear'].'_'.now()->format('Ymd_His').'.xlsx';
+    //     return Excel::download(new KltgMonthlyExport($payload), $file);
+    // }
 
     // === NEW: PDF (single doc that looks like the UI) ===
     public function exportPdf(Request $request)

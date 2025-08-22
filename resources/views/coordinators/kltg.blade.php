@@ -68,6 +68,8 @@
 
 <x-app-layout>
   <div class="p-4 md:p-6">
+    <h3 class="mb-2 font-semibold text-gray-700">{{ $periodLabel }}</h3>
+
     {{-- Tabs --}}
     @php
       $tabs = ['print' => 'KLTG','video'=>'Video','article'=>'Article','lb'=>'LB','em'=>'EM'];
@@ -105,6 +107,12 @@
       <button class="h-9 px-4 bg-indigo-600 text-white rounded-lg">Apply</button>
     </form>
 
+    @if($rows->isEmpty())
+      <div class="mb-3 rounded border border-amber-300 bg-amber-50 text-amber-900 px-3 py-2 text-sm">
+        No coordinator items found for {{ $periodLabel }}.
+      </div>
+    @endif
+
     {{-- Table --}}
     <div class="overflow-x-auto border rounded-lg">
       <table class="min-w-full text-sm">
@@ -113,7 +121,7 @@
             <th class="px-3 py-2 text-left">No</th>
             <th class="px-3 py-2 text-left">Date In</th>
             <th class="px-3 py-2 text-left">Company</th>
-            <th class="px-3 py-2 text-left">Client</th>
+            <th class="px-3 py-2 text-left">Person In Charge</th>
             @foreach ($columns[$activeTab] as $col)
               <th class="px-3 py-2 text-left">{{ $col['label'] }}</th>
             @endforeach

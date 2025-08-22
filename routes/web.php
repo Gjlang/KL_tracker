@@ -162,10 +162,10 @@ Route::get('/kltg/export/xlsx', [KltgMonthlyController::class, 'exportXlsx'])->n
 Route::prefix('coordinator')->name('coordinator.')->group(function () {
     Route::get('/media', [MediaCoordinatorController::class, 'index'])->name('media.index');
 });
-
-Route::get('/coordinator/media', [MediaCoordinatorController::class, 'index'])->name('coordinator.media.index');
-Route::post('/coordinator/media', [MediaCoordinatorController::class, 'store'])->name('coordinator.media.store');
-Route::patch('/coordinator/media/{id}', [MediaCoordinatorController::class, 'update'])->name('coordinator.media.update');
+Route::prefix('coordinator/media')->name('coordinator.media.')->group(function () {
+    Route::get('/', [MediaCoordinatorController::class, 'index'])->name('index');
+    Route::post('/upsert', [MediaCoordinatorController::class, 'upsert'])->name('upsert'); // <-- needed
+});
 
 // ===============================================
 // MEDIA ONGOING JOB ROUTES

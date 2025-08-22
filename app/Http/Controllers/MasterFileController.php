@@ -186,11 +186,22 @@ class MasterFileController extends Controller
     // 🔧 FIXED: Single store method (removed duplicate)
     public function store(Request $request)
 {
+
+    $allowedProducts = [
+    'HM','TB','TTM','BB','Star','KLTG','Flyers','Bunting',
+    'KLTG listing','KLTG quarter page','Signages','FB IG Ad','NP',
+    // ✅ New ones:
+    'YouTube Management',
+    'FB/IG Management',
+    'TikTok Management Boost',
+    'Giveaways/ Contest Management',
+    'Xiaohongshu Management',
+    ];
     $validated = $request->validate([
         'month'           => 'required|string',
         'date'            => 'required|date',
         'company'         => 'required|string',
-        'product'         => 'required|in:HM,TB,TTM,BB,Star,KLTG,Flyers,Bunting,KLTG listing,KLTG quarter page,Signages,FB IG Ad,NP',
+        'product'         => 'required|in:' . implode(',', $allowedProducts),
         'traffic'         => 'required|string',
         'duration'        => 'required|string',
         'status'          => 'required|string',
@@ -212,7 +223,7 @@ class MasterFileController extends Controller
     }
 
     // dd-mm-yy for sequences (used in invoice only)
-    $dateToken = \Carbon\Carbon::parse($validated['date'])
+    $dateToken = Carbon::parse($validated['date'])
         ->timezone(config('app.timezone', 'Asia/Kuala_Lumpur'))
         ->format('d-m-y');
 
@@ -244,7 +255,7 @@ class MasterFileController extends Controller
         ($mf->product_category ?? '') === 'KLTG'
     ) {
         $bucket = $this->bucketFor($mf->product); // 'kltg'|'video'|'article'|'lb'|'em'
-        $dt     = \Carbon\Carbon::parse($mf->date);
+        $dt     = Carbon::parse($mf->date);
         KltgMonthlyDetail::updateOrCreate(
             [
                 'master_file_id' => $mf->id,

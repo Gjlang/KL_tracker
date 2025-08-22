@@ -1,3 +1,11 @@
+{{--
+    Product Picker Implementation Notes:
+    - Two-step selection: Category (KLTG/Social Media Management/Outdoor) → Product
+    - Maintains original storage: posts single 'product' field with leaf value
+    - Auto-detects category from old('product') on validation errors
+    - Uses Alpine.js for reactive category/product switching
+--}}
+
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-bold text-3xl text-gray-800 leading-tight">
@@ -28,86 +36,126 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label for="month" class="text-gray-700 font-medium mb-1 block">Month</label>
-                            <input type="text" name="month" id="month" placeholder="e.g., July" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
+                            <input type="text" name="month" id="month" placeholder="e.g., July" value="{{ old('month') }}" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
                         </div>
 
                         <div>
                             <label for="date" class="text-gray-700 font-medium mb-1 block">Date</label>
-                            <input type="date" name="date" id="date" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
+                            <input type="date" name="date" id="date" value="{{ old('date') }}" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
                         </div>
 
                         <div>
                             <label for="company" class="text-gray-700 font-medium mb-1 block">Company</label>
-                            <input type="text" name="company" id="company" placeholder="Company Name" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
+                            <input type="text" name="company" id="company" placeholder="Company Name" value="{{ old('company') }}" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
                         </div>
 
                         <div>
                             <label for="client" class="text-gray-700 font-medium mb-1 block">Person In Charge</label>
-                            <input type="text" name="client" id="client" placeholder="PIC Name" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
+                            <input type="text" name="client" id="client" placeholder="PIC Name" value="{{ old('client') }}" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
                         </div>
                     </div>
                 </div>
 
                 <!-- Section: Product Info -->
-                <div class="bg-white p-6 rounded-xl shadow-lg mt-8">
+                <div class="bg-white p-6 rounded-xl shadow-lg mt-8" x-data="productPicker()">
                     <h3 class="text-xl font-semibold text-indigo-700 mb-4">📦 Product & Traffic Details</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label for="product" class="text-gray-700 font-medium mb-1 block">Product</label>
-                            <select name="product" id="product" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
-                                <option value="HM">HM</option>
-                                <option value="TB">TB</option>
-                                <option value="TTM">TTM</option>
-                                <option value="BB">BB</option>
-                                <option value="Star">Star</option>
-                                <option value="KLTG">KLTG</option>
-                                <option value="Flyers">Flyers</option>
-                                <option value="Bunting">Bunting</option>
-                                <option value="NP">Newspaper</option>
-                                <option value="KLTG listing">KLTG listing</option>
-                                <option value="KLTG quarter page">KLTG quarter page</option>
-                                <option value="Signages">Signages</option>
-                                <option value="FB IG Ad">FB IG Ad</option>
+                        <!-- Product Category & Selection -->
+                        <div class="md:col-span-2">
+                            <label class="text-gray-700 font-medium mb-3 block">Product Category & Type</label>
+
+                            <!-- Category Tabs -->
+                            <div class="flex flex-wrap gap-2 mb-4">
+                                <button type="button"
+                                        @click="selectCategory('KLTG')"
+                                        :class="selectedCategory === 'KLTG'
+                                            ? 'bg-indigo-600 text-white shadow-lg'
+                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                                        class="px-4 py-2 rounded-lg font-medium text-sm transition duration-200 ease-in-out focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                    KLTG
+                                </button>
+                                <button type="button"
+                                        @click="selectCategory('Social Media Management')"
+                                        :class="selectedCategory === 'Social Media Management'
+                                            ? 'bg-indigo-600 text-white shadow-lg'
+                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                                        class="px-4 py-2 rounded-lg font-medium text-sm transition duration-200 ease-in-out focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                    Social Media Management
+                                </button>
+                                <button type="button"
+                                        @click="selectCategory('Outdoor')"
+                                        :class="selectedCategory === 'Outdoor'
+                                            ? 'bg-indigo-600 text-white shadow-lg'
+                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                                        class="px-4 py-2 rounded-lg font-medium text-sm transition duration-200 ease-in-out focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                    Outdoor
+                                </button>
+                            </div>
+
+                            <!-- Product Select -->
+                            <select name="product"
+                                    x-model="selectedProduct"
+                                    @change="refreshNumbers()"
+                                    class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out"
+                                    required>
+                                <option value="">Select a product...</option>
+                                <template x-for="product in getCurrentProducts()" :key="product.value">
+                                    <option :value="product.value" x-text="product.label"></option>
+                                </template>
                             </select>
+
+                            <!-- Debug info (remove in production) -->
+                            <div x-show="true" class="text-xs text-gray-500 mt-1">
+                                Selected Category: <span x-text="selectedCategory"></span> |
+                                Products Available: <span x-text="getCurrentProducts().length"></span>
+                            </div>
+
+                            @error('product')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
                         </div>
 
                         <div>
                             <label for="traffic" class="text-gray-700 font-medium mb-1 block">Traffic</label>
-                            <input type="text" name="traffic" id="traffic" placeholder="Traffic Details" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
+                            <input type="text" name="traffic" id="traffic" placeholder="Traffic Details" value="{{ old('traffic') }}" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
                         </div>
 
                         <div>
                             <label for="duration" class="text-gray-700 font-medium mb-1 block">Duration</label>
-                            <input type="text" name="duration" id="duration" placeholder="e.g., 3 months" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
+                            <input type="text" name="duration" id="duration" placeholder="e.g., 3 months" value="{{ old('duration') }}" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
                         </div>
 
                         <div>
                             <label for="date_finish" class="text-gray-700 font-medium mb-1 block">Date Finish</label>
-                            <input type="date" name="date_finish" id="date_finish" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
+                            <input type="date" name="date_finish" id="date_finish" value="{{ old('date_finish') }}" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
                         </div>
 
-                        <select name="status" id="status" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
-                            <option value="pending">Pending</option>
-                            <option value="ongoing">Ongoing</option>
-                            <option value="completed">Completed</option>
-                        </select>
+                        <div>
+                            <label for="status" class="text-gray-700 font-medium mb-1 block">Status</label>
+                            <select name="status" id="status" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
+                                <option value="pending" {{ old('status') === 'pending' ? 'selected' : '' }}>Pending</option>
+                                <option value="ongoing" {{ old('status') === 'ongoing' ? 'selected' : '' }}>Ongoing</option>
+                                <option value="completed" {{ old('status') === 'completed' ? 'selected' : '' }}>Completed</option>
+                            </select>
+                        </div>
 
                         <div>
                             <label for="artwork" class="text-gray-700 font-medium mb-1 block">Artwork</label>
                             <select name="artwork" id="artwork" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
-                                <option value="BGOC">BGOC</option>
-                                <option value="Client">Client</option>
+                                <option value="BGOC" {{ old('artwork') === 'BGOC' ? 'selected' : '' }}>BGOC</option>
+                                <option value="Client" {{ old('artwork') === 'Client' ? 'selected' : '' }}>Client</option>
                             </select>
                         </div>
 
                         <div>
                             <label for="job_number" class="block text-sm font-medium text-gray-700">Job Number</label>
-                            <input type="text" name="job_number" id="job_number"
+                            <input type="text" name="job_number" id="job_number" value="{{ old('job_number') }}"
                                 class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
                                 readonly>
                         </div>
                     </div>
                 </div>
+
                 <!-- Submit Button -->
                 <div class="pt-4">
                     <button type="submit" class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl font-semibold shadow-xl transition duration-300 ease-in-out">
@@ -118,24 +166,113 @@
         </div>
     </div>
 
+    <!-- Load Alpine.js -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
     <script>
+    // Product Picker Alpine.js Component
+    function productPicker() {
+        return {
+            categories: {
+                'KLTG': [
+                    { label: 'KLTG', value: 'KLTG' },
+                    { label: 'KLTG listing', value: 'KLTG listing' },
+                    { label: 'KLTG Quarter Page', value: 'KLTG quarter page' }
+                ],
+                'Social Media Management': [
+                    { label: 'TikTok Management', value: 'TikTok Management' },
+                    { label: 'YouTube Management', value: 'YouTube Management' },
+                    { label: 'FB/IG Management', value: 'FB/IG Management' },
+                    { label: 'FB Sponsored Ads', value: 'FB IG Ad' },
+                    { label: 'TikTok Management Boost', value: 'TikTok Management Boost' },
+                    { label: 'Giveaways/ Contest Management', value: 'Giveaways/ Contest Management' },
+                    { label: 'Xiaohongshu Management', value: 'Xiaohongshu Management' }
+                ],
+                'Outdoor': [
+                    { label: 'TB - Tempboard', value: 'TB' },
+                    { label: 'BB - Billboard', value: 'BB' },
+                    { label: 'Newspaper', value: 'NP' },
+                    { label: 'Bunting', value: 'Bunting' },
+                    { label: 'Flyers', value: 'Flyers' },
+                    { label: 'Star', value: 'Star' },
+                    { label: 'Signages', value: 'Signages' }
+                ]
+            },
+            selectedCategory: '',
+            selectedProduct: '{{ old('product', '') }}',
+
+            init() {
+                // Auto-detect category from old product value on page load
+                if (this.selectedProduct) {
+                    this.detectCategoryFromProduct(this.selectedProduct);
+                } else {
+                    // Default to first category (KLTG)
+                    this.selectedCategory = 'KLTG';
+                }
+            },
+
+            selectCategory(category) {
+                this.selectedCategory = category;
+                // Clear product selection when switching categories
+                if (!this.isProductInCategory(this.selectedProduct, category)) {
+                    this.selectedProduct = '';
+                }
+            },
+
+            detectCategoryFromProduct(productValue) {
+                for (const [category, products] of Object.entries(this.categories)) {
+                    if (products.some(p => p.value === productValue)) {
+                        this.selectedCategory = category;
+                        break;
+                    }
+                }
+            },
+
+            isProductInCategory(productValue, category) {
+                return this.categories[category] && this.categories[category].some(p => p.value === productValue);
+            },
+
+            getCurrentProducts() {
+                return this.categories[this.selectedCategory] || [];
+            }
+        }
+    }
+
+    // Existing job number refresh functionality
     async function refreshNumbers() {
         const date = document.querySelector('input[name="date"]').value;
         const product = document.querySelector('select[name="product"]').value;
+
+        if (!date || !product) return;
 
         const url = new URL("{{ route('serials.preview') }}", window.location.origin);
         url.searchParams.set('date', date);
         url.searchParams.set('product', product);
 
-        const res = await fetch(url);
-        if (res.ok) {
-            const data = await res.json();
-            document.getElementById('job_number').value = data.job_number;
+        try {
+            const res = await fetch(url);
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById('job_number').value = data.job_number;
+            }
+        } catch (error) {
+            console.error('Error refreshing job number:', error);
         }
     }
 
-    document.addEventListener('DOMContentLoaded', refreshNumbers);
-    document.querySelector('input[name="date"]').addEventListener('change', refreshNumbers);
-    document.querySelector('select[name="product"]').addEventListener('change', refreshNumbers);
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add listeners for job number refresh
+        document.querySelector('input[name="date"]').addEventListener('change', refreshNumbers);
+
+        // Use a slight delay to ensure Alpine has initialized
+        setTimeout(() => {
+            const productSelect = document.querySelector('select[name="product"]');
+            if (productSelect) {
+                productSelect.addEventListener('change', refreshNumbers);
+            }
+            // Initial refresh
+            refreshNumbers();
+        }, 100);
+    });
     </script>
 </x-app-layout>
