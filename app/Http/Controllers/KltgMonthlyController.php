@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Schema; // 🔧 NEW: Added Schema facade
 use Barryvdh\DomPDF\Facade\Pdf;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use App\Exports\KltgMatrixExport;
 
 use App\Exports\KltgMonthlyExport;
@@ -229,157 +230,125 @@ class KltgMonthlyController extends Controller
         ];
     }
 
+
     public function exportMatrix(Request $req)
 {
-    // ===== 1) Filters =====
-    $year     = (int)($req->input('year') ?: now()->year);
-    $rawMonth = $req->input('month');         // "All Months" | "10" | "October"
-    $search   = trim((string)$req->input('q'));
-    $statusF  = $req->input('status');
+    $year = (int)($req->input('year') ?: now('Asia/Kuala_Lumpur')->year);
 
-    // ===== 2) Table autodetect (or hardcode yours here) =====
-    $candidates = [
-        'kltg_monthly_details',
-        'kltg_monthly',
-        'monthly_ongoing_jobs',
-        'masterfile_monthly_details',
-        'kltg_matrix',
-        'kltg_details',
-        'media_coordinator_trackings',  // fallback if you stored there
-    ];
-    $table = null;
-    foreach ($candidates as $name) {
-        if (Schema::hasTable($name)) { $table = $name; break; }
-    }
-    // If you know the exact name, just do: $table = '<<YOUR_REAL_TABLE>>';
-    if (!$table) {
-        // Helpful message for quick fix
-        abort(500, 'Export error: could not find the monthly detail table. Set $table to your real table name (the one with columns: year, month, category, field_type, value, value_text, value_date, type, status).');
-    }
-
-    // ===== 3) Month helpers =====
-    $idxToName = [
-        1=>'January',2=>'February',3=>'March',4=>'April',5=>'May',6=>'June',
-        7=>'July',8=>'August',9=>'September',10=>'October',11=>'November',12=>'December'
-    ];
-    $nameToIdx = array_flip($idxToName);
-
-    $normMonthName = null;
-    if ($rawMonth && strcasecmp($rawMonth, 'All Months') !== 0) {
-        if (is_numeric($rawMonth)) {
-            $normMonthName = $idxToName[max(1,min(12,(int)$rawMonth))];
-        } else {
-            $key = ucfirst(strtolower($rawMonth));
-            $normMonthName = $idxToName[$nameToIdx[$key] ?? 0] ?? null;
-        }
-    }
-
-    // ===== 4) Query correct columns from the detected table =====
-    // Your categories in DB are often UPPERCASE; normalize to target set.
-    $targetCats = ['KLTG','VIDEO','ARTICLE','LB','EM'];
-
-    $q = DB::table($table)
-        ->select(['year','month','category','type','value_date','status','client','created_at'])
+    // 1. Ambil semua detail KLTG
+    $detailRows = DB::table('kltg_monthly_details')
         ->where('year', $year)
-        ->whereIn(DB::raw('UPPER(category)'), $targetCats);
+        ->get();
 
-    if ($normMonthName) {
-        // Your month column may be stored as number ("10") or name ("October")
-        // We’ll accept either: we compare both ways using OR.
-        $q->where(function($w) use ($normMonthName, $nameToIdx) {
-            $mi = $nameToIdx[$normMonthName] ?? null;
-            $w->where('month', $normMonthName);
-            if ($mi !== null) { $w->orWhere('month', (string)$mi); }
-        });
-    }
+    $mfIds = $detailRows->pluck('master_file_id')->unique()->values();
 
-    if ($search !== '') {
-        $q->where(function($w) use ($search) {
-            $w->where('client', 'like', "%{$search}%")
-              ->orWhere('category', 'like', "%{$search}%")
-              ->orWhere('status', 'like', "%{$search}%")
-              ->orWhere('type', 'like', "%{$search}%")
-              ->orWhere('value_text', 'like', "%{$search}%")
-              ->orWhere('value', 'like', "%{$search}%");
-        });
-    }
+    // 2. Ambil master_files
+    $masters = DB::table('master_files')
+        ->whereIn('id', $mfIds)
+        ->get([
+            'id','month','date','date_finish',
+            'company','product','status','created_at'
+        ])->keyBy('id');
 
-    if ($statusF) {
-        $q->where('status', $statusF);
-    }
+    // 3. Siapkan label kategori & bulan
+    $catLabels = ['KLTG','Video','Article','LB','EM'];
+    $catKeys   = ['KLTG','VIDEO','ARTICLE','LB','EM'];
+    $monthsMap = collect(range(1,12))
+        ->mapWithKeys(fn($m)=>[$m=>Carbon::create()->month($m)->format('F')]);
 
-    // Newest first so "first seen wins" while filling grid
-    $rows = $q->orderByDesc('created_at')->get();
-
-    // ===== 5) Build Month × Category grid =====
-    $displayCats = ['KLTG','Video','Article','LB','EM'];  // final header labels
-    $grid = [];
-    foreach ($idxToName as $mn) {
-        $grid[$mn] = [];
-        foreach ($displayCats as $c) {
-            $grid[$mn][$c] = ['status'=>null,'start'=>null,'end'=>null];
+    $makeEmptyMatrix = function() use($catKeys,$monthsMap){
+        $m = [];
+        foreach($monthsMap as $num=>$name){
+            $m[$num] = [
+                'monthName'=>$name,
+                'cats'=>collect($catKeys)->mapWithKeys(
+                    fn($k)=>[$k=>['status'=>null,'start'=>null,'end'=>null]]
+                )->all()
+            ];
         }
-    }
-
-    // Helper: map DB category to display header (ARTICLE -> Article)
-    $catDisplay = function($dbCat) {
-        $u = strtoupper($dbCat);
-        return match ($u) {
-            'KLTG'   => 'KLTG',
-            'VIDEO'  => 'Video',
-            'ARTICLE'=> 'Article',
-            'LB'     => 'LB',
-            'EM'     => 'EM',
-            default  => null,
-        };
+        return $m;
     };
 
-    foreach ($rows as $r) {
-        // Normalize month to display name
-        $mn = is_numeric($r->month) ? ($idxToName[(int)$r->month] ?? null)
-                                    : ( $idxToName[$nameToIdx[ucfirst(strtolower($r->month))] ?? 0] ?? null );
-        if (!$mn) continue;
-
-        $dispCat = $catDisplay($r->category);
-        if (!$dispCat) continue;
-
-        // STATUS: first non-null wins (rows sorted newest first)
-        if (!empty($r->status) && empty($grid[$mn][$dispCat]['status'])) {
-            $grid[$mn][$dispCat]['status'] = $r->status;
-        }
-
-        // Start / End via type + value_date (latest wins)
-        $t = strtolower((string)$r->type);
-        if ($t === 'start' && empty($grid[$mn][$dispCat]['start'])) {
-            $grid[$mn][$dispCat]['start'] = $r->value_date ? substr($r->value_date, 0, 10) : null;
-        }
-        if ($t === 'end' && empty($grid[$mn][$dispCat]['end'])) {
-            $grid[$mn][$dispCat]['end'] = $r->value_date ? substr($r->value_date, 0, 10) : null;
-        }
-    }
-
-    // ===== 6) Pretty labels (keeps your emoji + enables color rules) =====
-    $pretty = fn($s) => match ($s) {
-        'Artwork'      => 'Artwork 🟨',
-        'Installation' => 'Installation 🟥',
-        'Renewal'      => 'Renewal 🟥',
-        'Completed'    => 'Completed ✅',
-        'In Progress'  => 'In Progress 🔵',
-        'Hold'         => 'Hold 🟧',
-        'Cancelled'    => 'Cancelled ⬜',
-        default        => $s, // e.g., "ACTIVE" passes through (no color fill rule)
+    $parseMonth = function($v){
+        if(is_numeric($v)) return (int)$v;
+        try { return (int)Carbon::parse("1 ".$v." 2000")->format('n'); }
+        catch(\Throwable $e){ return null; }
     };
-    foreach ($grid as $mn => $catsRow) {
-        foreach ($catsRow as $cat => $cell) {
-            if (!empty($cell['status'])) {
-                $grid[$mn][$cat]['status'] = $pretty($cell['status']);
+
+    // 4. Group detail per master_file_id
+    $detailsByMaster = $detailRows->groupBy('master_file_id');
+    $records = [];
+    $no=1;
+
+    foreach($detailsByMaster as $mfId=>$rows){
+        $mrow = $masters->get($mfId);
+        if(!$mrow) continue;
+
+        // ambil publication & edition dari detail
+        $publication = optional($rows->first(fn($x)=>$x->field_type==='text' && strtolower($x->type)==='publication'))->value_text;
+        $edition     = optional($rows->first(fn($x)=>$x->field_type==='text' && strtolower($x->type)==='edition'))->value_text;
+
+        // summary kiri
+        $summary = [
+            'no'          => $no++,
+            'month'       => $mrow->month,
+            'created_at'  => $mrow->created_at ? Carbon::parse($mrow->created_at)->format('Y-m-d') : '',
+            'company'     => $mrow->company,
+            'product'     => $mrow->product,
+            'publication' => $publication ?? '',
+            'edition'     => $edition ?? '',
+            'status' => (function($rows){
+                $txt = optional($rows->first(function($x){
+                    return $x->field_type === 'text'
+                        && (strtolower((string)$x->type) === 'status' || $x->type === null || $x->type === '');
+                }))->value_text;
+                if (!empty($txt)) return $txt;
+                return optional($rows->first(fn($x)=>!empty($x->status)))->status ?? '';
+            })($rows),
+            'start'       => $mrow->date ?? null,
+            'end'         => $mrow->date_finish ?? null,
+        ];
+
+        // matrix untuk master ini
+        $matrix = $makeEmptyMatrix();
+        foreach($rows as $r){
+            $mn = $parseMonth($r->month);
+            if(!$mn || !isset($matrix[$mn])) continue;
+            $key = strtoupper((string)$r->category);
+            if(!in_array($key,$catKeys,true)) continue;
+
+            // 1) TEXT row from dropdown ⇒ value_text holds the label (Artwork / Installation / ...)
+            if ($r->field_type === 'text') {
+                $t = strtolower((string)$r->type);
+                // treat empty / 'status' / even category names as the status label row
+                if ($t === '' || $t === 'status' || in_array(strtoupper($r->type ?? ''), $catKeys, true)) {
+                    if (!empty($r->value_text)) {
+                        $matrix[$mn]['cats'][$key]['status'] = $r->value_text;
+                    }
+                }
+            }
+            // 2) Fallback to the legacy 'status' column only if we still don't have a label
+            if (empty($matrix[$mn]['cats'][$key]['status']) && !empty($r->status)) {
+                $matrix[$mn]['cats'][$key]['status'] = $r->status;
+            }
+            // 3) Dates stay the same
+            if ($r->field_type === 'date' && $r->value_date) {
+                $t = strtolower((string)$r->type);
+                if ($t === 'start') $matrix[$mn]['cats'][$key]['start'] = $r->value_date;
+                if ($t === 'end')   $matrix[$mn]['cats'][$key]['end']   = $r->value_date;
             }
         }
+
+        $records[]=['summary'=>$summary,'matrix'=>array_values($matrix)];
     }
 
-    // ===== 7) Export (v2 exporter you already have) =====
-    return (new KltgMatrixExport($grid))->download();
+
+    // 5. Export
+    $export = new KltgMatrixExport($records,$catLabels,$catKeys);
+    $fileName = 'export_matrix_masterfile_'.now('Asia/Kuala_Lumpur')->format('Ymd').'.xlsx';
+    return $export->download($fileName);
 }
+
     // ===== Helper stubs (mirror your index queries) =====
     private function getKltgRows(int $year, string $company = '', string $product = '')
     {

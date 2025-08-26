@@ -151,8 +151,9 @@ Route::prefix('kltg')->name('kltg.')->group(function () {
     Route::post('/details/upsert', [KltgMonthlyController::class, 'upsert'])->name('details.upsert');
 });
 
-Route::get('/kltg-matrix/export', [KltgMonthlyController::class, 'exportMatrix'])
-    ->name('kltg.matrix.export');
+
+Route::get('/kltg/export-matrix', [KltgMonthlyController::class, 'exportMatrix'])
+    ->name('kltg.exportMatrix');
 
 Route::get('/kltg/export/print', [KltgMonthlyController::class, 'exportPrint'])
      ->name('kltg.export.print');

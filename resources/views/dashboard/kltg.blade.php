@@ -50,7 +50,7 @@
 
       {{-- Export XLSX (keeps active filters) --}}
       <a
-        href="{{ route('kltg.matrix.export', array_filter(request()->only([
+        href="{{ route('kltg.exportMatrix', array_filter(request()->only([
             // keep whatever your page uses
             'year','filter_year','month','filter_month',
             'q','search','status',
