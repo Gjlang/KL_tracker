@@ -4,14 +4,25 @@ namespace App\Http\Controllers;
 
 use App\Models\MasterFile;
 use App\Models\MediaMonthlyDetail;
-use App\Models\MediaOngoingJob;
 use Illuminate\Http\Request;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class MediaMonthlyDetailController extends Controller
 {
+    /**
+     * Known media products (lowercased match)
+     */
+    private const MEDIA_PRODUCTS = [
+        'tiktok management',
+        'tiktok management boost',
+        'youtube management',
+        'fb/ig management',
+        'fb sponsored ads',
+        'giveaways/ contest management',
+        'xiaohongshu management',
+    ];
+
     public function index(Request $request)
     {
         Log::info('MEDIA INDEX HIT');
@@ -21,86 +32,95 @@ class MediaMonthlyDetailController extends Controller
 
         // 2) Base rows = Media masters (case-insensitive)
         $rows = MasterFile::query()
+            ->select(['id','company','client','product','product_category','date','created_at'])
             ->where(function ($q) {
-                $q->where('product_category', 'Media')
-                  ->orWhereRaw('LOWER(product_category) LIKE ?', ['%media%']);
+                $q->whereRaw('LOWER(COALESCE(product_category, "")) LIKE ?', ['%media%'])
+                  ->orWhereIn(
+                      DB::raw('LOWER(COALESCE(product, ""))'),
+                      array_map('strtolower', self::MEDIA_PRODUCTS)
+                  );
             })
-            ->orderByDesc('created_at')
             ->orderByRaw('COALESCE(`date`, `created_at`) DESC')
             ->orderByDesc('id')
             ->get();
 
         Log::info('Found ' . $rows->count() . ' media master files');
 
-        // 3) Pull monthly details
+        // 3) Pull monthly details (robust to missing month/year by deriving from value_date)
         $ids = $rows->pluck('id')->all();
         $rawDetails = collect();
 
         if (!empty($ids)) {
-            $latestPerSlot = DB::table('media_monthly_details')
+            $rawDetails = DB::table('media_monthly_details')
+                ->whereIn('master_file_id', $ids)
+                ->where(function ($w) use ($year) {
+                    $w->where('year', $year)
+                      ->orWhereRaw('YEAR(value_date) = ?', [$year]);
+                })
                 ->select([
                     'master_file_id',
-                    'year',
-                    'month',
-                    DB::raw('MAX(COALESCE(updated_at, created_at)) as ts'),
+                    DB::raw('COALESCE(`year`, YEAR(value_date)) as yr'),
+                    DB::raw('COALESCE(`month`, MONTH(value_date)) as mon'),
+                    'value_text',
+                    'value_date',
+                    DB::raw('COALESCE(updated_at, created_at) as ts'),
                 ])
-                ->whereIn('master_file_id', $ids)
-                ->where('year', $year)
-                ->groupBy('master_file_id', 'year', 'month');
-
-            $rawDetails = collect(
-                DB::table('media_monthly_details as d')
-                    ->joinSub($latestPerSlot, 'mx', function ($j) {
-                        $j->on('d.master_file_id', '=', 'mx.master_file_id')
-                          ->on('d.year', '=', 'mx.year')
-                          ->on('d.month', '=', 'mx.month')
-                          ->on(DB::raw('COALESCE(d.updated_at, d.created_at)'), '=', 'mx.ts');
-                    })
-                    ->get([
-                        'd.master_file_id', 'd.year', 'd.month',
-                        'd.value_text', 'd.value_date',
-                        'd.updated_at', 'd.created_at',
-                    ])
-            );
+                ->orderByDesc('ts') // latest first; we’ll keep first per (id,yr,mon)
+                ->get();
         }
 
-        Log::info('Found ' . $rawDetails->count() . ' monthly details');
+        Log::info('Found ' . $rawDetails->count() . ' monthly details (pre-dedup)');
 
-        // 4) Build detailsMap
-        $detailsMap = [];
+        // 4) Deduplicate: latest row per (master_file_id, yr, mon)
+        $picked = [];
         foreach ($rawDetails as $r) {
-            $mid = (int)$r->master_file_id;
-            $yr  = (int)$r->year;
-            $mon = (int)$r->month;
+            $m = (int)$r->mon;
+            $y = (int)$r->yr;
+            if ($m < 1 || $m > 12) { continue; }
+            $key = $r->master_file_id.'|'.$y.'|'.$m;
+            if (!isset($picked[$key])) {
+                $picked[$key] = [
+                    'master_file_id' => (int)$r->master_file_id,
+                    'year'           => $y,
+                    'month'          => $m,
+                    'value_text'     => $r->value_text ?? '',
+                    'value_date'     => $r->value_date ? date('Y-m-d', strtotime($r->value_date)) : null,
+                ];
+            }
+        }
 
-            $detailsMap[$mid][$yr][$mon] = [
-                'value_text' => $r->value_text ?? '',
-                'value_date' => $r->value_date ?? null,
+        // 5) Build detailsMap: [master_file_id][year][month] => ['value_text','value_date']
+        $detailsMap = [];
+        foreach ($picked as $p) {
+            $detailsMap[$p['master_file_id']][$p['year']][$p['month']] = [
+                'value_text' => $p['value_text'],
+                'value_date' => $p['value_date'],
             ];
         }
 
-        // 5) Transform to match Blade expectations
-        $mediaJobs = $rows->map(function ($masterFile) use ($detailsMap, $year) {
+        // 6) Transform to match Blade expectations (expose both status + date per month)
+        $mediaJobs = $rows->map(function ($mf) use ($detailsMap, $year) {
             $job = (object) [
-                'id' => $masterFile->id,
-                'date' => $masterFile->date,
-                'company' => $masterFile->company ?? $masterFile->client ?? '',
-                'product' => $masterFile->product ?? '',
-                'product_category' => $masterFile->product_category ?? 'Media',
-                'location' => $masterFile->location ?? '',
-                'platform' => $masterFile->platform ?? $masterFile->location ?? '',
-                'date_finish' => $masterFile->date_finish ?? $masterFile->end_date ?? null,
-                'remarks' => $masterFile->remarks ?? '',
-                'start_date' => $masterFile->start_date ?? $masterFile->date ?? null,
-                'end_date' => $masterFile->date_finish ?? $masterFile->end_date ?? null,
+                'id'               => $mf->id,
+                'date'             => $mf->date,
+                'company'          => $mf->company ?? $mf->client ?? '',
+                'product'          => $mf->product ?? '',
+                'product_category' => $mf->product_category ?? 'Media',
+                'location'         => $mf->location ?? '',
+                'platform'         => $mf->platform ?? ($mf->location ?? ''),
+                'date_finish'      => $mf->date_finish ?? $mf->end_date ?? null,
+                'remarks'          => $mf->remarks ?? '',
+                'start_date'       => $mf->start_date ?? $mf->date ?? null,
+                'end_date'         => $mf->date_finish ?? $mf->end_date ?? null,
             ];
 
-            // Add monthly check fields
-            $monthNames = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
-            foreach ($monthNames as $monthIndex => $monthName) {
-                $monthNumber = $monthIndex + 1;
-                $monthData = $detailsMap[$masterFile->id][$year][$monthNumber] ?? null;
-                $job->{"check_$monthName"} = $monthData['value_text'] ?? '';
+            // Month fields (status + date)
+            $names = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+            foreach ($names as $i => $name) {
+                $mon = $i + 1;
+                $cell = $detailsMap[$mf->id][$year][$mon] ?? null;
+                $job->{"check_{$name}"} = $cell['value_text'] ?? '';                // status
+                $job->{"date_{$name}"}  = $cell['value_date'] ?? null;              // Y-m-d or null
             }
 
             return $job;
@@ -108,15 +128,25 @@ class MediaMonthlyDetailController extends Controller
 
         Log::info('Transformed ' . $mediaJobs->count() . ' jobs for blade');
 
-        // 6) Return in expected format
+        // 7) Return view
         return view('dashboard.media', [
             'monthlyByCategory' => [
-                'Media' => $mediaJobs
+                'Media' => $mediaJobs,
             ],
             'year' => $year,
+            'detailsMap'  => $detailsMap,
         ]);
     }
 
+    /**
+     * Autosave one cell (status text or date) using upsert.
+     * Payload:
+     * - master_file_id (int, exists)
+     * - year (int)
+     * - month (1..12)
+     * - kind: 'text' | 'date'
+     * - value: string (nullable)  -> for 'date', expect 'YYYY-MM-DD'
+     */
     public function upsert(Request $req)
     {
         try {
@@ -137,25 +167,23 @@ class MediaMonthlyDetailController extends Controller
             ]);
 
             if (!$detail->exists) {
-                $detail->subcategory = 'General';
+                // optional default
+                $detail->subcategory = $detail->subcategory ?? 'General';
             }
 
             if ($data['kind'] === 'text') {
-                $detail->value_text = $data['value'] ?? null;
-            }
-
-            if ($data['kind'] === 'date') {
+                $detail->value_text = $data['value'] ?: null;
+            } else {
                 $detail->value_date = $data['value'] ? date('Y-m-d', strtotime($data['value'])) : null;
             }
 
             $detail->save();
 
-            Log::info('Saved media monthly detail:', $detail->toArray());
+            Log::info('Saved media monthly detail', ['id' => $detail->id]);
 
             return response()->json(['ok' => true, 'message' => 'Updated successfully']);
-
-        } catch (\Exception $e) {
-            Log::error('Media upsert error: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error('Media upsert error: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return response()->json(['ok' => false, 'error' => $e->getMessage()], 500);
         }
     }

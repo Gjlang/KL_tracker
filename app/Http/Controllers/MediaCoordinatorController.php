@@ -7,9 +7,24 @@ use Illuminate\Support\Facades\DB;
 use App\Models\MasterFile;
 use App\Models\MediaCoordinatorTracking;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Schema;
 
 class MediaCoordinatorController extends Controller
 {
+    /**
+     * Map UI tabs -> subcategory strings stored in media_monthly_details.subcategory
+     * (case-insensitive match in queries).
+     */
+    private const TAB_TO_CATEGORY = [
+        'content'  => 'Content Calendar',
+        'editing'  => 'Artwork Editing',
+        'schedule' => 'Posting Scheduling',
+        'report'   => 'Report Posting',
+        'valueadd' => 'Value Add',
+    ];
+
     // Canonical labels (untuk display / exact match kalau ada)
     private const SOCIAL_MEDIA_PRODUCTS = [
         'TikTok Management',
@@ -22,191 +37,217 @@ class MediaCoordinatorController extends Controller
     ];
 
     public function index(Request $request)
-    {
-        $year  = (int)($request->get('year') ?: now()->year);
-        $month = $request->filled('month') ? (int)$request->get('month') : null;
+{
+    $activeTab = $request->get('tab', 'content');
+    $scope     = $request->get('scope'); // month_year | month_only | year_only | all
+    $year      = (int)($request->get('year') ?: now()->year);
+    $month     = $request->filled('month') ? (int)$request->get('month') : null;
 
-        // FIXED: Much more inclusive query - cast both sides to lowercase for better matching
-        $masters = MasterFile::query()
-            ->select(['id','company','client','product','product_category'])
-            ->where(function ($q) {
-                // Option 1: Include by product_category containing 'media'
-                $q->whereRaw('LOWER(product_category) LIKE ?', ['%media%'])
+    // default scope yang masuk akal
+    $scope = $scope ?: ($month ? 'month_year' : 'year_only');
 
-                // Option 2: OR include by product name patterns (much more inclusive)
-                ->orWhere(function ($qq) {
-                    // Exact matches first (case insensitive)
-                    foreach (self::SOCIAL_MEDIA_PRODUCTS as $product) {
-                        $qq->orWhereRaw('LOWER(product) = ?', [strtolower($product)]);
-                    }
+    // tab -> label (untuk nanti jika dipakai simpan subcategory)
+    $category = self::TAB_TO_CATEGORY[$activeTab] ?? self::TAB_TO_CATEGORY['content'];
 
-                    // Then LIKE patterns for variations
-                    $patterns = [
-                        '%social%media%',           // any social media mention
-                        '%tiktok%',                 // any tiktok mention
-                        '%youtube%',                // any youtube mention
-                        '%facebook%',               // facebook variations
-                        '%instagram%',              // instagram variations
-                        '%fb%ig%',                  // FB IG variations
-                        '%ig%fb%',                  // IG FB variations
-                        '%sponsored%',              // sponsored ads
-                        '%ads%manager%',            // ads manager
-                        '%meta%',                   // meta platform
-                        '%giveaway%',               // giveaways
-                        '%contest%',                // contests
-                        '%xiaohongshu%',            // xiaohongshu
-                        '%xhs%',                    // XHS abbreviation
-                        '%content%calendar%',       // content calendar
-                        '%posting%',                // posting related
-                        '%management%',             // any management
-                        '%mgmt%',                   // mgmt abbreviation
-                        '%boost%',                  // boost services
-                        '%report%',                 // reporting
-                        '%value%add%',              // value add services
-                    ];
+    // ====== BASE LIST DARI master_files (MEDIA-ONLY) ======
+    // Rule: product_category mengandung "media" (ci) ATAU product termasuk daftar produk media (ci)
+    $masters = MasterFile::query()
+        ->select(['id','company','client','product','product_category'])
+        ->where(function ($q) {
+            $q->whereRaw('LOWER(COALESCE(product_category, "")) LIKE ?', ['%media%'])
+              ->orWhereIn(
+                  DB::raw('LOWER(COALESCE(product, ""))'),
+                  array_map('strtolower', self::SOCIAL_MEDIA_PRODUCTS) // atau MEDIA_PRODUCTS jika ini nama konstanta kamu
+              );
+        })
+        ->orderByRaw('COALESCE(company, client) ASC')
+        ->get();
 
-                    foreach ($patterns as $pattern) {
-                        $qq->orWhereRaw('LOWER(product) LIKE ?', [$pattern]);
-                    }
-                })
+    Log::info("MediaCoordinator: masters from master_files = {$masters->count()}");
 
-                // Option 3: OR include if any existing tracking data exists for this master_file_id
-                ->orWhereExists(function ($query) {
-                    $query->select(DB::raw(1))
-                          ->from('content_calendars')
-                          ->whereColumn('content_calendars.master_file_id', 'master_files.id');
-                })
-                ->orWhereExists(function ($query) {
-                    $query->select(DB::raw(1))
-                          ->from('artwork_editings')
-                          ->whereColumn('artwork_editings.master_file_id', 'master_files.id');
-                })
-                ->orWhereExists(function ($query) {
-                    $query->select(DB::raw(1))
-                          ->from('posting_schedulings')
-                          ->whereColumn('posting_schedulings.master_file_id', 'master_files.id');
-                })
-                ->orWhereExists(function ($query) {
-                    $query->select(DB::raw(1))
-                          ->from('media_reports')
-                          ->whereColumn('media_reports.master_file_id', 'master_files.id');
-                })
-                ->orWhereExists(function ($query) {
-                    $query->select(DB::raw(1))
-                          ->from('media_value_adds')
-                          ->whereColumn('media_value_adds.master_file_id', 'master_files.id');
-                });
-            })
-            ->orderByRaw('COALESCE(company, client) ASC')
-            ->distinct()
-            ->get();
+    $ids = $masters->pluck('id')->all();
 
-        // Debug: Log how many masters we found
-        Log::info("MediaCoordinator: Found {$masters->count()} master files for year {$year}" . ($month ? ", month {$month}" : " (all months)"));
+    // ====== Lookup per master (tetap sama) ======
+    $latestPerMaster = function (string $table) use ($ids, $year, $month, $scope) {
+        if (empty($ids)) return collect();
 
-        if ($masters->isEmpty()) {
-            // Debug: Let's see what's actually in the master_files table
-            $sampleProducts = MasterFile::select(['product', 'product_category'])
-                ->whereNotNull('product')
-                ->distinct()
-                ->limit(20)
-                ->get();
+        $q = DB::table($table)->whereIn('master_file_id', $ids);
 
-            Log::info("MediaCoordinator: Sample products in database:", $sampleProducts->toArray());
+        // Kalau scope-nya bukan month_only, batasi ke tahun aktif
+        if ($scope !== 'month_only') {
+            $q->where('year', $year);
         }
 
-        $ids = $masters->pluck('id')->all();
+        if ($month) {
+            $q->where('month', $month);
+            return $q->get()->keyBy('master_file_id');
+        }
 
-        // Helper function remains the same
-        $latestPerMaster = function (string $table) use ($ids, $year, $month) {
-            if (empty($ids)) return collect();
+        // Tanpa month → ambil baris terbaru per master_file_id
+        $rows = $q->orderByDesc('updated_at')->get();
+        $picked = [];
+        foreach ($rows as $r) {
+            $key = $r->master_file_id;
+            if (!isset($picked[$key])) $picked[$key] = $r;
+        }
+        return collect($picked);
+    };
 
-            $q = DB::table($table)
-                ->whereIn('master_file_id', $ids)
-                ->where('year', $year);
+    // Build 5 map (tetap)
+    $contentMap  = $latestPerMaster('content_calendars');
+    $editingMap  = $latestPerMaster('artwork_editings');
+    $scheduleMap = $latestPerMaster('posting_schedulings');
+    $reportMap   = $latestPerMaster('media_reports');
+    $valueMap    = $latestPerMaster('media_value_adds');
 
-            if ($month) {
-                $q->where('month', $month);
-                return $q->get()->keyBy('master_file_id');
-            }
+    // Label periode untuk Blade (tetap)
+    $periodLabel = $this->formatPeriodLabel($scope, $month, $year);
 
-            $rows = $q->orderByDesc('updated_at')->get();
-            $picked = [];
-            foreach ($rows as $r) {
-                if (!isset($picked[$r->master_file_id])) {
-                    $picked[$r->master_file_id] = $r;
-                }
-            }
-            return collect($picked);
-        };
+    return view('coordinators.media', [
+        'activeTab'      => $activeTab,
+        'scope'          => $scope,
+        'periodLabel'    => $periodLabel,
+        'masters'        => $masters,
+        'year'           => $year,
+        'month'          => $month,
+        'contentMap'     => $contentMap,
+        'editingMap'     => $editingMap,
+        'scheduleMap'    => $scheduleMap,
+        'reportMap'      => $reportMap,
+        'valueMap'       => $valueMap,
+        'socialProducts' => self::SOCIAL_MEDIA_PRODUCTS,
+    ]);
+}
 
-        // Build 5 lookup maps
-        $contentMap  = $latestPerMaster('content_calendars');
-        $editingMap  = $latestPerMaster('artwork_editings');
-        $scheduleMap = $latestPerMaster('posting_schedulings');
-        $reportMap   = $latestPerMaster('media_reports');
-        $valueMap    = $latestPerMaster('media_value_adds');
-
-        return view('coordinators.media', [
-            'masters'        => $masters,
-            'year'           => $year,
-            'month'          => $month,
-            'contentMap'     => $contentMap,
-            'editingMap'     => $editingMap,
-            'scheduleMap'    => $scheduleMap,
-            'reportMap'      => $reportMap,
-            'valueMap'       => $valueMap,
-            'socialProducts' => self::SOCIAL_MEDIA_PRODUCTS,
-        ]);
+    private function formatPeriodLabel(string $scope, ?int $month, int $year): string
+    {
+        if ($scope === 'all') {
+            return 'All Months (All Years)';
+        }
+        if ($scope === 'month_only' && $month) {
+            return Carbon::create()->startOfYear()->month($month)->format('F') . ' (All Years)';
+        }
+        if ($scope === 'year_only') {
+            return "All Months {$year}";
+        }
+        if ($month) {
+            return Carbon::create($year, $month, 1)->format('F Y');
+        }
+        return "All Months {$year}";
     }
 
     // upsert method remains the same
-    public function upsert(Request $request)
-    {
+   public function upsert(Request $request)
+{
+    try {
         $data = $request->validate([
             'section'        => 'required|in:content,editing,schedule,report,valueadd',
             'master_file_id' => 'required|integer|exists:master_files,id',
-            'year'           => 'required|integer|min:2000|max:2100',
-            'month'          => 'required|integer|min:1|max:12',
+            'year'           => 'nullable|integer|min:2000|max:2100',
+            'month'          => 'nullable|integer|min:1|max:12', // <- boleh null
             'field'          => 'required|string',
             'value'          => 'nullable',
         ]);
 
-        $allowed = [
+        // Tab -> table (samakan dgn index())
+        $TABLE_BY_SECTION = [
+            'content'  => 'content_calendars',
+            'editing'  => 'artwork_editings',
+            'schedule' => 'posting_schedulings',
+            'report'   => 'media_reports',
+            'valueadd' => 'media_value_adds',
+        ];
+
+        // Field yang boleh per tab (UI)
+        $ALLOWED = [
             'content'  => ['total_artwork','pending','draft_wa','approved'],
             'editing'  => ['total_artwork','pending','draft_wa','approved'],
             'schedule' => ['total_artwork','crm','meta_mgr','tiktok_ig_draft'],
             'report'   => ['pending','completed'],
-            'valueadd' => ['quota','completed'],
+            'valueadd' => ['quota','completed'], // <- sesuai kolom di screenshot
         ];
 
-        if (!in_array($data['field'], $allowed[$data['section']] ?? [], true)) {
+        // Alias UI -> kolom DB (kalau beda nama)
+        $FIELD_ALIAS = [
+            'schedule' => [
+                'meta_mgr' => 'meta_manager', // kalau di DB namanya 'meta_manager'
+            ],
+        ];
+
+        $section = $data['section'];
+        $uiField = $data['field'];
+
+        if (!isset($TABLE_BY_SECTION[$section])) {
+            return response()->json(['ok'=>false,'error'=>'Unknown section'], 422);
+        }
+        if (!in_array($uiField, $ALLOWED[$section] ?? [], true)) {
             return response()->json(['ok'=>false,'error'=>'Invalid field'], 422);
         }
 
-        $modelClass = MediaCoordinatorTracking::forSection($data['section']);
+        $table  = $TABLE_BY_SECTION[$section];
+        $column = $FIELD_ALIAS[$section][$uiField] ?? $uiField;
 
-        $value = $data['value'];
-        if (in_array($data['field'], ['draft_wa','approved','tiktok_ig_draft','completed'], true)) {
-            if ($data['section'] === 'valueadd' && $data['field'] === 'completed') {
-                $value = is_numeric($value) ? (int)$value : 0;
-            } else {
-                $value = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-                $value = (bool)$value;
+        // Jika alias di atas belum tepat, coba fallback otomatis:
+        if (!Schema::hasColumn($table, $column)) {
+            // fallback populer yang sering beda penamaan
+            $fallbacks = [
+                'meta_manager'    => 'meta_mgr',
+                'meta_mgr'        => 'meta_manager',
+            ];
+            if (isset($fallbacks[$column]) && Schema::hasColumn($table, $fallbacks[$column])) {
+                $column = $fallbacks[$column];
             }
-        } else {
-            $value = is_string($value) ? mb_substr(trim($value), 0, 255) : ($value ?? '');
         }
 
-        $modelClass::updateOrCreate(
-            [
-                'master_file_id' => (int)$data['master_file_id'],
-                'year'           => (int)$data['year'],
-                'month'          => (int)$data['month'],
-            ],
-            [$data['field'] => $value]
-        );
+        // Normalisasi nilai
+        $raw = $data['value'];
+        $BOOL_FIELDS = ['draft_wa','approved','tiktok_ig_draft','completed'];
+        $INT_FIELDS  = ['total_artwork','pending','crm','quota'];
 
-        return response()->json(['ok'=>true]);
+        if (in_array($uiField, $BOOL_FIELDS, true)) {
+            // khusus valueadd.completed dukung angka
+            if ($section === 'valueadd' && $uiField === 'completed' && is_numeric($raw)) {
+                $value = (int)$raw;
+            } else {
+                $truthy = ['1', 1, true, 'true', 'on', 'yes', 'checked'];
+                $value  = in_array($raw, $truthy, true) ? 1 : 0;
+            }
+        } elseif (in_array($uiField, $INT_FIELDS, true)) {
+            $value = ($raw === '' || $raw === null) ? null : (int)$raw;
+        } else {
+            $value = is_string($raw) ? mb_substr(trim($raw), 0, 255) : ($raw ?? null);
+        }
+
+        // Kunci upsert: year wajib ada (default ke tahun aktif), month opsional
+        $year  = $data['year']  ?? (int) now()->year;
+        $month = $data['month'] ?? null;
+
+        $keys = [
+            'master_file_id' => (int)$data['master_file_id'],
+            'year'           => $year,
+        ];
+        if ($month !== null) {
+            $keys['month'] = (int)$month;
+        }
+
+        $values = [
+            $column      => $value,
+            'updated_at' => now(),
+        ];
+        $exists = DB::table($table)->where($keys)->exists();
+        if (!$exists) {
+            $values['created_at'] = now();
+        }
+
+        DB::table($table)->updateOrInsert($keys, $values);
+
+        return response()->json(['ok'=>true, 'table'=>$table, 'column'=>$column, 'value'=>$value, 'keys'=>$keys]);
+    } catch (ValidationException $e) {
+        Log::warning('coordinator.media.upsert 422', ['errors'=>$e->errors(), 'payload'=>$request->all()]);
+        return response()->json(['ok'=>false, 'errors'=>$e->errors()], 422);
+    } catch (\Throwable $e) {
+        Log::error('coordinator.media.upsert fail: '.$e->getMessage(), ['payload'=>$request->all()]);
+        return response()->json(['ok'=>false, 'error'=>$e->getMessage()], 500);
     }
+}
 }

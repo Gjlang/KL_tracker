@@ -8,7 +8,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\Schema; // 🔧 NEW: Added Schema facade
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Exports\KltgMatrixExport;
+
 use App\Exports\KltgMonthlyExport;
 
 class KltgMonthlyController extends Controller
@@ -226,22 +229,157 @@ class KltgMonthlyController extends Controller
         ];
     }
 
-    // === NEW: Excel (two sheets) ===
-    // public function exportXlsx(Request $request)
-    // {
-    //     $payload = $this->buildKltgPayload($request);
-    //     $file = 'KLTG_'.$payload['activeYear'].'_'.now()->format('Ymd_His').'.xlsx';
-    //     return Excel::download(new KltgMonthlyExport($payload), $file);
-    // }
+    public function exportMatrix(Request $req)
+{
+    // ===== 1) Filters =====
+    $year     = (int)($req->input('year') ?: now()->year);
+    $rawMonth = $req->input('month');         // "All Months" | "10" | "October"
+    $search   = trim((string)$req->input('q'));
+    $statusF  = $req->input('status');
 
-    // === NEW: PDF (single doc that looks like the UI) ===
-    public function exportPdf(Request $request)
-    {
-        $payload = $this->buildKltgPayload($request);
-        $pdf = Pdf::loadView('exports.kltg_pdf', $payload)->setPaper('a4', 'landscape');
-        return $pdf->download('KLTG_'.$payload['activeYear'].'_'.now()->format('Ymd_His').'.pdf');
+    // ===== 2) Table autodetect (or hardcode yours here) =====
+    $candidates = [
+        'kltg_monthly_details',
+        'kltg_monthly',
+        'monthly_ongoing_jobs',
+        'masterfile_monthly_details',
+        'kltg_matrix',
+        'kltg_details',
+        'media_coordinator_trackings',  // fallback if you stored there
+    ];
+    $table = null;
+    foreach ($candidates as $name) {
+        if (Schema::hasTable($name)) { $table = $name; break; }
+    }
+    // If you know the exact name, just do: $table = '<<YOUR_REAL_TABLE>>';
+    if (!$table) {
+        // Helpful message for quick fix
+        abort(500, 'Export error: could not find the monthly detail table. Set $table to your real table name (the one with columns: year, month, category, field_type, value, value_text, value_date, type, status).');
     }
 
+    // ===== 3) Month helpers =====
+    $idxToName = [
+        1=>'January',2=>'February',3=>'March',4=>'April',5=>'May',6=>'June',
+        7=>'July',8=>'August',9=>'September',10=>'October',11=>'November',12=>'December'
+    ];
+    $nameToIdx = array_flip($idxToName);
+
+    $normMonthName = null;
+    if ($rawMonth && strcasecmp($rawMonth, 'All Months') !== 0) {
+        if (is_numeric($rawMonth)) {
+            $normMonthName = $idxToName[max(1,min(12,(int)$rawMonth))];
+        } else {
+            $key = ucfirst(strtolower($rawMonth));
+            $normMonthName = $idxToName[$nameToIdx[$key] ?? 0] ?? null;
+        }
+    }
+
+    // ===== 4) Query correct columns from the detected table =====
+    // Your categories in DB are often UPPERCASE; normalize to target set.
+    $targetCats = ['KLTG','VIDEO','ARTICLE','LB','EM'];
+
+    $q = DB::table($table)
+        ->select(['year','month','category','type','value_date','status','client','created_at'])
+        ->where('year', $year)
+        ->whereIn(DB::raw('UPPER(category)'), $targetCats);
+
+    if ($normMonthName) {
+        // Your month column may be stored as number ("10") or name ("October")
+        // We’ll accept either: we compare both ways using OR.
+        $q->where(function($w) use ($normMonthName, $nameToIdx) {
+            $mi = $nameToIdx[$normMonthName] ?? null;
+            $w->where('month', $normMonthName);
+            if ($mi !== null) { $w->orWhere('month', (string)$mi); }
+        });
+    }
+
+    if ($search !== '') {
+        $q->where(function($w) use ($search) {
+            $w->where('client', 'like', "%{$search}%")
+              ->orWhere('category', 'like', "%{$search}%")
+              ->orWhere('status', 'like', "%{$search}%")
+              ->orWhere('type', 'like', "%{$search}%")
+              ->orWhere('value_text', 'like', "%{$search}%")
+              ->orWhere('value', 'like', "%{$search}%");
+        });
+    }
+
+    if ($statusF) {
+        $q->where('status', $statusF);
+    }
+
+    // Newest first so "first seen wins" while filling grid
+    $rows = $q->orderByDesc('created_at')->get();
+
+    // ===== 5) Build Month × Category grid =====
+    $displayCats = ['KLTG','Video','Article','LB','EM'];  // final header labels
+    $grid = [];
+    foreach ($idxToName as $mn) {
+        $grid[$mn] = [];
+        foreach ($displayCats as $c) {
+            $grid[$mn][$c] = ['status'=>null,'start'=>null,'end'=>null];
+        }
+    }
+
+    // Helper: map DB category to display header (ARTICLE -> Article)
+    $catDisplay = function($dbCat) {
+        $u = strtoupper($dbCat);
+        return match ($u) {
+            'KLTG'   => 'KLTG',
+            'VIDEO'  => 'Video',
+            'ARTICLE'=> 'Article',
+            'LB'     => 'LB',
+            'EM'     => 'EM',
+            default  => null,
+        };
+    };
+
+    foreach ($rows as $r) {
+        // Normalize month to display name
+        $mn = is_numeric($r->month) ? ($idxToName[(int)$r->month] ?? null)
+                                    : ( $idxToName[$nameToIdx[ucfirst(strtolower($r->month))] ?? 0] ?? null );
+        if (!$mn) continue;
+
+        $dispCat = $catDisplay($r->category);
+        if (!$dispCat) continue;
+
+        // STATUS: first non-null wins (rows sorted newest first)
+        if (!empty($r->status) && empty($grid[$mn][$dispCat]['status'])) {
+            $grid[$mn][$dispCat]['status'] = $r->status;
+        }
+
+        // Start / End via type + value_date (latest wins)
+        $t = strtolower((string)$r->type);
+        if ($t === 'start' && empty($grid[$mn][$dispCat]['start'])) {
+            $grid[$mn][$dispCat]['start'] = $r->value_date ? substr($r->value_date, 0, 10) : null;
+        }
+        if ($t === 'end' && empty($grid[$mn][$dispCat]['end'])) {
+            $grid[$mn][$dispCat]['end'] = $r->value_date ? substr($r->value_date, 0, 10) : null;
+        }
+    }
+
+    // ===== 6) Pretty labels (keeps your emoji + enables color rules) =====
+    $pretty = fn($s) => match ($s) {
+        'Artwork'      => 'Artwork 🟨',
+        'Installation' => 'Installation 🟥',
+        'Renewal'      => 'Renewal 🟥',
+        'Completed'    => 'Completed ✅',
+        'In Progress'  => 'In Progress 🔵',
+        'Hold'         => 'Hold 🟧',
+        'Cancelled'    => 'Cancelled ⬜',
+        default        => $s, // e.g., "ACTIVE" passes through (no color fill rule)
+    };
+    foreach ($grid as $mn => $catsRow) {
+        foreach ($catsRow as $cat => $cell) {
+            if (!empty($cell['status'])) {
+                $grid[$mn][$cat]['status'] = $pretty($cell['status']);
+            }
+        }
+    }
+
+    // ===== 7) Export (v2 exporter you already have) =====
+    return (new KltgMatrixExport($grid))->download();
+}
     // ===== Helper stubs (mirror your index queries) =====
     private function getKltgRows(int $year, string $company = '', string $product = '')
     {

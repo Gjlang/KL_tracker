@@ -186,7 +186,7 @@ class KltgCoordinatorController extends Controller
     // STRICT filter: hanya MasterFiles yang punya satu/baris yg MATCH di monthly table untuk tab + periode
     $rowsQuery->whereExists(function ($q) use ($monthlyTable, $storedSub, $scope, $month, $year) {
     // normalisasi agar tahan format: 12 / '12' / 'December' / value_date
-    $monthName = $month ? strtolower(\Carbon\Carbon::create(null, $month, 1)->format('F')) : null;
+    $monthName = $month ? strtolower(Carbon::create(null, $month, 1)->format('F')) : null;
 
     $q->selectRaw('1')
       ->from("$monthlyTable as md")

@@ -130,13 +130,15 @@
         to { opacity: 1; transform: translateY(0); }
       }
     </style>
-  @endpush>
+  @endpush
 
   <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50"
        x-data="mediaCoordinator({
          postUrl: '{{ route('coordinator.media.upsert') }}',
          initialYear: {{ (int)$year }},
          initialMonth: {{ $month ? (int)$month : 'null' }},
+         initialTab: '{{ $activeTab ?? 'content' }}',
+         initialScope: '{{ $scope ?? 'month_year' }}',
        })">
 
     {{-- Premium Sticky Filter Bar --}}
@@ -154,18 +156,39 @@
             </div>
 
             <div class="space-y-2">
-              <label class="block text-sm font-semibold text-slate-700">Month</label>
-              <select name="month" class="input-premium h-11 px-4 py-2 rounded-xl text-sm font-medium min-w-[8rem] shadow-sm" x-on:change="formMonthChanged($event)">
-                <option value="" {{ $month ? '' : 'selected' }}>All months</option>
-                @for($m=1;$m<=12;$m++)
-                  <option value="{{ $m }}" {{ $month===$m ? 'selected':'' }}>
-                    {{ \Carbon\Carbon::create()->startOfYear()->month($m)->format('F') }}
-                  </option>
-                @endfor
+  <label class="block text-sm font-semibold text-slate-700">Month</label>
+  <select name="month"
+          class="input-premium h-11 px-4 py-2 rounded-xl text-sm font-medium min-w-[8rem] shadow-sm"
+          onchange="
+            const p = new URLSearchParams(window.location.search);
+            const v = this.value;
+            if (v) { p.set('month', v); } else { p.delete('month'); }
+            if (!p.has('year'))  p.set('year', '{{ (int)$year }}');
+            if (!p.has('tab'))   p.set('tab',  '{{ $activeTab ?? 'content' }}');
+            if (!p.has('scope')) p.set('scope','{{ $scope ?? 'month_year' }}');
+            window.location = `${location.pathname}?${p.toString()}`;
+          ">
+    <option value="" {{ $month ? '' : 'selected' }}>All months</option>
+    @for($m=1;$m<=12;$m++)
+      <option value="{{ $m }}" {{ $month===$m ? 'selected':'' }}>
+        {{ \Carbon\Carbon::create()->startOfYear()->month($m)->format('F') }}
+      </option>
+    @endfor
+  </select>
+</div>
+
+
+            <div class="space-y-2">
+              <label class="block text-sm font-semibold text-slate-700">Scope</label>
+              <select name="scope" class="input-premium h-11 px-4 py-2 rounded-xl text-sm font-medium min-w-[10rem] shadow-sm">
+                <option value="month_year" {{ ($scope ?? '')==='month_year' ? 'selected' : '' }}>Month + Year</option>
+                <option value="month_only" {{ ($scope ?? '')==='month_only' ? 'selected' : '' }}>Month (All Years)</option>
+                <option value="year_only"  {{ ($scope ?? '')==='year_only'  ? 'selected' : '' }}>All Months (Year)</option>
+                <option value="all"        {{ ($scope ?? '')==='all'        ? 'selected' : '' }}>All Months (All Years)</option>
               </select>
             </div>
 
-            <button type="submit" class="h-11 px-6 py-2 bg-gradient-to-r from-[#22255b] to-[#1a1d47] text-white rounded-xl hover:from-[#1a1d47] hover:to-[#141729] transition-all duration-200 shadow-lg hover:shadow-xl font-semibold text-sm transform hover:-translate-y-0.5">
+            <button type="submit" class="h-11 px-6 py-2 bg-gradient-to-r from-[#22255b] to-[#1a1d47] text-black rounded-xl hover:from-[#1a1d47] hover:to-[#141729] transition-all duration-200 shadow-lg hover:shadow-xl font-semibold text-sm transform hover:-translate-y-0.5">
               Apply Filters
             </button>
           </div>
@@ -173,7 +196,7 @@
           <div class="flex flex-col items-end gap-2 text-right">
             <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-full">
               <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-              <span class="text-sm font-medium text-slate-700">{{ count($masters) }} companies</span>
+              <span class="text-sm font-medium text-slate-700">{{ count($masters) }} companies • {{ $periodLabel }}</span>
             </div>
             <template x-if="!selectedMonth">
               <span class="text-xs text-slate-500 bg-amber-50 px-2 py-1 rounded-full border border-amber-200">
@@ -190,14 +213,20 @@
       </div>
     </div>
 
-    {{-- Main Content --}}
+    {{-- Empty state / Main Content --}}
     <div class="max-w-7xl mx-auto px-6 py-8 space-y-8">
+      @if(count($masters)===0)
+        <div class="rounded-xl border border-slate-200 bg-white p-6 text-center text-slate-600">
+          No coordinator items found for {{ $periodLabel }}.
+        </div>
+      @endif
+
       {{-- Premium Tab Navigation --}}
       <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200/60 p-2">
         <nav class="flex flex-wrap gap-1" role="tablist">
           <template x-for="t in tabs" :key="t.key">
             <button type="button"
-                    @click="activeTab = t.key"
+                    @click.prevent="switchTab(t.key)"
                     :class="activeTab===t.key ? 'bg-gradient-to-r from-[#4bbbed] to-[#3da5cc] text-white shadow-lg shadow-blue-200/50 font-bold border-0 transform scale-105' : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50 border border-transparent'"
                     class="px-6 py-3 rounded-xl transition-all duration-300 text-sm whitespace-nowrap font-medium"
                     :aria-selected="activeTab===t.key"
@@ -309,67 +338,44 @@
     </div>
 
     {{-- Alpine component logic --}}
-    <script>
-      document.addEventListener('alpine:init', () => {
-        Alpine.data('mediaCoordinator', (cfg) => ({
-          tabs: [
-            {key:'content',  label:'Content Calendar'},
-            {key:'editing',  label:'Artwork Editing'},
-            {key:'schedule', label:'Posting Scheduling'},
-            {key:'report',   label:'Report'},
-            {key:'valueadd', label:'Value Add'},
-          ],
-          activeTab: 'content',
-          postUrl: cfg.postUrl,
-          selectedYear: cfg.initialYear,
-          selectedMonth: cfg.initialMonth, // null = All
-          get selectedMonthEnabled(){ return !!this.selectedMonth; },
-          get selectedMonthInt(){ return this.selectedMonth ? parseInt(this.selectedMonth) : null; },
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+<script>
+(function(){
+  const token = document.querySelector('meta[name="csrf-token"]').content;
+  const url = "{{ route('coordinator.media.upsert') }}";
 
-          formMonthChanged(e){ this.selectedMonth = e.target.value ? parseInt(e.target.value) : null; },
+  function payloadFrom(el){
+    const section = el.dataset.section;
+    const field   = el.dataset.field;
+    const master  = parseInt(el.dataset.master, 10);
+    const year    = el.dataset.year ? parseInt(el.dataset.year, 10) : null;
+    const month   = el.dataset.month ? parseInt(el.dataset.month, 10) : null;
+    let value = (el.type === 'checkbox') ? (el.checked ? 1 : 0) : el.value;
+    return { section, field, master_file_id: master, year, month, value };
+  }
 
-          /** Debounced autosave per input element */
-          async save(el) {
-            const section = el.dataset.section;
-            const field   = el.dataset.field;
-            const mfid    = parseInt(el.dataset.master, 10);
-            const year    = parseInt(el.dataset.year, 10);
-            const month   = this.selectedMonthInt;
+  async function save(el){
+    const body = payloadFrom(el);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type':'application/json',
+        'X-CSRF-TOKEN': token,
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      body: JSON.stringify(body)
+    });
+    // optional: tampilkan indikator sukses/gagal
+  }
 
-            // Guard: disable editing when Month = All (null)
-            if (!month) return;
+  const dh = (fn, ms=300)=>{ let t; return (...a)=>{clearTimeout(t); t=setTimeout(()=>fn(...a),ms)} };
+  const onChange = dh(ev => save(ev.target), 250);
 
-            const isCheckbox = el.type === 'checkbox';
-            const value = isCheckbox ? el.checked : el.value;
-
-            const statusEl = el.nextElementSibling?.classList.contains('cell-status') ? el.nextElementSibling : null;
-            const setStatus = (txt, cls) => {
-              if (!statusEl) return;
-              statusEl.textContent = txt;
-              statusEl.className = 'cell-status text-xs font-medium transition-all duration-200 ' + cls;
-            };
-            setStatus('💾 Saving','text-blue-600 animate-pulse');
-
-            try {
-              const res = await fetch(this.postUrl, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                },
-                body: JSON.stringify({ section, master_file_id: mfid, year, month, field, value }),
-              });
-              const json = await res.json();
-              if (!res.ok || !json.ok) throw new Error(json.error || 'Save failed');
-              setStatus('✅ Saved','text-emerald-600');
-              setTimeout(() => setStatus('','text-transparent'), 2000);
-            } catch (err) {
-              setStatus('❌ Error','text-red-600');
-              console.error('Autosave error:', err);
-            }
-          },
-        }));
-      });
-    </script>
+  document.querySelectorAll('.autosave').forEach(el=>{
+    el.addEventListener('change', onChange);
+    el.addEventListener('blur', onChange);
+  });
+})();
+</script>
   </div>
 </x-app-layout>

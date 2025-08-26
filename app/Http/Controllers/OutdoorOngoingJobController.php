@@ -13,105 +13,104 @@ use Carbon\Carbon;
 class OutdoorOngoingJobController extends Controller
 {
 
-     private function baseOutdoor($q)
-    {
-        // AGGRESSIVE Outdoor filtering - explicit inclusion and exclusion
-        return $q->where(function($subQuery) {
-            $subQuery->whereRaw("LOWER(TRIM(COALESCE(product_category, ''))) = 'outdoor'")
-                     ->orWhereRaw("LOWER(TRIM(COALESCE(product_category, ''))) = 'outdoor advertising'")
-                     ->orWhereRaw("LOWER(TRIM(COALESCE(product_category, ''))) LIKE 'outdoor %'")
-                     ->orWhereRaw("LOWER(TRIM(COALESCE(product_category, ''))) LIKE '% outdoor'")
-                     // Also check if product_category is null but product field contains outdoor
-                     ->orWhere(function($nullCheck) {
-                         $nullCheck->whereNull('product_category')
-                                   ->whereRaw("LOWER(TRIM(COALESCE(product, ''))) LIKE '%outdoor%'");
-                     });
-        })
-        // EXPLICITLY exclude KLTG and Media to prevent any leakage
-        ->whereRaw("LOWER(TRIM(COALESCE(product_category, ''))) NOT LIKE '%kltg%'")
-        ->whereRaw("LOWER(TRIM(COALESCE(product_category, ''))) NOT LIKE '%media%'")
-        ->whereRaw("LOWER(TRIM(COALESCE(product_category, ''))) != 'kltg'")
-        ->whereRaw("LOWER(TRIM(COALESCE(product_category, ''))) != 'media'");
-    }
+     private function baseOutdoor(\Illuminate\Database\Eloquent\Builder $q)
+{
+    // Hanya kategori Outdoor (aman untuk variasi huruf)
+    $q->where(function ($qq) {
+        $qq->where('product_category', 'Outdoor')
+           ->orWhereRaw('LOWER(product_category) LIKE ?', ['%outdoor%']);
+    });
+
+    // (Opsional tapi disarankan) Batasi hanya produk Outdoor:
+    $allowed = ['TB','BB','Newspaper','Bunting','Flyers','Star','Signages'];
+    $q->whereIn('product', $allowed);
+
+    return $q;
+}
+
     public function index(Request $req)
-    {
-        // 1) Year filter from dropdown: name="outdoor_year"
-        $year = (int)($req->input('outdoor_year') ?: now()->year);
+{
+    // 1) Year dari dropdown: name="outdoor_year"
+    $year = (int)($req->input('outdoor_year') ?: now()->year);
 
-        // 2) Year options — from master_files (so dropdown works even if details empty)
-        $availableYears = $this->baseOutdoor(MasterFile::query())
-            ->selectRaw('YEAR(COALESCE(`date`, `created_at`)) as y')
-            ->distinct()
-            ->orderBy('y', 'desc')
-            ->pluck('y');
+    // 2) Filter product khusus Outdoor: name="outdoor_product"
+    $product = trim((string)$req->input('outdoor_product', ''));
 
-        if (!$availableYears->contains($year)) {
-            $availableYears = $availableYears->prepend($year)->unique()->sortDesc()->values();
-        }
+    // 3) Tahun yang tersedia (sudah lewat baseOutdoor → aman)
+    $availableYears = $this->baseOutdoor(MasterFile::query())
+        ->selectRaw('YEAR(COALESCE(`date`, `created_at`)) as y')
+        ->distinct()
+        ->orderBy('y', 'desc')
+        ->pluck('y');
 
-        // 3) GRID SOURCE = master_files (this is the key)
-        //    Filter by the selected year using COALESCE(date, created_at)
-        $rows = $this->baseOutdoor(MasterFile::query())
-            ->whereRaw('YEAR(COALESCE(`date`, `created_at`)) = ?', [$year])
-            ->orderByRaw('COALESCE(`date`, `created_at`) DESC')
-            ->get();
-
-        // Fallback: if still empty, show recent 50 so the page never looks blank
-        if ($rows->isEmpty()) {
-            $rows = MasterFile::query()
-                ->orderByRaw('COALESCE(`date`, `created_at`) DESC')
-                ->limit(50)->get();
-        }
-
-        // 4) Hydrate details for the chosen year (latest per slot)
-        $ids = $rows->pluck('id')->all();
-
-        $latestPerSlot = DB::table('outdoor_monthly_details')
-            ->select([
-                'master_file_id','year','month','field_key',
-                DB::raw('MAX(COALESCE(updated_at, created_at)) as ts'),
-            ])
-            ->whereIn('master_file_id', $ids)
-            ->where('year', $year)
-            ->groupBy('master_file_id','year','month','field_key');
-
-        $details = DB::table('outdoor_monthly_details as d')
-            ->joinSub($latestPerSlot, 'mx', function ($j) {
-                $j->on('d.master_file_id','=','mx.master_file_id')
-                  ->on('d.year','=','mx.year')
-                  ->on('d.month','=','mx.month')
-                  ->on('d.field_key','=','mx.field_key')
-                  ->on(DB::raw('COALESCE(d.updated_at,d.created_at)'),'=','mx.ts');
-            })
-            ->get([
-                'd.master_file_id','d.year','d.month',
-                DB::raw('LOWER(d.field_key) as field_key'),
-                'd.field_type','d.value_text','d.value_date',
-            ]);
-
-        // Map for omd($existing, $id, $month, $key, $type)
-        $existing = $details->mapWithKeys(function ($d) {
-            $key = "{$d->master_file_id}:{$d->month}:{$d->field_key}";
-            return [$key => (object)[
-                'field_type' => $d->field_type,
-                'value_text' => $d->value_text,
-                'value_date' => $d->value_date ? Carbon::parse($d->value_date) : null,
-            ]];
-        });
-
-        Log::info('OUTDOOR index snapshot', [
-            'filter_year'  => $year,
-            'rows_count'   => $rows->count(),
-            'details_cnt'  => $details->count(),
-        ]);
-
-        return view('dashboard.outdoor', [
-            'year'           => $year,
-            'rows'           => $rows,            // <— Blade must loop THIS
-            'existing'       => $existing,
-            'availableYears' => $availableYears,
-        ]);
+    if (!$availableYears->contains($year)) {
+        $availableYears = $availableYears->prepend($year)->unique()->sortDesc()->values();
     }
+
+    // 4) Sumber grid = master_files (outdoor only) + filter tahun + (opsional) produk
+    $rows = $this->baseOutdoor(MasterFile::query())
+        ->when($product !== '', fn($q) => $q->where('product', $product))
+        ->whereRaw('YEAR(COALESCE(`date`, `created_at`)) = ?', [$year])
+        ->orderByRaw('COALESCE(`date`, `created_at`) DESC')
+        ->get();
+
+    // 5) Fallback juga harus outdoor-only (DULUNYA bukan)
+    if ($rows->isEmpty()) {
+        $rows = $this->baseOutdoor(MasterFile::query())
+            ->when($product !== '', fn($q) => $q->where('product', $product))
+            ->orderByRaw('COALESCE(`date`, `created_at`) DESC')
+            ->limit(50)
+            ->get();
+    }
+
+    // 6) (lanjutanmu) Hydrate details per tahun
+    $ids = $rows->pluck('id')->all();
+
+    $latestPerSlot = DB::table('outdoor_monthly_details')
+        ->select([
+            'master_file_id','year','month','field_key',
+            DB::raw('MAX(COALESCE(updated_at, created_at)) as ts'),
+        ])
+        ->whereIn('master_file_id', $ids)
+        ->where('year', $year)
+        ->groupBy('master_file_id','year','month','field_key');
+
+    $details = DB::table('outdoor_monthly_details as d')
+        ->joinSub($latestPerSlot, 'mx', function ($j) {
+            $j->on('d.master_file_id','=','mx.master_file_id')
+              ->on('d.year','=','mx.year')
+              ->on('d.month','=','mx.month')
+              ->on('d.field_key','=','mx.field_key')
+              ->on(DB::raw('COALESCE(d.updated_at,d.created_at)'),'=','mx.ts');
+        })
+        ->get([
+            'd.master_file_id','d.year','d.month',
+            DB::raw('LOWER(d.field_key) as field_key'),
+            'd.field_type','d.value_text','d.value_date',
+        ]);
+
+    $existing = $details->mapWithKeys(function ($d) {
+        $key = "{$d->master_file_id}:{$d->month}:{$d->field_key}";
+        return [$key => (object)[
+            'field_type' => $d->field_type,
+            'value_text' => $d->value_text,
+            'value_date' => $d->value_date ? Carbon::parse($d->value_date) : null,
+        ]];
+    });
+
+    // Dropdown produk Outdoor saja
+    $outdoorProducts = ['TB','BB','Newspaper','Bunting','Flyers','Star','Signages'];
+
+    return view('dashboard.outdoor', [
+        'year'            => $year,
+        'rows'            => $rows,
+        'existing'        => $existing,
+        'availableYears'  => $availableYears,
+        'outdoorProducts' => $outdoorProducts,
+        'product'         => $product,
+    ]);
+}
+
 
     public function events(Request $request)
     {

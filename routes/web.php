@@ -88,9 +88,8 @@ Route::post('/monthly-jobs/{id}/update', [MasterFileController::class, 'updateMo
 // Export routes
 Route::get('/export-monthly-ongoing', [MasterFileController::class, 'exportMonthlyOngoing'])->name('export.monthly.ongoing');
 Route::get('/template', [MasterFileController::class, 'downloadTemplate'])->name('template');
-Route::get('/masterfile/export', [MasterFileController::class, 'exportCsv'])->name('masterfile.export');
-Route::get('/masterfile/export-csv', [MasterFileController::class, 'exportCsv'])->name('masterfile.exportCsv');
-
+Route::get('/masterfile/export-csv', [MasterFileController::class, 'exportCsv'])
+    ->name('masterfile.exportCsv');
 // Serials preview
 Route::get('/serials/preview', [MasterFileController::class, 'previewSerials'])->name('serials.preview');
 
@@ -129,7 +128,7 @@ Route::get('/dashboard/outdoor', [OutdoorOngoingJobController::class, 'index'])
     ->name('dashboard.outdoor');
 Route::get('/outdoor-jobs', fn () => redirect()->route('dashboard.outdoor'))
     ->name('dashboard.outdoor.legacy');
-Route::post('/outdoor/monthly/upsert', [OutdoorOngoingJobController::class, 'upsertMonthlyDetail'])
+Route::post('/outdoor/monthly/upsert', [OutdoorOngoingJobController::class, 'upsert'])
     ->name('outdoor.monthly.upsert');
 // ===============================================
 // KLTG COORDINATOR ROUTES (CLEANED)
@@ -152,9 +151,11 @@ Route::prefix('kltg')->name('kltg.')->group(function () {
     Route::post('/details/upsert', [KltgMonthlyController::class, 'upsert'])->name('details.upsert');
 });
 
-Route::get('/kltg/export/xlsx', [KltgMonthlyController::class, 'exportXlsx'])->name('kltg.export.xlsx');
+Route::get('/kltg-matrix/export', [KltgMonthlyController::class, 'exportMatrix'])
+    ->name('kltg.matrix.export');
 
-
+Route::get('/kltg/export/print', [KltgMonthlyController::class, 'exportPrint'])
+     ->name('kltg.export.print');
 
 // ===============================================
 // MEDIA COORDINATOR ROUTES

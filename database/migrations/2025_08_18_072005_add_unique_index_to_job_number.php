@@ -36,3 +36,4 @@ return new class extends Migration {
         // Keep the column (non-destructive)
     }
 };
+    

@@ -11,6 +11,7 @@ use App\Models\MasterFile;
 use App\Models\MediaOngoingJob; // 🔧 NEW: Import MediaOngoingJob model
 use App\Imports\MasterFileImport;
 use Carbon\Carbon;
+use App\Exports\MasterFilesExport;
 use App\Models\KltgMonthlyDetail;
 
 
@@ -415,107 +416,33 @@ class MasterFileController extends Controller
         return $this->exportCsv($request);
     }
 
-    public function exportCsv(Request $request)
-    {
-        $q = MasterFile::query();
+     public function exportCsv(Request $request)
+{
+    // Pass all current query filters so the export matches the page
+    $filters = $request->only(['search', 'status', 'month', 'product_category']);
 
-        // (filters sama persis seperti sebelumnya)
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $q->where(function($qq) use ($search) {
-                $qq->where('company', 'like', "%{$search}%")
-                ->orWhere('product', 'like', "%{$search}%")
-                ->orWhere('status', 'like', "%{$search}%")
-                ->orWhere('client', 'like', "%{$search}%")
-                ->orWhere('month', 'like', "%{$search}%");
+    $export = new MasterFilesExport($filters);
+    $data = $export->getData();
+
+    $filename = 'master_files_' . now()->format('Ymd_His');
+
+    // Laravel Excel v1.x syntax
+    return Excel::create($filename, function($excel) use ($data) {
+        $excel->sheet('Master Files', function($sheet) use ($data) {
+            // Load data from array
+            $sheet->fromArray($data, null, 'A1', false, false);
+
+            // Auto size columns
+            $sheet->setAutoSize(true);
+
+            // Style the header row
+            $sheet->row(1, function($row) {
+                $row->setFontWeight('bold');
+                $row->setBackground('#cccccc');
             });
-        }
-        if ($request->filled('status')) $q->where('status', $request->status);
-        if ($request->filled('month')) $q->where('month', $request->month);
-
-        // 🔧 UPDATED: Product category filter with fallback
-        if ($request->filled('product_category')) {
-            $hasPC = Schema::hasColumn('master_files', 'product_category');
-            if ($hasPC) {
-                $q->where('product_category', $request->product_category);
-            } else {
-                // fallback: filter lewat product
-                $cat = strtolower($request->product_category);
-                if ($cat === 'outdoor') {
-                    $q->where(function($qq) {
-                        $qq->whereIn('product', ['HM','TB','TTM','BB','Star','Flyers','Bunting','Signages'])
-                           ->orWhereRaw('LOWER(product) LIKE ?', ['%outdoor%']);
-                    });
-                } elseif ($cat === 'kltg') {
-                    $q->whereRaw('LOWER(product) LIKE ?', ['%kltg%']);
-                } elseif ($cat === 'media') {
-                    $q->where(function($qq) {
-                        $qq->whereRaw('LOWER(product) LIKE ?', ['%media%'])
-                           ->orWhereIn('product', ['FB IG Ad', 'Facebook', 'Instagram']);
-                    });
-                }
-            }
-        }
-
-        $rows = $q->orderBy('created_at', 'desc')->get();
-
-        $filename = 'master_files_'.now()->format('Y_m_d_H_i_s').'.csv';
-        $headers = [
-            'Content-Type'        => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ];
-
-        $fmt = fn($d) => $d ? Carbon::parse($d)->format('d-MMM-yy') : '';
-        $monthName = function ($m) {
-            if ($m === null || $m === '') return '';
-            return is_numeric($m)
-                ? Carbon::create(null, (int)$m, 1)->format('F')
-                : (string)$m;
-        };
-
-        return response()->streamDownload(function () use ($rows, $fmt, $monthName) {
-            $out = fopen('php://output', 'w');
-            fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF)); // UTF-8 BOM
-
-            fputcsv($out, [
-                'Date Created','Company Name','Client','Product','Month',
-                'Start Date','End Date','Duration','Status',
-                'Traffic','Job','Artwork','Invoice Date','Invoice Number'
-            ]);
-
-            foreach ($rows as $mf) {
-                // !!! gunakan 'date' & 'date_finish'
-                $start = $mf->date;
-                $end   = $mf->date_finish;
-
-                // Durasi (hari) jika tidak ada di DB
-                $duration = $mf->duration;
-                if ($duration === null && $start && $end) {
-                    $duration = Carbon::parse($start)->diffInDays(Carbon::parse($end));
-                }
-
-                fputcsv($out, [
-                    $fmt($mf->created_at),     // Date Created (timestamp Laravel)
-                    $mf->company,
-                    $mf->client,
-                    $mf->product,
-                    $monthName($mf->month),
-                    $fmt($start),              // Start Date -> date
-                    $fmt($end),                // End Date   -> date_finish
-                    $duration,
-                    ucfirst((string)$mf->status),
-                    $mf->traffic ?? '',
-                    ($mf->job ?? $mf->job_status ?? '') ?: '',
-                    ($mf->artwork ?? $mf->artwork_status ?? '') ?: '',
-                    $fmt($mf->invoice_date ?? $mf->invoice_at ?? null),
-                    $mf->invoice_number ?? $mf->invoice_no ?? '',
-                ]);
-            }
-
-            fclose($out);
-        }, $filename, $headers);
-    }
-
+        });
+    })->download('xlsx');
+}
     // 🔧 UPDATED: Export method for Monthly Ongoing Job section with product_category fallback
     public function exportMonthlyOngoing()
     {

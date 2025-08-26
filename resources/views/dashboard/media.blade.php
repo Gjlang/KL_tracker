@@ -437,6 +437,10 @@
         // Enhanced save function with better UX feedback
         const SAVE_URL = "{{ route('media.monthly.upsert') }}";
 
+         function debounce(fn, ms=350){
+           let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); };
+         }
+
         async function saveMediaCell(el) {
             const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
             const payload = {

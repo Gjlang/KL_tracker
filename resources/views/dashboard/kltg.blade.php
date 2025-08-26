@@ -4,37 +4,72 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
   @endpush
 
-  {{-- Header & action --}}
-<div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-  <h2 class="text-2xl font-bold">📊 MONTHLY Ongoing Job – KL The Guide</h2>
+<!-- Header & Actions -->
+<div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+  <!-- Title -->
+  <h2 class="text-2xl font-bold flex items-center gap-2">
+    📊 <span>MONTHLY Ongoing Job – KL The Guide</span>
+  </h2>
 
-                    <!-- Back to Dashboard -->
-                    <button onclick="window.history.back()" class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-                        </svg>
-                        Dashboard
-                    </button>
+  <!-- Action Buttons -->
+  <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+    <!-- Back to Dashboard -->
+    <button onclick="window.history.back()"
+            class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">
+      <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+      </svg>
+      Dashboard
+    </button>
 
-  {{-- Use a plain anchor to avoid form submission to the same page --}}
-  <a href="{{ route('coordinator.kltg.index') }}"
-     class="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition shadow-sm">
-    🗂️ Open KLTG Coordinator
-  </a>
+    <!-- Open KLTG Coordinator -->
+    <a href="{{ route('coordinator.kltg.index') }}"
+       class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm">
+      🗂️ <span class="ml-2">Open KLTG Coordinator</span>
+    </a>
+  </div>
 </div>
+
+
     {{-- Enhanced Filter Section with Month/Year --}}
-    <div class="mb-6 p-6 bg-gradient-to-r from-white to-gray-50 rounded-xl shadow-lg border border-gray-200">
-      <div class="flex items-center justify-between mb-5">
-        <h4 class="text-xl font-bold text-gray-800 flex items-center gap-2">
-          <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
-          </svg>
-          Advanced Filters
-        </h4>
-        <div class="text-sm text-gray-500">
-          <span id="filter-count">All records visible</span>
-        </div>
+<div class="mb-6 p-6 bg-gradient-to-r from-white to-gray-50 rounded-xl shadow-lg border border-gray-200">
+  <div class="flex items-center justify-between mb-5">
+    <h4 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+      <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+      </svg>
+      Advanced Filters
+    </h4>
+
+    <div class="flex items-center gap-4">
+      <div class="text-sm text-gray-500">
+        <span id="filter-count">All records visible</span>
       </div>
+
+      {{-- Export XLSX (keeps active filters) --}}
+      <a
+        href="{{ route('kltg.matrix.export', array_filter(request()->only([
+            // keep whatever your page uses
+            'year','filter_year','month','filter_month',
+            'q','search','status',
+            'start','end','date_from','date_to'
+        ]))) }}"
+        class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-white shadow hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+      >
+        {{-- download icon --}}
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"/>
+        </svg>
+        <span>Export Excel</span>
+      </a>
+    </div>
+  </div>
+
+  {{-- (your existing filters UI continues below) --}}
+
 
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
 
@@ -277,6 +312,8 @@
             @endfor
           </tr>
         @endforeach
+
+
       @else
         <tr>
           <td colspan="22" class="border border-gray-300 px-6 py-12 text-center text-gray-500">

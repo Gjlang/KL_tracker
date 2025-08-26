@@ -30,7 +30,6 @@ class MediaOngoingJobController extends Controller
         $details = MediaMonthlyDetail::whereIn('master_file_id', $rows->pluck('id'))
             ->get()
             ->groupBy(function($d){
-                // key sederhana: "<master_file_id>|<year>|<subcategory>|<kind>"
                 return implode('|', [
                     $d->master_file_id,
                     $d->year,
@@ -120,7 +119,7 @@ class MediaOngoingJobController extends Controller
     // If your table still has 'subcategory' NOT NULL, choose a default:
     $sub = 'General';
 
-    $detail = \App\Models\MediaMonthlyDetail::firstOrNew([
+    $detail = MediaMonthlyDetail::firstOrNew([
         'master_file_id' => $data['master_file_id'],
         'year'           => $data['year'],
         'month'          => $data['month'],

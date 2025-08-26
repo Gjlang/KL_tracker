@@ -96,7 +96,7 @@ class CalendarController extends Controller
         $events = [];
 
         // ============ KLTG (value_date present only; title from detail table) ============
-        if (\Illuminate\Support\Facades\Schema::hasColumn('kltg_monthly_details', 'master_file_id')) {
+        if (Schema::hasColumn('kltg_monthly_details', 'master_file_id')) {
             $kltg = DB::table('kltg_monthly_details as d')
                 ->leftJoin('master_files as m', 'm.id', '=', 'd.master_file_id')
                 ->selectRaw("
