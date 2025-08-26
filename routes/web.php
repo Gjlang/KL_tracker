@@ -64,7 +64,6 @@ Route::prefix('masterfile')->name('masterfile.')->group(function () {
     Route::put('/{id}', [MasterFileController::class, 'update'])->name('update');
     Route::post('/{id}/update', [MasterFileController::class, 'updateRemarksAndLocation'])->name('update.partial');
     Route::post('/{id}/timeline', [MasterFileController::class, 'updateTimeline'])->name('timeline.update');
-    Route::get('/export-csv', [MasterFileController::class, 'export'])->name('exportCsv');
 
     // Matrix routes
     Route::get('/{id}/matrix', [MasterFileController::class, 'showMatrix'])->name('matrix.show');
@@ -73,6 +72,8 @@ Route::prefix('masterfile')->name('masterfile.')->group(function () {
     Route::post('/{id}/kltg-matrix/update', [MasterFileController::class, 'updateKltgMatrix'])->name('kltg.matrix.update');
     Route::post('/{id}/kltg-monthly', [MasterFileController::class, 'upsertKltgMonthly'])->name('kltg.monthly.upsert');
 });
+
+Route::get('/masterfile/export-xlsx', [MasterFileController::class, 'exportXlsx'])->name('masterfile.exportXlsx');
 
 // MasterFile backward compatibility routes
 Route::get('masterfile/{id}/matrix', [MasterFileController::class, 'showMatrix'])->name('matrix.show');

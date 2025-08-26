@@ -69,7 +69,7 @@
                     Import Data
                   </button>
 
-                  <a href="{{ route('masterfile.exportCsv', request()->query()) }}"
+                  <a href="{{ route('masterfile.exportXlsx', request()->query()) }}"
                     class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     Export All Data
                   </a>

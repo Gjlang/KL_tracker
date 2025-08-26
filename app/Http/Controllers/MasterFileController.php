@@ -411,38 +411,19 @@ class MasterFileController extends Controller
         }
     }
 
-    public function export(Request $request)
+      public function exportXlsx(Request $request)
     {
-        return $this->exportCsv($request);
+        // Collect known filters from the UI (adjust keys to your inputs if needed)
+        $filters = $request->only([
+            'date_from', 'date_to', 'date_field',   // date_field optional (e.g. 'created_at' or 'date')
+            'search', 'contains',                   // unified "contains" search
+            'status'                                // string or array
+        ]);
+
+        $filename = 'export_masterfiles_' . now('Asia/Kuala_Lumpur')->format('Ymd') . '.xlsx';
+
+        return Excel::download(new MasterFilesExport($filters), $filename);
     }
-
-     public function exportCsv(Request $request)
-{
-    // Pass all current query filters so the export matches the page
-    $filters = $request->only(['search', 'status', 'month', 'product_category']);
-
-    $export = new MasterFilesExport($filters);
-    $data = $export->getData();
-
-    $filename = 'master_files_' . now()->format('Ymd_His');
-
-    // Laravel Excel v1.x syntax
-    return Excel::create($filename, function($excel) use ($data) {
-        $excel->sheet('Master Files', function($sheet) use ($data) {
-            // Load data from array
-            $sheet->fromArray($data, null, 'A1', false, false);
-
-            // Auto size columns
-            $sheet->setAutoSize(true);
-
-            // Style the header row
-            $sheet->row(1, function($row) {
-                $row->setFontWeight('bold');
-                $row->setBackground('#cccccc');
-            });
-        });
-    })->download('xlsx');
-}
     // 🔧 UPDATED: Export method for Monthly Ongoing Job section with product_category fallback
     public function exportMonthlyOngoing()
     {
