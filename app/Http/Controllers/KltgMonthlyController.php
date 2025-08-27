@@ -17,19 +17,15 @@ use App\Exports\KltgMonthlyExport;
 
 class KltgMonthlyController extends Controller
 {
-    public function upsert(Request $req)
+   public function upsert(Request $req)
 {
     $data = $req->validate([
         'master_file_id' => 'required|integer|exists:master_files,id',
         'year'           => 'required|integer|min:2000|max:2100',
         'month'          => 'required|integer|min:1|max:12',
-        // Subcategory tab (must be one of these)
         'category'       => 'required|string|in:KLTG,VIDEO,ARTICLE,LB,EM',
-        // Which logical field is being saved
         'type'           => 'required|string|in:PUBLICATION,EDITION,STATUS,START,END',
-        // Value kind
         'field_type'     => 'nullable|string|in:text,date',
-        // Unified input; server will split into value_text/value_date
         'value'          => 'nullable|string',
     ]);
 
@@ -37,31 +33,43 @@ class KltgMonthlyController extends Controller
     $data['category'] = strtoupper($data['category']);
     $data['type']     = strtoupper($data['type']);
 
-    // Infer field_type if not provided (fallback to text)
+    // Infer field_type if not provided
     if (empty($data['field_type'])) {
-        // Dates only when type is START or END
         $data['field_type'] = in_array($data['type'], ['START','END']) ? 'date' : 'text';
     }
 
-    if ($data['field_type'] === 'date' && !empty($data['value']) &&
-        !preg_match('/^\d{4}-\d{2}-\d{2}$/', $data['value'])) {
-        return response()->json(['message' => 'Invalid date format. Use YYYY-MM-DD.'], 422);
+    // Validate/normalize value based on field_type
+    $valueText = null;
+    $valueDate = null;
+
+    if ($data['field_type'] === 'date') {
+        // allow empty (clears the date)
+        if (!empty($data['value'])) {
+            // Expect YYYY-MM-DD
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $data['value'])) {
+                return response()->json(['message' => 'Invalid date format. Use YYYY-MM-DD.'], 422);
+            }
+            $valueDate = $data['value'];
+        }
+    } else { // text
+        $valueText = $data['value'] ?? null;
     }
 
-    // Composite key MUST include "type" so START and END are separate rows
+    // === Composite key MUST match DB unique index ===
+    // Use ALL of: master_file_id, year, month, category, type, field_type
     $key = [
-        'master_file_id' => $data['master_file_id'],
-        'year'           => $data['year'],
-        'month'          => $data['month'],
+        'master_file_id' => (int) $data['master_file_id'],
+        'year'           => (int) $data['year'],
+        'month'          => (int) $data['month'],
         'category'       => $data['category'],
-        'type'           => $data['type'],       // <— important
+        'type'           => $data['type'],
+        'field_type'     => $data['field_type'],  // important
     ];
 
     $attrs = [
-        'field_type' => $data['field_type'],     // text | date
-        'value'      => $data['value'],
-        'value_text' => $data['field_type'] === 'text' ? ($data['value'] ?? null) : null,
-        'value_date' => $data['field_type'] === 'date' ? ($data['value'] ?? null) : null,
+        'value'      => $data['value'] ?? null,   // optional raw mirror
+        'value_text' => $valueText,
+        'value_date' => $valueDate,
         'is_date'    => $data['field_type'] === 'date' ? 1 : 0,
         'status'     => 'ACTIVE',
     ];
@@ -69,9 +77,11 @@ class KltgMonthlyController extends Controller
     $row = KltgMonthlyDetail::updateOrCreate($key, $attrs);
 
     return response()->json([
-        'ok'  => true,
-        'id'  => $row->id,
-        'key' => $key,
+        'ok'   => true,
+        'id'   => $row->id,
+        'item' => $row->only([
+            'master_file_id','year','month','category','type','field_type','value_text','value_date','is_date','status'
+        ]),
     ]);
 }
 
@@ -144,46 +154,46 @@ class KltgMonthlyController extends Controller
     $categories = ['KLTG', 'VIDEO', 'ARTICLE', 'LB', 'EM'];
 
     // 6) Shape rows for the Blade
-    $rows = $baseRows->map(function ($mf) use ($map, $categories, $activeYear) {
-        // Publication & Edition live at month=1, category=KLTG, types PUBLICATION/EDITION
-        $pubKey = "{$mf->id}|{$activeYear}|1|KLTG|PUBLICATION";
-        $ediKey = "{$mf->id}|{$activeYear}|1|KLTG|EDITION";
+   $rows = $baseRows->map(function ($mf) use ($map, $categories, $activeYear) {
+    // ✅ FIXED: Publication and Edition both use month=0 as sentinel
+    $pubKey = "{$mf->id}|{$activeYear}|0|KLTG|PUBLICATION";
+    $ediKey = "{$mf->id}|{$activeYear}|0|KLTG|EDITION";
 
-        $publication = isset($map[$pubKey]) ? ($map[$pubKey]->value_text ?? '') : '';
-        $edition     = isset($map[$ediKey]) ? ($map[$ediKey]->value_text ?? '') : '';
+    $publication = isset($map[$pubKey]) ? ($map[$pubKey]->value_text ?? '') : '';
+    $edition     = isset($map[$ediKey]) ? ($map[$ediKey]->value_text ?? '') : '';
 
-        // Build 12 x categories grid for status/start/end
-        $grid = [];
-        for ($m = 1; $m <= 12; $m++) {
-            foreach ($categories as $cat) {
-                $statusKey = "{$mf->id}|{$activeYear}|{$m}|{$cat}|STATUS";
-                $startKey  = "{$mf->id}|{$activeYear}|{$m}|{$cat}|START";
-                $endKey    = "{$mf->id}|{$activeYear}|{$m}|{$cat}|END";
+    // Rest of your code remains the same...
+    $grid = [];
+    for ($m = 1; $m <= 12; $m++) {
+        foreach ($categories as $cat) {
+            $statusKey = "{$mf->id}|{$activeYear}|{$m}|{$cat}|STATUS";
+            $startKey  = "{$mf->id}|{$activeYear}|{$m}|{$cat}|START";
+            $endKey    = "{$mf->id}|{$activeYear}|{$m}|{$cat}|END";
 
-                $gridKey = sprintf('%02d_%s', $m, $cat);
-                $grid[$gridKey] = [
-                    'status' => isset($map[$statusKey]) ? ($map[$statusKey]->value_text ?? '') : '',
-                    'start'=> isset($map[$startKey])  ? ($map[$startKey]->value_date ?? '') : '',
-                    'end'  => isset($map[$endKey])    ? ($map[$endKey]->value_date ?? '') : '',
-                ];
-            }
+            $gridKey = sprintf('%02d_%s', $m, $cat);
+            $grid[$gridKey] = [
+                'status' => isset($map[$statusKey]) ? ($map[$statusKey]->value_text ?? '') : '',
+                'start'=> isset($map[$startKey])  ? ($map[$startKey]->value_date ?? '') : '',
+                'end'  => isset($map[$endKey])    ? ($map[$endKey]->value_date ?? '') : '',
+            ];
         }
+    }
 
-        return [
-            'id'          => $mf->id,
-            'month_name'  => $mf->month_name ?? '',
-            'created_at'  => optional($mf->created_at)->format('d/m/y'),
-            'company'     => $mf->company,
-            'product'     => $mf->product,
-            'status'      => 'Pending',
-            'start'       => $mf->start_date ? Carbon::parse($mf->start_date)->format('d/m') : null,
-            'end'         => $mf->end_date   ? Carbon::parse($mf->end_date)->format('d/m')   : null,
-            'duration'    => $mf->duration_days,
-            'publication' => $publication,   // used only if your Blade still reads these
-            'edition'     => $edition,       // (you're now binding via map in the inputs)
-            'grid'        => $grid,
-        ];
-    })->values();
+    return [
+        'id'          => $mf->id,
+        'month_name'  => $mf->month_name ?? '',
+        'created_at'  => optional($mf->created_at)->format('d/m/y'),
+        'company'     => $mf->company,
+        'product'     => $mf->product,
+        'status'      => 'Pending',
+        'start'       => $mf->start_date ? Carbon::parse($mf->start_date)->format('d/m') : null,
+        'end'         => $mf->end_date   ? Carbon::parse($mf->end_date)->format('d/m')   : null,
+        'duration'    => $mf->duration_days,
+        'publication' => $publication,
+        'edition'     => $edition,
+        'grid'        => $grid,
+    ];
+})->values();
 
     // 7) Filters for the UI
     $companies = MasterFile::whereNotNull('company')->distinct()->orderBy('company')->pluck('company');

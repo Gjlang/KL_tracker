@@ -190,7 +190,6 @@ Route::get('/dashboard/media', [MediaMonthlyDetailController::class, 'index'])
 Route::post('/media/monthly/upsert', [MediaMonthlyDetailController::class, 'upsert'])
     ->name('media.monthly.upsert');
 
-
 // ===============================================
 // JOB ROUTES
 // ===============================================
@@ -211,3 +210,5 @@ Route::get('/monthly', function () {
              ->get();
     return view('jobs.monthly', compact('jobs'));
 })->name('jobs.monthly');
+
+

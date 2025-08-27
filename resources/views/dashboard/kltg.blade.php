@@ -362,6 +362,7 @@ function debouncedSave(el) {
 }
 
 // ✅ SPECIALIZED FUNCTION FOR PUBLICATION FIELD
+// ✅ SPECIALIZED FUNCTION FOR PUBLICATION FIELD - FIXED
 function savePublicationField(el) {
   const csrfToken = getCSRFToken();
   const master = parseInt(el.dataset.master, 10);
@@ -369,15 +370,25 @@ function savePublicationField(el) {
   const value  = (el.value || '').trim();
 
   // Use provided category (KLTG) and mark the field type explicitly
-  const category = (el.dataset.category || 'KLTG').toUpperCase(); // must be one of KLTG/VIDEO/ARTICLE/LB/EM
+  const category = (el.dataset.category || 'KLTG').toUpperCase();
   const type     = (el.dataset.type || 'PUBLICATION').toUpperCase();
+
+  // ✅ FIX: Use different sentinel months to avoid unique constraint violation
+  let sentinelMonth;
+  if (type === 'PUBLICATION') {
+    sentinelMonth = 1;  // Publication uses month 1
+  } else if (type === 'EDITION') {
+    sentinelMonth = 2;  // Edition uses month 2
+  } else {
+    sentinelMonth = 1;  // Default fallback
+  }
 
   const payload = {
     master_file_id: master,
     year: year,
-    month: 1,                  // non-month-specific; use 1 as sentinel
+    month: sentinelMonth,      // ✅ Different months prevent constraint violation
     category: category,
-    type: type,                // <-- crucial
+    type: type,
     field_type: 'text',
     value: value || null
   };

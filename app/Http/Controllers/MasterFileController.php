@@ -5,15 +5,13 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Exception;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema; // 🔧 NEW: Added Schema facade
+use Illuminate\Support\Facades\Schema;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\MasterFile;
-use App\Models\MediaOngoingJob; // 🔧 NEW: Import MediaOngoingJob model
 use App\Imports\MasterFileImport;
 use Carbon\Carbon;
 use App\Exports\MasterFilesExport;
 use App\Models\KltgMonthlyDetail;
-
 
 class MasterFileController extends Controller
 {
@@ -184,128 +182,58 @@ class MasterFileController extends Controller
         return view('masterfile.create');
     }
 
-    // 🔧 FIXED: Single store method (removed duplicate)
+    // 🔧 FIXED: Single store method with AUTO-SEED KLTG DISABLED
     public function store(Request $request)
-{
-
-    $allowedProducts = [
-    'HM','TB','TTM','BB','Star','KLTG','Flyers','Bunting',
-    'KLTG listing','KLTG quarter page','Signages','FB IG Ad','NP',
-    // ✅ New ones:
-    'YouTube Management',
-    'FB/IG Management',
-    'TikTok Management Boost',
-    'Giveaways/ Contest Management',
-    'Xiaohongshu Management',
-    ];
-    $validated = $request->validate([
-        'month'           => 'required|string',
-        'date'            => 'required|date',
-        'company'         => 'required|string',
-        'product'         => 'required|in:' . implode(',', $allowedProducts),
-        'traffic'         => 'required|string',
-        'duration'        => 'required|string',
-        'status'          => 'required|string',
-        'client'          => 'required|string',
-        'date_finish'     => 'nullable|date',
-        'job_number'      => 'nullable|string',
-        'artwork'         => 'nullable|in:BGOC,Client',
-        'invoice_date'    => 'nullable|date',
-        'invoice_number'  => 'nullable|string',
-    ]);
-
-    // Detect category for JO prefix + (optionally) persist it
-    $detectedCategory = method_exists(MasterFile::class, 'detectCategory')
-        ? MasterFile::detectCategory($validated['product'])
-        : $this->guessCategoryFromProduct($validated['product']);
-
-    if (Schema::hasColumn('master_files', 'product_category')) {
-        $validated['product_category'] = $detectedCategory;
-    }
-
-    // dd-mm-yy for sequences (used in invoice only)
-    $dateToken = Carbon::parse($validated['date'])
-        ->timezone(config('app.timezone', 'Asia/Kuala_Lumpur'))
-        ->format('d-m-y');
-
-    // // ===== Autogenerate numbers if empty =====
-    // if (empty($validated['invoice_number'])) {
-    //     $validated['invoice_number'] = $this->nextSequence(
-    //         'invoice_number',
-    //         'INV',
-    //         $dateToken
-    //     );
-    // }
-
-    if (empty($validated['job_number'])) {
-        // Generate job number using category/product + global monthly suffix
-        $validated['job_number'] = app(\App\Services\JobNumberService::class)
-            ->generate(
-                $detectedCategory,
-                $validated['product'],
-            );
-    }
-    // =========================================
-
-    // Create MasterFile
-    $mf = MasterFile::create($validated);
-
-    // ===== AUTO UPDATE KLTG MONTHLY (no sync button) =====
-    if (
-        str_contains(strtolower($mf->product ?? ''), 'kltg') ||
-        ($mf->product_category ?? '') === 'KLTG'
-    ) {
-        $bucket = $this->bucketFor($mf->product); // 'kltg'|'video'|'article'|'lb'|'em'
-        $dt     = Carbon::parse($mf->date);
-        KltgMonthlyDetail::updateOrCreate(
-            [
-                'master_file_id' => $mf->id,
-                'year'           => (int) $dt->year,
-                'month'          => (int) $dt->format('n'),   // 1..12
-                'category'       => strtoupper($bucket),
-            ],
-            [
-                // Store whatever you want to display in the cell:
-                'value_text' => '1',          // or $mf->status / $mf->job_number
-                'value_date' => null,
-                'is_date'    => false,
-            ]
-        );
-    }
-    // =====================================================
-
-    return redirect()->route('dashboard')
-        ->with('success', 'Master File data added successfully!');
-}
-
-
-        /**
-     * Map category to JO prefix.
-     */
-    private function joPrefix(string $category): string
     {
-        $c = strtolower(trim($category));
-        return match ($c) {
-            'kltg'    => 'KLTG',
-            'media'   => 'MED',
-            'outdoor' => 'OD',
-            default   => 'JOB',
-        };
-    }
+        $allowedProducts = [
+            'HM','TB','TTM','BB','Star','KLTG','Flyers','Bunting',
+            'KLTG listing','KLTG quarter page','Signages','FB IG Ad','NP',
+            // ✅ New ones:
+            'YouTube Management',
+            'FB/IG Management',
+            'TikTok Management Boost',
+            'Giveaways/ Contest Management',
+            'Xiaohongshu Management',
+        ];
 
-    private function nextSequence(string $column, string $prefix, string $dateToken): string
-    {
-        $like = $prefix . '-' . $dateToken . '-%';
-        $last = MasterFile::where($column, 'like', $like)
-            ->orderBy($column, 'desc')
-            ->value($column);
+        $validated = $request->validate([
+            'month'           => 'required|string',
+            'date'            => 'required|date',
+            'company'         => 'required|string',
+            'product'         => 'required|in:' . implode(',', $allowedProducts),
+            'traffic'         => 'required|string',
+            'duration'        => 'required|string',
+            'status'          => 'required|string',
+            'client'          => 'required|string',
+            'date_finish'     => 'nullable|date',
+            'job_number'      => 'nullable|string',
+            'artwork'         => 'nullable|in:BGOC,Client',
+            'invoice_date'    => 'nullable|date',
+            'invoice_number'  => 'nullable|string',
+        ]);
 
-        $seq = 0;
-        if ($last && preg_match('/(\d{3})$/', $last, $m)) {
-            $seq = (int) $m[1];
+        // Detect category for JO prefix + (optionally) persist it
+        $detectedCategory = method_exists(MasterFile::class, 'detectCategory')
+            ? MasterFile::detectCategory($validated['product'])
+            : $this->guessCategoryFromProduct($validated['product']);
+
+        if (Schema::hasColumn('master_files', 'product_category')) {
+            $validated['product_category'] = $detectedCategory;
         }
-        $seq++;
-        return sprintf('%s-%s-%03d', $prefix, $dateToken, $seq);
+
+        if (empty($validated['job_number'])) {
+            // Generate job number using category/product + global monthly suffix
+            $validated['job_number'] = app(\App\Services\JobNumberService::class)
+                ->generate(
+                    $detectedCategory,
+                    $validated['product']
+                );
+        }
+
+        // Create MasterFile
+        $mf = MasterFile::create($validated);
+        return redirect()->route('dashboard')
+            ->with('success', 'Master File data added successfully!');
     }
 
     private function guessCategoryFromProduct(string $product): string
@@ -317,70 +245,6 @@ class MasterFileController extends Controller
         }
         return 'Outdoor';
     }
-
-    private function bucketFor(?string $product): string
-    {
-        $p = strtolower($product ?? '');
-        if (str_contains($p, 'video'))   return 'video';
-        if (str_contains($p, 'article')) return 'article';
-        if (str_contains($p, 'lb'))      return 'lb';
-        if (str_contains($p, 'em'))      return 'em';
-        return 'kltg';
-    }
-
-    // 🔧 ADD this method to your MasterFileController.php
-    // app/Http/Controllers/MasterFileController.php
-    public function update(Request $request, $id)
-    {
-        $file = MasterFile::findOrFail($id);
-
-        // daftar semua kolom yang boleh diupdate (termasuk check_* bulanan)
-        $months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
-        $types  = ['kltg','video','article','lb','em'];
-        $checkFields = [];
-        foreach ($months as $m) {
-            foreach ($types as $t) {
-                $checkFields[] = "check_{$m}_{$t}";
-            }
-        }
-
-        // rules: pakai sometimes supaya boleh partial update
-        $rules = [
-            'company'        => 'sometimes|nullable|string|max:255',
-            'status'         => 'sometimes|nullable|in:pending,ongoing,completed',
-            'product'        => 'sometimes|nullable|string|max:255',
-            'date'           => 'sometimes|nullable|date',
-            'month'          => 'sometimes|nullable|string|max:20',
-            'traffic'        => 'sometimes|nullable|string|max:255',
-            'duration'       => 'sometimes|nullable|string|max:255',
-            'client'         => 'sometimes|nullable|string|max:255',
-            'job_number'     => 'sometimes|nullable|string|max:255',
-            'date_finish'    => 'sometimes|nullable|date',
-            'artwork'        => 'sometimes|nullable|string|max:255',
-            'invoice_date'   => 'sometimes|nullable|date',
-            'invoice_number' => 'sometimes|nullable|string|max:255',
-            'location'       => 'sometimes|nullable|string|max:255',
-        ];
-
-        // tambahkan rules untuk semua check_*
-        foreach ($checkFields as $f) {
-            $rules[$f] = 'sometimes|nullable|string|max:255';
-        }
-
-        $data = $request->validate($rules);
-
-        // hanya isi field yang dikirim
-        $file->fill($data)->save();
-
-        // kalau AJAX, balikin JSON; kalau normal form, redirect
-        if ($request->expectsJson() || $request->ajax()) {
-            return response()->json(['success' => true]);
-        }
-
-        return redirect()->route('masterfile.show', $file->id)
-                        ->with('success', 'Updated.');
-    }
-
     public function upsertKltgMonthly(Request $request, $id)
     {
         $data = $request->validate([
@@ -405,13 +269,18 @@ class MasterFileController extends Controller
 
         try {
             Excel::import(new MasterFileImport, $request->file('file'));
+
+            // ===== 🔥 AUTO SEED KLTG ON IMPORT DISABLED =====
+            // ℹ️ If you had auto-seeding logic in MasterFileImport class,
+            // make sure to disable it there as well and use upsertKltgMonthly() instead.
+
             return back()->with('success', 'Import completed successfully.');
         } catch (\Throwable $e) {
             return back()->withErrors(['file' => 'Import failed: '.$e->getMessage()]);
         }
     }
 
-      public function exportXlsx(Request $request)
+    public function exportXlsx(Request $request)
     {
         // Collect known filters from the UI (adjust keys to your inputs if needed)
         $filters = $request->only([
@@ -424,67 +293,8 @@ class MasterFileController extends Controller
 
         return Excel::download(new MasterFilesExport($filters), $filename);
     }
+
     // 🔧 UPDATED: Export method for Monthly Ongoing Job section with product_category fallback
-    public function exportMonthlyOngoing()
-    {
-        $data = MasterFile::orderBy('date')->get();
-        $filename = 'monthly_ongoing_job_' . now()->format('Y_m_d_His') . '.csv';
-        $hasPC = Schema::hasColumn('master_files', 'product_category');
-
-        return response()->stream(function () use ($data, $hasPC) {
-            $handle = fopen('php://output', 'w');
-            fputcsv($handle, [
-                'Date','Company Name', 'Product Name', 'Product Category', 'Location', 'Start', 'End',
-                'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec',
-                'Remarks'
-            ]);
-
-            foreach ($data as $row) {
-                // 🔧 UPDATED: Handle product_category with fallback
-                if ($hasPC) {
-                    $category = $row->product_category ?? '';
-                } else {
-                    $product = strtolower((string)($row->product ?? ''));
-                    if (str_contains($product, 'kltg')) {
-                        $category = 'KLTG';
-                    } elseif (str_contains($product, 'fb') || str_contains($product, 'ig') || str_contains($product, 'media')) {
-                        $category = 'Media';
-                    } else {
-                        $category = 'Outdoor';
-                    }
-                }
-
-                fputcsv($handle, [
-                    $row->date ? Carbon::parse($row->date)->format('Y-m-d') : '',
-                    $row->company,
-                    $row->product,
-                    $category,
-                    $row->location,
-                    $row->date ? Carbon::parse($row->date)->format('M d') : '',
-                    $row->date_finish ? Carbon::parse($row->date_finish)->format('M d') : '',
-                    $row->check_jan ? '✓' : '',
-                    $row->check_feb ? '✓' : '',
-                    $row->check_mar ? '✓' : '',
-                    $row->check_apr ? '✓' : '',
-                    $row->check_may ? '✓' : '',
-                    $row->check_jun ? '✓' : '',
-                    $row->check_jul ? '✓' : '',
-                    $row->check_aug ? '✓' : '',
-                    $row->check_sep ? '✓' : '',
-                    $row->check_oct ? '✓' : '',
-                    $row->check_nov ? '✓' : '',
-                    $row->check_dec ? '✓' : '',
-                    $row->remarks,
-                ]);
-            }
-
-            fclose($handle);
-        }, 200, [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename={$filename}",
-        ]);
-    }
-
     public function downloadTemplate()
     {
         $csvFileName = 'master_file_import_template.csv';
@@ -505,6 +315,8 @@ class MasterFileController extends Controller
             'Pragma' => 'no-cache'
         ]);
     }
+
+
 
     public function confirmationLink()
     {
@@ -559,7 +371,7 @@ class MasterFileController extends Controller
 
     public function updateMonthlyJob(Request $request, $id)
     {
-        $months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+        $months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','Dec'];
         $validated = $request->only(array_map(fn($m) => "check_$m", $months));
         $validated['remarks'] = $request->remarks;
         MasterFile::where('id', $id)->update($validated);
