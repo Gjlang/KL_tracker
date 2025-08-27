@@ -3,14 +3,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\KltgMonthlyDetail;
 use App\Models\MasterFile;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
-use Maatwebsite\Excel\Facades\Excel;
-use Illuminate\Support\Facades\Schema; // 🔧 NEW: Added Schema facade
-use Barryvdh\DomPDF\Facade\Pdf;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
 use App\Exports\KltgMatrixExport;
 
 use App\Exports\KltgMonthlyExport;

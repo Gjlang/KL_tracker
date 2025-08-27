@@ -1,5 +1,4 @@
 <x-app-layout>
-  {{-- ✅ TAMBAHKAN CSRF TOKEN META TAG INI --}}
   @push('head')
     <meta name="csrf-token" content="{{ csrf_token() }}">
   @endpush
@@ -30,8 +29,6 @@
     </a>
   </div>
 </div>
-
-
     {{-- Enhanced Filter Section with Month/Year --}}
 <div class="mb-6 p-6 bg-gradient-to-r from-white to-gray-50 rounded-xl shadow-lg border border-gray-200">
   <div class="flex items-center justify-between mb-5">
@@ -67,10 +64,6 @@
       </a>
     </div>
   </div>
-
-  {{-- (your existing filters UI continues below) --}}
-
-
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
 
         <!-- Month Filter -->
@@ -312,8 +305,6 @@
             @endfor
           </tr>
         @endforeach
-
-
       @else
         <tr>
           <td colspan="22" class="border border-gray-300 px-6 py-12 text-center text-gray-500">
@@ -361,7 +352,6 @@ function debouncedSave(el) {
   return saveCell(el);
 }
 
-// ✅ SPECIALIZED FUNCTION FOR PUBLICATION FIELD
 // ✅ SPECIALIZED FUNCTION FOR PUBLICATION FIELD - FIXED
 function savePublicationField(el) {
   const csrfToken = getCSRFToken();
@@ -557,8 +547,6 @@ function saveCell(el) {
   });
 }
 
-
-
 function setDropdownColor(selectEl) {
     const colors = {
         'Installation': 'red',
@@ -583,10 +571,6 @@ document.querySelectorAll('select[data-input="text"]').forEach(sel => {
         setDropdownColor(this);
     });
 });
-
-
-
-// ✅ FIXED MONTH FILTERING FUNCTIONALITY
 
 document.addEventListener('DOMContentLoaded', function () {
   // --- Get filter elements
