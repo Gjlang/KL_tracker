@@ -39,6 +39,16 @@
     .border-green-300 { border-color: #86EFAC !important; }
     .bg-red-50 { background-color: #FEF2F2 !important; }
     .border-red-300 { border-color: #FCA5A5 !important; }
+
+    /* Read-only badge look for Edition/Publication */
+    .kltg-badge {
+      display: inline-block;
+      padding: .25rem .5rem;
+      border-radius: .5rem;
+      background: #F3F4F6; /* gray-100 */
+      color: #111827;      /* gray-900 */
+      min-width: 8rem;
+    }
   </style>
 @endpush
 
@@ -213,25 +223,41 @@
               <td class="px-3 py-3 text-gray-800">{{ $r->client }}</td>
 
               @foreach ($columns[$activeTab] as $col)
-                @php $val = cellVal($existing, $r->id, $col['key'], $col['type']); @endphp
-                <td class="px-3 py-3">
-                  @if($col['type']==='date')
-                    <input type="date"
-                      class="kltg-input"
-                      value="{{ $val }}"
-                      data-master-file-id="{{ $r->id }}"
-                      data-subcategory="{{ $activeTab }}"
-                      data-field="{{ $col['key'] }}" />
-                  @else
-                    <input type="text"
-                      class="kltg-input"
-                      value="{{ $val }}"
-                      placeholder=""
-                      data-master-file-id="{{ $r->id }}"
-                      data-subcategory="{{ $activeTab }}"
-                      data-field="{{ $col['key'] }}" />
-                  @endif
-                </td>
+                @php
+                  $key = $col['key'];
+                  $type = $col['type'];
+                @endphp
+
+                {{-- Edition & Publication are read-only from kltg_monthly_details (controller-injected) --}}
+                @if ($key === 'edition')
+                  <td class="px-3 py-3">
+                    <span class="kltg-badge">{{ $r->edition ?? '—' }}</span>
+                  </td>
+                @elseif ($key === 'publication')
+                  <td class="px-3 py-3">
+                    <span class="kltg-badge">{{ $r->publication ?? '—' }}</span>
+                  </td>
+                @else
+                  @php $val = cellVal($existing, $r->id, $key, $type); @endphp
+                  <td class="px-3 py-3">
+                    @if($type==='date')
+                      <input type="date"
+                        class="kltg-input"
+                        value="{{ $val }}"
+                        data-master-file-id="{{ $r->id }}"
+                        data-subcategory="{{ $activeTab }}"
+                        data-field="{{ $key }}" />
+                    @else
+                      <input type="text"
+                        class="kltg-input"
+                        value="{{ $val }}"
+                        placeholder=""
+                        data-master-file-id="{{ $r->id }}"
+                        data-subcategory="{{ $activeTab }}"
+                        data-field="{{ $key }}" />
+                    @endif
+                  </td>
+                @endif
               @endforeach
             </tr>
           @endforeach
@@ -259,6 +285,7 @@
       return;
     }
 
+    // NOTE: We don't render inputs for edition/publication, so they won't be selected/saved.
     const inputs = document.querySelectorAll('[data-master-file-id][data-field]');
     console.log(`[KLTG] ✅ Autosave listener attached: ${inputs.length} inputs found`);
 

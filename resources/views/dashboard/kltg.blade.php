@@ -41,9 +41,6 @@
     </h4>
 
     <div class="flex items-center gap-4">
-      <div class="text-sm text-gray-500">
-        <span id="filter-count">All records visible</span>
-      </div>
 
       {{-- Export XLSX (keeps active filters) --}}
       <a
@@ -366,9 +363,9 @@ function savePublicationField(el) {
   // ✅ FIX: Use different sentinel months to avoid unique constraint violation
   let sentinelMonth;
   if (type === 'PUBLICATION') {
-    sentinelMonth = 1;  // Publication uses month 1
+    sentinelMonth = 0;  // Publication uses month 0
   } else if (type === 'EDITION') {
-    sentinelMonth = 2;  // Edition uses month 2
+    sentinelMonth = 0;  // Edition uses month 0
   } else {
     sentinelMonth = 1;  // Default fallback
   }

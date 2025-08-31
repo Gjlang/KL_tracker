@@ -16,7 +16,7 @@ class KltgMonthlyController extends Controller
     $data = $req->validate([
         'master_file_id' => 'required|integer|exists:master_files,id',
         'year'           => 'required|integer|min:2000|max:2100',
-        'month'          => 'required|integer|min:1|max:12',
+        'month'          => 'required|integer|min:0|max:12',
         'category'       => 'required|string|in:KLTG,VIDEO,ARTICLE,LB,EM',
         'type'           => 'required|string|in:PUBLICATION,EDITION,STATUS,START,END',
         'field_type'     => 'nullable|string|in:text,date',
@@ -106,10 +106,9 @@ class KltgMonthlyController extends Controller
 
     public function index(Request $request)
 {
-    // 1) Resolve active year (int). If you later support "All Years", just don't filter.
     $activeYear = (int) $request->input('year', now()->year);
 
-    // 2) Base rows: only KLTG product_category, newest first with stable tiebreaker
+    // 1) Base rows (KLTG only)
     $baseRows = MasterFile::query()
         ->select([
             'id',
@@ -130,71 +129,106 @@ class KltgMonthlyController extends Controller
 
     $masterIds = $baseRows->pluck('id')->all();
 
-    // 3) Pull details for those master IDs
-    $detailQ = KltgMonthlyDetail::whereIn('master_file_id', $masterIds);
-    // If you later have an "All Years" option, only apply this where when a year is chosen.
-    $detailQ->where('year', $activeYear);
+    // 2) Pull details for those rows/year
+    $details = KltgMonthlyDetail::whereIn('master_file_id', $masterIds)
+        ->where('year', $activeYear)
+        ->get([
+            'id','master_file_id','year','month','category','type',
+            'field_type','value','value_text','value_date'
+        ]);
 
-    $details = $detailQ->get();
-
-    // 4) Build a lookup map: mf|year|month|category|type  -> detail row
+    // 3) Build map: $map[mf][year][month][CATEGORY][TYPE] = ['text'=>..,'date'=>..,'value'=>..]
     $map = [];
     foreach ($details as $d) {
-        $k = "{$d->master_file_id}|{$d->year}|{$d->month}|{$d->category}|{$d->type}";
-        $map[$k] = $d; // unique ensures one row per key; latest write wins
-    }
+        $mf  = (int) $d->master_file_id;
+        $yr  = (int) $d->year;
+        $mo  = (int) $d->month;
+        $cat = strtoupper((string) $d->category);
+        $typ = strtoupper((string) $d->type);
 
-    // 5) Categories present in the grid
-    $categories = ['KLTG', 'VIDEO', 'ARTICLE', 'LB', 'EM'];
+        // ---- Normalise TYPE when missing/legacy ----
+        if ($d->field_type === 'date' && ($typ === '' || $typ === '0' || $typ === null)) {
+            $typ = 'DATE';   // generic date (fallback to display in START)
+        }
+        if ($d->field_type === 'text' &&
+            ($typ === '' || $typ === '0' || $typ === null || in_array($typ, ['KLTG','VIDEO','ARTICLE','LB','EM'], true))) {
+            $typ = 'STATUS'; // generic status label
+        }
 
-    // 6) Shape rows for the Blade
-   $rows = $baseRows->map(function ($mf) use ($map, $categories, $activeYear) {
-    // ✅ FIXED: Publication and Edition both use month=0 as sentinel
-    $pubKey = "{$mf->id}|{$activeYear}|0|KLTG|PUBLICATION";
-    $ediKey = "{$mf->id}|{$activeYear}|0|KLTG|EDITION";
+        if (!isset($map[$mf][$yr][$mo][$cat][$typ])) {
+            $map[$mf][$yr][$mo][$cat][$typ] = ['value'=>null,'text'=>null,'date'=>null];
+        }
 
-    $publication = isset($map[$pubKey]) ? ($map[$pubKey]->value_text ?? '') : '';
-    $edition     = isset($map[$ediKey]) ? ($map[$ediKey]->value_text ?? '') : '';
-
-    // Rest of your code remains the same...
-    $grid = [];
-    for ($m = 1; $m <= 12; $m++) {
-        foreach ($categories as $cat) {
-            $statusKey = "{$mf->id}|{$activeYear}|{$m}|{$cat}|STATUS";
-            $startKey  = "{$mf->id}|{$activeYear}|{$m}|{$cat}|START";
-            $endKey    = "{$mf->id}|{$activeYear}|{$m}|{$cat}|END";
-
-            $gridKey = sprintf('%02d_%s', $m, $cat);
-            $grid[$gridKey] = [
-                'status' => isset($map[$statusKey]) ? ($map[$statusKey]->value_text ?? '') : '',
-                'start'=> isset($map[$startKey])  ? ($map[$startKey]->value_date ?? '') : '',
-                'end'  => isset($map[$endKey])    ? ($map[$endKey]->value_date ?? '') : '',
-            ];
+        if (!empty($d->value)) {
+            $map[$mf][$yr][$mo][$cat][$typ]['value'] = $d->value;
+        }
+        if (!empty($d->value_text)) {
+            $map[$mf][$yr][$mo][$cat][$typ]['text'] = $d->value_text;
+        }
+        if (!empty($d->value_date)) {
+            // KEEP DB FORMAT for <input type="date">
+            $map[$mf][$yr][$mo][$cat][$typ]['date'] = $d->value_date; // YYYY-MM-DD
         }
     }
 
-    return [
-        'id'          => $mf->id,
-        'month_name'  => $mf->month_name ?? '',
-        'created_at'  => optional($mf->created_at)->format('d/m/y'),
-        'company'     => $mf->company,
-        'product'     => $mf->product,
-        'status'      => 'Pending',
-        'start'       => $mf->start_date ? Carbon::parse($mf->start_date)->format('d/m') : null,
-        'end'         => $mf->end_date   ? Carbon::parse($mf->end_date)->format('d/m')   : null,
-        'duration'    => $mf->duration_days,
-        'publication' => $publication,
-        'edition'     => $edition,
-        'grid'        => $grid,
-    ];
-})->values();
+    $categories = ['KLTG','VIDEO','ARTICLE','LB','EM'];
 
-    // 7) Filters for the UI
+    // 4) Shape rows for Blade
+    $rows = $baseRows->map(function ($mf) use ($map, $categories, $activeYear) {
+        // Publication & Edition live at month=0 under KLTG
+        $pub  = $map[$mf->id][$activeYear][0]['KLTG']['PUBLICATION']['text']
+            ?? $map[$mf->id][$activeYear][0]['KLTG']['PUBLICATION']['value']
+            ?? '';
+        $edit = $map[$mf->id][$activeYear][0]['KLTG']['EDITION']['text']
+            ?? $map[$mf->id][$activeYear][0]['KLTG']['EDITION']['value']
+            ?? '';
+
+        $grid = [];
+        for ($m = 1; $m <= 12; $m++) {
+            foreach ($categories as $cat) {
+                $gridKey = sprintf('%02d_%s', $m, $cat);
+
+                $status = $map[$mf->id][$activeYear][$m][$cat]['STATUS']['text']
+                       ?? $map[$mf->id][$activeYear][$m][$cat]['STATUS']['value']
+                       ?? '';
+
+                // START uses explicit START, else fallback to generic DATE
+                $start  = $map[$mf->id][$activeYear][$m][$cat]['START']['date']
+                       ?? $map[$mf->id][$activeYear][$m][$cat]['DATE']['date']
+                       ?? '';
+
+                $end    = $map[$mf->id][$activeYear][$m][$cat]['END']['date']
+                       ?? '';
+
+                $grid[$gridKey] = [
+                    'status' => $status,
+                    'start'  => $start,  // YYYY-MM-DD → renders in <input type="date">
+                    'end'    => $end,    // YYYY-MM-DD
+                ];
+            }
+        }
+
+        return [
+            'id'          => $mf->id,
+            'month_name'  => $mf->month_name ?? '',
+            'created_at'  => optional($mf->created_at)->format('d/m/y'),
+            'company'     => $mf->company,
+            'product'     => $mf->product,
+            'status'      => 'Pending',
+            'start'       => $mf->start_date ? \Carbon\Carbon::parse($mf->start_date)->format('d/m') : null,
+            'end'         => $mf->end_date   ? \Carbon\Carbon::parse($mf->end_date)->format('d/m')   : null,
+            'duration'    => $mf->duration_days,
+            'publication' => $pub,
+            'edition'     => $edit,
+            'grid'        => $grid,
+        ];
+    })->values();
+
+    // 5) Filters + view
     $companies = MasterFile::whereNotNull('company')->distinct()->orderBy('company')->pluck('company');
     $products  = MasterFile::whereNotNull('product')->distinct()->orderBy('product')->pluck('product');
-    $statuses  = collect(['Pending', 'Ongoing', 'Completed']);
+    $statuses  = collect(['Pending','Ongoing','Completed']);
 
-    // 8) Send both the rows AND the map so the Blade can rehydrate inputs
     return view('dashboard.kltg', [
         'year'        => $activeYear,
         'activeYear'  => $activeYear,
@@ -204,9 +238,10 @@ class KltgMonthlyController extends Controller
         'products'    => $products,
         'statuses'    => $statuses,
         'selected'    => ['status' => '', 'company' => '', 'product' => ''],
-        'detailsMap'  => $map, // <— used in Blade to prefill Publication/Edition + month cells
+        'detailsMap'  => $map,
     ]);
 }
+
 
     /** Build the exact same payload the Blade uses, honoring filters */
     private function buildKltgPayload(Request $request): array
