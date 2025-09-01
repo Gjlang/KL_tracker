@@ -14,20 +14,31 @@ use App\Http\Controllers\KltgMonthlyController;
 use App\Http\Controllers\OutdoorOngoingJobController;
 use App\Http\Controllers\MediaMonthlyDetailController;
 use App\Http\Controllers\CoordinatorMediaController;
+use App\Http\Controllers\Auth\AuthController; // ✅ benar
+use Illuminate\Support\Facades\Auth;
+
 
 use App\Models\MasterFile;
 
 // ===============================================
 // ROOT & AUTHENTICATION ROUTES
 // ===============================================
-Route::get('/', function () {
-    return redirect('/dashboard');
+// Landing: guest -> /login (via middleware auth), logged-in -> /dashboard
+Route::get('/', fn () => redirect()->route('dashboard'))
+    ->middleware('auth')
+    ->name('home');
+
+// ===== Auth (guest only) =====
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [AuthController::class, 'create'])->name('login');
+    Route::post('/login', [AuthController::class, 'store'])->name('login.store');
 });
 
-Route::get('/login', function () {
-    return redirect('/'); // or redirect to your main page
-})->name('login');
-
+// ===== Protected (auth only) =====
+Route::middleware('auth')->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
+});
 // ===============================================
 // DASHBOARD ROUTES
 // ===============================================
@@ -53,6 +64,10 @@ Route::get('/calendar-view', [CalendarController::class, 'index'])->name('calend
 // MASTERFILE ROUTES
 // ===============================================
 Route::prefix('masterfile')->name('masterfile.')->group(function () {
+    // Export MUST be above the dynamic {id} route
+    Route::get('/export-xlsx', [MasterFileController::class, 'exportXlsx'])
+        ->name('exportXlsx');
+
     Route::get('/', [MasterFileController::class, 'index'])->name('index');
     Route::get('/create', [MasterFileController::class, 'create'])->name('create');
     Route::post('/store', [MasterFileController::class, 'store'])->name('store');
@@ -60,8 +75,13 @@ Route::prefix('masterfile')->name('masterfile.')->group(function () {
     Route::get('/template', [MasterFileController::class, 'downloadTemplate'])->name('template');
     Route::get('/stats', [MasterFileController::class, 'getStats'])->name('stats');
     Route::post('/import', [MasterFileController::class, 'import'])->name('import');
-    Route::get('/{id}', [MasterFileController::class, 'show'])->name('show');
-    Route::put('/{id}', [MasterFileController::class, 'update'])->name('update');
+
+    // Constrain to numeric IDs so non-numeric paths (like export-xlsx) never match here
+    Route::get('/{id}', [MasterFileController::class, 'show'])
+        ->whereNumber('id')->name('show');
+    Route::put('/{id}', [MasterFileController::class, 'update'])
+        ->whereNumber('id')->name('update');
+
     Route::post('/{id}/update', [MasterFileController::class, 'updateRemarksAndLocation'])->name('update.partial');
     Route::post('/{id}/timeline', [MasterFileController::class, 'updateTimeline'])->name('timeline.update');
 
@@ -73,7 +93,7 @@ Route::prefix('masterfile')->name('masterfile.')->group(function () {
     Route::post('/{id}/kltg-monthly', [MasterFileController::class, 'upsertKltgMonthly'])->name('kltg.monthly.upsert');
 });
 
-Route::get('/masterfile/export-xlsx', [MasterFileController::class, 'exportXlsx'])->name('masterfile.exportXlsx');
+// Remove any duplicate global /masterfile/export-xlsx or dangling /masterfile/export-csv routes.
 
 // MasterFile backward compatibility routes
 Route::get('masterfile/{id}/matrix', [MasterFileController::class, 'showMatrix'])->name('matrix.show');
@@ -89,8 +109,6 @@ Route::post('/monthly-jobs/{id}/update', [MasterFileController::class, 'updateMo
 // Export routes
 Route::get('/export-monthly-ongoing', [MasterFileController::class, 'exportMonthlyOngoing'])->name('export.monthly.ongoing');
 Route::get('/template', [MasterFileController::class, 'downloadTemplate'])->name('template');
-Route::get('/masterfile/export-csv', [MasterFileController::class, 'exportCsv'])
-    ->name('masterfile.exportCsv');
 // Serials preview
 Route::get('/serials/preview', [MasterFileController::class, 'previewSerials'])->name('serials.preview');
 
@@ -102,35 +120,32 @@ Route::prefix('coordinator/outdoor')->name('coordinator.outdoor.')->group(functi
     Route::post('/update-inline', [OutdoorCoordinatorController::class, 'updateInline'])->name('updateInline');
     Route::post('/sync', [OutdoorCoordinatorController::class, 'syncWithMasterFiles'])->name('sync');
     Route::get('/seed', [OutdoorCoordinatorController::class, 'seedFromMasterFiles'])->name('seed');
-    Route::get('/export', [OutdoorCoordinatorController::class, 'export'])->name('export');
+
+    // ✅ Export Matrix route (correct name = coordinator.outdoor.exportMatrix)
+    Route::get('/export-matrix', [OutdoorOngoingJobController::class, 'exportMatrix'])
+        ->name('exportMatrix');
 
     Route::get('/', [OutdoorCoordinatorController::class, 'index'])->name('index');
     Route::get('/create', [OutdoorCoordinatorController::class, 'create'])->name('create');
     Route::post('/', [OutdoorCoordinatorController::class, 'store'])->name('store');
-    Route::post('/outdoor/details/upsert', action: [OutdoorOngoingJobController::class, 'upsert'])->name('outdoor.details.upsert');
+
+    Route::post('/outdoor/details/upsert', [OutdoorOngoingJobController::class, 'upsertMonthlyDetail'])
+        ->name('outdoor.details.upsert');
 
     Route::get('/{id}', [OutdoorCoordinatorController::class, 'show'])->whereNumber('id')->name('show');
     Route::get('/{id}/edit', [OutdoorCoordinatorController::class, 'edit'])->whereNumber('id')->name('edit');
     Route::patch('/{id}', [OutdoorCoordinatorController::class, 'update'])->whereNumber('id')->name('update');
     Route::delete('/{id}', [OutdoorCoordinatorController::class, 'destroy'])->whereNumber('id')->name('destroy');
 });
-Route::get('/coordinator/outdoor', [OutdoorCoordinatorController::class, 'index'])->name('coordinator.outdoor.index');
+Route::post('/outdoor/monthly/upsert', [OutdoorOngoingJobController::class, 'upsert'])->name('outdoor.monthly.upsert');
+
+// Public dashboard routes
+Route::get('/dashboard/outdoor', [OutdoorOngoingJobController::class, 'index'])->name('dashboard.outdoor');
+Route::get('/outdoor-jobs', fn () => redirect()->route('dashboard.outdoor'))->name('dashboard.outdoor.legacy');
+// Legacy index
 Route::get('/outdoor/ongoing-jobs', [OutdoorOngoingJobController::class, 'index'])->name('outdoor.ongoing.index');
 
 
-Route::post('/outdoor-coordinator/upsert', [OutdoorCoordinatorController::class, 'upsert'])->name('coordinator.outdoor.upsert');
-Route::post('coordinator/outdoor/update-field', [OutdoorCoordinatorController::class, 'updateField'])->name('coordinator.outdoor.updateField');
-
-// Outdoor monthly and move routes
-Route::post('/outdoor/monthly/upsert', [OutdoorOngoingJobController::class, 'upsertMonthlyDetail'])->name('outdoor.monthly.upsert');
-Route::post('/outdoor/move/{master_file_id}', [OutdoorOngoingJobController::class, 'moveToOngoing'])->name('outdoor.move');
-
-Route::get('/dashboard/outdoor', [OutdoorOngoingJobController::class, 'index'])
-    ->name('dashboard.outdoor');
-Route::get('/outdoor-jobs', fn () => redirect()->route('dashboard.outdoor'))
-    ->name('dashboard.outdoor.legacy');
-Route::post('/outdoor/monthly/upsert', [OutdoorOngoingJobController::class, 'upsert'])
-    ->name('outdoor.monthly.upsert');
 // ===============================================
 // KLTG COORDINATOR ROUTES (CLEANED)
 // ===============================================
@@ -139,6 +154,7 @@ Route::prefix('coordinator/kltg')->name('coordinator.kltg.')->group(function () 
     Route::post('/upsert', [KltgCoordinatorController::class, 'upsert'])->name('upsert');
     Route::get('/eligible', [KltgCoordinatorController::class, 'getEligibleMasterFiles'])->name('eligible');
     Route::get('/export', [KltgCoordinatorController::class, 'export'])->name('export');
+    Route::put('/{id}', [MasterFileController::class, 'update'])->whereNumber('id')->name('update');
 
     // Optional: Keep PATCH variant with different name if needed
     Route::patch('/{masterFile}/upsert', [KltgCoordinatorController::class, 'upsert'])->name('upsert.patch');
@@ -210,5 +226,3 @@ Route::get('/monthly', function () {
              ->get();
     return view('jobs.monthly', compact('jobs'));
 })->name('jobs.monthly');
-
-

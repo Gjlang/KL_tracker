@@ -55,38 +55,34 @@
                 <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                     <!-- Filters -->
                     <div class="flex-1">
-                        <form method="get" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Month</label>
-                                <select name="month" class="w-full rounded-xl border border-gray-200 bg-gray-50 hover:bg-white px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors">
-                                    <option value="">All Months</option>
-                                    @if(isset($months))
-                                        @foreach($months as $m)
-                                            <option value="{{ $m['value'] }}" @selected(($month ?? '')==$m['value'])>{{ $m['label'] }}</option>
-                                        @endforeach
-                                    @endif
-                                </select>
-                            </div>
+                        <form method="GET" action="{{ url()->current() }}" class="space-y-4 relative">
+  {{-- Month --}}
+  <div class="relative z-10"> {{-- z-10 keeps the native dropdown above the button bar --}}
+    <label class="block text-sm font-medium text-gray-700 mb-2">Month</label>
+    <select name="month"
+            class="w-full rounded-xl border border-gray-200 bg-gray-50 hover:bg-white px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors">
+      <option value="">All Months</option>
+      @foreach(($months ?? []) as $m)
+        <option value="{{ $m['value'] }}"
+          @selected( (int)($month ?? 0) === (int)$m['value'] )>
+          {{ $m['label'] }}
+        </option>
+      @endforeach
+    </select>
+  </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                                <select name="status" class="w-full rounded-xl border border-gray-200 bg-gray-50 hover:bg-white px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors">
-                                    <option value="">All Status</option>
-                                    <option value="Pending" @selected(($status ?? '')==='Pending')>Pending</option>
-                                    <option value="Ongoing" @selected(($status ?? '')==='Ongoing')>Ongoing</option>
-                                    <option value="Completed" @selected(($status ?? '')==='Completed')>Completed</option>
-                                </select>
-                            </div>
-
-                            <div class="flex items-end">
-                                <button type="submit" class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 text-white px-6 py-3 text-sm font-medium shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
-                                    </svg>
-                                    Apply Filters
-                                </button>
-                            </div>
-                        </form>
+  {{-- Apply bar (put it below and with lower z so it doesn’t overlap the dropdown) --}}
+  <div class="pt-2 z-0">
+    <button type="submit"
+            class="w-full inline-flex items-center justify-center rounded-xl bg-indigo-600 text-white py-3 text-sm font-medium hover:bg-indigo-700 transition">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L15 12.414V19l-6-3v-3.586L3.293 6.707A1 1 0 013 6V4z" />
+      </svg>
+      Apply Filters
+    </button>
+  </div>
+</form>
                     </div>
 
                     <!-- Actions -->

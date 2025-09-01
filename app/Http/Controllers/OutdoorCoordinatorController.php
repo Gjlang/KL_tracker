@@ -7,138 +7,110 @@ use App\Models\MasterFile;
 use App\Models\OutdoorCoordinatorTracking;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
+
 
 class OutdoorCoordinatorController  extends Controller
 {
 
-    public function index()
-    {
-        Log::info("HIT INDEX - Starting debug");
-
-        try {
-            // Step 1: Test autoCreateTrackingRecords
-            Log::info("About to call autoCreateTrackingRecords");
-            $this->autoCreateTrackingRecords();
-            Log::info("autoCreateTrackingRecords completed successfully");
-
-        } catch (\Exception $e) {
-            Log::error("autoCreateTrackingRecords failed", [
-                'error' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine()
-            ]);
-            // Don't return here, continue to test other parts
-        }
-
-        try {
-            // Step 2: Test the main query
-            Log::info("About to run main outdoor jobs query");
-
-            $outdoorJobs = OutdoorCoordinatorTracking::with('masterFile')
-                ->whereHas('masterFile', function ($query) {
-                    $query->whereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages'])
-                        ->orWhere('product_category', 'LIKE', '%outdoor%')
-                        ->orWhere('product_category', 'Outdoor');
-                })
-                ->orderBy('created_at', 'desc')
-                ->paginate(20);
-
-            Log::info("Main query completed", ['count' => $outdoorJobs->count()]);
-
-        } catch (\Exception $e) {
-            Log::error("Main query failed", [
-                'error' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine()
-            ]);
-
-            // Return simple response to test if this is the issue
-            return response("Main query failed: " . $e->getMessage(), 500);
-        }
-
-        try {
-            // Step 3: Test statistics queries one by one
-            Log::info("About to calculate totalOutdoor");
-
-            $totalOutdoor = OutdoorCoordinatorTracking::whereHas('masterFile', function ($query) {
-                $query->whereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages'])
-                    ->orWhere('product_category', 'LIKE', '%outdoor%')
-                    ->orWhere('product_category', 'Outdoor');
-            })->count();
-
-            Log::info("totalOutdoor calculated", ['total' => $totalOutdoor]);
-
-            Log::info("About to calculate completedOutdoor");
-
-            $completedOutdoor = OutdoorCoordinatorTracking::where('status', 'completed')
-                ->whereHas('masterFile', function ($query) {
-                    $query->whereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages'])
-                        ->orWhere('product_category', 'LIKE', '%outdoor%')
-                        ->orWhere('product_category', 'Outdoor');
-                })->count();
-
-            Log::info("completedOutdoor calculated", ['completed' => $completedOutdoor]);
-
-            $ongoingOutdoor = OutdoorCoordinatorTracking::where('status', 'ongoing')
-                ->whereHas('masterFile', function ($query) {
-                    $query->whereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages'])
-                        ->orWhere('product_category', 'LIKE', '%outdoor%')
-                        ->orWhere('product_category', 'Outdoor');
-                })->count();
-
-            $pendingOutdoor = OutdoorCoordinatorTracking::where('status', 'pending')
-                ->whereHas('masterFile', function ($query) {
-                    $query->whereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages'])
-                        ->orWhere('product_category', 'LIKE', '%outdoor%')
-                        ->orWhere('product_category', 'Outdoor');
-                })->count();
-
-            Log::info("All statistics calculated successfully");
-
-        } catch (\Exception $e) {
-            Log::error("Statistics calculation failed", [
-                'error' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine()
-            ]);
-
-            return response("Statistics calculation failed: " . $e->getMessage(), 500);
-        }
-
-        try {
-            // Step 4: Test view rendering
-            Log::info("About to render view");
-
-            // Check if view exists first
-            if (!view()->exists('coordinators.outdoor')) {
-                Log::error("View coordinators.outdoor does not exist");
-                return response("View coordinators.outdoor not found!", 500);
-            }
-
-            $viewData = compact(
-                'outdoorJobs',
-                'totalOutdoor',
-                'completedOutdoor',
-                'ongoingOutdoor',
-                'pendingOutdoor'
-            );
-
-            Log::info("About to call view() with data", ['data_keys' => array_keys($viewData)]);
-
-            return view('coordinators.outdoor', $viewData);
-
-        } catch (\Exception $e) {
-            Log::error("View rendering failed", [
-                'error' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response("View rendering failed: " . $e->getMessage(), 500);
+  public function index(Request $request)
+{
+    // 1) Parse month/year (accepts 1..12 or "January")
+    $rawMonth = $request->input('month');
+    $month = null;
+    if ($rawMonth !== null && $rawMonth !== '') {
+        if (ctype_digit((string)$rawMonth)) {
+            $month = max(1, min(12, (int)$rawMonth));
+        } else {
+            try { $month = Carbon::parse('1 '.$rawMonth)->month; } catch (\Throwable $e) { $month = null; }
         }
     }
+    $year = $request->integer('year') ?: now()->year;
 
+    // 2) Build months dropdown
+    $months = [];
+    for ($i = 1; $i <= 12; $i++) {
+        $months[] = ['value' => $i, 'label' => Carbon::create()->month($i)->format('F')];
+    }
+
+    // 3) Canonical monthly set from master_files (same logic as Monthly page)
+    $monthlyIds = MasterFile::query()
+        ->where(function ($qq) {
+            $qq->where('product_category', 'Outdoor')
+               ->orWhere('product_category', 'like', '%outdoor%');
+        })
+        ->when($month && $year, function ($q) use ($month, $year) {
+            $start = Carbon::create($year, $month, 1)->startOfDay();
+            $end   = (clone $start)->endOfMonth()->endOfDay();
+
+            $q->where(function ($mm) use ($start, $end) {
+                // overlap: (start <= end) AND (finish >= start)
+                $mm->whereDate('date', '<=', $end)
+                   ->whereDate(DB::raw('COALESCE(date_finish, date)'), '>=', $start);
+            })
+            // Fallback if you still have a text "month" column in master_files
+            ->orWhere(function ($mm) use ($month) {
+                $mm->whereNotNull('month')
+                   ->whereRaw('MONTH(STR_TO_DATE(TRIM(month), "%M")) = ?', [$month]);
+            });
+        })
+        ->pluck('id');
+
+    // 4) Coordinator list driven by the monthly master_file IDs
+    $base = OutdoorCoordinatorTracking::query()
+        ->with('masterFile')
+        ->whereHas('masterFile', function ($q) {
+            $q->where(function ($qq) {
+                $qq->where('product_category', 'Outdoor')
+                   ->orWhere('product_category', 'like', '%outdoor%');
+            });
+        })
+        ->when($month, function ($q) use ($monthlyIds) {
+            // If selecting a month, show only coordinator rows for those master files
+            $q->whereIn('master_file_id', $monthlyIds);
+        });
+
+    // 5) Order by insert time (oldest first) & paginate
+    $rows = (clone $base)
+        ->orderBy('outdoor_coordinator_trackings.created_at', 'asc')
+        ->paginate(20)
+        ->appends($request->query());
+
+    return view('coordinators.outdoor', [
+        'rows'   => $rows,
+        'months' => $months,
+        'month'  => $month,
+        'year'   => $year,
+    ]);
+}
+
+
+private function masterFilesForMonth(?int $month, ?int $year)
+{
+    $q = \App\Models\MasterFile::query()
+        ->where(function ($qq) {
+            $qq->where('product_category', 'Outdoor')
+               ->orWhere('product_category', 'like', '%outdoor%');
+        });
+
+    if ($month && $year) {
+        $start = Carbon::create($year, $month, 1)->startOfDay();
+        $end   = (clone $start)->endOfMonth()->endOfDay();
+
+        // Overlap logic (start <= end && finish >= start)
+        $q->where(function ($mm) use ($start, $end) {
+            $mm->whereDate('date', '<=', $end)
+               ->whereDate(DB::raw('COALESCE(date_finish, date)'), '>=', $start);
+        })
+        // Fallback if you still use text month in master_files.month
+        ->orWhere(function ($mm) use ($month) {
+            $mm->whereNotNull('month')
+               ->whereRaw('MONTH(STR_TO_DATE(TRIM(month), "%M")) = ?', [$month]);
+        });
+    }
+
+    return $q->select('id'); // we only need IDs
+}
     // Alternative: Even simpler test to isolate the issue
     public function index_minimal_test()
     {

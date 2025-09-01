@@ -134,8 +134,6 @@
                             <label for="status" class="text-gray-700 font-medium mb-1 block">Status</label>
                             <select name="status" id="status" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
                                 <option value="pending" {{ old('status') === 'pending' ? 'selected' : '' }}>Pending</option>
-                                <option value="ongoing" {{ old('status') === 'ongoing' ? 'selected' : '' }}>Ongoing</option>
-                                <option value="completed" {{ old('status') === 'completed' ? 'selected' : '' }}>Completed</option>
                             </select>
                         </div>
 

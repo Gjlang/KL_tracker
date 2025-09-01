@@ -40,10 +40,6 @@
               <h1 class="text-3xl font-bold text-gray-900 mb-2">🏞️ Outdoor Monthly Ongoing Jobs</h1>
               <p class="text-gray-600">Manage and track outdoor advertising campaigns across all locations</p>
             </div>
-            <a href="{{ route('coordinator.outdoor.index') }}"
-               class="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 text-black font-semibold hover:from-emerald-700 hover:to-emerald-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
-              🗂️ Open Outdoor Coordinator
-            </a>
           </div>
 
           {{-- Flash Messages --}}
@@ -174,9 +170,6 @@
                       {{ $mName }}
                     </th>
                   @endforeach
-                  <th class="px-4 py-4 text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200" style="min-width:160px;width:160px;">
-                    Actions
-                  </th>
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-100">
@@ -262,18 +255,6 @@
                         </div>
                       </td>
                     @endforeach
-
-                    <td class="px-4 py-3 align-top border-b border-gray-100">
-                      <button
-                        type="button"
-                        class="px-4 py-2 text-sm font-semibold rounded-xl {{ $complete ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white hover:from-emerald-700 hover:to-emerald-800 shadow-sm hover:shadow-md transform hover:-translate-y-0.5' : 'bg-gray-100 text-gray-400 cursor-not-allowed' }} transition-all duration-200"
-                        {{ $complete ? '' : 'disabled' }}
-                        title="{{ $complete ? 'Move to Outdoor Ongoing Jobs' : 'Fill all months + Start & End first' }}"
-                        onclick="moveToOngoing({{ $row->id }})"
-                      >
-                        Move to Ongoing
-                      </button>
-                    </td>
                   </tr>
                 @empty
                   <tr>
@@ -293,21 +274,11 @@
           </div>
         </div>
 
-        <a href="{{ route('coordinator.outdoor.export') }}"
-                   class="inline-flex items-center bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-black px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5">
-                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3"></path>
-                  </svg>
-                  Export Outdoor Data
-                </a>
-
-                <a href="{{ route('export.monthly.ongoing') }}"
-                   class="inline-flex items-center bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-black px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5">
-                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3"></path>
-                  </svg>
-                  Export to CSV
-                </a>
+        <a
+  href="{{ route('coordinator.outdoor.exportMatrix', ['year' => $year, 'product' => $product]) }}"
+  class="btn btn-primary">
+  Export CSV
+</a>
 
       </div>
     </main>

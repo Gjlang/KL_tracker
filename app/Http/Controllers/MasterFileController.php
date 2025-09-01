@@ -11,7 +11,13 @@ use App\Models\MasterFile;
 use App\Imports\MasterFileImport;
 use Carbon\Carbon;
 use App\Exports\MasterFilesExport;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Illuminate\Http\RedirectResponse;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use App\Models\KltgMonthlyDetail;
+
 
 class MasterFileController extends Controller
 {
@@ -161,6 +167,37 @@ class MasterFileController extends Controller
         ));
     }
 
+    public function update(Request $request, int $id): RedirectResponse
+{
+    $mf = MasterFile::findOrFail($id);
+
+    // Validate only fields you actually allow to be edited from the form
+    $data = $request->validate([
+        'company'          => ['sometimes','string','max:255'],
+        'client'           => ['sometimes','nullable','string','max:255'],
+        'product'          => ['sometimes','nullable','string','max:255'],
+        'product_category' => ['sometimes','nullable','string','max:50'],
+        'month'            => ['sometimes','nullable','string','max:20'], // if stored as text; use integer if tinyint
+        'date'             => ['sometimes','nullable','date'],
+        'date_finish'      => ['sometimes','nullable','date'],
+        'duration'         => ['sometimes','nullable','string','max:255'],
+        'status'           => ['sometimes','nullable','string','max:255'],
+        'traffic'          => ['sometimes','nullable','string','max:255'],
+        'job_number'       => ['sometimes','nullable','string','max:255'],
+        'artwork'          => ['sometimes','nullable','string','max:255'],
+        'invoice_date'     => ['sometimes','nullable','date'],
+        'invoice_number'   => ['sometimes','nullable','string','max:255'],
+        'location'         => ['sometimes','nullable','string','max:255'],
+        'remarks'          => ['sometimes','nullable','string'],
+    ]);
+
+    // If you have custom parsing (e.g., month names), do it here before save.
+
+    $mf->fill($data)->save();
+
+    return back()->with('success', 'Master File updated successfully.');
+}
+
     // In MasterFil eController.php
     public function showMatrix($id)
     {
@@ -280,19 +317,116 @@ class MasterFileController extends Controller
         }
     }
 
-    public function exportXlsx(Request $request)
-    {
-        // Collect known filters from the UI (adjust keys to your inputs if needed)
-        $filters = $request->only([
-            'date_from', 'date_to', 'date_field',   // date_field optional (e.g. 'created_at' or 'date')
-            'search', 'contains',                   // unified "contains" search
-            'status'                                // string or array
-        ]);
+    public function exportXlsx(Request $request): StreamedResponse
+{
+    // ----- Build query with the same filters you use on the dashboard -----
+    $q = MasterFile::query()->select([
+        'created_at',
+        'company',
+        'client',
+        'product',
+        'month',
+        'date as start_date',
+        'date_finish as end_date',
+        'duration',
+        'status',
+        'traffic',
+        'job_number',
+        'artwork',
+        'invoice_date',
+        'invoice_number',
+        'product_category',
+    ]);
 
-        $filename = 'export_masterfiles_' . now('Asia/Kuala_Lumpur')->format('Ymd') . '.xlsx';
-
-        return Excel::download(new MasterFilesExport($filters), $filename);
+    if ($term = trim((string) $request->get('search', ''))) {
+        $q->where(function ($w) use ($term) {
+            $w->where('company', 'like', "%{$term}%")
+              ->orWhere('client', 'like', "%{$term}%")
+              ->orWhere('product', 'like', "%{$term}%")
+              ->orWhere('status', 'like', "%{$term}%")
+              ->orWhere('traffic', 'like', "%{$term}%")
+              ->orWhere('invoice_number', 'like', "%{$term}%");
+        });
     }
+    if ($status = $request->get('status')) {
+        $q->where('status', $status);
+    }
+    if ($pc = $request->get('product_category')) {
+        $q->where('product_category', $pc);
+    }
+    if ($month = $request->get('month')) {
+        $q->where('month', $month);
+    }
+    $field = $request->get('date_field', 'created_at');
+    if ($from = $request->get('date_from')) { $q->whereDate($field, '>=', $from); }
+    if ($to   = $request->get('date_to'))   { $q->whereDate($field, '<=', $to);   }
+
+    $rows = $q->orderByDesc('created_at')->cursor();
+
+    // ----- Build spreadsheet -----
+    $ss = new Spreadsheet();
+    $sheet = $ss->getActiveSheet();
+
+    $headings = [
+        'Date Created','Company Name','Client','Product','Month',
+        'Start Date','End Date','Duration (days)','Status','Traffic',
+        'Job Number','Artwork','Invoice Date','Invoice Number','Product Category'
+    ];
+    $col = 1; // 1-based
+    foreach ($headings as $h) {
+        $letter = Coordinate::stringFromColumnIndex($col++);
+        $sheet->setCellValue($letter.'1', $h);
+    }
+
+    $r = 2;
+    foreach ($rows as $row) {
+        $c = 1;
+        $put = function ($value) use (&$c, $r, $sheet) {
+            $letter = Coordinate::stringFromColumnIndex($c++);
+            $sheet->setCellValue($letter.$r, $value);
+        };
+        // date formatter that tolerates strings/nulls
+        $fmtDate = function ($v) {
+            if (!$v) return null;
+            if ($v instanceof \DateTimeInterface) return $v->format('Y-m-d');
+            try { return Carbon::parse($v)->format('Y-m-d'); } catch (\Throwable $e) { return (string)$v; }
+        };
+
+        $put((string) $row->created_at);
+        $put($row->company);
+        $put($row->client);
+        $put($row->product);
+        $put($row->month);
+        $put($fmtDate($row->start_date));
+        $put($fmtDate($row->end_date));
+        $put($row->duration);
+        $put($row->status);
+        $put($row->traffic);
+        $put($row->job_number);
+        $put($row->artwork);
+        $put($fmtDate($row->invoice_date));
+        $put($row->invoice_number);
+        $put($row->product_category);
+        $r++;
+    }
+
+    // Autosize columns (basic)
+    foreach (range(1, count($headings)) as $colIndex) {
+        $letter = Coordinate::stringFromColumnIndex($colIndex);
+        $sheet->getColumnDimension($letter)->setAutoSize(true);
+    }
+
+    $filename = 'master_files_'.now()->format('Ymd_His').'.xlsx';
+    $writer = new Xlsx($ss);
+
+    return response()->streamDownload(function () use ($writer, $ss) {
+        $writer->save('php://output');
+        // free memory
+        $ss->disconnectWorksheets();
+    }, $filename, [
+        'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ]);
+}
 
     // 🔧 UPDATED: Export method for Monthly Ongoing Job section with product_category fallback
     public function downloadTemplate()

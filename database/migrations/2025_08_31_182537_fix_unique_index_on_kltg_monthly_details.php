@@ -8,13 +8,13 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::table('kltg_monthly_details', function (Blueprint $table) {
-            // Hapus index lama (lihat dari error log: kltg_mf_year_month_cat_ft_unique)
+            // Drop the old unique index
             $table->dropUnique('kltg_mf_year_month_cat_ft_unique');
 
-            // Tambah index unik baru yg include TYPE
+            // Add new unique index that includes "type"
             $table->unique(
-                ['master_file_id','year','month','category','type','field_type'],
-                'kltg_mf_year_month_cat_type_ft_unique'
+                ['master_file_id', 'year', 'month', 'category', 'field_type', 'type'],
+                'kltg_mf_year_month_cat_ft_type_unique'
             );
         });
     }
@@ -22,10 +22,11 @@ return new class extends Migration {
     public function down(): void
     {
         Schema::table('kltg_monthly_details', function (Blueprint $table) {
-            $table->dropUnique('kltg_mf_year_month_cat_type_ft_unique');
+            $table->dropUnique('kltg_mf_year_month_cat_ft_type_unique');
 
+            // Revert back to the old unique index
             $table->unique(
-                ['master_file_id','year','month','category','field_type'],
+                ['master_file_id', 'year', 'month', 'category', 'field_type'],
                 'kltg_mf_year_month_cat_ft_unique'
             );
         });
