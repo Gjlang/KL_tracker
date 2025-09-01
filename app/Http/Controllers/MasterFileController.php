@@ -301,20 +301,12 @@ class MasterFileController extends Controller
     public function import(Request $request)
     {
         $request->validate([
-            'file' => 'required|file|mimes:xlsx,xls,csv|max:10240', // 10MB
+            'file' => ['required','file','mimes:xls,xlsx,csv']
         ]);
 
-        try {
-            Excel::import(new MasterFileImport, $request->file('file'));
+        $stats = MasterFileImport::run($request->file('file'));
 
-            // ===== 🔥 AUTO SEED KLTG ON IMPORT DISABLED =====
-            // ℹ️ If you had auto-seeding logic in MasterFileImport class,
-            // make sure to disable it there as well and use upsertKltgMonthly() instead.
-
-            return back()->with('success', 'Import completed successfully.');
-        } catch (\Throwable $e) {
-            return back()->withErrors(['file' => 'Import failed: '.$e->getMessage()]);
-        }
+        return back()->with('status', "Import done. Created: {$stats['created']}, Updated: {$stats['updated']}, Skipped: {$stats['skipped']}.");
     }
 
     public function exportXlsx(Request $request): StreamedResponse
