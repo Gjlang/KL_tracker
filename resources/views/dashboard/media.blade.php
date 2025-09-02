@@ -172,6 +172,7 @@
                         <span class="mr-2">🗂️</span>
                         Open Media Coordinator
                     </a>
+
                 </div>
 
                 <!-- Enhanced Filter Panel -->
@@ -218,22 +219,6 @@
 
                 <!-- Enhanced Main Table -->
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-300 overflow-hidden">
-                    <!-- Table Stats Header -->
-                    <div class="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-slate-50">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                     Projects
-                                </span>
-                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                    Active Status Tracking
-                                </span>
-                            </div>
-                            <div class="text-sm text-gray-500">
-                                Last updated: {{ now()->format('M d, Y H:i') }}
-                            </div>
-                        </div>
-                    </div>
 
                     <div class="relative overflow-x-auto">
                         <table class="min-w-[3250px] w-full text-sm table-fixed">
@@ -243,6 +228,11 @@
                                         <div class="flex items-center justify-center">
                                             <span class="text-lg">📅</span>
                                             <span class="ml-1">No</span>
+                                        </div>
+                                    </th>
+                                    <th style="width: var(--w-company)" class="px-4 py-4 text-xs font-bold text-black-700 uppercase tracking-wider sticky-left-60 sticky-cell-bg sticky-th border-r-2 border-gray-300">
+                                        <div class="flex items-center">
+                                            <span class="ml-2">Month</span>
                                         </div>
                                     </th>
                                     <th style="width: var(--w-company)" class="px-4 py-4 text-xs font-bold text-gray-700 uppercase tracking-wider sticky-left-60 sticky-cell-bg sticky-th border-r-2 border-gray-300">
@@ -306,6 +296,9 @@
                                                 {{ $i+1 }}
                                             </div>
                                         </td>
+                                        <td style="width: var(--w-month)" class="px-4 py-4 sticky-left-310 sticky-cell-bg border-r-2 border-gray-300 group-hover:bg-indigo-50/60">
+                                            <div class="max-w-[130px] truncate font-medium text-gray-700" title="{{ $row->month }}">{{ $row->month }}</div>
+                                        </td>
                                         <td style="width: var(--w-company)" class="px-4 py-4 sticky-left-60 sticky-cell-bg border-r-2 border-gray-300 group-hover:bg-indigo-50/60">
                                             <div class="flex items-center gap-3">
                                                 <div class="w-2 h-2 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full"></div>
@@ -322,9 +315,10 @@
                                                 {{ $row->date }}
                                             </span>
                                         </td>
-                                        <td style="width: var(--w-end)" class="px-4 py-4 sticky-left-580 sticky-cell-bg border-r-2 border-gray-300 group-hover:bg-indigo-50/60">
+                                       <td style="width: var(--w-end)"
+                                            class="px-4 py-4 sticky-cell-bg border-r-2 border-gray-300 group-hover:bg-indigo-50/60">
                                             <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 ring-1 ring-red-200">
-                                                {{ $row->end_date ?? $row->date_finish }}
+                                                {{ $row->date_finish }}
                                             </span>
                                         </td>
 

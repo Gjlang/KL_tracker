@@ -96,6 +96,7 @@
                              data-field="{{ $key }}"
                              data-master="{{ $m->id }}"
                              data-year="{{ $year }}"
+                             data-month="{{ $month ?? '' }}"
                              x-on:change.debounce.300ms="save($event.target)">
                       <span class="cell-status text-xs font-medium text-transparent transition-all duration-200">.</span>
                     </div>
@@ -109,6 +110,7 @@
                              data-field="{{ $key }}"
                              data-master="{{ $m->id }}"
                              data-year="{{ $year }}"
+                             data-month="{{ $month ?? '' }}"
                              x-on:blur.debounce.300ms="save($event.target)"
                              x-on:keydown.enter.prevent="save($event.target)">
                       <span class="cell-status text-xs font-medium text-transparent transition-all duration-200">.</span>
@@ -125,6 +127,7 @@
                              data-field="{{ $key }}"
                              data-master="{{ $m->id }}"
                              data-year="{{ $year }}"
+                             data-month="{{ $month ?? '' }}"
                              x-on:blur.debounce.300ms="save($event.target)"
                              x-on:keydown.enter.prevent="save($event.target)">
                       <span class="cell-status text-xs font-medium text-transparent transition-all duration-200">.</span>

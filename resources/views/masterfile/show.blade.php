@@ -11,9 +11,7 @@
                         </svg>
                         Back to Dashboard
                     </a>
-                    <div class="text-sm text-gray-500">
-                        <span>Company Details</span>
-                    </div>
+
                 </div>
             </div>
 
@@ -30,13 +28,21 @@
                                     <input name="company" class="text-3xl font-bold text-gray-900 bg-transparent border-0 p-0 w-full editable read-mode focus:ring-0" value="{{ old('company', $file->company) }}" disabled>
                                 </div>
                                 <div class="flex flex-wrap items-center gap-3">
-                                    <div class="flex items-center">
+                                   <div class="flex items-center">
                                         <span class="text-sm font-medium text-gray-500 mr-2">Status:</span>
-                                        <select name="status" class="editable read-mode status-badge px-3 py-1 text-sm font-medium rounded-full border-0 focus:ring-0" disabled>
+                                        <select name="status"
+                                            class="px-3 py-1 text-sm font-medium rounded-full border border-gray-300 focus:ring focus:ring-blue-200">
                                             @foreach(['pending','ongoing','completed'] as $s)
-                                                <option value="{{ $s }}" @selected(old('status',$file->status)===$s)>{{ ucfirst($s) }}</option>
+                                                <option value="{{ $s }}" @selected($file->status === $s)>
+                                                    {{ ucfirst($s) }}
+                                                </option>
                                             @endforeach
                                         </select>
+
+                                        <button type="submit"
+                                            class="ml-3 px-3 py-1 text-sm bg-red-600 text-black rounded hover:bg-red-700">
+                                            Save
+                                        </button>
                                     </div>
                                     <div class="flex items-center">
                                         <span class="text-sm font-medium text-gray-500 mr-2">Product:</span>
@@ -135,6 +141,16 @@
                             <div class="space-y-2">
                                 <label class="text-sm font-medium text-gray-500">Client</label>
                                 <input name="client" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" value="{{ old('client',$file->client) }}" disabled>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-500">Email</label>
+                                <input name="email" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" value="{{ old('email',$file->email) }}" disabled>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-500">Contact Number</label>
+                                <input name="contact_number" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" value="{{ old('contact_number',$file->contact_number) }}" disabled>
                             </div>
 
                             <div class="space-y-2">

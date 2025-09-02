@@ -129,17 +129,37 @@
         from { opacity: 0; transform: translateY(8px); }
         to { opacity: 1; transform: translateY(0); }
       }
+
+      /* Success/Error indicators */
+      .save-indicator {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        border-radius: 8px;
+        color: white;
+        font-weight: 600;
+        z-index: 9999;
+        transform: translateX(400px);
+        transition: transform 0.3s ease;
+      }
+
+      .save-indicator.show {
+        transform: translateX(0);
+      }
+
+      .save-indicator.success {
+        background: linear-gradient(135deg, #10b981, #059669);
+      }
+
+      .save-indicator.error {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+      }
     </style>
   @endpush
 
   <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50"
-       x-data="mediaCoordinator({
-         postUrl: '{{ route('coordinator.media.upsert') }}',
-         initialYear: {{ (int)$year }},
-         initialMonth: {{ $month ? (int)$month : 'null' }},
-         initialTab: '{{ $activeTab ?? 'content' }}',
-         initialScope: '{{ $scope ?? 'month_year' }}',
-       })">
+       x-data="mediaCoordinator()">
 
     {{-- Premium Sticky Filter Bar --}}
     <div class="sticky-filter bg-white/95 border-b border-slate-200/80 shadow-lg">
@@ -156,27 +176,16 @@
             </div>
 
             <div class="space-y-2">
-  <label class="block text-sm font-semibold text-slate-700">Month</label>
-  <select name="month"
-          class="input-premium h-11 px-4 py-2 rounded-xl text-sm font-medium min-w-[8rem] shadow-sm"
-          onchange="
-            const p = new URLSearchParams(window.location.search);
-            const v = this.value;
-            if (v) { p.set('month', v); } else { p.delete('month'); }
-            if (!p.has('year'))  p.set('year', '{{ (int)$year }}');
-            if (!p.has('tab'))   p.set('tab',  '{{ $activeTab ?? 'content' }}');
-            if (!p.has('scope')) p.set('scope','{{ $scope ?? 'month_year' }}');
-            window.location = `${location.pathname}?${p.toString()}`;
-          ">
-    <option value="" {{ $month ? '' : 'selected' }}>All months</option>
-    @for($m=1;$m<=12;$m++)
-      <option value="{{ $m }}" {{ $month===$m ? 'selected':'' }}>
-        {{ \Carbon\Carbon::create()->startOfYear()->month($m)->format('F') }}
-      </option>
-    @endfor
-  </select>
-</div>
-
+              <label class="block text-sm font-semibold text-slate-700">Month</label>
+              <select name="month" class="input-premium h-11 px-4 py-2 rounded-xl text-sm font-medium min-w-[8rem] shadow-sm">
+                <option value="" {{ $month ? '' : 'selected' }}>All months</option>
+                @for($m=1;$m<=12;$m++)
+                  <option value="{{ $m }}" {{ $month===$m ? 'selected':'' }}>
+                    {{ \Carbon\Carbon::create()->startOfYear()->month($m)->format('F') }}
+                  </option>
+                @endfor
+              </select>
+            </div>
 
             <div class="space-y-2">
               <label class="block text-sm font-semibold text-slate-700">Scope</label>
@@ -188,7 +197,7 @@
               </select>
             </div>
 
-            <button type="submit" class="h-11 px-6 py-2 bg-gradient-to-r from-[#22255b] to-[#1a1d47] text-black rounded-xl hover:from-[#1a1d47] hover:to-[#141729] transition-all duration-200 shadow-lg hover:shadow-xl font-semibold text-sm transform hover:-translate-y-0.5">
+            <button type="submit" class="h-11 px-6 py-2 bg-gradient-to-r from-[#22255b] to-[#1a1d47] text-white rounded-xl hover:from-[#1a1d47] hover:to-[#141729] transition-all duration-200 shadow-lg hover:shadow-xl font-semibold text-sm transform hover:-translate-y-0.5">
               Apply Filters
             </button>
           </div>
@@ -198,22 +207,21 @@
               <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
               <span class="text-sm font-medium text-slate-700">{{ count($masters) }} companies • {{ $periodLabel }}</span>
             </div>
-            <template x-if="!selectedMonth">
-              <span class="text-xs text-slate-500 bg-amber-50 px-2 py-1 rounded-full border border-amber-200">
-                📊 Latest values • Select month to edit
-              </span>
-            </template>
-            <template x-if="selectedMonth">
+            @if($month)
               <span class="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-1 rounded-full border border-emerald-200">
                 ✏️ Editing enabled
               </span>
-            </template>
+            @else
+              <span class="text-xs text-slate-500 bg-amber-50 px-2 py-1 rounded-full border border-amber-200">
+                📊 Latest values • Select month to edit
+              </span>
+            @endif
           </div>
         </form>
       </div>
     </div>
 
-    {{-- Empty state / Main Content --}}
+    {{-- Main Content --}}
     <div class="max-w-7xl mx-auto px-6 py-8 space-y-8">
       @if(count($masters)===0)
         <div class="rounded-xl border border-slate-200 bg-white p-6 text-center text-slate-600">
@@ -224,16 +232,24 @@
       {{-- Premium Tab Navigation --}}
       <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200/60 p-2">
         <nav class="flex flex-wrap gap-1" role="tablist">
-          <template x-for="t in tabs" :key="t.key">
+          @php
+            $tabs = [
+              ['key' => 'content', 'label' => 'Content Calendar'],
+              ['key' => 'editing', 'label' => 'Artwork Editing'],
+              ['key' => 'schedule', 'label' => 'Posting Scheduling'],
+              ['key' => 'report', 'label' => 'Report Posting'],
+              ['key' => 'valueadd', 'label' => 'Value Add'],
+            ];
+          @endphp
+          @foreach($tabs as $tab)
             <button type="button"
-                    @click.prevent="switchTab(t.key)"
-                    :class="activeTab===t.key ? 'bg-gradient-to-r from-[#4bbbed] to-[#3da5cc] text-white shadow-lg shadow-blue-200/50 font-bold border-0 transform scale-105' : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50 border border-transparent'"
+                    @click.prevent="switchTab('{{ $tab['key'] }}')"
+                    :class="activeTab==='{{ $tab['key'] }}' ? 'bg-gradient-to-r from-[#4bbbed] to-[#3da5cc] text-white shadow-lg shadow-blue-200/50 font-bold border-0 transform scale-105' : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50 border border-transparent'"
                     class="px-6 py-3 rounded-xl transition-all duration-300 text-sm whitespace-nowrap font-medium"
-                    :aria-selected="activeTab===t.key"
                     role="tab">
-              <span x-text="t.label"></span>
+              {{ $tab['label'] }}
             </button>
-          </template>
+          @endforeach
         </nav>
       </div>
 
@@ -337,45 +353,126 @@
       </div>
     </div>
 
-    {{-- Alpine component logic --}}
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-<script>
-(function(){
-  const token = document.querySelector('meta[name="csrf-token"]').content;
-  const url = "{{ route('coordinator.media.upsert') }}";
+    {{-- Save Indicator --}}
+    <div id="saveIndicator" class="save-indicator">
+      <span id="saveMessage">Saved!</span>
+    </div>
 
-  function payloadFrom(el){
-    const section = el.dataset.section;
-    const field   = el.dataset.field;
-    const master  = parseInt(el.dataset.master, 10);
-    const year    = el.dataset.year ? parseInt(el.dataset.year, 10) : null;
-    const month   = el.dataset.month ? parseInt(el.dataset.month, 10) : null;
-    let value = (el.type === 'checkbox') ? (el.checked ? 1 : 0) : el.value;
-    return { section, field, master_file_id: master, year, month, value };
-  }
+    {{-- Alpine.js Component & Autosave Logic --}}
+    <script>
+      function mediaCoordinator() {
+        return {
+          activeTab: '{{ $activeTab ?? 'content' }}',
+          year: {{ (int)$year }},
+          month: {{ $month ? (int)$month : 'null' }},
+          scope: '{{ $scope ?? 'month_year' }}',
 
-  async function save(el){
-    const body = payloadFrom(el);
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type':'application/json',
-        'X-CSRF-TOKEN': token,
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-      body: JSON.stringify(body)
-    });
-    // optional: tampilkan indikator sukses/gagal
-  }
+          switchTab(tab) {
+            this.activeTab = tab;
+            // Update URL without page reload
+            const url = new URL(window.location);
+            url.searchParams.set('tab', tab);
+            window.history.pushState({}, '', url);
+          },
 
-  const dh = (fn, ms=300)=>{ let t; return (...a)=>{clearTimeout(t); t=setTimeout(()=>fn(...a),ms)} };
-  const onChange = dh(ev => save(ev.target), 250);
+          init() {
+            // Initialize autosave functionality
+            this.initAutosave();
+          },
 
-  document.querySelectorAll('.autosave').forEach(el=>{
-    el.addEventListener('change', onChange);
-    el.addEventListener('blur', onChange);
-  });
-})();
-</script>
+          initAutosave() {
+            const token = document.querySelector('meta[name="csrf-token"]').content;
+            const url = "{{ route('coordinator.media.upsert') }}";
+
+            function showIndicator(success, message = null) {
+              const indicator = document.getElementById('saveIndicator');
+              const messageEl = document.getElementById('saveMessage');
+
+              indicator.className = `save-indicator ${success ? 'success' : 'error'}`;
+              messageEl.textContent = message || (success ? 'Saved!' : 'Save failed');
+              indicator.classList.add('show');
+
+              setTimeout(() => {
+                indicator.classList.remove('show');
+              }, 2000);
+            }
+
+            function payloadFrom(el) {
+              const section = el.dataset.section;
+              const field = el.dataset.field;
+              const master = parseInt(el.dataset.master, 10);
+              const year = el.dataset.year ? parseInt(el.dataset.year, 10) : null;
+              const month = el.dataset.month ? parseInt(el.dataset.month, 10) : null;
+              let value = (el.type === 'checkbox') ? (el.checked ? 1 : 0) : el.value;
+              return { section, field, master_file_id: master, year, month, value };
+            }
+
+            async function save(el) {
+              try {
+                const body = payloadFrom(el);
+                console.log('Saving:', body);
+                this.save = save;
+
+                const res = await fetch(url, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': token,
+                    'X-Requested-With': 'XMLHttpRequest',
+                  },
+                  body: JSON.stringify(body)
+                });
+
+                const data = await res.json();
+
+                if (data.ok) {
+                  showIndicator(true);
+                  console.log('Save success:', data);
+                } else {
+                  showIndicator(false, data.error || 'Save failed');
+                  console.error('Save failed:', data);
+                }
+              } catch (error) {
+                showIndicator(false, 'Network error');
+                console.error('Save error:', error);
+              }
+            }
+
+            // Debounced save function
+            const debouncedSave = this.debounce(save, 500);
+
+            // Attach event listeners to all autosave elements
+            document.addEventListener('change', function(e) {
+              if (e.target.classList.contains('autosave')) {
+                debouncedSave(e.target);
+              }
+            });
+
+            document.addEventListener('blur', function(e) {
+              if (e.target.classList.contains('autosave') && e.target.type !== 'checkbox') {
+                debouncedSave(e.target);
+              }
+            });
+          },
+
+          debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+              const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+              };
+              clearTimeout(timeout);
+              timeout = setTimeout(later, wait);
+            };
+          }
+        }
+      }
+
+      // Initialize when DOM is ready
+      document.addEventListener('DOMContentLoaded', function() {
+        // Alpine.js will handle initialization
+      });
+    </script>
   </div>
 </x-app-layout>

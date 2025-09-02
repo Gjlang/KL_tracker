@@ -32,7 +32,7 @@ class MediaMonthlyDetailController extends Controller
 
         // 2) Base rows = Media masters (case-insensitive)
         $rows = MasterFile::query()
-            ->select(['id','company','client','product','product_category','date','created_at'])
+            ->select(['id','company','client','product','product_category','date','created_at','date_finish', 'month'])
             ->where(function ($q) {
                 $q->whereRaw('LOWER(COALESCE(product_category, "")) LIKE ?', ['%media%'])
                   ->orWhereIn(
@@ -100,6 +100,18 @@ class MediaMonthlyDetailController extends Controller
 
         // 6) Transform to match Blade expectations (expose both status + date per month)
         $mediaJobs = $rows->map(function ($mf) use ($detailsMap, $year) {
+            // Normalisasi month -> nama
+            $rawMonth = $mf->month; // bisa "8", "Aug", "August", dll
+            $monthName = $rawMonth;
+
+            // kalau numeric 1..12, convert ke nama
+            if (is_numeric($rawMonth)) {
+                $num = (int)$rawMonth;
+                if ($num >= 1 && $num <= 12) {
+                    $monthName = \Carbon\Carbon::create()->month($num)->format('F'); // August
+                }
+            }
+
             $job = (object) [
                 'id'               => $mf->id,
                 'date'             => $mf->date,
@@ -112,6 +124,10 @@ class MediaMonthlyDetailController extends Controller
                 'remarks'          => $mf->remarks ?? '',
                 'start_date'       => $mf->start_date ?? $mf->date ?? null,
                 'end_date'         => $mf->date_finish ?? $mf->end_date ?? null,
+
+                // 🔥 tambahkan ini
+                'month'            => $rawMonth,
+                'month_name'       => $monthName,
             ];
 
             // Month fields (status + date)
@@ -119,8 +135,8 @@ class MediaMonthlyDetailController extends Controller
             foreach ($names as $i => $name) {
                 $mon = $i + 1;
                 $cell = $detailsMap[$mf->id][$year][$mon] ?? null;
-                $job->{"check_{$name}"} = $cell['value_text'] ?? '';                // status
-                $job->{"date_{$name}"}  = $cell['value_date'] ?? null;              // Y-m-d or null
+                $job->{"check_{$name}"} = $cell['value_text'] ?? '';
+                $job->{"date_{$name}"}  = $cell['value_date'] ?? null;
             }
 
             return $job;
@@ -138,15 +154,6 @@ class MediaMonthlyDetailController extends Controller
         ]);
     }
 
-    /**
-     * Autosave one cell (status text or date) using upsert.
-     * Payload:
-     * - master_file_id (int, exists)
-     * - year (int)
-     * - month (1..12)
-     * - kind: 'text' | 'date'
-     * - value: string (nullable)  -> for 'date', expect 'YYYY-MM-DD'
-     */
     public function upsert(Request $req)
     {
         try {

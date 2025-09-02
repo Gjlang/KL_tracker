@@ -12,48 +12,72 @@ use Carbon\Carbon;
 
 class MediaOngoingJobController extends Controller
 {
-    public function index()
-    {
-        $year = now()->year;
+    public function index(Request $request)
+{
+    $year  = (int)($request->input('year') ?: now()->year);
+    $month = $request->filled('month') ? (int)$request->input('month') : null;
 
-        // Ambil data master_files kategori MEDIA (longgar, biar gak 0 baris)
-        $rows = MasterFile::query()
-            ->where(function ($q) {
-                $q->whereRaw('LOWER(product_category) like ?', ['%media%'])
-                ->orWhereRaw('LOWER(product) like ?', ['%fb%'])
-                ->orWhereRaw('LOWER(product) like ?', ['%ig%']);
-            })
-            ->orderByRaw('COALESCE(`date`, `created_at`) DESC')
-            ->get();
+    // Ambil master files yang relevan Media
+    $masters = MasterFile::query()
+        ->where(function ($q) {
+            $q->whereRaw('LOWER(product_category) like ?', ['%media%'])
+              ->orWhereRaw('LOWER(product) like ?', ['%fb%'])
+              ->orWhereRaw('LOWER(product) like ?', ['%ig%']);
+        })
+        ->orderByRaw('COALESCE(`date`, `created_at`) DESC')
+        ->get();
 
-        // Optional: detailsMap untuk isi sel yang sudah ada (kalau kamu render balik nilai)
-        $details = MediaMonthlyDetail::whereIn('master_file_id', $rows->pluck('id'))
-            ->get()
-            ->groupBy(function($d){
-                return implode('|', [
-                    $d->master_file_id,
-                    $d->year,
-                    $d->subcategory,
-                    $d->kind, // 'text' atau 'date'
-                ]);
-            });
+    // Helper: ambil rows section tertentu dan jadikan map [master_id => [field=>value]]
+    $buildMap = function (string $section, array $fields) use ($masters, $year, $month) {
+        $model = \App\Models\MediaCoordinatorTracking::forSection($section);
 
-        $detailsMap = [];
-        foreach ($details as $key => $group) {
-            // Ambil last value
-            $last = $group->sortByDesc('updated_at')->first();
-            $detailsMap[$key] = [
-                'text' => $last->value_text,
-                'date' => optional($last->value_date)->format('Y-m-d'),
-            ];
+        $q = $model::query()->whereIn('master_file_id', $masters->pluck('id'));
+        // Scope filter: default Month+Year (sesuai UI kamu)
+        $q->where('year', $year);
+        if ($month) {
+            $q->where('month', $month);
         }
 
-        return view('dashboard.media', [
-            'year'       => $year,
-            'rows'       => $rows,
-            'detailsMap' => $detailsMap,
-        ]);
-    }
+        $rows = $q->get();
+        $map  = [];
+        foreach ($rows as $r) {
+            $arr = [];
+            foreach ($fields as $f) {
+                $arr[$f] = $r->{$f};
+            }
+            $map[$r->master_file_id] = $arr;
+        }
+        return $map;
+    };
+
+    // Bangun map untuk tiap tab (field harus cocok dengan tabelnya)
+    $contentMap = $buildMap('content',  ['total_artwork','pending','draft_wa','approved']);
+    $editingMap = $buildMap('editing',  ['total_artwork','pending','draft_wa','approved']);
+    $scheduleMap= $buildMap('schedule', ['total_artwork','crm','meta_mgr','tiktok_ig_draft']);
+    $reportMap  = $buildMap('report',   ['pending','completed']);
+    $valueMap   = $buildMap('valueadd', ['quota','completed']);
+
+    // Label periode
+    $periodLabel = $month
+        ? Carbon::create()->month($month)->format('F') . " $year"
+        : "All months $year";
+
+    // Kirim ke view yang benar (file kamu ada di coordinators/media.blade.php)
+    return view('coordinators.media', [
+        'year'        => $year,
+        'month'       => $month,
+        'masters'     => $masters,
+        'contentMap'  => $contentMap,
+        'editingMap'  => $editingMap,
+        'scheduleMap' => $scheduleMap,
+        'reportMap'   => $reportMap,
+        'valueMap'    => $valueMap,
+        'activeTab'   => $request->input('tab', 'content'),
+        'scope'       => $request->input('scope', 'month_year'),
+        'periodLabel' => $periodLabel,
+    ]);
+}
+
 
     public function create()
     {
@@ -106,39 +130,118 @@ class MediaOngoingJobController extends Controller
 
     // app/Http/Controllers/MediaOngoingJobController.php
 
-    public function upsertMonthlyDetail(Request $request)
+// In MediaOngoingJobController.php, replace your upsert method with this:
+
+public function upsert(Request $request)
 {
-    $data = $request->validate([
-        'master_file_id' => 'required|exists:master_files,id',
-        'year'           => 'required|integer|min:2000|max:2100',
-        'month'          => 'required|integer|min:1|max:12',
-        'kind'           => 'required|in:text,date',
-        'value'          => 'nullable|string',
-    ]);
+    try {
+        Log::info('Upsert request received', $request->all());
 
-    // If your table still has 'subcategory' NOT NULL, choose a default:
-    $sub = 'General';
+        $data = $request->validate([
+            'section'        => 'required|string|in:content,editing,schedule,report,valueadd',
+            'master_file_id' => 'required|exists:master_files,id',
+            'year'           => 'required|integer|min:2000|max:2100',
+            'month'          => 'nullable|integer|min:1|max:12',
+            'field'          => 'required|string',
+            'value'          => 'nullable',
+        ]);
 
-    $detail = MediaMonthlyDetail::firstOrNew([
-        'master_file_id' => $data['master_file_id'],
-        'year'           => $data['year'],
-        'month'          => $data['month'],
-        'subcategory'    => $sub,  // keep constant key
-    ]);
+        // Get model class
+        $modelClass = \App\Models\MediaCoordinatorTracking::forSection($data['section']);
 
-    if ($data['kind'] === 'text') {
-        $detail->value_text = $data['value'];
-    } else { // date
-        $detail->value_date = $data['value'] ? date('Y-m-d', strtotime($data['value'])) : null;
+        // Validate field is allowed for this section
+        $allowedFields = [
+            'content'  => ['total_artwork', 'pending', 'draft_wa', 'approved'],
+            'editing'  => ['total_artwork', 'pending', 'draft_wa', 'approved'],
+            'schedule' => ['total_artwork', 'crm', 'meta_mgr', 'tiktok_ig_draft'],
+            'report'   => ['pending', 'completed'],
+            'valueadd' => ['quota', 'completed'],
+        ];
+
+        if (!in_array($data['field'], $allowedFields[$data['section']], true)) {
+            return response()->json(['ok' => false, 'error' => 'Field not allowed'], 422);
+        }
+
+        // CRITICAL: Map UI field names to database column names
+        $fieldMapping = [
+            'meta_mgr' => 'meta_manager', // UI sends 'meta_mgr', DB expects 'meta_manager'
+        ];
+        $dbField = $fieldMapping[$data['field']] ?? $data['field'];
+
+        // Build unique keys
+        $keys = [
+            'master_file_id' => (int)$data['master_file_id'],
+            'year' => (int)$data['year'],
+        ];
+
+        if (!empty($data['month'])) {
+            $keys['month'] = (int)$data['month'];
+        }
+
+        Log::info('Looking for record', ['model' => $modelClass, 'keys' => $keys, 'field' => $dbField]);
+
+        // Find or create record
+        $record = $modelClass::firstOrNew($keys);
+
+        // Process value based on field type
+        $value = $data['value'];
+
+        // Boolean fields
+        if (in_array($data['field'], ['draft_wa', 'approved', 'tiktok_ig_draft'], true)) {
+            $value = (bool)$value ? 1 : 0;
+        }
+        // Integer fields
+        elseif (in_array($data['field'], ['total_artwork', 'pending', 'crm', 'meta_mgr', 'quota'], true)) {
+            $value = ($value === '' || $value === null) ? null : (int)$value;
+        }
+        // Special case: valueadd completed can be integer
+        elseif ($data['section'] === 'valueadd' && $data['field'] === 'completed') {
+            $value = is_numeric($value) ? (int)$value : ((bool)$value ? 1 : 0);
+        }
+        // Report completed is boolean
+        elseif ($data['field'] === 'completed') {
+            $value = (bool)$value ? 1 : 0;
+        }
+
+        // Set the field value using the mapped database field name
+        $record->{$dbField} = $value;
+
+        Log::info('Saving record', [
+            'dbField' => $dbField,
+            'value' => $value,
+            'record_exists' => $record->exists
+        ]);
+
+        $saved = $record->save();
+
+        if ($saved) {
+            Log::info('Record saved successfully', ['id' => $record->id]);
+            return response()->json([
+                'ok' => true,
+                'id' => $record->id,
+                'field' => $dbField,
+                'value' => $value
+            ]);
+        } else {
+            Log::error('Failed to save record');
+            return response()->json(['ok' => false, 'error' => 'Failed to save'], 500);
+        }
+
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        Log::warning('Validation error', ['errors' => $e->errors()]);
+        return response()->json(['ok' => false, 'errors' => $e->errors()], 422);
+    } catch (\Exception $e) {
+        Log::error('Upsert failed: ' . $e->getMessage(), [
+            'trace' => $e->getTraceAsString(),
+            'request' => $request->all()
+        ]);
+        return response()->json([
+            'ok' => false,
+            'error' => 'Server error: ' . $e->getMessage()
+        ], 500);
     }
-
-    // ensure column exists if still NOT NULL
-    $detail->subcategory = $detail->subcategory ?: $sub;
-
-    $detail->save();
-
-    return response()->json(['ok' => true]);
 }
+
 
     public function update(Request $request, $id)
     {

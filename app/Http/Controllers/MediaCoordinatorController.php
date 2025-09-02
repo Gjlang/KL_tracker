@@ -136,118 +136,118 @@ class MediaCoordinatorController extends Controller
         return "All Months {$year}";
     }
 
-    // upsert method remains the same
-   public function upsert(Request $request)
+    // In MediaOngoingJobController.php, replace your upsert method with this:
+
+public function upsert(Request $request)
 {
     try {
+        Log::info('Upsert request received', $request->all());
+
         $data = $request->validate([
-            'section'        => 'required|in:content,editing,schedule,report,valueadd',
-            'master_file_id' => 'required|integer|exists:master_files,id',
-            'year'           => 'nullable|integer|min:2000|max:2100',
-            'month'          => 'nullable|integer|min:1|max:12', // <- boleh null
+            'section'        => 'required|string|in:content,editing,schedule,report,valueadd',
+            'master_file_id' => 'required|exists:master_files,id',
+            'year'           => 'required|integer|min:2000|max:2100',
+            'month'          => 'nullable|integer|min:1|max:12',
             'field'          => 'required|string',
             'value'          => 'nullable',
         ]);
+         if (empty($data['year'])) {
+            $data['year'] = (int) now()->year;
+        }
 
-        // Tab -> table (samakan dgn index())
-        $TABLE_BY_SECTION = [
-            'content'  => 'content_calendars',
-            'editing'  => 'artwork_editings',
-            'schedule' => 'posting_schedulings',
-            'report'   => 'media_reports',
-            'valueadd' => 'media_value_adds',
+        // Get model class
+        $modelClass = \App\Models\MediaCoordinatorTracking::forSection($data['section']);
+
+        // Validate field is allowed for this section
+        $allowedFields = [
+            'content'  => ['total_artwork', 'pending', 'draft_wa', 'approved'],
+            'editing'  => ['total_artwork', 'pending', 'draft_wa', 'approved'],
+            'schedule' => ['total_artwork', 'crm', 'meta_mgr', 'tiktok_ig_draft'],
+            'report'   => ['pending', 'completed'],
+            'valueadd' => ['quota', 'completed'],
         ];
 
-        // Field yang boleh per tab (UI)
-        $ALLOWED = [
-            'content'  => ['total_artwork','pending','draft_wa','approved'],
-            'editing'  => ['total_artwork','pending','draft_wa','approved'],
-            'schedule' => ['total_artwork','crm','meta_mgr','tiktok_ig_draft'],
-            'report'   => ['pending','completed'],
-            'valueadd' => ['quota','completed'], // <- sesuai kolom di screenshot
+        if (!in_array($data['field'], $allowedFields[$data['section']], true)) {
+            return response()->json(['ok' => false, 'error' => 'Field not allowed'], 422);
+        }
+
+        // CRITICAL: Map UI field names to database column names
+        $fieldMapping = [
+            'meta_mgr' => 'meta_manager', // UI sends 'meta_mgr', DB expects 'meta_manager'
         ];
+        $dbField = $fieldMapping[$data['field']] ?? $data['field'];
 
-        // Alias UI -> kolom DB (kalau beda nama)
-        $FIELD_ALIAS = [
-            'schedule' => [
-                'meta_mgr' => 'meta_manager', // kalau di DB namanya 'meta_manager'
-            ],
-        ];
-
-        $section = $data['section'];
-        $uiField = $data['field'];
-
-        if (!isset($TABLE_BY_SECTION[$section])) {
-            return response()->json(['ok'=>false,'error'=>'Unknown section'], 422);
-        }
-        if (!in_array($uiField, $ALLOWED[$section] ?? [], true)) {
-            return response()->json(['ok'=>false,'error'=>'Invalid field'], 422);
-        }
-
-        $table  = $TABLE_BY_SECTION[$section];
-        $column = $FIELD_ALIAS[$section][$uiField] ?? $uiField;
-
-        // Jika alias di atas belum tepat, coba fallback otomatis:
-        if (!Schema::hasColumn($table, $column)) {
-            // fallback populer yang sering beda penamaan
-            $fallbacks = [
-                'meta_manager'    => 'meta_mgr',
-                'meta_mgr'        => 'meta_manager',
-            ];
-            if (isset($fallbacks[$column]) && Schema::hasColumn($table, $fallbacks[$column])) {
-                $column = $fallbacks[$column];
-            }
-        }
-
-        // Normalisasi nilai
-        $raw = $data['value'];
-        $BOOL_FIELDS = ['draft_wa','approved','tiktok_ig_draft','completed'];
-        $INT_FIELDS  = ['total_artwork','pending','crm','quota'];
-
-        if (in_array($uiField, $BOOL_FIELDS, true)) {
-            // khusus valueadd.completed dukung angka
-            if ($section === 'valueadd' && $uiField === 'completed' && is_numeric($raw)) {
-                $value = (int)$raw;
-            } else {
-                $truthy = ['1', 1, true, 'true', 'on', 'yes', 'checked'];
-                $value  = in_array($raw, $truthy, true) ? 1 : 0;
-            }
-        } elseif (in_array($uiField, $INT_FIELDS, true)) {
-            $value = ($raw === '' || $raw === null) ? null : (int)$raw;
-        } else {
-            $value = is_string($raw) ? mb_substr(trim($raw), 0, 255) : ($raw ?? null);
-        }
-
-        // Kunci upsert: year wajib ada (default ke tahun aktif), month opsional
-        $year  = $data['year']  ?? (int) now()->year;
-        $month = $data['month'] ?? null;
-
+        // Build unique keys
         $keys = [
             'master_file_id' => (int)$data['master_file_id'],
-            'year'           => $year,
+            'year' => (int)$data['year'],
         ];
-        if ($month !== null) {
-            $keys['month'] = (int)$month;
+
+        if (!empty($data['month'])) {
+            $keys['month'] = (int)$data['month'];
         }
 
-        $values = [
-            $column      => $value,
-            'updated_at' => now(),
-        ];
-        $exists = DB::table($table)->where($keys)->exists();
-        if (!$exists) {
-            $values['created_at'] = now();
+        Log::info('Looking for record', ['model' => $modelClass, 'keys' => $keys, 'field' => $dbField]);
+
+        // Find or create record
+        $record = $modelClass::firstOrNew($keys);
+
+        // Process value based on field type
+        $value = $data['value'];
+
+        // Boolean fields
+        if (in_array($data['field'], ['draft_wa', 'approved', 'tiktok_ig_draft'], true)) {
+            $value = (bool)$value ? 1 : 0;
+        }
+        // Integer fields
+        elseif (in_array($data['field'], ['total_artwork', 'pending', 'crm', 'meta_mgr', 'quota'], true)) {
+            $value = ($value === '' || $value === null) ? null : (int)$value;
+        }
+        // Special case: valueadd completed can be integer
+        elseif ($data['section'] === 'valueadd' && $data['field'] === 'completed') {
+            $value = is_numeric($value) ? (int)$value : ((bool)$value ? 1 : 0);
+        }
+        // Report completed is boolean
+        elseif ($data['field'] === 'completed') {
+            $value = (bool)$value ? 1 : 0;
         }
 
-        DB::table($table)->updateOrInsert($keys, $values);
+        // Set the field value using the mapped database field name
+        $record->{$dbField} = $value;
 
-        return response()->json(['ok'=>true, 'table'=>$table, 'column'=>$column, 'value'=>$value, 'keys'=>$keys]);
-    } catch (ValidationException $e) {
-        Log::warning('coordinator.media.upsert 422', ['errors'=>$e->errors(), 'payload'=>$request->all()]);
-        return response()->json(['ok'=>false, 'errors'=>$e->errors()], 422);
-    } catch (\Throwable $e) {
-        Log::error('coordinator.media.upsert fail: '.$e->getMessage(), ['payload'=>$request->all()]);
-        return response()->json(['ok'=>false, 'error'=>$e->getMessage()], 500);
+        Log::info('Saving record', [
+            'dbField' => $dbField,
+            'value' => $value,
+            'record_exists' => $record->exists
+        ]);
+
+        $saved = $record->save();
+
+        if ($saved) {
+            Log::info('Record saved successfully', ['id' => $record->id]);
+            return response()->json([
+                'ok' => true,
+                'id' => $record->id,
+                'field' => $dbField,
+                'value' => $value
+            ]);
+        } else {
+            Log::error('Failed to save record');
+            return response()->json(['ok' => false, 'error' => 'Failed to save'], 500);
+        }
+
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        Log::warning('Validation error', ['errors' => $e->errors()]);
+        return response()->json(['ok' => false, 'errors' => $e->errors()], 422);
+    } catch (\Exception $e) {
+        Log::error('Upsert failed: ' . $e->getMessage(), [
+            'trace' => $e->getTraceAsString(),
+            'request' => $request->all()
+        ]);
+        return response()->json([
+            'ok' => false,
+            'error' => 'Server error: ' . $e->getMessage()
+        ], 500);
     }
 }
 }

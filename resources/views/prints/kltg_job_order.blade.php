@@ -114,7 +114,7 @@
                 <span class="tick {{ str_contains(strtolower($file->product ?? ''), 'locals') ? 'is-ticked' : '' }}"></span>
               </td>
               <th>ISSUE</th>
-              <td>{{ $file->issue ?? ($file->month ? 'KLTG '.$file->month : '') }}</td>
+              <td></td>
             </tr>
             <tr>
               <th>Listing</th>
@@ -206,24 +206,20 @@
 
         <!-- Right column block like “INSIDE FRONT COVER, INSIDE BACK COVER, DPS...” -->
         <div class="cell">
-          <table>
-            <tr><th>INSIDE FRONT COVER</th></tr>
-            <tr><td>&nbsp;</td></tr>
-            <tr><th>INSIDE BACK COVER</th></tr>
-            <tr><td>&nbsp;</td></tr>
-            <tr><th>DOUBLE PAGE SPREAD</th></tr>
-            <tr><td>&nbsp;</td></tr>
-            <tr><th>FULL PAGE</th></tr>
-            <tr><td>&nbsp;</td></tr>
-            <tr><th>HALF PAGE</th></tr>
-            <tr><td>&nbsp;</td></tr>
-            <tr><th>QUARTER PAGE</th></tr>
-            <tr><td>&nbsp;</td></tr>
-            <tr><th>WEBSITE</th></tr>
-            <tr><td>&nbsp;</td></tr>
-          </table>
+            <table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse; width:100%; font-family:Arial, sans-serif; font-size:12px;">
+                <tr><td><b>IFC</b></td><td>INSIDE FRONT COVER</td></tr>
+                <tr><td><b>IBC</b></td><td>INSIDE BACK COVER</td></tr>
+                <tr><td><b>IFCS</b></td><td>INSIDE FRONT COVER SPREAD</td></tr>
+                <tr><td><b>IBCS</b></td><td>INSIDE BACK COVER SPREAD</td></tr>
+                <tr><td><b>PG 1</b></td><td>PAGE 1</td></tr>
+                <tr><td><b>BC</b></td><td>BACK COVER</td></tr>
+                <tr><td><b>DPS</b></td><td>DOUBLE PAGE SPREAD</td></tr>
+                <tr><td><b>FP</b></td><td>FULL PAGE</td></tr>
+                <tr><td><b>HP</b></td><td>HALF PAGE</td></tr>
+                <tr><td><b>QP</b></td><td>QUARTER PAGE</td></tr>
+                <tr><td><b>WEB</b></td><td>WEBSITE</td></tr>
+            </table>
         </div>
-
       </td>
     </tr>
   </table>
