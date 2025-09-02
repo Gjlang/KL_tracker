@@ -52,6 +52,7 @@ Route::post('coordinator/kltg', [KltgCoordinatorController::class, 'store'])->na
 Route::get('/outdoor-jobs', [DashboardController::class, 'outdoor'])->name('dashboard.outdoor');
 Route::post('/dashboard/outdoor/update', [DashboardController::class, 'updateOutdoorField'])->name('dashboard.outdoor.update');
 
+
 // ===============================================
 // CALENDAR ROUTES
 // ===============================================
@@ -91,7 +92,17 @@ Route::prefix('masterfile')->name('masterfile.')->group(function () {
     Route::get('/{id}/kltg-matrix/edit', [MasterFileController::class, 'editKltgMatrix'])->name('kltg.matrix.edit');
     Route::post('/{id}/kltg-matrix/update', [MasterFileController::class, 'updateKltgMatrix'])->name('kltg.matrix.update');
     Route::post('/{id}/kltg-monthly', [MasterFileController::class, 'upsertKltgMonthly'])->name('kltg.monthly.upsert');
+
+    Route::get('/{file}/print', [MasterFileController::class, 'printAuto'])
+        ->whereNumber('file')
+        ->name('print');
+    //   // === PRINT: KLTG Job Order ===
+    // Route::get('/{file}/p   rint/kltg', [MasterFileController::class, 'printKltg'])
+    //     ->whereNumber('file')
+    //     ->name('print.kltg');
 });
+
+
 
 // Remove any duplicate global /masterfile/export-xlsx or dangling /masterfile/export-csv routes.
 

@@ -31,30 +31,54 @@
                 @csrf
 
                 <!-- Section: Basic Info -->
-                <div class="bg-white p-6 rounded-xl shadow-lg">
-                    <h3 class="text-xl font-semibold text-indigo-700 mb-4">📋 Basic Information</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label for="month" class="text-gray-700 font-medium mb-1 block">Month</label>
-                            <input type="text" name="month" id="month" placeholder="e.g., July" value="{{ old('month') }}" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
-                        </div>
+<div class="bg-white p-6 rounded-xl shadow-lg">
+    <h3 class="text-xl font-semibold text-indigo-700 mb-4">📋 Basic Information</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+            <label for="month" class="text-gray-700 font-medium mb-1 block">Month</label>
+            <input type="text" name="month" id="month" placeholder="e.g., July" value="{{ old('month') }}"
+                   class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out"
+                   required>
+        </div>
 
-                        <div>
-                            <label for="date" class="text-gray-700 font-medium mb-1 block">Date</label>
-                            <input type="date" name="date" id="date" value="{{ old('date') }}" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
-                        </div>
+        <div>
+            <label for="date" class="text-gray-700 font-medium mb-1 block">Date</label>
+            <input type="date" name="date" id="date" value="{{ old('date') }}"
+                   class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out"
+                   required>
+        </div>
 
-                        <div>
-                            <label for="company" class="text-gray-700 font-medium mb-1 block">Company</label>
-                            <input type="text" name="company" id="company" placeholder="Company Name" value="{{ old('company') }}" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
-                        </div>
+        <div>
+            <label for="company" class="text-gray-700 font-medium mb-1 block">Company</label>
+            <input type="text" name="company" id="company" placeholder="Company Name" value="{{ old('company') }}"
+                   class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out"
+                   required>
+        </div>
 
-                        <div>
-                            <label for="client" class="text-gray-700 font-medium mb-1 block">Person In Charge</label>
-                            <input type="text" name="client" id="client" placeholder="PIC Name" value="{{ old('client') }}" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
-                        </div>
-                    </div>
-                </div>
+        <div>
+            <label for="client" class="text-gray-700 font-medium mb-1 block">Person In Charge</label>
+            <input type="text" name="client" id="client" placeholder="PIC Name" value="{{ old('client') }}"
+                   class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out"
+                   required>
+        </div>
+
+        <!-- ✅ New: Contact Number -->
+        <div>
+            <label for="contact_number" class="text-gray-700 font-medium mb-1 block">Contact Number</label>
+            <input type="text" name="contact_number" id="contact_number" placeholder="e.g., +60 12-3456789"
+                   value="{{ old('contact_number') }}"
+                   class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out">
+        </div>
+
+        <!-- ✅ New: Email -->
+        <div>
+            <label for="email" class="text-gray-700 font-medium mb-1 block">Email</label>
+            <input type="email" name="email" id="email" placeholder="e.g., example@email.com"
+                   value="{{ old('email') }}"
+                   class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out">
+        </div>
+    </div>
+</div>
 
                 <!-- Section: Product Info -->
                 <div class="bg-white p-6 rounded-xl shadow-lg mt-8" x-data="productPicker()">

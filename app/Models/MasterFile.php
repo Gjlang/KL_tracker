@@ -19,21 +19,12 @@ class MasterFile extends Model
      * The attributes that are mass assignable.
      */
     protected $fillable = [
-        'month',
-        'date',
-        'company',
-        'product',
-        'traffic',
-        'duration',
-        'status',
-        'client',
-        'date_finish',
-        'job_number',
-        'artwork',
-        'invoice_date',
-        'invoice_number',
-        'product_category'
+        'month','date','company','product','product_category','location','traffic',
+        'duration','status','remarks','client','date_finish','job_number','artwork',
+        'invoice_date','invoice_number',
+        'contact_number','email',
     ];
+
 
     /**
      * The attributes that should be cast to native types.

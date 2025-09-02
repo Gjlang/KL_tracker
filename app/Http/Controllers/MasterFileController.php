@@ -17,6 +17,10 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Illuminate\Http\RedirectResponse;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use App\Models\KltgMonthlyDetail;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Str;
+
+
 
 
 class MasterFileController extends Controller
@@ -180,6 +184,8 @@ class MasterFileController extends Controller
         'month'            => ['sometimes','nullable','string','max:20'], // if stored as text; use integer if tinyint
         'date'             => ['sometimes','nullable','date'],
         'date_finish'      => ['sometimes','nullable','date'],
+        'contact_number'   => 'nullable|string|max:20',
+        'email'            => 'nullable|email|max:255',
         'duration'         => ['sometimes','nullable','string','max:255'],
         'status'           => ['sometimes','nullable','string','max:255'],
         'traffic'          => ['sometimes','nullable','string','max:255'],
@@ -246,6 +252,8 @@ class MasterFileController extends Controller
             'job_number'      => 'nullable|string',
             'artwork'         => 'nullable|in:BGOC,Client',
             'invoice_date'    => 'nullable|date',
+            'contact_number'  => 'nullable|string|max:50',
+            'email'           => 'nullable|email|max:255',
             'invoice_number'  => 'nullable|string',
         ]);
 
@@ -308,6 +316,91 @@ class MasterFileController extends Controller
 
         return back()->with('status', "Import done. Created: {$stats['created']}, Updated: {$stats['updated']}, Skipped: {$stats['skipped']}.");
     }
+
+//     public function printKltg(MasterFile $file)
+// {
+//     $data = [
+//         'file'         => $file,
+//         'date'         => $file->date ? Carbon::parse($file->date)->format('d/m/Y') : '',
+//         'date_finish'  => $file->date_finish ? Carbon::parse($file->date_finish)->format('d/m/Y') : '',
+//         'invoice_date' => $file->invoice_date ? Carbon::parse($file->invoice_date)->format('d/m/Y') : '',
+//     ];
+
+//     return Pdf::loadView('prints.kltg_job_order', $data)
+//         ->setPaper('a4', 'portrait')
+//         ->download('KLTG_JobOrder_'.$file->company.'.pdf');
+// }
+
+public function printAuto(MasterFile $file)
+{
+    $data = [
+        'file'         => $file,
+        'date'         => $file->date ? Carbon::parse($file->date)->format('d/m/Y') : '',
+        'date_finish'  => $file->date_finish ? Carbon::parse($file->date_finish)->format('d/m/Y') : '',
+        'invoice_date' => $file->invoice_date ? Carbon::parse($file->invoice_date)->format('d/m/Y') : '',
+    ];
+
+    $type = request('type') ?: $this->guessProductType($file); // fungsi helpermu
+    $views = [
+        'kltg'    => 'prints.kltg_job_order',
+        'outdoor' => 'prints.outdoor_job_order',
+        'media'   => 'prints.media_job_order',
+    ];
+
+    return Pdf::loadView($views[$type] ?? $views['kltg'], $data)
+        ->setPaper('a4', 'portrait')
+        ->download(strtoupper($type).'_JobOrder_'.($file->company ?? 'NA').'.pdf');
+}
+
+private function guessProductType(MasterFile $file): string
+{
+    // Gather all possible fields you might be using
+    $candidates = [
+        (string)($file->product_category ?? ''), // e.g. BB, TB, Bunting, KLTG listing
+        (string)($file->category_product ?? ''),
+        (string)($file->category ?? ''),
+        (string)($file->product ?? ''),          // e.g. BB (see your screenshot)
+    ];
+
+    $hay = strtolower(trim(implode(' ', $candidates)));
+
+    // --- HARD EQUALITY MAPS (most reliable) ---
+    $equalsOutdoor = ['bb','tb','np','bunting','flyers','star','signages','signage'];
+    if (in_array(strtolower(trim($file->product ?? '')), $equalsOutdoor, true) ||
+        in_array(strtolower(trim($file->product_category ?? '')), $equalsOutdoor, true)) {
+        return 'outdoor';
+    }
+
+    $equalsKltg = ['kltg','kltg listing','kltg quarter page'];
+    if (in_array(strtolower(trim($file->product ?? '')), $equalsKltg, true) ||
+        in_array(strtolower(trim($file->product_category ?? '')), $equalsKltg, true)) {
+        return 'kltg';
+    }
+
+    // --- CONTAINS-BASED (fallbacks) ---
+    $outdoorKeys = [
+        'outdoor','tempboard','tb','billboard','bb','newspaper','bunting','flyers','star','signages','signage'
+    ];
+    foreach ($outdoorKeys as $k) {
+        if (str_contains($hay, $k)) return 'outdoor';
+    }
+
+    $mediaKeys = [
+        'social media','tiktok','youtube','fb','ig','facebook','instagram',
+        'giveaways','contest','xiaohongshu','ads','ad','management','boost'
+    ];
+    foreach ($mediaKeys as $k) {
+        if (str_contains($hay, $k)) return 'media';
+    }
+
+    $kltgKeys = ['kltg','kl the guide','guide','listing','quarter page'];
+    foreach ($kltgKeys as $k) {
+        if (str_contains($hay, $k)) return 'kltg';
+    }
+
+    return 'kltg'; // final fallback
+}
+
 
     public function exportXlsx(Request $request): StreamedResponse
 {
