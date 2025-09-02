@@ -114,7 +114,7 @@ public function index(Request $request)
             ['key'=>'artwork_party','label'=>'Artwork (BP/Client)','type'=>'text'],
             ['key'=>'artwork_reminder_date','label'=>'Artwork Reminder','type'=>'date'],
             ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
-            ['key'=>'artwork_done_date','label'=>'Artwork Done','type'=>'date'],
+            ['key'=>'artwork_done','label'=>'Artwork Done','type'=>'date'],
             ['key'=>'send_chop_sign_date','label'=>'Send Chop & Sign','type'=>'date'],
             ['key'=>'chop_sign_approval_date','label'=>'Chop & Sign Approval','type'=>'date'],
             ['key'=>'park_in_server_date','label'=>'Park in file server','type'=>'date'],
@@ -448,11 +448,12 @@ public function index(Request $request)
      * UPSERT: create or update ONE row per (master_file_id, subcategory)
      * Accepts many fields at once (your current pattern).
      */
-     public function upsert(Request $request)
+
+    public function upsert(Request $request)
 {
     // 1) Normalize tab/subcategory
     $tab = strtolower((string)$request->input('subcategory', ''));
-    $storedSub = $this->tabToStored($tab); // e.g. print->KLTG, video->Video, ...
+    $storedSub = $this->tabToStored($tab); // e.g. print -> KLTG, video -> Video, ...
 
     // 2) Validate basic payload
     $validated = $request->validate([
@@ -460,9 +461,10 @@ public function index(Request $request)
         'subcategory'    => ['required', Rule::in(['print','video','article','lb','em'])],
         'field'          => ['required','string'],
         'value'          => ['nullable'],
+        'force_clear'    => ['sometimes','boolean'], // optional: true untuk sengaja hapus nilai
     ]);
 
-    $sub   = $validated['subcategory'];
+    $sub   = $validated['subcategory'];   // print|video|article|lb|em (untuk whitelist)
     $field = $validated['field'];
     $value = $validated['value'];
 
@@ -470,7 +472,7 @@ public function index(Request $request)
     $dateKeyMap = [
         'artwork_reminder_date'    => 'artwork_reminder',
         'material_received_date'   => 'material_record',
-        'artwork_done_date'        => 'artwork_done',
+        'artwork_done'        => 'artwork_reminder', // fallback aman utk legacy UI
         'send_chop_sign_date'      => 'send_chop_sign',
         'chop_sign_approval_date'  => 'chop_sign_approval',
         'park_in_server_date'      => 'park_in_file_server',
@@ -517,68 +519,121 @@ public function index(Request $request)
     ];
     $column = $aliases[$field] ?? $field;
 
-    // 5) Allowed DB columns per tab
+    // 5) Allowed DB columns per tab (sinkron dgn skema tabel)
     $allow = [
-        'print' => ['title_snapshot','company_snapshot','client_bp','x','edition','publication','artwork_bp_client','artwork_reminder','material_record','artwork_done','send_chop_sign','chop_sign_approval','park_in_file_server','remarks'],
-        'video' => ['title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text','material_record','video_done','pending_approval','video_approved','video_scheduled','video_posted','post_link'],
-        'article' => ['title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text','material_record','article_done','pending_approval','article_approved','article_scheduled','article_posted','post_link'],
-        'lb' => ['title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text','material_record','video_done','pending_approval','video_approved','video_scheduled','video_posted','post_link'],
-        'em' => ['company_snapshot','client_bp','remarks','em_date_write','em_date_to_post','em_post_date','em_qty','blog_link'],
+        'print' => [
+            'title_snapshot','company_snapshot','client_bp','x','edition','publication',
+            'artwork_bp_client','artwork_reminder','material_record',
+            'send_chop_sign','chop_sign_approval','park_in_file_server','remarks'
+        ],
+        'video' => [
+            'title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text',
+            'material_record','video_done','pending_approval','video_approved',
+            'video_scheduled','video_posted','post_link'
+        ],
+        'article' => [
+            'title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text',
+            'material_record','article_done','pending_approval','article_approved',
+            'article_scheduled','article_posted','post_link'
+        ],
+        'lb' => [
+            'title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text',
+            'material_record','video_done','pending_approval','video_approved',
+            'video_scheduled','video_posted','post_link'
+        ],
+        'em' => [
+            'company_snapshot','client_bp','remarks',
+            'em_date_write','em_date_to_post','em_post_date','em_qty','blog_link'
+        ],
     ];
-    if (!in_array($column, $allow[$sub], true)) {
-        return response()->json(['ok'=>false,'error'=>"The selected field key '{$column}' is invalid for subcategory '{$sub}'",'allowed'=>$allow[$sub]], 422);
+
+    if (!in_array($column, $allow[$sub] ?? [], true)) {
+        return response()->json([
+            'ok' => false,
+            'error' => "The selected field key '{$column}' is invalid for subcategory '{$sub}'",
+            'allowed' => $allow[$sub] ?? [],
+        ], 422);
     }
 
     // 6) Coerce types
+    // x = varchar(500), tapi boleh terima boolean → simpan '1' atau '0'
     if ($column === 'x') {
-        $value = filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+        $value = filter_var($value, FILTER_VALIDATE_BOOLEAN) ? '1' : '0';
     }
+
+    // daftar kolom DATE sesuai skema (jangan masukkan park_in_file_server karena itu varchar)
     $dateColumns = [
-        'artwork_reminder','material_record','artwork_done','send_chop_sign','chop_sign_approval','park_in_file_server',
+        'artwork_reminder','material_record','send_chop_sign','chop_sign_approval',
         'video_done','pending_approval','video_approved','video_scheduled','video_posted',
         'article_done','article_approved','article_scheduled','article_posted',
         'em_date_write','em_date_to_post','em_post_date',
     ];
-    if (in_array($column, $dateColumns, true)) {
-        $value = ($value !== null && $value !== '') ? date('Y-m-d', strtotime((string)$value)) : null;
-    }
-    if ($column === 'em_qty') {
-        $value = ($value === '' || $value === null) ? null : (int)$value;
-    }
-    if ($value === '') $value = null;
 
-    // 7) Upsert with composite keys (master_file_id + subcategory)
+    if (in_array($column, $dateColumns, true)) {
+        if ($value === '' || $value === null) {
+            // kosong → hanya clear jika force_clear=true
+            if (!($validated['force_clear'] ?? false)) {
+                return response()->json(['ok'=>true,'skipped'=>true,'reason'=>'empty_date_ignored'], 200);
+            }
+            $value = null;
+        } else {
+            try {
+                $value = Carbon::parse((string)$value)->format('Y-m-d');
+            } catch (\Throwable $e) {
+                return response()->json(['ok'=>false,'error'=>'Invalid date'], 422);
+            }
+        }
+    } else {
+        // text/number
+        if ($column === 'em_qty') {
+            $value = ($value === '' || $value === null) ? null : (int)$value;
+        } else {
+            // Untuk kolom string biasa: jika '', jangan overwrite kecuali force_clear=true
+            if ($value === '' || $value === null) {
+                if (!($validated['force_clear'] ?? false)) {
+                    return response()->json(['ok'=>true,'skipped'=>true,'reason'=>'empty_text_ignored'], 200);
+                }
+                $value = null;
+            } else {
+                $value = (string)$value;
+            }
+        }
+    }
+
+    // 7) Keys untuk upsert (gunakan stored subcategory untuk DB)
     $keys = [
         'master_file_id' => (int)$validated['master_file_id'],
-        'subcategory'    => $storedSub, // e.g. 'KLTG'
+        'subcategory'    => $storedSub, // contoh tersimpan: 'KLTG'
     ];
 
-    // buat nilai default saat insert pertama kali (optional)
-    $insertDefaults = [
-        'company_snapshot' => $request->input('company') ?? null,
-        'title_snapshot'   => $request->input('title') ?? null,
-        'created_at'       => now(),
-    ];
+    // 8) Pastikan kolom ada di tabel (defensive)
+    $cols = Schema::getColumnListing('kltg_coordinator_lists');
+    if (!in_array($column, $cols, true)) {
+        return response()->json(['ok'=>false,'error'=>"Unknown column '{$column}' in table"], 422);
+    }
 
-    $update = array_merge($insertDefaults, [
-        $column      => $value,
-        'updated_at' => now(),
-    ]);
+    // 9) Upsert tanpa menimpa kolom lain
+    //    - buat row jika belum ada (isi title/company dari request hanya saat insert perdana)
+    $model = KltgCoordinatorList::firstOrCreate(
+        $keys,
+        [
+            'company_snapshot' => $request->input('company') ?: null,
+            'title_snapshot'   => $request->input('title') ?: null,
+        ]
+    );
 
-    DB::table('kltg_coordinator_lists')->updateOrInsert($keys, $update);
-
-    // 8) Read-back for debug/confirmation
-    $row = DB::table('kltg_coordinator_lists')->where($keys)->first();
+    // update hanya kolom yang diedit
+    $model->fill([$column => $value]);
+    $model->save();
 
     return response()->json([
-        'ok'          => true,
-        'where'       => $keys,
-        'column'      => $column,
-        'value'       => $value,
-        'row_after'   => $row,    // handy to see in Network tab
+        'ok'     => true,
+        'where'  => $keys,
+        'column' => $column,
+        'value'  => $value,
+        'row'    => $model->fresh(),
     ]);
 }
-
 /** Masters that DON'T yet have a coordinator row for the selected subcategory */
 public function getEligibleMasterFiles(Request $request)
 {

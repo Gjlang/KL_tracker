@@ -137,115 +137,120 @@ class MediaCoordinatorController extends Controller
     }
 
     // In MediaOngoingJobController.php, replace your upsert method with this:
-
-public function upsert(Request $request)
+    public function upsert(Request $request)
 {
     try {
-        Log::info('Upsert request received', $request->all());
+        Log::info('Media upsert: request in', $request->all());
 
+        // 1) Validasi dasar
         $data = $request->validate([
-            'section'        => 'required|string|in:content,editing,schedule,report,valueadd',
-            'master_file_id' => 'required|exists:master_files,id',
-            'year'           => 'required|integer|min:2000|max:2100',
-            'month'          => 'required|integer|min:1|max:12',
-            'field'          => 'required|string',
-            'value'          => 'nullable',
+            'section'        => ['required', Rule::in(['content','editing','schedule','report','valueadd'])],
+            'master_file_id' => ['required','integer','exists:master_files,id'],
+            'year'           => ['required','integer','min:2000','max:2100'],
+            'month'          => ['required','integer','min:1','max:12'],
+            'field'          => ['required','string','max:64'],
+            'value'          => ['nullable'],
         ]);
-         if (empty($data['year'])) {
-            $data['year'] = (int) now()->year;
-        }
 
-        // Get model class
-        $modelClass = \App\Models\MediaCoordinatorTracking::forSection($data['section']);
-
-        // Validate field is allowed for this section
-        $allowedFields = [
-            'content'  => ['total_artwork', 'pending', 'draft_wa', 'approved'],
-            'editing'  => ['total_artwork', 'pending', 'draft_wa', 'approved'],
-            'schedule' => ['total_artwork', 'crm', 'meta_mgr', 'tiktok_ig_draft'],
-            'report'   => ['pending', 'completed'],
-            'valueadd' => ['quota', 'completed'],
-        ];
-
-        if (!in_array($data['field'], $allowedFields[$data['section']], true)) {
-            return response()->json(['ok' => false, 'error' => 'Field not allowed'], 422);
-        }
-
-        // CRITICAL: Map UI field names to database column names
+        // 2) Mapping UI → DB (terutama meta_mgr → meta_manager)
         $fieldMapping = [
-            'meta_mgr' => 'meta_manager', // UI sends 'meta_mgr', DB expects 'meta_manager'
+            'meta_mgr' => 'meta_manager',
         ];
-        $dbField = $data['field'];
+        $requestedField = $data['field'];
+        $dbField = $fieldMapping[$requestedField] ?? $requestedField;
 
-        // Build unique keys
+        // 3) Allowed fields per section (pakai nama kolom DB akhir)
+        $allowedBySection = [
+            'content'  => ['total_artwork','pending','draft_wa','approved'],
+            'editing'  => ['total_artwork','pending','draft_wa','approved'],
+            'schedule' => ['total_artwork','crm','meta_manager','tiktok_ig_draft'],
+            'report'   => ['pending','completed'],
+            'valueadd' => ['quota','completed'],
+        ];
+        if (!in_array($dbField, $allowedBySection[$data['section']], true)) {
+            return response()->json(['ok' => false, 'error' => "Field '{$requestedField}' not allowed for section {$data['section']}"], 422);
+        }
+
+        // 4) Tentukan model
+        $modelClass = MCT::forSection($data['section']);
+
+        // 5) Keys unik per slot (no overlap)
         $keys = [
-            'master_file_id' => (int)$data['master_file_id'],
-            'year' => (int)$data['year'],
+            'master_file_id' => (int) $data['master_file_id'],
+            'year'           => (int) $data['year'],
+            'month'          => (int) $data['month'],
         ];
 
-        $keys['month'] = (int)$data['month'];
-
-        Log::info('Looking for record', ['model' => $modelClass, 'keys' => $keys, 'field' => $dbField]);
-
-        // Find or create record
+        // 6) Ambil/siapkan record slot
+        /** @var \Illuminate\Database\Eloquent\Model $record */
         $record = $modelClass::firstOrNew($keys);
 
-        // Process value based on field type
+        // 7) Normalisasi nilai sesuai tipe
         $value = $data['value'];
 
-        // Boolean fields
-        if (in_array($data['field'], ['draft_wa', 'approved', 'tiktok_ig_draft'], true)) {
-            $value = (bool)$value ? 1 : 0;
-        }
-        // Integer fields
-        elseif (in_array($data['field'], ['total_artwork', 'pending', 'crm', 'meta_mgr', 'quota'], true)) {
-            $value = ($value === '' || $value === null) ? null : (int)$value;
-        }
-        // Special case: valueadd completed can be integer
-        elseif ($data['section'] === 'valueadd' && $data['field'] === 'completed') {
-            $value = is_numeric($value) ? (int)$value : ((bool)$value ? 1 : 0);
-        }
-        // Report completed is boolean
-        elseif ($data['field'] === 'completed') {
-            $value = (bool)$value ? 1 : 0;
-        }
+        // helper truthy untuk string
+        $isTruthy = static function ($v): bool {
+            if (is_bool($v)) return $v;
+            if (is_numeric($v)) return (int)$v === 1;
+            $v = strtolower(trim((string)$v));
+            return in_array($v, ['1','true','on','yes','y'], true);
+        };
 
-        // Set the field value using the mapped database field name
-        $record->{$dbField} = $value;
+        // boolean fields
+        if (in_array($dbField, ['draft_wa','approved','tiktok_ig_draft'], true)) {
+            $value = $isTruthy($value) ? 1 : 0;
+        }
+        // report.completed = boolean
+        elseif ($dbField === 'completed' && $data['section'] === 'report') {
+            $value = $isTruthy($value) ? 1 : 0;
+        }
+        // valueadd.completed = bisa integer (progress) atau boolean
+        elseif ($dbField === 'completed' && $data['section'] === 'valueadd') {
+            $value = is_numeric($value) ? (int)$value : ($isTruthy($value) ? 1 : 0);
+        }
+        // integer-ish fields
+        elseif (in_array($dbField, ['total_artwork','pending','crm','meta_manager','quota'], true)) {
+            $value = ($value === '' || $value === null) ? null : (int) $value;
+        }
+        // sisanya biarkan apa adanya (string/date dll)
 
-        Log::info('Saving record', [
-            'dbField' => $dbField,
-            'value' => $value,
-            'record_exists' => $record->exists
-        ]);
-
-        $saved = $record->save();
-
-        if ($saved) {
-            Log::info('Record saved successfully', ['id' => $record->id]);
+        // 8) Guard: pastikan kolom DB bisa diisi
+        if (!in_array($dbField, (new $modelClass)->getFillable(), true)) {
+            Log::warning('Rejected: not fillable', ['model' => $modelClass, 'field' => $dbField]);
             return response()->json([
-                'ok' => true,
-                'id' => $record->id,
-                'field' => $dbField,
-                'value' => $value
-            ]);
-        } else {
-            Log::error('Failed to save record');
-            return response()->json(['ok' => false, 'error' => 'Failed to save'], 500);
+                'ok' => false,
+                'error' => "Field '{$dbField}' is not fillable on {$modelClass}",
+            ], 422);
         }
+
+        // 9) Set nilai + simpan
+        // pastikan key ikut terisi kalau record baru
+        $record->master_file_id = $keys['master_file_id'];
+        $record->year           = $keys['year'];
+        $record->month          = $keys['month'];
+        $record->{$dbField}     = $value;
+
+        Log::info('Media upsert: saving', ['model' => $modelClass, 'keys' => $keys, 'field' => $dbField, 'value' => $value, 'exists' => $record->exists]);
+
+        $record->save();
+
+        Log::info('Media upsert: saved OK', ['id' => $record->id]);
+
+        return response()->json([
+            'ok'    => true,
+            'id'    => $record->id,
+            'field' => $dbField,
+            'value' => $value,
+        ]);
 
     } catch (\Illuminate\Validation\ValidationException $e) {
-        Log::warning('Validation error', ['errors' => $e->errors()]);
+        Log::warning('Media upsert: validation failed', ['errors' => $e->errors()]);
         return response()->json(['ok' => false, 'errors' => $e->errors()], 422);
-    } catch (\Exception $e) {
-        Log::error('Upsert failed: ' . $e->getMessage(), [
-            'trace' => $e->getTraceAsString(),
-            'request' => $request->all()
-        ]);
-        return response()->json([
-            'ok' => false,
-            'error' => 'Server error: ' . $e->getMessage()
-        ], 500);
+
+    } catch (\Throwable $e) {
+        Log::error('Media upsert: server error '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+        return response()->json(['ok' => false, 'error' => 'Server error: '.$e->getMessage()], 500);
     }
 }
+
 }

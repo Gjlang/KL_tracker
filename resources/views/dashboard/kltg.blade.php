@@ -13,14 +13,10 @@
   <!-- Action Buttons -->
   <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
     <!-- Back to Dashboard -->
-    <button onclick="window.history.back()"
-            class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">
-      <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-      </svg>
-      Dashboard
-    </button>
+    <a href="{{ route('dashboard') }}"
+       class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm">
+      <span class="ml-2">Dashboard</span>
+    </a>
 
     <!-- Open KLTG Coordinator -->
     <a href="{{ route('coordinator.kltg.index') }}"

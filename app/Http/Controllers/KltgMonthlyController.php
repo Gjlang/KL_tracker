@@ -106,7 +106,10 @@ class KltgMonthlyController extends Controller
 
     public function index(Request $request)
 {
-    $activeYear = (int) $request->input('year', now()->year);
+    $activeYear = (int) ($request->input('year')
+        ?? session('kltg.activeYear')
+        ?? now()->year);
+    session(['kltg.activeYear' => $activeYear]);
 
     // 1) Base rows (KLTG only)
     $baseRows = MasterFile::query()
@@ -122,7 +125,7 @@ class KltgMonthlyController extends Controller
                       THEN DATEDIFF(date_finish, date) + 1 ELSE 0 END as duration_days'),
             'created_at',
         ])
-        ->where('product_category', 'KLTG')
+        ->whereRaw("UPPER(TRIM(COALESCE(product_category, ''))) = 'KLTG'")
         ->latest('created_at')
         ->orderByDesc('id')
         ->get();

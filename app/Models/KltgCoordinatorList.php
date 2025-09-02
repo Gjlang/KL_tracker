@@ -7,38 +7,36 @@ use Illuminate\Database\Eloquent\Model;
 class KltgCoordinatorList extends Model
 {
     // Fix: Specify the correct table name
-    protected $table = 'kltg_coordinator_trackings';
+    protected $table = 'kltg_coordinator_lists';
 
-    protected $fillable = [
-        'master_file_id','subcategory','x','edition','publication','artwork_bp_client',
-        'artwork_reminder','material_record','send_chop_sign','chop_sign_approval',
-        'park_in_file_server','remarks','title','client_bp','post_link',
-        'video_done_date','pending_approval_date','video_approved_date',
-        'video_scheduled_date','video_posted_date',
-        'article_done_date','article_approved_date','article_scheduled_date','article_posted_date',
-        'em_date_write','em_date_to_post','em_post_date','em_qty','blog_link',
-        // include any snapshot fields you persist (company_snapshot, title_snapshot, …) if used
-    ];
+     protected $fillable = [
+         'master_file_id','subcategory',
+         'title_snapshot','company_snapshot','client_bp','x','edition','publication','remarks',
+         'artwork_bp_client','material_record','send_chop_sign','chop_sign_approval','park_in_file_server',
+         'material_reminder_text','post_link',
+         'artwork_reminder',
+         'collection_printer','sent_to_client','approved_client','sent_to_printer','printed','delivered',
+         'video_done','pending_approval','video_approved','video_scheduled','video_posted',
+         'article_done','article_approved','article_scheduled','article_posted',
+         'em_date_write','em_date_to_post','em_post_date','em_qty','blog_link',
+     ];
 
-    protected $casts = [
-        'artwork_reminder'      => 'date',
-        'material_record'       => 'date',
-        'send_chop_sign'        => 'date',
-        'chop_sign_approval'    => 'date',
-        'park_in_file_server'   => 'date',
-        'video_done_date'       => 'date',
-        'pending_approval_date' => 'date',
-        'video_approved_date'   => 'date',
-        'video_scheduled_date'  => 'date',
-        'video_posted_date'     => 'date',
-        'article_done_date'     => 'date',
-        'article_approved_date' => 'date',
-        'article_scheduled_date'=> 'date',
-        'article_posted_date'   => 'date',
-        'em_date_write'         => 'date',
-        'em_date_to_post'       => 'date',
-        'em_post_date'          => 'date',
-    ];
+     protected $casts = [
+         'x' => 'string',
+         'video_done' => 'date',
+         'artwork_reminder' => 'date',
+         'pending_approval' => 'date',
+         'video_approved' => 'date',
+         'video_scheduled' => 'date',
+         'video_posted' => 'date',
+         'article_done' => 'date',
+         'article_approved' => 'date',
+         'article_scheduled' => 'date',
+         'article_posted' => 'date',
+         'em_date_write' => 'date',
+         'em_date_to_post' => 'date',
+         'em_post_date' => 'date',
+     ];
     public function masterFile()
     {
         return $this->belongsTo(MasterFile::class, 'master_file_id');
