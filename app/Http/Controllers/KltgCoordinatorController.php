@@ -184,7 +184,7 @@ public function index(Request $request)
               });
         })
         ->when($scope === 'month_year', function($q) use ($month, $year) {
-            $monthName = strtolower(\Carbon\Carbon::create(null, $month, 1)->format('F'));
+            $monthName = strtolower(Carbon::create(null, $month, 1)->format('F'));
             $q->where(function($w) use ($month, $year, $monthName) {
                 $w->where(function($yq) use ($year) {
                       $yq->where('md.year', (int)$year)
@@ -199,7 +199,7 @@ public function index(Request $request)
             });
         })
         ->when($scope === 'month_only', function($q) use ($month) {
-            $monthName = strtolower(\Carbon\Carbon::create(null, $month, 1)->format('F'));
+            $monthName = strtolower(Carbon::create(null, $month, 1)->format('F'));
             $q->where(function($mq) use ($month, $monthName) {
                 $mq->where('md.month', (int)$month)
                    ->orWhereRaw('CAST(md.month AS UNSIGNED) = ?', [(int)$month])
@@ -263,7 +263,7 @@ public function index(Request $request)
               });
         })
         ->when($scope === 'month_year', function($q) use ($month, $year) {
-            $monthName = strtolower(\Carbon\Carbon::create(null, $month, 1)->format('F'));
+            $monthName = strtolower(Carbon::create(null, $month, 1)->format('F'));
             $q->where(function($w) use ($month, $year, $monthName) {
                 $w->where(function($yq) use ($year) {
                       $yq->where('md.year', (int)$year)
@@ -278,7 +278,7 @@ public function index(Request $request)
             });
         })
         ->when($scope === 'month_only', function($q) use ($month) {
-            $monthName = strtolower(\Carbon\Carbon::create(null, $month, 1)->format('F'));
+            $monthName = strtolower(Carbon::create(null, $month, 1)->format('F'));
             $q->where(function($mq) use ($month, $monthName) {
                 $mq->where('md.month', (int)$month)
                    ->orWhereRaw('CAST(md.month AS UNSIGNED) = ?', [(int)$month])
