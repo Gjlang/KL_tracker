@@ -81,14 +81,14 @@ class PostingScheduling extends Model {
 
     protected $table = 'posting_schedulings';
     // FIXED: Use 'meta_manager' to match your database column name
-    protected $fillable = ['master_file_id','year','month','total_artwork','crm','meta_manager','tiktok_ig_draft'];
+    protected $fillable = ['master_file_id','year','month','total_artwork','crm','meta_mgr','tiktok_ig_draft'];
     protected $casts = [
         'tiktok_ig_draft' => 'boolean',
         'year' => 'integer',
         'month' => 'integer',
         'total_artwork' => 'integer',
         'crm' => 'integer',
-        'meta_manager' => 'integer',
+        'meta_mgr' => 'integer',
         'master_file_id' => 'integer',
     ];
 }

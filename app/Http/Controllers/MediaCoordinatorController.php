@@ -147,7 +147,7 @@ public function upsert(Request $request)
             'section'        => 'required|string|in:content,editing,schedule,report,valueadd',
             'master_file_id' => 'required|exists:master_files,id',
             'year'           => 'required|integer|min:2000|max:2100',
-            'month'          => 'nullable|integer|min:1|max:12',
+            'month'          => 'required|integer|min:1|max:12',
             'field'          => 'required|string',
             'value'          => 'nullable',
         ]);
@@ -175,7 +175,7 @@ public function upsert(Request $request)
         $fieldMapping = [
             'meta_mgr' => 'meta_manager', // UI sends 'meta_mgr', DB expects 'meta_manager'
         ];
-        $dbField = $fieldMapping[$data['field']] ?? $data['field'];
+        $dbField = $data['field'];
 
         // Build unique keys
         $keys = [
@@ -183,9 +183,7 @@ public function upsert(Request $request)
             'year' => (int)$data['year'],
         ];
 
-        if (!empty($data['month'])) {
-            $keys['month'] = (int)$data['month'];
-        }
+        $keys['month'] = (int)$data['month'];
 
         Log::info('Looking for record', ['model' => $modelClass, 'keys' => $keys, 'field' => $dbField]);
 

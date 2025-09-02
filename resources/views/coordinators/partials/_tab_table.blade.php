@@ -89,7 +89,7 @@
                   @if($type==='checkbox')
                     <div class="flex items-center justify-center gap-2">
                       <input type="checkbox"
-                             class="checkbox-premium"
+                             class="checkbox-premium autosave"
                              @checked((bool)$value)
                              :disabled="!selectedMonthEnabled"
                              data-section="{{ $section }}"
@@ -104,7 +104,7 @@
                     <div class="flex items-center justify-end gap-3">
                       <input type="number" step="1" min="0"
                              value="{{ $value }}"
-                             class="input-premium h-10 w-24 px-3 py-2 text-right text-sm font-semibold rounded-xl shadow-sm"
+                             class="input-premium autosave h-10 w-24 px-3 py-2 text-right text-sm font-semibold rounded-xl shadow-sm"
                              :disabled="!selectedMonthEnabled"
                              data-section="{{ $section }}"
                              data-field="{{ $key }}"
@@ -119,7 +119,7 @@
                     <div class="flex items-center gap-3">
                       <input type="text"
                              value="{{ $value }}"
-                             class="input-premium h-10 px-3 py-2 text-sm font-medium rounded-xl shadow-sm
+                             class="input-premium autosave h-10 px-3 py-2 text-sm font-medium rounded-xl shadow-sm
                              @if(in_array($key, ['total_artwork', 'pending', 'crm'])) w-32
                              @else w-40 @endif"
                              :disabled="!selectedMonthEnabled"

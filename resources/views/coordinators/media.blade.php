@@ -366,6 +366,7 @@
           year: {{ (int)$year }},
           month: {{ $month ? (int)$month : 'null' }},
           scope: '{{ $scope ?? 'month_year' }}',
+          selectedMonthEnabled: {{ $month ? 'true' : 'false' }},
 
           switchTab(tab) {
             this.activeTab = tab;
@@ -411,7 +412,7 @@
               try {
                 const body = payloadFrom(el);
                 console.log('Saving:', body);
-                this.save = save;
+
 
                 const res = await fetch(url, {
                   method: 'POST',
@@ -437,6 +438,7 @@
                 console.error('Save error:', error);
               }
             }
+            this.save = save;
 
             // Debounced save function
             const debouncedSave = this.debounce(save, 500);
