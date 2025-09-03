@@ -159,7 +159,7 @@
   @endpush
 
   <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50"
-       x-data="mediaCoordinator()">
+       x-data="mediaCoordinator()"  x-init="init()">
 
     {{-- Premium Sticky Filter Bar --}}
     <div class="sticky-filter bg-white/95 border-b border-slate-200/80 shadow-lg">

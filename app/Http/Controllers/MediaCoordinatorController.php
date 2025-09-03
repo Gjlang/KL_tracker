@@ -9,7 +9,9 @@ use App\Models\MediaCoordinatorTracking;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
+
+
 
 class MediaCoordinatorController extends Controller
 {
@@ -68,10 +70,15 @@ class MediaCoordinatorController extends Controller
     $ids = $masters->pluck('id')->all();
 
     // ====== Lookup per master (tetap sama) ======
-    $latestPerMaster = function (string $table) use ($ids, $year, $month, $scope) {
+
+    // ====== Map builder (single-table) ======
+    // Baca dari media_coordinator_trackings per-section, dan kembalikan map: [master_file_id => (object)payload]
+    $mapForSection = function (string $section) use ($ids, $year, $month, $scope) {
         if (empty($ids)) return collect();
 
-        $q = DB::table($table)->whereIn('master_file_id', $ids);
+        $q = MediaCoordinatorTracking::query()
+            ->whereIn('master_file_id', $ids)
+            ->where('section', $section);
 
         // Kalau scope-nya bukan month_only, batasi ke tahun aktif
         if ($scope !== 'month_only') {
@@ -80,7 +87,11 @@ class MediaCoordinatorController extends Controller
 
         if ($month) {
             $q->where('month', $month);
-            return $q->get()->keyBy('master_file_id');
+            $rows = $q->get();
+            return $rows->mapWithKeys(function ($r) {
+                $payload = $r->payload ?? [];
+                return [$r->master_file_id => (object) $payload];
+            });
         }
 
         // Tanpa month → ambil baris terbaru per master_file_id
@@ -88,19 +99,20 @@ class MediaCoordinatorController extends Controller
         $picked = [];
         foreach ($rows as $r) {
             $key = $r->master_file_id;
-            if (!isset($picked[$key])) $picked[$key] = $r;
+            if (!isset($picked[$key])) {
+                $picked[$key] = (object) ($r->payload ?? []);
+            }
         }
         return collect($picked);
     };
 
-    // Build 5 map (tetap)
-    $contentMap  = $latestPerMaster('content_calendars');
-    $editingMap  = $latestPerMaster('artwork_editings');
-    $scheduleMap = $latestPerMaster('posting_schedulings');
-    $reportMap   = $latestPerMaster('media_reports');
-    $valueMap    = $latestPerMaster('media_value_adds');
-
-    // Label periode untuk Blade (tetap)
+    // Build 5 map (dari table tunggal)
+    $contentMap  = $mapForSection('content');
+    $editingMap  = $mapForSection('editing');
+    $scheduleMap = $mapForSection('schedule');
+    $reportMap   = $mapForSection('report');
+    $valueMap    = $mapForSection('valueadd');
+// Label periode untuk Blade (tetap)
     $periodLabel = $this->formatPeriodLabel($scope, $month, $year);
 
     return view('coordinators.media', [
@@ -137,58 +149,62 @@ class MediaCoordinatorController extends Controller
     }
 
     // In MediaOngoingJobController.php, replace your upsert method with this:
-    public function upsert(Request $request)
+   public function upsert(Request $request)
 {
     try {
-        Log::info('Media upsert: request in', $request->all());
+        Log::info('Media upsert (single-table) IN', $request->all());
 
         // 1) Validasi dasar
         $data = $request->validate([
             'section'        => ['required', Rule::in(['content','editing','schedule','report','valueadd'])],
             'master_file_id' => ['required','integer','exists:master_files,id'],
-            'year'           => ['required','integer','min:2000','max:2100'],
-            'month'          => ['required','integer','min:1','max:12'],
+            'year'           => ['nullable','integer','min:2000','max:2100'],
+            'month'          => ['nullable','integer','min:1','max:12'],
             'field'          => ['required','string','max:64'],
             'value'          => ['nullable'],
+
+            // (opsional) field snapshot kalau kamu kirim bersamaan
+            'date_in_snapshot'  => ['sometimes','nullable','string','max:255'],
+            'company_snapshot'  => ['sometimes','nullable','string','max:255'],
+            'title'             => ['sometimes','nullable','string','max:255'],
+            'client_bp'         => ['sometimes','nullable','string','max:255'],
+            'x'                 => ['sometimes','nullable','string','max:255'],
+            'material_reminder' => ['sometimes','nullable','string','max:255'],
+            'material_received' => ['sometimes','nullable','string','max:255'],
+            'video_done'        => ['sometimes','nullable','string','max:255'],
+            'video_approval'    => ['sometimes','nullable','string','max:255'],
+            'video_approved'    => ['sometimes','nullable','string','max:255'],
+            'video_scheduled'   => ['sometimes','nullable','string','max:255'],
+            'video_posted'      => ['sometimes','nullable','date'],
+            'post_link'         => ['sometimes','nullable','string','max:255'],
         ]);
 
-        // 2) Mapping UI → DB (terutama meta_mgr → meta_manager)
-        $fieldMapping = [
+        // Default periode bila kosong
+        $year  = (int)($data['year']  ?? now()->year);
+        $month = (int)($data['month'] ?? now()->month);
+
+        // 2) Mapping nama field dari UI → key JSON payload
+        $fieldMap = [
             'meta_mgr' => 'meta_manager',
         ];
         $requestedField = $data['field'];
-        $dbField = $fieldMapping[$requestedField] ?? $requestedField;
+        $field = $fieldMap[$requestedField] ?? $requestedField;
 
-        // 3) Allowed fields per section (pakai nama kolom DB akhir)
-        $allowedBySection = [
+        // 3) Whitelist per-section (key payload yang diizinkan)
+        $allowed = [
             'content'  => ['total_artwork','pending','draft_wa','approved'],
             'editing'  => ['total_artwork','pending','draft_wa','approved'],
             'schedule' => ['total_artwork','crm','meta_manager','tiktok_ig_draft'],
             'report'   => ['pending','completed'],
             'valueadd' => ['quota','completed'],
         ];
-        if (!in_array($dbField, $allowedBySection[$data['section']], true)) {
+        if (!in_array($field, $allowed[$data['section']], true)) {
             return response()->json(['ok' => false, 'error' => "Field '{$requestedField}' not allowed for section {$data['section']}"], 422);
         }
 
-        // 4) Tentukan model
-        $modelClass = MCT::forSection($data['section']);
-
-        // 5) Keys unik per slot (no overlap)
-        $keys = [
-            'master_file_id' => (int) $data['master_file_id'],
-            'year'           => (int) $data['year'],
-            'month'          => (int) $data['month'],
-        ];
-
-        // 6) Ambil/siapkan record slot
-        /** @var \Illuminate\Database\Eloquent\Model $record */
-        $record = $modelClass::firstOrNew($keys);
-
-        // 7) Normalisasi nilai sesuai tipe
+        // 4) Normalisasi tipe value (boolean/int/string) sesuai field
         $value = $data['value'];
 
-        // helper truthy untuk string
         $isTruthy = static function ($v): bool {
             if (is_bool($v)) return $v;
             if (is_numeric($v)) return (int)$v === 1;
@@ -196,59 +212,80 @@ class MediaCoordinatorController extends Controller
             return in_array($v, ['1','true','on','yes','y'], true);
         };
 
-        // boolean fields
-        if (in_array($dbField, ['draft_wa','approved','tiktok_ig_draft'], true)) {
+        if (in_array($field, ['draft_wa','approved','tiktok_ig_draft'], true)) {
             $value = $isTruthy($value) ? 1 : 0;
-        }
-        // report.completed = boolean
-        elseif ($dbField === 'completed' && $data['section'] === 'report') {
+        } elseif ($field === 'completed' && $data['section'] === 'report') {
             $value = $isTruthy($value) ? 1 : 0;
-        }
-        // valueadd.completed = bisa integer (progress) atau boolean
-        elseif ($dbField === 'completed' && $data['section'] === 'valueadd') {
+        } elseif ($field === 'completed' && $data['section'] === 'valueadd') {
             $value = is_numeric($value) ? (int)$value : ($isTruthy($value) ? 1 : 0);
+        } elseif (in_array($field, ['total_artwork','pending','crm','meta_manager','quota'], true)) {
+            $value = ($value === '' || $value === null) ? null : (int)$value;
         }
-        // integer-ish fields
-        elseif (in_array($dbField, ['total_artwork','pending','crm','meta_manager','quota'], true)) {
-            $value = ($value === '' || $value === null) ? null : (int) $value;
-        }
-        // sisanya biarkan apa adanya (string/date dll)
+        // sisanya biarkan (string/date/link, dll.)
 
-        // 8) Guard: pastikan kolom DB bisa diisi
-        if (!in_array($dbField, (new $modelClass)->getFillable(), true)) {
-            Log::warning('Rejected: not fillable', ['model' => $modelClass, 'field' => $dbField]);
-            return response()->json([
-                'ok' => false,
-                'error' => "Field '{$dbField}' is not fillable on {$modelClass}",
-            ], 422);
-        }
+        // 5) Ambil/siapkan 1 baris unik per (master_file_id, year, month, section)
+        $row = MediaCoordinatorTracking::firstOrCreate(
+            [
+                'master_file_id' => (int)$data['master_file_id'],
+                'year'           => $year,
+                'month'          => $month,
+                'section'        => $data['section'],
+            ],
+            [
+                // inisialisasi snapshot bila dikirim pertama kali
+                'date_in_snapshot'  => $data['date_in_snapshot']  ?? null,
+                'company_snapshot'  => $data['company_snapshot']  ?? null,
+                'title'             => $data['title']             ?? null,
+                'client_bp'         => $data['client_bp']         ?? null,
+                'x'                 => $data['x']                 ?? null,
+                'material_reminder' => $data['material_reminder'] ?? null,
+                'material_received' => $data['material_received'] ?? null,
+                'video_done'        => $data['video_done']        ?? null,
+                'video_approval'    => $data['video_approval']    ?? null,
+                'video_approved'    => $data['video_approved']    ?? null,
+                'video_scheduled'   => $data['video_scheduled']   ?? null,
+                'video_posted'      => $data['video_posted']      ?? null,
+                'post_link'         => $data['post_link']         ?? null,
+                'payload'           => [],
+            ]
+        );
 
-        // 9) Set nilai + simpan
-        // pastikan key ikut terisi kalau record baru
-        $record->master_file_id = $keys['master_file_id'];
-        $record->year           = $keys['year'];
-        $record->month          = $keys['month'];
-        $record->{$dbField}     = $value;
+        // 6) Update JSON payload[field] = value
+        $payload = $row->payload ?? [];
+        $payload[$field] = $value;
 
-        Log::info('Media upsert: saving', ['model' => $modelClass, 'keys' => $keys, 'field' => $dbField, 'value' => $value, 'exists' => $record->exists]);
+        // 7) (opsional) perbarui snapshot bila dikirim di request ini
+        $row->fill([
+            'payload'           => $payload,
+            'date_in_snapshot'  => $data['date_in_snapshot']  ?? $row->date_in_snapshot,
+            'company_snapshot'  => $data['company_snapshot']  ?? $row->company_snapshot,
+            'title'             => $data['title']             ?? $row->title,
+            'client_bp'         => $data['client_bp']         ?? $row->client_bp,
+            'x'                 => $data['x']                 ?? $row->x,
+            'material_reminder' => $data['material_reminder'] ?? $row->material_reminder,
+            'material_received' => $data['material_received'] ?? $row->material_received,
+            'video_done'        => $data['video_done']        ?? $row->video_done,
+            'video_approval'    => $data['video_approval']    ?? $row->video_approval,
+            'video_approved'    => $data['video_approved']    ?? $row->video_approved,
+            'video_scheduled'   => $data['video_scheduled']   ?? $row->video_scheduled,
+            'video_posted'      => $data['video_posted']      ?? $row->video_posted,
+            'post_link'         => $data['post_link']         ?? $row->post_link,
+        ])->save();
 
-        $record->save();
-
-        Log::info('Media upsert: saved OK', ['id' => $record->id]);
+        Log::info('Media upsert (single-table) OK', ['id' => $row->id, 'field' => $field, 'value' => $value]);
 
         return response()->json([
             'ok'    => true,
-            'id'    => $record->id,
-            'field' => $dbField,
+            'id'    => $row->id,
+            'field' => $field,
             'value' => $value,
+            'payload' => $row->payload,
         ]);
-
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        Log::warning('Media upsert: validation failed', ['errors' => $e->errors()]);
+    } catch (ValidationException $e) {
+        Log::warning('Media upsert validation failed', ['errors' => $e->errors()]);
         return response()->json(['ok' => false, 'errors' => $e->errors()], 422);
-
     } catch (\Throwable $e) {
-        Log::error('Media upsert: server error '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+        Log::error('Media upsert server error: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
         return response()->json(['ok' => false, 'error' => 'Server error: '.$e->getMessage()], 500);
     }
 }

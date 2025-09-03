@@ -12,6 +12,7 @@ use App\Imports\MasterFileImport;
 use Carbon\Carbon;
 use App\Exports\MasterFilesExport;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Illuminate\Http\RedirectResponse;
@@ -402,13 +403,13 @@ private function guessProductType(MasterFile $file): string
 }
 
 
-    public function exportXlsx(Request $request): StreamedResponse
+   public function exportXlsx(Request $request): StreamedResponse
 {
-    // ----- Build query with the same filters you use on the dashboard -----
-    $q = MasterFile::query()->select([
+    // ----- Build select list safely -----
+    $select = [
         'created_at',
         'company',
-        'client',
+        'client',                 // we'll DISPLAY this as "Person In Charge"
         'product',
         'month',
         'date as start_date',
@@ -421,7 +422,22 @@ private function guessProductType(MasterFile $file): string
         'invoice_date',
         'invoice_number',
         'product_category',
-    ]);
+    ];
+
+    // Add email/contact_number if columns exist; otherwise select NULL AS ...
+    if (Schema::hasColumn('master_files', 'email')) {
+        $select[] = 'email';
+    } else {
+        $select[] = DB::raw('NULL as email');
+    }
+    if (Schema::hasColumn('master_files', 'contact_number')) {
+        $select[] = 'contact_number';
+    } else {
+        $select[] = DB::raw('NULL as contact_number');
+    }
+
+    // ----- Build query with the same filters you use on the dashboard -----
+    $q = MasterFile::query()->select($select);
 
     if ($term = trim((string) $request->get('search', ''))) {
         $q->where(function ($w) use ($term) {
@@ -430,7 +446,10 @@ private function guessProductType(MasterFile $file): string
               ->orWhere('product', 'like', "%{$term}%")
               ->orWhere('status', 'like', "%{$term}%")
               ->orWhere('traffic', 'like', "%{$term}%")
-              ->orWhere('invoice_number', 'like', "%{$term}%");
+              ->orWhere('invoice_number', 'like', "%{$term}%")
+              // also allow search by email/contact if present
+              ->orWhere('email', 'like', "%{$term}%")
+              ->orWhere('contact_number', 'like', "%{$term}%");
         });
     }
     if ($status = $request->get('status')) {
@@ -453,11 +472,25 @@ private function guessProductType(MasterFile $file): string
     $sheet = $ss->getActiveSheet();
 
     $headings = [
-        'Date Created','Company Name','Client','Product','Month',
-        'Start Date','End Date','Duration (days)','Status','Traffic',
-        'Job Number','Artwork','Invoice Date','Invoice Number','Product Category'
+        'Date Created',
+        'Company Name',
+        'Person In Charge',   // <-- shows "client" value
+        'Email',
+        'Contact Number',
+        'Product',
+        'Month',
+        'Start Date',
+        'End Date',
+        'Duration (days)',
+        'Status',
+        'Traffic',
+        'Job Number',
+        'Artwork',
+        'Invoice Date',
+        'Invoice Number',
+        'Product Category',
     ];
-    $col = 1; // 1-based
+    $col = 1;
     foreach ($headings as $h) {
         $letter = Coordinate::stringFromColumnIndex($col++);
         $sheet->setCellValue($letter.'1', $h);
@@ -470,7 +503,6 @@ private function guessProductType(MasterFile $file): string
             $letter = Coordinate::stringFromColumnIndex($c++);
             $sheet->setCellValue($letter.$r, $value);
         };
-        // date formatter that tolerates strings/nulls
         $fmtDate = function ($v) {
             if (!$v) return null;
             if ($v instanceof \DateTimeInterface) return $v->format('Y-m-d');
@@ -479,7 +511,9 @@ private function guessProductType(MasterFile $file): string
 
         $put((string) $row->created_at);
         $put($row->company);
-        $put($row->client);
+        $put($row->client);                // displayed as "Person In Charge"
+        $put($row->email ?? '');           // may be NULL if column missing
+        $put($row->contact_number ?? '');  // may be NULL if column missing
         $put($row->product);
         $put($row->month);
         $put($fmtDate($row->start_date));
@@ -495,7 +529,6 @@ private function guessProductType(MasterFile $file): string
         $r++;
     }
 
-    // Autosize columns (basic)
     foreach (range(1, count($headings)) as $colIndex) {
         $letter = Coordinate::stringFromColumnIndex($colIndex);
         $sheet->getColumnDimension($letter)->setAutoSize(true);
@@ -506,7 +539,6 @@ private function guessProductType(MasterFile $file): string
 
     return response()->streamDownload(function () use ($writer, $ss) {
         $writer->save('php://output');
-        // free memory
         $ss->disconnectWorksheets();
     }, $filename, [
         'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

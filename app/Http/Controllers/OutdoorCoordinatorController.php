@@ -117,7 +117,7 @@ class OutdoorCoordinatorController  extends Controller
             $now = now();
             $payload = $missing->map(fn($id) => [
                 'master_file_id' => $id,
-                'status'         => null,
+                'status'         => 'pending',
                 'created_at'     => $now,
                 'updated_at'     => $now,
             ])->all();
@@ -127,7 +127,7 @@ class OutdoorCoordinatorController  extends Controller
     }
 
     // ===== 6) Base query: Outdoor only; month filter by monthlyIds when set =====
-    $base = \App\Models\OutdoorCoordinatorTracking::query()
+    $base = OutdoorCoordinatorTracking::query()
         ->with('masterFile')
         ->whereHas('masterFile', function ($q) {
             $q->where(function ($qq) {
@@ -327,6 +327,7 @@ private function masterFilesForMonth(?int $month, ?int $year)
             if (!$exists) {
                 OutdoorCoordinatorTracking::create([
                     'master_file_id' => $mf->id,
+                    'status'         => 'pending',
                     // kolom lainnya bisa default null
                 ]);
                 $synced++;

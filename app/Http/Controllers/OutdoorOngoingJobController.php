@@ -66,24 +66,23 @@ private function ensureOutdoorSlots(array $masterIds, int $year): void
 }
 
 
-     public function index(Request $req)
+    public function index(Request $req)
 {
     $year = (int) ($req->input('outdoor_year') ?: now()->year);
 
-    // Normalisasi product code dari dropdown (mis. "BB - Billboard" -> "BB")
+    // Normalisasi product code dari dropdown ("BB - Billboard" -> "BB")
     $rawProduct = trim((string) $req->input('outdoor_product', ''));
     $product = $rawProduct !== '' ? strtoupper(preg_split('/\s*-+\s*/', $rawProduct)[0]) : '';
 
-    // ==== pakai effective year ====
-    $yearExpr = "CASE
-        WHEN `date` IS NULL OR YEAR(`date`) < 2000 OR YEAR(`date`) > 2100
-            THEN YEAR(`created_at`)
-        ELSE YEAR(`date`)
-    END";
+    // === Perbaiki penentuan "effective date" untuk filter tahun ===
+    // Gunakan date -> date_finish -> created_at (TIDAK ADA rule <2000)
+    $effDate = "COALESCE(`master_files`.`date`, `master_files`.`date_finish`, `master_files`.`created_at`)";
+    $effYear = "YEAR($effDate)";
+    $effMonth = "MONTH($effDate)";
 
-    // Tahun tersedia (Outdoor only)
+    // Tahun yang tersedia (Outdoor only) — dihitung dari effective date
     $availableYears = $this->baseOutdoor(MasterFile::query())
-        ->selectRaw("$yearExpr as y")
+        ->selectRaw("$effYear as y")
         ->distinct()
         ->orderBy('y', 'desc')
         ->pluck('y');
@@ -92,26 +91,29 @@ private function ensureOutdoorSlots(array $masterIds, int $year): void
         $availableYears = $availableYears->prepend($year)->unique()->sortDesc()->values();
     }
 
-    // Rows grid (Outdoor only + filter tahun + optional product)
+    // Query utama: semua master_files Outdoor pada tahun terpilih (+ optional product)
     $rows = $this->baseOutdoor(MasterFile::query())
         ->when($product !== '', fn($q) => $q->where('product', $product))
-        ->whereRaw("$yearExpr = ?", [$year])
-        ->orderByRaw('COALESCE(`date`, `created_at`) DESC')
+        ->whereRaw("$effYear = ?", [$year])
+        ->orderByRaw("$effDate DESC")
         ->get();
 
+    // Jika kosong (misal tahun baru belum ada), tampilkan sampel terbaru agar tabel tidak "kosong"
     if ($rows->isEmpty()) {
         $rows = $this->baseOutdoor(MasterFile::query())
             ->when($product !== '', fn($q) => $q->where('product', $product))
-            ->orderByRaw('COALESCE(`date`, `created_at`) DESC')
+            ->orderByRaw("$effDate DESC")
             ->limit(50)
             ->get();
     }
 
-    // Seed slot detail (biar cell selalu ada)
+    // Seed slot detail (agar cell monthly selalu ada) — aman karena hanya berdasarkan id & tahun
     $ids = $rows->pluck('id')->all();
-    if (!empty($ids)) $this->ensureOutdoorSlots($ids, $year);
+    if (!empty($ids)) {
+        $this->ensureOutdoorSlots($ids, $year);
+    }
 
-    // Ambil nilai terakhir per slot (tanpa bug join 'mx.ts')
+    // Ambil nilai terakhir per slot dari outdoor_monthly_details (per master_file, month, field_key)
     $existing = collect();
     if (!empty($ids)) {
         $latestPerSlot = DB::table('outdoor_monthly_details')
@@ -147,12 +149,13 @@ private function ensureOutdoorSlots(array $masterIds, int $year): void
         });
     }
 
-    $outdoorProducts = ['TB','BB','Newspaper','Bunting','Flyers','Star','Signages'];
+    $outdoorProducts = ['TB','BB','Newspaper','Bunting','Flyers','Star','Signages','Outdoor'];
 
     return view('dashboard.outdoor', compact(
         'year','rows','existing','availableYears','outdoorProducts','product'
     ));
 }
+
 
 
     public function events(Request $request)

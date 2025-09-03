@@ -68,6 +68,9 @@ class MasterFilesExport
             'Date Created',
             'Company Name',
             'Client',
+            'Person In Charge',   // ✅ new
+            'Email',              // ✅ new
+            'Contact Number',     // ✅ new
             'Product',
             'Month',
             'Start Date',
@@ -118,6 +121,9 @@ class MasterFilesExport
             $formatDate($row->created_at),
             $row->company,
             $row->client,
+            $row->person_in_charge,   // ✅ new
+            $row->email,              // ✅ new
+            $row->contact_number,     // ✅ new
             $row->product,
             $monthText,
             $formatDate($row->start_date ?? $row->date),
