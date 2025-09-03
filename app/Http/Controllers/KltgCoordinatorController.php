@@ -10,6 +10,8 @@ use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Schema; // 🔧 NEW: Added Schema facade
 
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+
 use Carbon\Carbon;
 
 class KltgCoordinatorController extends Controller
@@ -657,73 +659,233 @@ public function getEligibleMasterFiles(Request $request)
         return response()->json(['eligible' => $eligible, 'subcategory' => $activeSubcat]);
     }
 
-    /** CSV export scoped by month + working/completed + subcategory */
-    public function export(Request $request)
-    {
-        $month      = $request->get('month');
-        $working    = $request->get('working'); // 'working'|'completed'|null
-        $activeSubcat = $this->normalizeSubcat($request->get('subcategory'));
+  public function export(Request $request)
+{
+    $working       = $request->get('working');                 // 'working'|'completed'|null
+    $activeSubcat  = $this->normalizeSubcat($request->get('subcategory')); // kltg|video|article|lb|em
+    $key           = ($activeSubcat === 'kltg') ? 'print' : $activeSubcat;  // map kltg -> print
+    $monthRaw      = trim((string) $request->get('month', ''));
+    $month         = $this->normalizeMonth($monthRaw);         // "January"/"jan"/"01"/"1" -> 1..12
+    $year          = (int) ($request->get('year') ?: now()->year);
 
-        $query = KltgCoordinatorList::with('masterFile')
-            ->where('subcategory', $activeSubcat);
+    // === Column sets per job ===
+    $columnsBySubcat = [
+        'print' => [
+            'title_snapshot','company_snapshot','client_bp','x','edition','publication',
+            'artwork_bp_client','artwork_reminder','material_record',
+            'send_chop_sign','chop_sign_approval','park_in_file_server','remarks'
+        ],
+        'video' => [
+            'title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text',
+            'material_record','video_done','pending_approval','video_approved',
+            'video_scheduled','video_posted','post_link'
+        ],
+        'article' => [
+            'title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text',
+            'material_record','article_done','pending_approval','article_approved',
+            'article_scheduled','article_posted','post_link'
+        ],
+        'lb' => [
+            'title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text',
+            'material_record','video_done','pending_approval','video_approved',
+            'video_scheduled','video_posted','post_link'
+        ],
+        'em' => [
+            'company_snapshot','client_bp','remarks',
+            'em_date_write','em_date_to_post','em_post_date','em_qty','blog_link'
+        ],
+    ];
 
-        if ($month) {
-            $query->whereHas('masterFile', function($q) use ($month) {
-                $q->where('month', $month);
+    // Human-friendly labels
+    $labels = [
+        'title_snapshot' => 'Title',
+        'company_snapshot' => 'Company',
+        'client_bp' => 'Client/BP',
+        'x' => 'X (text)',
+        'edition' => 'Edition',
+        'publication' => 'Publication',
+        'artwork_bp_client' => 'Artwork BP/Client',
+        'artwork_reminder' => 'Artwork Reminder',
+        'material_record' => 'Material Received',
+        'send_chop_sign' => 'Send Chop & Sign',
+        'chop_sign_approval' => 'Chop & Sig Approval',
+        'park_in_file_server' => 'Park in File Server',
+        'remarks' => 'Remarks',
+        'material_reminder_text' => 'Material Reminder (Text)',
+        'video_done' => 'Video Done',
+        'pending_approval' => 'Pending Approval',
+        'video_approved' => 'Video Approved',
+        'video_scheduled' => 'Video Scheduled',
+        'video_posted' => 'Video Posted',
+        'post_link' => 'Post Link',
+        'article_done' => 'Article Done',
+        'article_approved' => 'Article Approved',
+        'article_scheduled' => 'Article Scheduled',
+        'article_posted' => 'Article Posted',
+        'em_date_write' => 'EM Date Write',
+        'em_date_to_post' => 'EM Date To Post',
+        'em_post_date' => 'EM Post Date',
+        'em_qty' => 'EM Qty',
+        'blog_link' => 'Blog Link',
+    ];
+
+    $fields = $columnsBySubcat[$key] ?? $columnsBySubcat['print'];
+    $headersRow = array_merge(['ID'], array_map(fn($f) => $labels[$f] ?? Str::headline($f), $fields));
+
+    // === Base query (same as before, with robust month/year filters) ===
+    $query = KltgCoordinatorList::with('masterFile:id,company,product,month,year,date,date_finish,invoice_date,created_at')
+        ->where('subcategory', $activeSubcat);
+
+    if ($month !== null) {
+        $query->whereHas('masterFile', function ($q) use ($month, $year) {
+            $q->where(function ($qq) use ($month) {
+                if (Schema::hasColumn('master_files', 'month')) {
+                    $qq->orWhere('month', (int) $month);
+                }
+                $qq->orWhereMonth('date', (int) $month)
+                   ->orWhereMonth('date_finish', (int) $month)
+                   ->orWhereMonth('invoice_date', (int) $month)
+                   ->orWhereMonth('created_at', (int) $month);
             });
-        }
 
-        if ($working === 'working') {
-            $query->where(function($q) {
-                $q->whereNull('park_in_file_server')
-                  ->orWhere('park_in_file_server', '');
-            });
-        } elseif ($working === 'completed') {
-            $query->whereNotNull('park_in_file_server')
-                  ->where('park_in_file_server', '!=', '');
-        }
-
-        $lists = $query->orderBy('created_at', 'desc')->get();
-
-        $filename = 'kltg_coordinator_' . strtolower($activeSubcat) . '_' . now()->format('Y_m_d_H_i_s') . '.csv';
-
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-        ];
-
-        $callback = function() use ($lists) {
-            $file = fopen('php://output', 'w');
-
-            fputcsv($file, [
-                'ID','Subcategory','Company','Title','X','Edition','Publication','Artwork BP/Client',
-                'Artwork Reminder','Material Record','Send Chop & Sign','Chop & Sign Approval',
-                'Park in File Server','Created At','Updated At'
-            ]);
-
-            foreach ($lists as $list) {
-                fputcsv($file, [
-                    $list->id,
-                    $list->subcategory,
-                    $list->masterFile->company ?? $list->company_snapshot,
-                    $list->masterFile->product ?? $list->title_snapshot,
-                    $list->x,
-                    $list->edition,
-                    $list->publication,
-                    $list->artwork_bp_client,
-                    optional($list->artwork_reminder)->format('Y-m-d'),
-                    optional($list->material_record)->format('Y-m-d'),
-                    optional($list->send_chop_sign)->format('Y-m-d'),
-                    optional($list->chop_sign_approval)->format('Y-m-d'),
-                    optional($list->park_in_file_server)->format('Y-m-d'),
-                    $list->created_at,
-                    $list->updated_at,
-                ]);
+            if (Schema::hasColumn('master_files', 'year')) {
+                $q->where('year', $year);
+            } else {
+                $q->whereRaw('YEAR(COALESCE(`date`, `date_finish`, `invoice_date`, `created_at`)) = ?', [$year]);
             }
-
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        });
     }
+
+    if ($working === 'working') {
+        $query->where(fn($q) => $q->whereNull('park_in_file_server')->orWhere('park_in_file_server', ''));
+    } elseif ($working === 'completed') {
+        $query->whereNotNull('park_in_file_server')->where('park_in_file_server', '!=', '');
+    }
+
+    Log::info('KLTG Export dynamic', [
+        'subcat' => $activeSubcat, 'key' => $key, 'month' => $month, 'year' => $year,
+        'count' => (clone $query)->count(), 'fields' => $fields,
+    ]);
+
+    $filename = sprintf('kltg_%s_%s_%d.csv', strtolower($activeSubcat), $this->monthLabel($month ?: 0), $year);
+    $headers = [
+        'Content-Type'        => 'text/csv; charset=UTF-8',
+        'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        'Cache-Control'       => 'no-store, no-cache',
+    ];
+
+    return response()->stream(function () use ($query, $fields, $headersRow) {
+        $out = fopen('php://output', 'w');
+        echo "\xEF\xBB\xBF"; // UTF-8 BOM for Excel
+
+        // Write headers
+        fputcsv($out, $headersRow);
+
+        // Write rows
+        foreach ($query->orderByDesc('created_at')->cursor() as $row) {
+            $values = [$row->id];
+            foreach ($fields as $f) {
+                $values[] = $this->valueForField($row, $f); // dynamic mapping per field
+            }
+            fputcsv($out, $values);
+        }
+        fclose($out);
+    }, 200, $headers);
+}
+
+
+/** "January"/"jan"/"01"/"1" -> 1..12; invalid -> null */
+private function normalizeMonth(?string $m): ?int
+{
+    if ($m === null || $m === '') return null;
+
+    // numeric string "1" .. "12" (accept "01")
+    if (preg_match('/^\d{1,2}$/', $m)) {
+        $n = (int) ltrim($m, '0');
+        if ($n === 0 && $m !== '0') { $n = (int) $m; }
+        return ($n >= 1 && $n <= 12) ? $n : null;
+    }
+
+    // month names/abbrevs
+    $map = [
+        'january'=>1,'jan'=>1,
+        'february'=>2,'feb'=>2,
+        'march'=>3,'mar'=>3,
+        'april'=>4,'apr'=>4,
+        'may'=>5,
+        'june'=>6,'jun'=>6,
+        'july'=>7,'jul'=>7,
+        'august'=>8,'aug'=>8,
+        'september'=>9,'sep'=>9,
+        'october'=>10,'oct'=>10,
+        'november'=>11,'nov'=>11,
+        'december'=>12,'dec'=>12,
+    ];
+    return $map[strtolower(trim($m))] ?? null;
+}
+
+/** 1..12 -> 'January' etc. */
+private function monthLabel(int $m): string
+{
+    $L = [
+        1=>'January','February','March','April','May','June',
+        'July','August','September','October','November','December'
+    ];
+    return $L[$m] ?? 'AllMonths';
+}
+
+/** Return date as TEXT for Excel so it shows exactly like DB and never '########' */
+private function fmtDate($v): string
+{
+    if (empty($v)) return '';
+    try { $s = Carbon::parse($v)->format('Y-m-d'); }
+    catch (\Throwable $e) { $s = (string) $v; }
+    return "'" . $s; // leading apostrophe forces Excel to treat as text
+}
+
+/** Return datetime as TEXT for Excel */
+private function fmtDateTime($v): string
+{
+    if (empty($v)) return '';
+    try { $s = Carbon::parse($v)->format('Y-m-d H:i:s'); }
+    catch (\Throwable $e) { $s = (string) $v; }
+    return "'" . $s;
+}
+
+/** Map row value per field name (handles fallbacks & date formatting) */
+private function valueForField($row, string $field)
+{
+    // which are dates?
+    static $dateFields = [
+        'artwork_reminder','material_record','send_chop_sign','chop_sign_approval','park_in_file_server',
+        'video_done','pending_approval','video_approved','video_scheduled','video_posted',
+        'article_done','article_approved','article_scheduled','article_posted',
+        'em_date_write','em_date_to_post','em_post_date',
+    ];
+
+    switch ($field) {
+        case 'title_snapshot':
+            return optional($row->masterFile)->product ?: ($row->title_snapshot ?? '');
+        case 'company_snapshot':
+            return optional($row->masterFile)->company ?: ($row->company_snapshot ?? '');
+        case 'client_bp':
+            return (string) ($row->client_bp ?? '');
+        case 'x':
+        case 'edition':
+        case 'publication':
+        case 'artwork_bp_client':
+        case 'remarks':
+        case 'material_reminder_text':
+        case 'post_link':
+        case 'em_qty':
+        case 'blog_link':
+            return (string) ($row->{$field} ?? '');
+        default:
+            if (in_array($field, $dateFields, true)) {
+                return $this->fmtDate($row->{$field} ?? null); // as TEXT for Excel
+            }
+            // fallback generic
+            return (string) ($row->{$field} ?? '');
+    }
+}
 }

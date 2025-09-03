@@ -366,7 +366,7 @@
           year: {{ (int)$year }},
           month: {{ $month ? (int)$month : 'null' }},
           scope: '{{ $scope ?? 'month_year' }}',
-          selectedMonthEnabled: {{ $month ? 'true' : 'false' }},
+          selectedMonthEnabled: true,
 
           switchTab(tab) {
             this.activeTab = tab;

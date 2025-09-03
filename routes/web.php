@@ -157,6 +157,8 @@ Route::get('/outdoor-jobs', fn () => redirect()->route('dashboard.outdoor'))->na
 Route::get('/outdoor/ongoing-jobs', [OutdoorOngoingJobController::class, 'index'])->name('outdoor.ongoing.index');
 
 
+
+
 // ===============================================
 // KLTG COORDINATOR ROUTES (CLEANED)
 // ===============================================
@@ -185,6 +187,9 @@ Route::get('/kltg/export-matrix', [KltgMonthlyController::class, 'exportMatrix']
 
 Route::get('/kltg/export/print', [KltgMonthlyController::class, 'exportPrint'])
      ->name('kltg.export.print');
+
+Route::get('/coordinator/export', [KltgCoordinatorController::class, 'export'])
+    ->name('coordinator.export');
 
 
 

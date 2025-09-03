@@ -146,6 +146,18 @@
         Monthly KLTG
     </a>
 
+    <form method="GET" action="{{ route('coordinator.kltg.export') }}" class="inline">
+  <input type="hidden" name="subcategory" value="{{ $activeTab }}">   {{-- kltg|video|article|lb|em --}}
+  <input type="hidden" name="month" value="{{ request('month') }}">
+  <input type="hidden" name="year" value="{{ request('year') }}">
+  {{-- optional --}}
+  <input type="hidden" name="working" value="{{ request('working') }}"> {{-- working|completed|'' --}}
+  <button type="submit" class="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700">
+    Export
+  </button>
+</form>
+
+
       @php $tabs = ['print'=>'KLTG','video'=>'Video','article'=>'Article','lb'=>'LB','em'=>'EM']; @endphp
       <div class="flex flex-wrap gap-2">
         @foreach ($tabs as $key => $label)
