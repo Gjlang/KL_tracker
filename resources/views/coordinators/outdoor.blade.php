@@ -56,33 +56,33 @@
                     <!-- Filters -->
                     <div class="flex-1">
                         <form method="GET" action="{{ url()->current() }}" class="space-y-4 relative">
-  {{-- Month --}}
-  <div class="relative z-10"> {{-- z-10 keeps the native dropdown above the button bar --}}
-    <label class="block text-sm font-medium text-gray-700 mb-2">Month</label>
-    <select name="month"
-            class="w-full rounded-xl border border-gray-200 bg-gray-50 hover:bg-white px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors">
-      <option value="">All Months</option>
-      @foreach(($months ?? []) as $m)
-        <option value="{{ $m['value'] }}"
-          @selected( (int)($month ?? 0) === (int)$m['value'] )>
-          {{ $m['label'] }}
-        </option>
-      @endforeach
-    </select>
-  </div>
+                        {{-- Month --}}
+                        <div class="relative z-10"> {{-- z-10 keeps the native dropdown above the button bar --}}
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Month</label>
+                            <select name="month"
+                                    class="w-full rounded-xl border border-gray-200 bg-gray-50 hover:bg-white px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors">
+                            <option value="">All Months</option>
+                            @foreach(($months ?? []) as $m)
+                                <option value="{{ $m['value'] }}"
+                                @selected( (int)($month ?? 0) === (int)$m['value'] )>
+                                {{ $m['label'] }}
+                                </option>
+                            @endforeach
+                            </select>
+                        </div>
 
-  {{-- Apply bar (put it below and with lower z so it doesn’t overlap the dropdown) --}}
-  <div class="pt-2 z-0">
-    <button type="submit"
-            class="w-full inline-flex items-center justify-center rounded-xl bg-indigo-600 text-white py-3 text-sm font-medium hover:bg-indigo-700 transition">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L15 12.414V19l-6-3v-3.586L3.293 6.707A1 1 0 013 6V4z" />
-      </svg>
-      Apply Filters
-    </button>
-  </div>
-</form>
+                        {{-- Apply bar (put it below and with lower z so it doesn't overlap the dropdown) --}}
+                        <div class="pt-2 z-0">
+                            <button type="submit"
+                                    class="w-full inline-flex items-center justify-center rounded-xl bg-indigo-600 text-white py-3 text-sm font-medium hover:bg-indigo-700 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L15 12.414V19l-6-3v-3.586L3.293 6.707A1 1 0 013 6V4z" />
+                            </svg>
+                            Apply Filters
+                            </button>
+                        </div>
+                        </form>
                     </div>
 
                     <!-- Actions -->
@@ -156,7 +156,7 @@
                                     </td>
 
                                     {{-- Product (read-only) --}}
-                                    <td class="sticky left-[480px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100">
+                                    <td class="sticky left-[480px] z-30 bg-inherit border-r px-4 py-4 align-middle border-b border-gray-100">
                                         <div class="text-gray-700 bg-gray-50 rounded-lg px-3 py-2">
                                             {{ $mf?->product ?? $row->product_snapshot }}
                                         </div>
@@ -370,32 +370,33 @@
                 delete timers[key];
             }, 400);
         }, {passive:true});
-    })();
-    </script>
 
-    @push('scripts')
-    <script>
-        function exportOutdoorData() {
+        // Export function - moved here to ensure it's available immediately
+        window.exportOutdoorData = function() {
             // Check if export route exists
-            @if(Route::has('coordinator.outdoor.export'))
-                window.location.href = '{{ route("coordinator.outdoor.export") }}';
-            @else
-                alert('Export functionality is not yet implemented.');
-            @endif
-        }
+            window.exportOutdoorData = function () {
+      // baca nilai month dari form filter
+      const form  = document.querySelector('form[method="GET"]');
+      const month = form ? (form.querySelector('select[name="month"]')?.value || '') : '';
+      const url   = new URL('{{ route("coordinator.outdoor.export") }}', window.location.origin);
+      if (month) url.searchParams.set('month', month);
+      // year tidak dipakai di skema ini; abaikan saja
+      window.location.href = url.toString();
+  }
+        };
 
-        function exportOutdoorProjects() {
+        // Additional export function for outdoor projects
+        window.exportOutdoorProjects = function() {
             // Check if export route exists
             @if(Route::has('masterfile.export'))
                 window.location.href = '{{ route("masterfile.export") }}?category=outdoor';
             @else
                 alert('Export functionality is not yet implemented.');
             @endif
-        }
+        };
 
-        // Auto-refresh functionality (optional)
+        // Initialize on DOM load
         document.addEventListener('DOMContentLoaded', function() {
-            // Add any additional JavaScript functionality here
             console.log('Enhanced Outdoor Coordinator Dashboard loaded successfully');
 
             // Initialize table enhancements
@@ -405,6 +406,13 @@
                 table.parentElement.style.scrollBehavior = 'smooth';
             }
         });
+    })();
+    </script>
+
+    @push('scripts')
+    <script>
+        // Additional scripts can be added here if needed
+        // The main functions are now defined in the global scope above
     </script>
     @endpush
 </x-app-layout>

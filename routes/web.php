@@ -124,37 +124,45 @@ Route::get('/template', [MasterFileController::class, 'downloadTemplate'])->name
 Route::get('/serials/preview', [MasterFileController::class, 'previewSerials'])->name('serials.preview');
 
 // ===============================================
-// OUTDOOR COORDINATOR ROUTES
+// OUTDOOR COORDINATOR ROUTES - CLEANED UP
 // ===============================================
 Route::prefix('coordinator/outdoor')->name('coordinator.outdoor.')->group(function () {
-    Route::post('/update-field', [OutdoorCoordinatorController::class, 'updateField'])->name('updateField');
-    Route::post('/update-inline', [OutdoorCoordinatorController::class, 'updateInline'])->name('updateInline');
-    Route::post('/sync', [OutdoorCoordinatorController::class, 'syncWithMasterFiles'])->name('sync');
-    Route::get('/seed', [OutdoorCoordinatorController::class, 'seedFromMasterFiles'])->name('seed');
 
-    // ✅ Export Matrix route (correct name = coordinator.outdoor.exportMatrix)
-    Route::get('/export-matrix', [OutdoorOngoingJobController::class, 'exportMatrix'])
-        ->name('exportMatrix');
-
+    // ✅ Main CRUD routes
     Route::get('/', [OutdoorCoordinatorController::class, 'index'])->name('index');
     Route::get('/create', [OutdoorCoordinatorController::class, 'create'])->name('create');
     Route::post('/', [OutdoorCoordinatorController::class, 'store'])->name('store');
-
-    Route::post('/outdoor/details/upsert', [OutdoorOngoingJobController::class, 'upsertMonthlyDetail'])
-        ->name('outdoor.details.upsert');
-
     Route::get('/{id}', [OutdoorCoordinatorController::class, 'show'])->whereNumber('id')->name('show');
     Route::get('/{id}/edit', [OutdoorCoordinatorController::class, 'edit'])->whereNumber('id')->name('edit');
+
+    // ✅ PATCH route for autosave (THIS WAS MISSING!)
     Route::patch('/{id}', [OutdoorCoordinatorController::class, 'update'])->whereNumber('id')->name('update');
     Route::delete('/{id}', [OutdoorCoordinatorController::class, 'destroy'])->whereNumber('id')->name('destroy');
+
+    // ✅ Field update routes
+    Route::post('/update-field', [OutdoorCoordinatorController::class, 'updateField'])->name('updateField');
+    Route::post('/update-inline', [OutdoorCoordinatorController::class, 'updateInline'])->name('updateInline');
+
+    // ✅ Data management routes
+    Route::post('/sync', [OutdoorCoordinatorController::class, 'syncWithMasterFiles'])->name('sync');
+    Route::get('/seed', [OutdoorCoordinatorController::class, 'seedFromMasterFiles'])->name('seed');
+
+    // ✅ Export routes (SINGLE DEFINITION - REMOVED DUPLICATE)
+    Route::get('/export', [OutdoorCoordinatorController::class, 'export'])->name('export');
+    Route::get('/export-matrix', [OutdoorOngoingJobController::class, 'exportMatrix'])->name('exportMatrix');
 });
+
+// ✅ Monthly detail routes (moved outside to avoid conflicts)
 Route::post('/outdoor/monthly/upsert', [OutdoorOngoingJobController::class, 'upsert'])->name('outdoor.monthly.upsert');
+Route::post('/coordinator/outdoor/details/upsert', [OutdoorOngoingJobController::class, 'upsertMonthlyDetail'])->name('coordinator.outdoor.details.upsert');
+
 
 // Public dashboard routes
 Route::get('/dashboard/outdoor', [OutdoorOngoingJobController::class, 'index'])->name('dashboard.outdoor');
 Route::get('/outdoor-jobs', fn () => redirect()->route('dashboard.outdoor'))->name('dashboard.outdoor.legacy');
 // Legacy index
 Route::get('/outdoor/ongoing-jobs', [OutdoorOngoingJobController::class, 'index'])->name('outdoor.ongoing.index');
+
 
 
 

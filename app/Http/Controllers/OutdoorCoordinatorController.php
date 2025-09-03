@@ -9,6 +9,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Schema;
+use Symfony\Component\HttpFoundation\StreamedResponse; // add at top
+use Illuminate\Foundation\Configuration\Exceptions;
+
+
 
 
 
@@ -777,4 +781,145 @@ private function masterFilesForMonth(?int $month, ?int $year)
 
         return response()->json($masterFiles);
     }
+
+
+    public function export(Request $request): StreamedResponse
+{
+    // ---- DEBUG: Log untuk melihat apa yang terjadi ----
+    Log::info('Export started', [
+        'month_requested' => $request->integer('month'),
+        'all_params' => $request->all()
+    ]);
+
+    // ---- 1) Get month filter ----
+    $month = $request->integer('month'); // 1-12
+
+    // ---- DEBUG: Cek total data di tabel ----
+    $totalRows = DB::table('outdoor_coordinator_trackings')->count();
+    Log::info("Total rows in outdoor_coordinator_trackings: {$totalRows}");
+
+    // ---- 2) Build query dengan JOIN ke master_files ----
+    $q = DB::table('outdoor_coordinator_trackings as oct')
+        ->join('master_files as mf', 'oct.master_file_id', '=', 'mf.id')
+        ->select([
+            'oct.id',
+            'oct.master_file_id',
+            'mf.client',           // ✅ Ambil dari master_files
+            'mf.product',          // ✅ Ambil dari master_files
+            'oct.site',
+            'oct.payment',
+            'oct.material',
+            'oct.artwork',
+            'oct.received_approval',
+            'oct.sent_to_printer',
+            'oct.collection_printer',
+            'oct.installation',
+            'oct.dismantle',
+            'oct.remarks',
+            'oct.next_follow_up',
+            'oct.status',
+        ]);
+
+    // ---- 3) Month filtering ----
+    if ($month) {
+        Log::info("Filtering by month: {$month}");
+
+        // Filter berdasarkan date fields yang ada di outdoor_coordinator_trackings
+        $q->where(function ($query) use ($month) {
+            $query->whereRaw("MONTH(oct.received_approval) = ?", [$month])
+                  ->orWhereRaw("MONTH(oct.sent_to_printer) = ?", [$month])
+                  ->orWhereRaw("MONTH(oct.collection_printer) = ?", [$month])
+                  ->orWhereRaw("MONTH(oct.installation) = ?", [$month])
+                  ->orWhereRaw("MONTH(oct.dismantle) = ?", [$month]);
+        });
+
+        // DEBUG: Cek berapa yang match filter
+        $filteredCount = $q->count();
+        Log::info("Rows matching month filter: {$filteredCount}");
+    }
+
+    $rows = $q->orderBy('oct.id')->get();
+
+    // ---- DEBUG: Log hasil query ----
+    Log::info("Final query returned rows: " . count($rows));
+    if (count($rows) > 0) {
+        Log::info("Sample first row: ", (array) $rows[0]);
+    }
+
+    // ---- 4) Jika tidak ada data dengan filter, export semua data ----
+    if ($rows->isEmpty()) {
+        Log::info("No filtered data found, exporting ALL data");
+        $rows = DB::table('outdoor_coordinator_trackings as oct')
+            ->join('master_files as mf', 'oct.master_file_id', '=', 'mf.id')
+            ->select([
+                'oct.id', 'oct.master_file_id', 'mf.client', 'mf.product', 'oct.site',
+                'oct.payment', 'oct.material', 'oct.artwork', 'oct.received_approval',
+                'oct.sent_to_printer', 'oct.collection_printer', 'oct.installation',
+                'oct.dismantle', 'oct.remarks', 'oct.next_follow_up', 'oct.status'
+            ])
+            ->orderBy('oct.id')
+            ->get();
+
+        Log::info("All data export returned rows: " . count($rows));
+    }
+
+    // ---- 5) Generate CSV ----
+    $monthName = $month ? "month-{$month}" : 'all';
+    $filename = "outdoor-coordinator-{$monthName}.csv";
+
+    $headers = [
+        'Content-Type'        => 'text/csv; charset=UTF-8',
+        'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+    ];
+
+    $csvHeaders = [
+        'ID', 'Master File ID', 'Client', 'Product', 'Site',
+        'Payment', 'Material', 'Artwork', 'Received Approval',
+        'Sent to Printer', 'Collection Printer', 'Installation',
+        'Dismantle', 'Remarks', 'Next Follow Up', 'Status'
+    ];
+
+    $dbColumns = [
+        'id', 'master_file_id', 'client', 'product', 'site',
+        'payment', 'material', 'artwork', 'received_approval',
+        'sent_to_printer', 'collection_printer', 'installation',
+        'dismantle', 'remarks', 'next_follow_up', 'status'
+    ];
+
+    return response()->streamDownload(function () use ($rows, $csvHeaders, $dbColumns) {
+        $out = fopen('php://output', 'w');
+
+        // BOM for Excel
+        fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
+
+        // Write headers
+        fputcsv($out, $csvHeaders);
+
+        // Write data
+        foreach ($rows as $row) {
+            $line = [];
+            foreach ($dbColumns as $col) {
+                $value = $row->$col ?? '';
+
+                // Format dates
+                if (in_array($col, ['received_approval', 'sent_to_printer', 'collection_printer', 'installation', 'dismantle', 'next_follow_up'])) {
+                    if ($value && !in_array($value, ['0000-00-00', '0000-00-00 00:00:00', '', null])) {
+                        try {
+                            $value = date('Y-m-d', strtotime($value));
+                        } catch (\Throwable $e) {
+                            // Keep original
+                        }
+                    } else {
+                        $value = '';
+                    }
+                }
+                $line[] = $value;
+            }
+            fputcsv($out, $line);
+        }
+
+        fclose($out);
+    }, $filename, $headers);
+}
+
 }
