@@ -22,6 +22,7 @@ class MasterFileImport
         $jobTarget = $has('job') ? 'job' : ($has('job_status') ? 'job_status' : ($has('remarks') ? 'remarks' : null));
         $artTarget = $has('artwork') ? 'artwork' : ($has('artwork_status') ? 'artwork_status' : null);
 
+        // Natural key stays the same
         $naturalKey = array_values(array_filter([
             $has('company') ? 'company' : null,
             $has('client') ? 'client' : null,
@@ -41,7 +42,17 @@ class MasterFileImport
 
             // ---- Source fields ----
             $company = self::text($r['company_name'] ?? $r['company'] ?? null);
-            $client  = self::text($r['client'] ?? null);
+
+            // Accept client OR person-in-charge as alias for client (fallback)
+            $clientRaw = $r['client'] ?? null;
+            $picRaw    = $r['person_in_charge']
+                      ?? $r['personincharge']
+                      ?? $r['pic']
+                      ?? $r['penanggung_jawab']
+                      ?? $r['penanggungjawab']
+                      ?? null;
+
+            $client  = self::text($clientRaw ?? $picRaw ?? null);
             $product = self::text($r['product'] ?? null);
             $status  = self::text($r['status'] ?? null);
             $traffic = self::text($r['traffic'] ?? null);
@@ -50,6 +61,28 @@ class MasterFileImport
             $invNo   = self::text($r['invoice_number'] ?? $r['invoice_no'] ?? null);
             $loc     = self::text($r['location'] ?? null);
             $category= self::inferCategory($product, $r['product_category'] ?? null);
+
+            // NEW: email + contact number (common aliases)
+            $email = self::text(
+                $r['email']
+                ?? $r['e_mail']
+                ?? $r['email_address']
+                ?? $r['mail']
+                ?? null
+            );
+
+            $contact = self::text(
+                $r['contact_number']
+                ?? $r['contact_no']
+                ?? $r['contact']
+                ?? $r['phone']
+                ?? $r['phone_number']
+                ?? $r['no_hp']
+                ?? $r['no_tel']
+                ?? $r['tel']
+                ?? $r['mobile']
+                ?? null
+            );
 
             $createdAt = self::parseDate($r['date_created'] ?? $r['created_at'] ?? null);
             $startDate = self::parseDate($r['start_date']   ?? $r['date'] ?? null);
@@ -80,12 +113,28 @@ class MasterFileImport
             // ---- Build payload (only existing columns + non-null) ----
             $payload = [];
             if ($has('company') && $company !== null)           $payload['company'] = $company;
+
+            // Store client (with PIC fallback). If the table also has a PIC column, put PIC there too.
             if ($has('client') && $client !== null)             $payload['client'] = $client;
+            if ($has('person_in_charge') && $picRaw !== null)   $payload['person_in_charge'] = self::text($picRaw);
+            if ($has('pic') && $picRaw !== null)                $payload['pic'] = self::text($picRaw);
+
             if ($has('product') && $product !== null)           $payload['product'] = $product;
             if ($has('product_category') && $category !== null) $payload['product_category'] = $category;
             if ($has('location') && $loc !== null)              $payload['location'] = $loc;
             if ($has('status') && $status !== null)             $payload['status'] = $status;
             if ($has('traffic') && $traffic !== null)           $payload['traffic'] = $traffic;
+
+            // NEW: email/contact mapped to whatever exists in schema
+            if ($has('email') && $email !== null)               $payload['email'] = $email;
+            elseif ($has('email_address') && $email !== null)   $payload['email_address'] = $email;
+
+            // Prefer more specific columns first
+            if ($has('contact_number') && $contact !== null)    $payload['contact_number'] = $contact;
+            elseif ($has('phone') && $contact !== null)         $payload['phone'] = $contact;
+            elseif ($has('contact') && $contact !== null)       $payload['contact'] = $contact;
+            elseif ($has('tel') && $contact !== null)           $payload['tel'] = $contact;
+
             if ($has('date'))                                   $payload['date'] = $startDate;
             if ($has('date_finish') && $endDate !== null)       $payload['date_finish'] = $endDate;
             if ($has('invoice_date') && $invDate !== null)      $payload['invoice_date'] = $invDate;
