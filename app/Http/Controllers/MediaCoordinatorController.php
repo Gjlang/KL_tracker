@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
+
 
 class MediaCoordinatorController extends Controller
 {
@@ -35,84 +37,82 @@ class MediaCoordinatorController extends Controller
 
     // ===================== INDEX =====================
     public function index(Request $req)
-{
-    $activeTab = $req->query('tab', 'content');
-    if (!array_key_exists($activeTab, self::TAB_TO_TABLE)) {
-        $activeTab = 'content';
+    {
+        $activeTab = $req->query('tab', 'content');
+        if (!array_key_exists($activeTab, self::TAB_TO_TABLE)) {
+            $activeTab = 'content';
+        }
+
+        $year  = (int)($req->query('year') ?: now()->year);
+        $month = $this->normalizeMonth($req->query('month'));
+
+        // Hanya untuk debug cepat
+        $mastersCount = (clone $this->baseMediaMasters())
+            ->count();
+        Log::info("MEDIA INDEX: masters count = {$mastersCount}, year={$year}, month=".($month ?? 'null'));
+
+        $rowsByTab = [];
+        foreach (array_keys(self::TAB_TO_TABLE) as $tab) {
+            $rowsByTab[$tab] = $this->querySectionRowsFreshMasters($tab, $year, $month);
+            Log::info("MEDIA INDEX: tab={$tab}, rows=".$rowsByTab[$tab]->count());
+        }
+
+        return view('coordinators.media', [
+            'activeTab' => $activeTab,
+            'rowsByTab' => $rowsByTab,
+            'months'    => self::MONTHS,
+            'month'     => $month,
+            'year'      => $year,
+        ]);
     }
 
-    $year  = (int)($req->query('year') ?: now()->year);
-    $month = $this->normalizeMonth($req->query('month'));
+    /**
+     * Build fresh masters subquery PER CALL (menghindari builder reuse).
+     */
+    private function querySectionRowsFreshMasters(string $section, int $year, ?int $month)
+    {
+        $table = self::TAB_TO_TABLE[$section] . ' as t';
 
-    // ✅ builder (BUKAN ->get())
-    $mastersQ = $this->baseMediaMasters()
-        ->select('id as master_file_id', 'company', 'client', 'product', 'product_category');
+        $select = [
+            'mf.master_file_id', 'mf.company', 'mf.client', 'mf.product', 'mf.product_category',
+            DB::raw((int)$year.' as year'),
+            DB::raw(($month ?? 0).' as month'),
+        ];
 
-    $rowsByTab = [
-        'content'  => collect(),
-        'editing'  => collect(),
-        'schedule' => collect(),
-        'report'   => collect(),
-        'valueadd' => collect(),
-    ];
+        switch ($section) {
+            case 'content':
+            case 'editing':
+                array_push($select, 't.total_artwork_date','t.pending_date','t.draft_wa','t.approved','t.remarks');
+                break;
+            case 'schedule':
+                array_push($select, 't.total_artwork_date','t.crm_date','t.meta_ads_manager_date','t.tiktok_ig_draft','t.remarks');
+                break;
+            case 'report':
+                array_push($select, 't.pending_date','t.completed_date','t.remarks');
+                break;
+            case 'valueadd':
+            default:
+                array_push($select, 't.quota','t.completed','t.remarks');
+        }
 
-    foreach (array_keys(self::TAB_TO_TABLE) as $tab) {
-        // ✅ kirim builder
-        $rowsByTab[$tab] = $this->querySectionRowsFromMasters($tab, $mastersQ, $year, $month);
+        // FRESH masters subquery setiap kali:
+        $mastersFresh = (clone $this->baseMediaMasters())
+            ->select('id as master_file_id', 'company', 'client', 'product', 'product_category');
+
+        $mfSub = DB::query()->fromSub($mastersFresh, 'mf');
+
+        $query = $mfSub->leftJoin($table, function($join) use ($month, $year) {
+                    $join->on('t.master_file_id', '=', 'mf.master_file_id')
+                         ->where('t.year', '=', $year);
+                    if ($month !== null) {
+                        $join->where('t.month', '=', $month);
+                    }
+                })
+                ->select($select)
+                ->orderBy('mf.company');
+
+        return $query->get();
     }
-
-    return view('coordinators.media', [
-        'activeTab' => $activeTab,
-        'rowsByTab' => $rowsByTab,
-        'months'    => self::MONTHS,
-        'month'     => $month,
-        'year'      => $year,
-    ]);
-}
-
-
-    private function querySectionRowsFromMasters(string $section, $mastersQ, int $year, ?int $month)
-{
-    $table = self::TAB_TO_TABLE[$section] . ' as t';
-
-    $select = [
-        'mf.master_file_id', 'mf.company', 'mf.client', 'mf.product', 'mf.product_category',
-        DB::raw((int)$year.' as year'),
-        DB::raw(($month ?? 0).' as month'),
-    ];
-
-    switch ($section) {
-        case 'content':
-        case 'editing':
-            array_push($select, 't.total_artwork_date','t.pending_date','t.draft_wa','t.approved','t.remarks');
-            break;
-        case 'schedule':
-            array_push($select, 't.total_artwork_date','t.crm_date','t.meta_ads_manager_date','t.tiktok_ig_draft','t.remarks');
-            break;
-        case 'report':
-            array_push($select, 't.pending_date','t.completed_date','t.remarks');
-            break;
-        case 'valueadd':
-        default:
-            array_push($select, 't.quota','t.completed','t.remarks');
-    }
-
-    // ✅ masters sebagai subquery builder
-    $mfSub = DB::query()->fromSub($mastersQ, 'mf');
-
-    $query = $mfSub->leftJoin($table, function($join) use ($month, $year) {
-                $join->on('t.master_file_id', '=', 'mf.master_file_id')
-                     ->where('t.year', '=', $year);
-                if ($month !== null) {
-                    $join->where('t.month', '=', $month);
-                }
-            })
-            ->select($select)
-            ->orderBy('mf.company');
-
-    return $query->get();
-}
-
 
     private function baseMediaMasters()
     {
@@ -124,7 +124,6 @@ class MediaCoordinatorController extends Controller
                   ->orWhereIn(DB::raw('UPPER(product)'), $mediaProducts);
             });
     }
-
 
     // ===================== UPSERT =====================
     public function upsert(Request $req)
@@ -178,36 +177,32 @@ class MediaCoordinatorController extends Controller
 
     // ===================== EXPORT =====================
     public function export(Request $req): StreamedResponse
-{
-    $section = $req->query('tab', 'content');
-    if (!array_key_exists($section, self::TAB_TO_TABLE)) {
-        $section = 'content';
-    }
-
-    $year  = (int)($req->query('year') ?: now()->year);
-    $month = $this->normalizeMonth($req->query('month'));
-
-    // ✅ builder (BUKAN ->get())
-    $mastersQ = $this->baseMediaMasters()
-        ->select('id as master_file_id', 'company', 'client', 'product', 'product_category');
-
-    $rows = $this->querySectionRowsFromMasters($section, $mastersQ, $year, $month);
-
-    $filename = "media_{$section}_{$year}-".str_pad((int)($month ?: 0),2,'0',STR_PAD_LEFT).".csv";
-    $headers  = $this->csvHeaders($section);
-
-    return response()->streamDownload(function () use ($rows, $headers, $section) {
-        $out = fopen('php://output','w');
-        fputcsv($out, $headers);
-        $i = 0;
-        foreach ($rows as $r) {
-            $i++;
-            fputcsv($out, $this->csvRow($section, $i, $r));
+    {
+        $section = $req->query('tab', 'content');
+        if (!array_key_exists($section, self::TAB_TO_TABLE)) {
+            $section = 'content';
         }
-        fclose($out);
-    }, $filename, ['Content-Type' => 'text/csv']);
-}
 
+        $year  = (int)($req->query('year') ?: now()->year);
+        $month = $this->normalizeMonth($req->query('month'));
+
+        // Use fresh masters for export as well
+        $rows = $this->querySectionRowsFreshMasters($section, $year, $month);
+
+        $filename = "media_{$section}_{$year}-".str_pad((int)($month ?: 0),2,'0',STR_PAD_LEFT).".csv";
+        $headers  = $this->csvHeaders($section);
+
+        return response()->streamDownload(function () use ($rows, $headers, $section) {
+            $out = fopen('php://output','w');
+            fputcsv($out, $headers);
+            $i = 0;
+            foreach ($rows as $r) {
+                $i++;
+                fputcsv($out, $this->csvRow($section, $i, $r));
+            }
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv']);
+    }
 
     // ===================== Helpers =====================
 
