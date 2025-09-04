@@ -212,10 +212,7 @@ Route::prefix('media-ongoing')->name('media.ongoing.')->group(function () {
     Route::post('/details/upsert', [MediaOngoingJobController::class, 'upsert'])->name('details.upsert');
 });
 
-Route::prefix('coordinator')->name('media.monthly.')->group(function () {
-    Route::get('/media/export', [MediaMonthlyDetailController::class, 'export'])
-        ->name('export');
-});
+
 
 // ===============================================
 // MEDIA MONTHLY ROUTES
