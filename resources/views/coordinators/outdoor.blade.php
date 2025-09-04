@@ -162,7 +162,7 @@
                                         </div>
                                     </td>
 
-                                    @foreach (['site','payment','material','artwork','approval','sent','collected','install','dismantle','status'] as $col)
+                                     @foreach (['site','payment','material','artwork','received_approval','sent_to_printer','collection_printer','installation','dismantle','status'] as $col)
                                         <td class="px-4 py-4 align-middle border-b border-gray-100">
                                             <div class="relative">
                                                 <input type="text"
@@ -344,14 +344,18 @@
 
             // Set new timer
             timers[key] = setTimeout(() => {
-                fetch(`{{ url('/coordinator/outdoor') }}/${id}`, {
-                    method: 'PATCH',
+                fetch('{{ route("coordinator.outdoor.upsert") }}', {
+                    method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': token,
                         'Accept': 'application/json',
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ [el.name]: el.value })
+                    body: JSON.stringify({
+                        id: id,
+                        field: el.name,
+                        value: el.value
+                    })
                 }).then(r => {
                     if(r.ok) {
                         showIndicator(el, 'success');
@@ -376,13 +380,15 @@
             // Check if export route exists
             window.exportOutdoorData = function () {
       // baca nilai month dari form filter
-      const form  = document.querySelector('form[method="GET"]');
+      const form = document.querySelector('form[method="GET"]');
       const month = form ? (form.querySelector('select[name="month"]')?.value || '') : '';
-      const url   = new URL('{{ route("coordinator.outdoor.export") }}', window.location.origin);
-      if (month) url.searchParams.set('month', month);
-      // year tidak dipakai di skema ini; abaikan saja
-      window.location.href = url.toString();
-  }
+
+      let exportUrl = '{{ route("coordinator.outdoor.export") }}';
+      if (month) {
+          exportUrl += `?month=${encodeURIComponent(month)}`;
+      }
+      window.location.href = exportUrl;
+         };
         };
 
         // Additional export function for outdoor projects

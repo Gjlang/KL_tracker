@@ -163,8 +163,8 @@ Route::get('/outdoor-jobs', fn () => redirect()->route('dashboard.outdoor'))->na
 // Legacy index
 Route::get('/outdoor/ongoing-jobs', [OutdoorOngoingJobController::class, 'index'])->name('outdoor.ongoing.index');
 
-
-
+Route::post('/coordinator/outdoor/upsert', [OutdoorCoordinatorController::class, 'upsert'])->name('coordinator.outdoor.upsert');
+ Route::post('/upsert', [OutdoorCoordinatorController::class, 'upsert'])->name('upsert');
 
 
 // ===============================================

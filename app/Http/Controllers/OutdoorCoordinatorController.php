@@ -12,108 +12,83 @@ use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\StreamedResponse; // add at top
 use Illuminate\Foundation\Configuration\Exceptions;
 
-
-
-
-
 class OutdoorCoordinatorController  extends Controller
 {
 
-  public function index(Request $request)
+public function index(Request $request)
 {
-    // ===== 1) Month & Year (supports 1..12 or "January") =====
-    $rawMonth = $request->input('month'); // 1..12 or "January"
+    // ===== 1) Month & Year (menerima: 1..12 / "September" / "Sep") =====
+    $rawMonth = $request->input('month', $request->input('outdoor_month'));
+    $rawYear  = $request->input('year',  $request->input('outdoor_year'));
+
     $month = null;
     if ($rawMonth !== null && $rawMonth !== '') {
-        if (ctype_digit((string)$rawMonth)) {
-            $month = max(1, min(12, (int)$rawMonth));
+        $m = trim((string)$rawMonth);
+        if (ctype_digit($m)) {
+            $month = max(1, min(12, (int)$m));
         } else {
-            try { $month = Carbon::parse('1 '.$rawMonth)->month; } catch (\Throwable $e) { $month = null; }
+            $map = [
+                'jan'=>1,'january'=>1,'feb'=>2,'february'=>2,'mar'=>3,'march'=>3,
+                'apr'=>4,'april'=>4,'may'=>5,'jun'=>6,'june'=>6,'jul'=>7,'july'=>7,
+                'aug'=>8,'august'=>8,'sep'=>9,'september'=>9,'oct'=>10,'october'=>10,
+                'nov'=>11,'november'=>11,'dec'=>12,'december'=>12,
+            ];
+            $key = strtolower(preg_replace('/[^a-z]/i', '', $m));
+            $month = $map[$key] ?? null;
         }
     }
-    $year = $request->integer('year') ?: now()->year;
+    $year = (int)($rawYear ?: now()->year);
 
     // ===== 2) Months dropdown =====
     $months = [];
     for ($i = 1; $i <= 12; $i++) {
-        $months[] = ['value' => $i, 'label' => Carbon::create()->month($i)->format('F')];
+        $months[] = [
+            'value' => $i,
+            'label' => \Carbon\Carbon::create()->month($i)->format('F')
+        ];
     }
 
-    // ===== 3) Resolve a monthly-details source for OUTDOOR only =====
-    // Prefer a true outdoor table; only accept generic monthly_details if it has a 'category' we can filter.
+    // ===== 3) Pilih sumber monthly utk OUTDOOR =====
     $mdTable = null;
     $mdHasCategory = false;
-
-    if (Schema::hasTable('outdoor_monthly_details')) {
+    if (\Illuminate\Support\Facades\Schema::hasTable('outdoor_monthly_details')) {
         $mdTable = 'outdoor_monthly_details';
-    } elseif (Schema::hasTable('monthly_details')) {
+    } elseif (\Illuminate\Support\Facades\Schema::hasTable('monthly_details')) {
         $mdTable = 'monthly_details';
-        $mdHasCategory = Schema::hasColumn('monthly_details', 'category');
+        $mdHasCategory = \Illuminate\Support\Facades\Schema::hasColumn('monthly_details', 'category');
     }
-    // IMPORTANT: Do NOT use kltg_monthly_details for Outdoor
+    // NOTE: jangan pakai kltg_monthly_details untuk Outdoor
 
-    // ===== 4) Collect master_file_id for the selected month (Outdoor only) =====
+    // ===== 4) Ambil ID master_file dari monthly (STRICT: tidak ada fallback) =====
     $monthlyIds = collect();
-
     if ($month) {
-        if ($mdTable) {
-            // Use monthly-details source
-            $q = DB::table($mdTable)
-                ->join('master_files', $mdTable.'.master_file_id', '=', 'master_files.id')
-                ->where(function ($qq) {
-                    $qq->where('master_files.product_category', 'Outdoor')
-                       ->orWhere('master_files.product_category', 'like', '%outdoor%');
-                })
-                ->where($mdTable.'.month', $month)
-                ->where($mdTable.'.year',  $year)
-                ->where(function ($w) use ($mdTable) {
-                    $w->whereNotNull($mdTable.'.value_date')
-                      ->orWhereNotNull($mdTable.'.value_text')
-                      ->orWhere($mdTable.'.value_text', '!=', '');
-                });
-
-            // If using generic monthly_details, require OUTDOOR category
-            if ($mdTable === 'monthly_details' && $mdHasCategory) {
-                $q->where($mdTable.'.category', 'OUTDOOR');
+        if ($mdTable === 'outdoor_monthly_details') {
+            $monthlyIds = \Illuminate\Support\Facades\DB::table('outdoor_monthly_details')
+                ->where('month', $month)
+                ->where('year',  $year)
+                ->distinct()
+                ->pluck('master_file_id')
+                ->unique()
+                ->values();
+        } elseif ($mdTable === 'monthly_details') {
+            $query = \Illuminate\Support\Facades\DB::table('monthly_details')
+                ->where('month', $month)
+                ->where('year',  $year);
+            if ($mdHasCategory) {
+                $query->whereRaw('UPPER(category) = ?', ['OUTDOOR']);
             }
-
-            $monthlyIds = $q->pluck($mdTable.'.master_file_id')->unique()->values();
-        } else {
-            // Fallback: no outdoor-capable monthly table → use date overlap from master_files
-            $start = Carbon::create($year, $month, 1)->startOfDay();
-            $end   = (clone $start)->endOfMonth()->endOfDay();
-
-            $monthlyIds = MasterFile::query()
-                ->where(function ($qq) {
-                    $qq->where('product_category', 'Outdoor')
-                       ->orWhere('product_category', 'like', '%outdoor%');
-                })
-                // overlap: start <= monthEnd && (finish or start) >= monthStart
-                ->where(function ($mm) use ($start, $end) {
-                    $mm->whereDate('date', '<=', $end)
-                       ->whereDate(DB::raw('COALESCE(date_finish, date)'), '>=', $start);
-                })
-                // optional fallback if you still keep text month in master_files.month
-                ->orWhere(function ($mm) use ($month) {
-                    $mm->where(function ($qq) {
-                            $qq->where('product_category', 'Outdoor')
-                               ->orWhere('product_category', 'like', '%outdoor%');
-                        })
-                       ->whereNotNull('month')
-                       ->whereRaw('MONTH(STR_TO_DATE(TRIM(month), "%M")) = ?', [$month]);
-                })
-                ->pluck('id')
+            $monthlyIds = $query->distinct()
+                ->pluck('master_file_id')
                 ->unique()
                 ->values();
         }
     }
 
-    // ===== 5) AUTO-SYNC: ensure coordinator rows exist for those master_file_id =====
-    if ($month && $monthlyIds->isNotEmpty()) {
-        $existing = DB::table('outdoor_coordinator_trackings')
+    // ===== 5) AUTO-SYNC hanya untuk ID yang ada di monthly (scope bulan terpilih) =====
+    if ($month && $mdTable && $monthlyIds->isNotEmpty()) {
+        $existing = \Illuminate\Support\Facades\DB::table('outdoor_coordinator_trackings')
             ->whereIn('master_file_id', $monthlyIds)
-            ->pluck('master_file_id')
-            ->all();
+            ->pluck('master_file_id');
 
         $missing = $monthlyIds->diff($existing)->values();
 
@@ -126,13 +101,15 @@ class OutdoorCoordinatorController  extends Controller
                 'updated_at'     => $now,
             ])->all();
 
-            DB::table('outdoor_coordinator_trackings')->insert($payload);
+            \Illuminate\Support\Facades\DB::table('outdoor_coordinator_trackings')->insert($payload);
         }
     }
 
-    // ===== 6) Base query: Outdoor only; month filter by monthlyIds when set =====
-    $base = OutdoorCoordinatorTracking::query()
-        ->with('masterFile')
+    // ===== 6) Base query: kunci dengan monthlyIds bila month dipilih =====
+    $base = \App\Models\OutdoorCoordinatorTracking::query()
+        ->with(['masterFile' => function ($q) {
+            $q->select('id','company','client','product','product_category');
+        }])
         ->whereHas('masterFile', function ($q) {
             $q->where(function ($qq) {
                 $qq->where('product_category', 'Outdoor')
@@ -141,16 +118,20 @@ class OutdoorCoordinatorController  extends Controller
         });
 
     if ($month) {
-        if ($monthlyIds->isNotEmpty()) {
-            $base->whereIn('master_file_id', $monthlyIds);
+        if ($mdTable) {
+            if ($monthlyIds->isNotEmpty()) {
+                $base->whereIn('master_file_id', $monthlyIds);
+            } else {
+                // Month dipilih tapi di monthly TIDAK ADA baris → tampilkan kosong (STRICT)
+                $base->whereRaw('1=0');
+            }
         } else {
-            // If the month truly has no rows, show none (keeps it consistent with Monthly view)
+            // Tidak ada tabel monthly yang valid → juga kosong (STRICT)
             $base->whereRaw('1=0');
         }
     }
 
     // ===== 7) Order & paginate =====
-    // Keep order by first-created so "siapa yang masuk duluan" stays on top.
     $rows = (clone $base)
         ->orderBy('outdoor_coordinator_trackings.created_at', 'asc')
         ->paginate(20)
@@ -161,38 +142,10 @@ class OutdoorCoordinatorController  extends Controller
         'months'  => $months,
         'month'   => $month,
         'year'    => $year,
-        'mdTable' => $mdTable ?: 'dates_fallback', // small debug badge if you want
+        'mdTable' => $mdTable ?: 'no_monthly_table',
     ]);
 }
 
-
-
-private function masterFilesForMonth(?int $month, ?int $year)
-{
-    $q = \App\Models\MasterFile::query()
-        ->where(function ($qq) {
-            $qq->where('product_category', 'Outdoor')
-               ->orWhere('product_category', 'like', '%outdoor%');
-        });
-
-    if ($month && $year) {
-        $start = Carbon::create($year, $month, 1)->startOfDay();
-        $end   = (clone $start)->endOfMonth()->endOfDay();
-
-        // Overlap logic (start <= end && finish >= start)
-        $q->where(function ($mm) use ($start, $end) {
-            $mm->whereDate('date', '<=', $end)
-               ->whereDate(DB::raw('COALESCE(date_finish, date)'), '>=', $start);
-        })
-        // Fallback if you still use text month in master_files.month
-        ->orWhere(function ($mm) use ($month) {
-            $mm->whereNotNull('month')
-               ->whereRaw('MONTH(STR_TO_DATE(TRIM(month), "%M")) = ?', [$month]);
-        });
-    }
-
-    return $q->select('id'); // we only need IDs
-}
     // Alternative: Even simpler test to isolate the issue
     public function index_minimal_test()
     {
@@ -693,72 +646,55 @@ private function masterFilesForMonth(?int $month, ?int $year)
                        ->with('info', 'No new outdoor master files found to create tracking records.');
     }
 
-    public function upsert(Request $req)
-    {
-        $data = $req->validate([
-            'master_file_id' => 'required|integer|exists:master_files,id',
-            'year'           => 'required|integer|min:2000|max:2100',
-            'month'          => 'required|integer|min:1|max:12',
-
-            // include OUTDOOR here (and any others you actually support)
-            'category'       => 'required|string|in:OUTDOOR,MEDIA,PUBLICATION,KLTG',
-
-            // ✨ allow the new keys you want to store
-            'field_key'      => 'required|string|in:STATUS,INSTALLED_ON,REMARK',
-
-            'field_type'     => 'required|string|in:text,date',
-            'value'          => 'nullable|string',
+    public function upsert(Request $request)
+{
+    try {
+        $data = $request->validate([
+            'id'    => 'required|integer|exists:outdoor_coordinator_trackings,id',
+            'field' => 'required|string',
+            'value' => 'nullable|string'
         ]);
-        // normalize boolean checkboxes for months
-        $boolFields = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec',
-                       'payment','material','artwork','received_approval','sent_to_printer','collection_printer'];
 
-        if (in_array($data['field'], $boolFields, true)) {
-            $data['value'] = filter_var($data['value'], FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+        $job = OutdoorCoordinatorTracking::findOrFail($data['id']);
+        $field = $data['field'];
+        $value = $data['value'];
+
+        // Whitelist allowed fields sesuai DB schema
+        $allowedFields = [
+            'site', 'payment', 'material', 'artwork', 'received_approval',
+            'sent_to_printer', 'collection_printer', 'installation',
+            'dismantle', 'remarks', 'next_follow_up', 'status'
+        ];
+
+        if (!in_array($field, $allowedFields)) {
+            return response()->json(['error' => 'Field not allowed'], 400);
         }
 
-        $row = OutdoorCoordinatorTracking::updateOrCreate(
-            [
-                'master_file_id' => $data['master_file_id'],
-                'year'           => $data['year'],
-            ],
-            [
-                $data['field'] => $data['value'],
-            ]
-        );
+        // Normalize date fields
+        $dateFields = [
+            'received_approval', 'sent_to_printer', 'collection_printer',
+            'installation', 'dismantle', 'next_follow_up'
+        ];
 
-        return response()->json(['ok' => true, 'id' => $row->id]);
-    }
-
-    /**
-     * Quick create tracking from master file (AJAX)
-     */
-    public function quickCreateFromMasterFile($masterFileId)
-    {
-        try {
-            $masterFile = MasterFile::findOrFail($masterFileId);
-
-            // Check if tracking already exists
-            $existing = OutdoorCoordinatorTracking::where('master_file_id', $masterFileId)->first();
-            if ($existing) {
-                return response()->json(['error' => 'Tracking already exists for this master file'], 400);
+        if (in_array($field, $dateFields) && !empty($value)) {
+            try {
+                $value = date('Y-m-d', strtotime($value));
+            } catch (\Throwable $e) {
+                return response()->json(['error' => 'Invalid date format'], 400);
             }
-
-            $tracking = OutdoorCoordinatorTracking::create([
-                'master_file_id' => $masterFileId,
-                'site' => $masterFile->location,
-                'status' => 'pending'
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Tracking created successfully',
-                'tracking_id' => $tracking->id
-            ]);
-        } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
         }
+
+        // Update field
+        $job->{$field} = $value;
+        $job->save();
+
+        return response()->json(['success' => true, 'id' => $job->id]);
+
+    } catch (\Throwable $e) {
+        Log::error('Upsert error: ' . $e->getMessage());
+        return response()->json(['error' => 'Server error'], 500);
     }
+ }
 
     /**
      * Get available master files for API calls
