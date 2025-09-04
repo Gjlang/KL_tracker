@@ -230,7 +230,7 @@
                                         </div>
                                     </td>
 
-                                    @foreach (['site','payment','material','artwork','approval','sent','collected','install','dismantle','status'] as $col)
+                                    @foreach (['site','payment','material','artwork','received_approval','sent_to_printer','collection_printer','installation','dismantle','status'] as $col)
                                         <td class="px-4 py-4 align-middle border-b border-gray-100">
                                             <div class="relative">
                                                 <input type="text"

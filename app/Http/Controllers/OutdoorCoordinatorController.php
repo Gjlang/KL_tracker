@@ -648,6 +648,8 @@ public function index(Request $request)
 
     public function upsert(Request $request)
 {
+
+
     try {
         $data = $request->validate([
             'id'    => 'required|integer|exists:outdoor_coordinator_trackings,id',

@@ -130,116 +130,56 @@ class MediaOngoingJobController extends Controller
 
     // app/Http/Controllers/MediaOngoingJobController.php
 
-// In MediaOngoingJobController.php, replace your upsert method with this:
-
 public function upsert(Request $request)
 {
-    try {
-        Log::info('Upsert request received', $request->all());
+    $data = $request->validate([
+        'section'        => 'required|string|in:content,editing,schedule,report,valueadd',
+        'master_file_id' => 'required|exists:master_files,id',
+        'year'           => 'required|integer|min:2000|max:2100',
+        'month'          => 'required|integer|min:1|max:12',
+        'field'          => 'required|string',
+        'value'          => 'nullable',
+    ]);
 
-        $data = $request->validate([
-            'section'        => 'required|string|in:content,editing,schedule,report,valueadd',
-            'master_file_id' => 'required|exists:master_files,id',
-            'year'           => 'required|integer|min:2000|max:2100',
-            'month'          => 'nullable|integer|min:1|max:12',
-            'field'          => 'required|string',
-            'value'          => 'nullable',
-        ]);
+    // Tentukan model berdasarkan section (pakai factory yang sudah kamu punya)
+    $modelClass = \App\Models\MediaCoordinatorTracking::forSection($data['section']);
 
-        // Get model class
-        $modelClass = \App\Models\MediaCoordinatorTracking::forSection($data['section']);
-
-        // Validate field is allowed for this section
-        $allowedFields = [
-            'content'  => ['total_artwork', 'pending', 'draft_wa', 'approved'],
-            'editing'  => ['total_artwork', 'pending', 'draft_wa', 'approved'],
-            'schedule' => ['total_artwork', 'crm', 'meta_mgr', 'tiktok_ig_draft'],
-            'report'   => ['pending', 'completed'],
-            'valueadd' => ['quota', 'completed'],
-        ];
-
-        if (!in_array($data['field'], $allowedFields[$data['section']], true)) {
-            return response()->json(['ok' => false, 'error' => 'Field not allowed'], 422);
-        }
-
-        // CRITICAL: Map UI field names to database column names
-        $fieldMapping = [
-            'meta_mgr' => 'meta_manager', // UI sends 'meta_mgr', DB expects 'meta_manager'
-        ];
-        $dbField = $fieldMapping[$data['field']] ?? $data['field'];
-
-        // Build unique keys
-        $keys = [
-            'master_file_id' => (int)$data['master_file_id'],
-            'year' => (int)$data['year'],
-        ];
-
-        if (!empty($data['month'])) {
-            $keys['month'] = (int)$data['month'];
-        }
-
-        Log::info('Looking for record', ['model' => $modelClass, 'keys' => $keys, 'field' => $dbField]);
-
-        // Find or create record
-        $record = $modelClass::firstOrNew($keys);
-
-        // Process value based on field type
-        $value = $data['value'];
-
-        // Boolean fields
-        if (in_array($data['field'], ['draft_wa', 'approved', 'tiktok_ig_draft'], true)) {
-            $value = (bool)$value ? 1 : 0;
-        }
-        // Integer fields
-        elseif (in_array($data['field'], ['total_artwork', 'pending', 'crm', 'meta_mgr', 'quota'], true)) {
-            $value = ($value === '' || $value === null) ? null : (int)$value;
-        }
-        // Special case: valueadd completed can be integer
-        elseif ($data['section'] === 'valueadd' && $data['field'] === 'completed') {
-            $value = is_numeric($value) ? (int)$value : ((bool)$value ? 1 : 0);
-        }
-        // Report completed is boolean
-        elseif ($data['field'] === 'completed') {
-            $value = (bool)$value ? 1 : 0;
-        }
-
-        // Set the field value using the mapped database field name
-        $record->{$dbField} = $value;
-
-        Log::info('Saving record', [
-            'dbField' => $dbField,
-            'value' => $value,
-            'record_exists' => $record->exists
-        ]);
-
-        $saved = $record->save();
-
-        if ($saved) {
-            Log::info('Record saved successfully', ['id' => $record->id]);
-            return response()->json([
-                'ok' => true,
-                'id' => $record->id,
-                'field' => $dbField,
-                'value' => $value
-            ]);
-        } else {
-            Log::error('Failed to save record');
-            return response()->json(['ok' => false, 'error' => 'Failed to save'], 500);
-        }
-
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        Log::warning('Validation error', ['errors' => $e->errors()]);
-        return response()->json(['ok' => false, 'errors' => $e->errors()], 422);
-    } catch (\Exception $e) {
-        Log::error('Upsert failed: ' . $e->getMessage(), [
-            'trace' => $e->getTraceAsString(),
-            'request' => $request->all()
-        ]);
-        return response()->json([
-            'ok' => false,
-            'error' => 'Server error: ' . $e->getMessage()
-        ], 500);
+    // Batasi field yang boleh diubah per section (harus sesuai kolom tabelnya)
+    $allowedPerSection = [
+        'content'  => ['total_artwork','pending','draft_wa','approved'],
+        'editing'  => ['total_artwork','pending','draft_wa','approved'],
+        'schedule' => ['total_artwork','crm','meta_mgr','tiktok_ig_draft'],
+        'report'   => ['pending','completed'],
+        'valueadd' => ['quota','completed'],
+    ];
+    if (!in_array($data['field'], $allowedPerSection[$data['section']], true)) {
+        return response()->json(['ok' => false, 'error' => 'Field not allowed'], 422);
     }
+
+    // Satu baris per (master_file_id, year, month) per tabel/section
+    /** @var \Illuminate\Database\Eloquent\Model $row */
+    $row = $modelClass::firstOrNew([
+        'master_file_id' => $data['master_file_id'],
+        'year'           => (int)$data['year'],
+        'month'          => (int)$data['month'],
+    ]);
+
+    // Coerce tipe sesuai casts di model kecilmu
+    $val = $data['value'];
+    // Checkbox kirimkan "1"/true/false → ubah ke 1/0
+    if (in_array($data['field'], ['draft_wa','approved','tiktok_ig_draft','completed'], true)) {
+        $val = (int) (!!$val);
+    }
+
+    // Numeric? (quota/total_artwork/pending/crm/meta_mgr)
+    if (in_array($data['field'], ['quota','total_artwork','pending','crm','meta_mgr'], true)) {
+        $val = ($val === '' || $val === null) ? null : (int)$val;
+    }
+
+    $row->{$data['field']} = $val;
+    $row->save();
+
+    return response()->json(['ok' => true, 'id' => $row->id]);
 }
 
 

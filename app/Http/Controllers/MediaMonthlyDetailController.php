@@ -154,6 +154,7 @@ class MediaMonthlyDetailController extends Controller
         ]);
     }
 
+
     public function upsert(Request $req)
     {
         try {

@@ -1,164 +1,233 @@
-{{-- resources/views/coordinators/partials/_tab_table.blade.php --}}
-<div class="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-slate-200/60 overflow-hidden">
-  {{-- Premium Header --}}
-  <div class="bg-gradient-to-r from-slate-50 to-blue-50/50 px-6 py-6 border-b border-slate-200/80">
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-      <div class="flex items-center gap-3">
-        @if(isset($icon))
-          <div class="w-12 h-12 bg-gradient-to-br from-[#4bbbed] to-[#3da5cc] rounded-2xl flex items-center justify-center text-white text-xl shadow-lg">
-            {{ $icon }}
-          </div>
-        @endif
-        <div>
-          <h3 class="text-xl font-bold text-slate-800 tracking-tight">{{ $title }}</h3>
-          @if(isset($description))
-            <p class="text-sm text-slate-600 mt-1 font-medium">{{ $description }}</p>
-          @endif
-        </div>
-      </div>
-      <div class="flex items-center gap-3">
-        <div class="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm border border-slate-200/60">
-          <div class="w-2 h-2 bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full"></div>
-          <span class="text-sm font-semibold text-slate-700">{{ count($masters) }}</span>
-          <span class="text-xs text-slate-500 font-medium">companies</span>
-        </div>
+{{-- coordinators/partials/_tab_table.blade.php --}}
+@php
+  // $section, $rows, $year, $month di-passing dari parent view
+
+  $columns = match($section) {
+    'content' => [
+      ['key'=>'no', 'label'=>'No', 'width' => 'w-16'],
+      ['key'=>'company', 'label'=>'Company', 'width' => 'w-32'],
+      ['key'=>'client', 'label'=>'Client Name', 'width' => 'w-40'],
+      ['key'=>'product', 'label'=>'Package (Product)', 'width' => 'w-48'],
+      ['key'=>'total_artwork_date', 'label'=>'Total Artwork Date', 'type'=>'date', 'width' => 'w-44'],
+      ['key'=>'pending_date', 'label'=>'Pending Date', 'type'=>'date', 'width' => 'w-44'],
+      ['key'=>'draft_wa', 'label'=>'Draft WA', 'type'=>'number', 'width' => 'w-28'],
+      ['key'=>'approved', 'label'=>'Approved', 'type'=>'number', 'width' => 'w-28'],
+      ['key'=>'remarks', 'label'=>'Remarks', 'type'=>'text', 'width' => 'w-64'],
+    ],
+    'editing' => [
+      ['key'=>'no', 'label'=>'No', 'width' => 'w-16'],
+      ['key'=>'company', 'label'=>'Company', 'width' => 'w-32'],
+      ['key'=>'client', 'label'=>'Client Name', 'width' => 'w-40'],
+      ['key'=>'product', 'label'=>'Package (Product)', 'width' => 'w-48'],
+      ['key'=>'total_artwork_date', 'label'=>'Total Artwork Date', 'type'=>'date', 'width' => 'w-44'],
+      ['key'=>'pending_date', 'label'=>'Pending Date', 'type'=>'date', 'width' => 'w-44'],
+      ['key'=>'draft_wa', 'label'=>'Draft WA', 'type'=>'number', 'width' => 'w-28'],
+      ['key'=>'approved', 'label'=>'Approved', 'type'=>'number', 'width' => 'w-28'],
+      ['key'=>'remarks', 'label'=>'Remarks', 'type'=>'text', 'width' => 'w-64'],
+    ],
+    'schedule' => [
+      ['key'=>'no', 'label'=>'No', 'width' => 'w-16'],
+      ['key'=>'company', 'label'=>'Company', 'width' => 'w-32'],
+      ['key'=>'client', 'label'=>'Client Name', 'width' => 'w-40'],
+      ['key'=>'product', 'label'=>'Package (Product)', 'width' => 'w-48'],
+      ['key'=>'total_artwork_date', 'label'=>'Total Artwork Date', 'type'=>'date', 'width' => 'w-44'],
+      ['key'=>'crm_date', 'label'=>'CRM Date', 'type'=>'date', 'width' => 'w-44'],
+      ['key'=>'meta_ads_manager_date', 'label'=>'Meta/Ads Manager Date', 'type'=>'date', 'width' => 'w-44'],
+      ['key'=>'tiktok_ig_draft', 'label'=>'TikTok/IG Draft', 'type'=>'number', 'width' => 'w-32'],
+      ['key'=>'remarks', 'label'=>'Remarks', 'type'=>'text', 'width' => 'w-64'],
+    ],
+    'report' => [
+      ['key'=>'no', 'label'=>'No', 'width' => 'w-16'],
+      ['key'=>'company', 'label'=>'Company', 'width' => 'w-32'],
+      ['key'=>'client', 'label'=>'Client Name', 'width' => 'w-40'],
+      ['key'=>'product', 'label'=>'Package (Product)', 'width' => 'w-48'],
+      ['key'=>'pending_date', 'label'=>'Pending Date', 'type'=>'date', 'width' => 'w-44'],
+      ['key'=>'completed_date', 'label'=>'Completed Date', 'type'=>'date', 'width' => 'w-44'],
+      ['key'=>'remarks', 'label'=>'Remarks', 'type'=>'text', 'width' => 'w-64'],
+    ],
+    'valueadd' => [
+      ['key'=>'no', 'label'=>'No', 'width' => 'w-16'],
+      ['key'=>'company', 'label'=>'Company', 'width' => 'w-32'],
+      ['key'=>'client', 'label'=>'Client Name', 'width' => 'w-40'],
+      ['key'=>'quota', 'label'=>'Quota (Textbox)', 'type'=>'text', 'width' => 'w-48'],
+      ['key'=>'completed', 'label'=>'Completed', 'type'=>'number', 'width' => 'w-28'],
+      ['key'=>'remarks', 'label'=>'Remarks', 'type'=>'text', 'width' => 'w-64'],
+    ],
+    default => []
+  };
+@endphp
+
+<div class="w-full">
+  @if (is_null($month))
+    <div class="flex items-center p-4 mb-6 text-amber-800 bg-amber-50 border border-amber-200 rounded-lg">
+      <svg class="w-5 h-5 mr-3 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+      </svg>
+      <div>
+        <strong>Filter Required:</strong> Please select both <strong>Month</strong> and <strong>Year</strong> to view and edit data.
       </div>
     </div>
-  </div>
+  @endif
 
-  {{-- Enhanced Table --}}
-  @if(count($masters) > 0)
-    <div class="overflow-x-auto">
-      <table class="min-w-full text-sm sticky-table">
-        <thead class="bg-gradient-to-r from-slate-50 to-blue-50/50 text-slate-700 border-b-2 border-slate-200">
-          <tr>
-            <th class="px-4 py-4 text-left font-bold w-16 text-xs uppercase tracking-wide">No</th>
-            <th class="px-4 py-4 text-left font-bold min-w-[10rem] text-xs uppercase tracking-wide">Company</th>
-            <th class="px-4 py-4 text-left font-bold min-w-[8rem] hidden sm:table-cell text-xs uppercase tracking-wide">Client</th>
-            <th class="px-4 py-4 text-left font-bold min-w-[10rem] text-xs uppercase tracking-wide">Package</th>
-            @foreach($columns as $col)
-              <th class="px-4 py-4 font-bold text-xs uppercase tracking-wide whitespace-nowrap
-                @if($col['type'] === 'checkbox') text-center min-w-[7rem]
-                @elseif($col['type'] === 'number') text-right min-w-[7rem]
-                @else text-left min-w-[10rem] @endif
-                @if(in_array($col['key'], ['meta_mgr'])) hidden lg:table-cell @endif">
-                {{ $col['label'] }}
-              </th>
+  <div class="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 rounded-lg">
+    <table class="min-w-full divide-y divide-gray-300 bg-white">
+      <thead class="bg-gray-50">
+        <tr>
+          @foreach ($columns as $col)
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
+              <div class="flex items-center space-x-1">
+                <span>{{ $col['label'] }}</span>
+                @if (isset($col['type']) && $col['type'] === 'date')
+                  <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                  </svg>
+                @elseif (isset($col['type']) && $col['type'] === 'number')
+                  <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"></path>
+                  </svg>
+                @endif
+              </div>
+            </th>
+          @endforeach
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        @forelse ($rows as $i => $row)
+          <tr class="hover:bg-gray-50 transition-colors duration-150">
+            @foreach ($columns as $col)
+              @php $key = $col['key']; @endphp
+
+              {{-- Static cells --}}
+              @if ($key === 'no')
+                <td class="px-4 py-3 text-sm font-medium text-gray-900 border-b border-gray-100">
+                  <span class="inline-flex items-center justify-center w-8 h-8 bg-gray-100 rounded-full text-xs font-semibold">
+                    {{ $loop->iteration }}
+                  </span>
+                </td>
+              @elseif (in_array($key, ['company','client','product','quota']))
+                <td class="px-4 py-3 text-sm text-gray-900 border-b border-gray-100">
+                  <div class="max-w-xs truncate" title="{{ $row->{$key} }}">
+                    {{ $row->{$key} ?: '—' }}
+                  </div>
+                </td>
+
+              {{-- Editable cells --}}
+              @else
+                @php
+                  $type = $col['type'] ?? 'text';
+                  $val  = $row->{$key} ?? null;
+                  $width = $col['width'] ?? 'w-full';
+                @endphp
+                <td class="px-4 py-3 text-sm text-gray-900 border-b border-gray-100">
+                  <div
+                    x-data="{
+                        state: 'idle',
+                        val: @js($val),
+                        originalVal: @js($val),
+                        async save(e) {
+                          if ({{ $month ? 'false' : 'true' }}) return;
+                          if (e.target.value === this.originalVal) {
+                            this.state = 'idle';
+                            return;
+                          }
+
+                          this.state = 'saving';
+                          const ok = await window.mediaUpsert({
+                            section: @js($section),
+                            master_file_id: {{ (int)$row->master_file_id }},
+                            year: {{ (int)$year }},
+                            month: {{ (int)($month ?? 0) }},
+                            field: @js($key),
+                            value: e.target.value
+                          });
+
+                          this.state = ok ? 'saved' : 'error';
+                          if (ok) {
+                            this.val = e.target.value;
+                            this.originalVal = e.target.value;
+                            setTimeout(() => { this.state = 'idle'; }, 2000);
+                          }
+                        }
+                    }"
+                    class="flex items-center space-x-2"
+                  >
+                    @if ($type === 'date')
+                      <input type="date"
+                             class="flex-1 border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors {{ $width }}"
+                             :value="val"
+                             @change="save($event)"
+                             {{ $month ? '' : 'disabled' }}>
+                    @elseif ($type === 'number')
+                      <input type="number" min="0"
+                             class="flex-1 border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors {{ $width }}"
+                             :value="val"
+                             @change="save($event)"
+                             {{ $month ? '' : 'disabled' }}>
+                    @else
+                      <input type="text"
+                             class="flex-1 border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors {{ $width }}"
+                             :value="val"
+                             @change="save($event)"
+                             {{ $month ? '' : 'disabled' }}>
+                    @endif
+
+                    {{-- Status Indicator --}}
+                    <div class="flex-shrink-0 w-16">
+                      <span class="inline-flex items-center text-xs font-medium"
+                            :class="{
+                              'text-gray-400': state === 'idle',
+                              'text-blue-600': state === 'saving',
+                              'text-green-600': state === 'saved',
+                              'text-red-600': state === 'error'
+                            }">
+                        <svg x-show="state === 'saving'" class="w-3 h-3 mr-1 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <svg x-show="state === 'saved'" class="w-3 h-3 mr-1 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        <svg x-show="state === 'error'" class="w-3 h-3 mr-1 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                        <span x-text="state === 'idle' ? '' : (state === 'saving' ? 'Saving...' : (state === 'saved' ? 'Saved!' : 'Error'))">
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                </td>
+              @endif
             @endforeach
           </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-200/60">
-          @foreach ($masters as $i => $m)
-            @php
-              $row = ($map[$m->id] ?? null);
-              $company = $m->company ?? $m->company_name ?? '';
-              $client  = $m->client ?? '';
-              $pkg     = $m->product ?? '';
-            @endphp
-            <tr class="group hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-slate-50 transition-all duration-300
-              @if($i % 2 === 1) bg-slate-50/40 @endif">
-              <td class="px-4 py-4">
-                <div class="w-8 h-8 bg-gradient-to-br from-slate-200 to-slate-300 rounded-xl flex items-center justify-center text-xs font-bold text-slate-600 group-hover:from-blue-200 group-hover:to-blue-300 group-hover:text-blue-700 transition-all duration-300">
-                  {{ $i+1 }}
-                </div>
-              </td>
-              <td class="px-4 py-4">
-                <div class="font-bold text-slate-800 text-base truncate group-hover:text-blue-800 transition-colors">{{ $company }}</div>
-              </td>
-              <td class="px-4 py-4 hidden sm:table-cell">
-                <span class="text-slate-600 font-medium truncate">{{ $client ?: '—' }}</span>
-              </td>
-              <td class="px-4 py-4">
-                <span class="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 rounded-xl text-xs font-bold border border-slate-300/60 shadow-sm">
-                  {{ $pkg ?: 'No package' }}
-                </span>
-              </td>
+        @empty
+          <tr>
+            <td colspan="{{ count($columns) }}" class="px-4 py-12 text-center">
+              <div class="flex flex-col items-center justify-center text-gray-500">
+                <svg class="w-12 h-12 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 009.586 13H7"></path>
+                </svg>
+                <h3 class="text-sm font-medium text-gray-900 mb-1">No data available</h3>
+                <p class="text-sm text-gray-500">
+                  {{ is_null($month) ? 'Please select Month & Year from the filters above.' : 'No records found for the selected filters.' }}
+                </p>
+              </div>
+            </td>
+          </tr>
+        @endforelse
+      </tbody>
+    </table>
+  </div>
 
-              @foreach($columns as $col)
-                @php
-                   $key = $col['key'];
-                   $type = $col['type'];
-                   $value = $row ? ($row->$key ?? ($type==='checkbox' ? false : '')) : ($type==='checkbox' ? false : '');
-                @endphp
-                <td class="px-4 py-4
-                  @if($type === 'checkbox') text-center
-                  @elseif($type === 'number') text-right
-                  @else text-left @endif
-                  @if(in_array($key, ['meta_mgr'])) hidden lg:table-cell @endif">
-
-                  @if($type==='checkbox')
-                    <div class="flex items-center justify-center gap-2">
-                      <input type="checkbox"
-                             class="checkbox-premium autosave"
-                             @checked((bool)$value)
-                             :disabled="!selectedMonthEnabled"
-                             data-section="{{ $section }}"
-                             data-field="{{ $key }}"
-                             data-master="{{ $m->id }}"
-                             data-year="{{ $year }}"
-                             data-month="{{ $month ?? '' }}"
-                             x-on:change.debounce.300ms="save($event.target)">
-                      <span class="cell-status text-xs font-medium text-transparent transition-all duration-200">.</span>
-                    </div>
-                  @elseif($type==='number')
-                    <div class="flex items-center justify-end gap-3">
-                      <input type="number" step="1" min="0"
-                             value="{{ $value }}"
-                             class="input-premium autosave h-10 w-24 px-3 py-2 text-right text-sm font-semibold rounded-xl shadow-sm"
-                             :disabled="!selectedMonthEnabled"
-                             data-section="{{ $section }}"
-                             data-field="{{ $key }}"
-                             data-master="{{ $m->id }}"
-                             data-year="{{ $year }}"
-                             data-month="{{ $month ?? '' }}"
-                             x-on:blur.debounce.300ms="save($event.target)"
-                             x-on:keydown.enter.prevent="save($event.target)">
-                      <span class="cell-status text-xs font-medium text-transparent transition-all duration-200">.</span>
-                    </div>
-                  @else
-                    <div class="flex items-center gap-3">
-                      <input type="text"
-                             value="{{ $value }}"
-                             class="input-premium autosave h-10 px-3 py-2 text-sm font-medium rounded-xl shadow-sm
-                             @if(in_array($key, ['total_artwork', 'pending', 'crm'])) w-32
-                             @else w-40 @endif"
-                             :disabled="!selectedMonthEnabled"
-                             data-section="{{ $section }}"
-                             data-field="{{ $key }}"
-                             data-master="{{ $m->id }}"
-                             data-year="{{ $year }}"
-                             data-month="{{ $month ?? '' }}"
-                             x-on:blur.debounce.300ms="save($event.target)"
-                             x-on:keydown.enter.prevent="save($event.target)">
-                      <span class="cell-status text-xs font-medium text-transparent transition-all duration-200">.</span>
-                    </div>
-                  @endif
-                </td>
-              @endforeach
-            </tr>
-          @endforeach
-        </tbody>
-      </table>
-    </div>
-  @else
-    <div class="px-6 py-16 text-center">
-      <div class="mx-auto w-20 h-20 bg-gradient-to-br from-slate-200 to-slate-300 rounded-3xl flex items-center justify-center mb-6 shadow-lg">
-        <svg class="w-10 h-10 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-        </svg>
+  {{-- Table Footer --}}
+  @if($rows->isNotEmpty())
+    <div class="flex items-center justify-between px-4 py-3 bg-gray-50 border-t border-gray-200 rounded-b-lg">
+      <div class="text-sm text-gray-700">
+        Showing <span class="font-medium">{{ $rows->count() }}</span>
+        {{ Str::plural('record', $rows->count()) }} for
+        <span class="font-medium">{{ ucfirst($section) }}</span>
       </div>
-      <h4 class="text-xl font-bold text-slate-800 mb-3">No Data Available</h4>
-      <p class="text-slate-600 max-w-md mx-auto text-sm leading-relaxed">
-        No Social Media master files found for the selected filters.
-        <br>Try adjusting your <span class="font-semibold text-slate-800">year and month</span> selection.
-      </p>
-      <div class="mt-6">
-        <button class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-slate-200 to-slate-300 text-slate-700 rounded-xl font-medium text-sm hover:from-slate-300 hover:to-slate-400 transition-all duration-200">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-          </svg>
-          Refresh Data
-        </button>
+      <div class="text-sm text-gray-500">
+        {{ $month ? date('F Y', mktime(0, 0, 0, $month, 1, $year)) : 'No period selected' }}
       </div>
     </div>
   @endif

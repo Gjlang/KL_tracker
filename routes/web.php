@@ -204,24 +204,41 @@ Route::get('/coordinator/export', [KltgCoordinatorController::class, 'export'])
 // ===============================================
 // MEDIA COORDINATOR ROUTES (Fixed - Remove Conflicts)
 // ===============================================
-Route::prefix('coordinator')->name('coordinator.')->group(function () {
-    Route::get('/media', [MediaCoordinatorController::class, 'index'])->name('media.index');
-    Route::post('/media/upsert', [MediaCoordinatorController::class, 'upsert'])->name('media.upsert');
+Route::prefix('coordinator')->name('coordinator.')->/*->middleware(['auth'])*/group(function () {
+    Route::get('/media',        [MediaCoordinatorController::class, 'index'])->name('media.index');
+    Route::post('/media/upsert',[MediaCoordinatorController::class, 'upsert'])->name('media.upsert');
+    // ✅ Add export route
+    Route::get('/media/export', [MediaCoordinatorController::class, 'export'])->name('media.export');
 });
 
 // ===============================================
 // MEDIA ONGOING JOB ROUTES (Different namespace)
 // ===============================================
-Route::prefix('media-ongoing')->name('media.ongoing.')->group(function () {
-    Route::get('/', [MediaOngoingJobController::class, 'index'])->name('index');
-    Route::get('/create', [MediaOngoingJobController::class, 'create'])->name('create');
-    Route::post('/store', [MediaOngoingJobController::class, 'store'])->name('store');
-    Route::get('/{id}', [MediaOngoingJobController::class, 'show'])->name('show');
-    Route::get('/{id}/edit', [MediaOngoingJobController::class, 'edit'])->name('edit');
-    Route::put('/{id}', [MediaOngoingJobController::class, 'update'])->name('update');
-    Route::delete('/{id}', [MediaOngoingJobController::class, 'destroy'])->name('destroy');
-    Route::post('/update/{id}', [MediaOngoingJobController::class, 'updateField'])->name('update.field');
-    Route::post('/monthly-job/update', [MediaOngoingJobController::class, 'inlineUpdate'])->name('monthly.job.update');
+Route::prefix('media-ongoing')->name('media.ongoing.')->/*->middleware(['auth'])*/group(function () {
+    Route::get('/',                [MediaOngoingJobController::class, 'index'])->name('index');
+    Route::get('/create',          [MediaOngoingJobController::class, 'create'])->name('create');
+    Route::post('/store',          [MediaOngoingJobController::class, 'store'])->name('store');
+
+    // 🔁 Put the more specific route BEFORE the generic /{id}
+    Route::get('/{id}/edit',       [MediaOngoingJobController::class, 'edit'])
+        ->whereNumber('id')->name('edit');
+
+    Route::get('/{id}',            [MediaOngoingJobController::class, 'show'])
+        ->whereNumber('id')->name('show');
+
+    Route::put('/{id}',            [MediaOngoingJobController::class, 'update'])
+        ->whereNumber('id')->name('update');
+
+    Route::delete('/{id}',         [MediaOngoingJobController::class, 'destroy'])
+        ->whereNumber('id')->name('destroy');
+
+    Route::post('/update/{id}',    [MediaOngoingJobController::class, 'updateField'])
+        ->whereNumber('id')->name('update.field');
+
+    Route::post('/monthly-job/update', [MediaOngoingJobController::class, 'inlineUpdate'])
+        ->name('monthly.job.update');
+
+    // Jangan pakai nama 'coordinator.media.upsert' di sini.
     Route::post('/details/upsert', [MediaOngoingJobController::class, 'upsert'])->name('details.upsert');
 });
 
@@ -230,6 +247,7 @@ Route::prefix('media-ongoing')->name('media.ongoing.')->group(function () {
 // ===============================================
 Route::get('/dashboard/media', [MediaMonthlyDetailController::class, 'index'])
     ->name('dashboard.media');
+
 Route::post('/media/monthly/upsert', [MediaMonthlyDetailController::class, 'upsert'])
     ->name('media.monthly.upsert');
 
