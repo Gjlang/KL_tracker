@@ -185,6 +185,14 @@
                             <h3 class="text-xl font-bold text-gray-900">Filters & Search</h3>
                             <p class="text-sm text-gray-500">Filter data by month or other criteria</p>
                         </div>
+
+                        <a  href="{{ route('media.monthly.export', ['year' => ($year ?? now()->year)]) }}"
+                            class="inline-flex items-center justify-center px-6 py-3 rounded-xl
+                                bg-gradient-to-r from-emerald-600 to-teal-600 text-white
+                                hover:from-emerald-700 hover:to-teal-700 transition-all duration-300
+                                shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium">
+                            <span class="mr-2">⬇️</span> Export CSV
+                        </a>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

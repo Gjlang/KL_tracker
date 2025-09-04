@@ -9,7 +9,24 @@ $colsByTab = [
   'valueadd' => ['No','Company','Client Name','Quota','Completed','Remarks'],
 ];
 $headers = $colsByTab[$activeTab] ?? [];
+
+$editableFieldsByTab = [
+  'content'  => ['total_artwork_date' => 'date', 'pending_date' => 'date', 'draft_wa' => 'number', 'approved' => 'number', 'remarks' => 'text'],
+  'editing'  => ['total_artwork_date' => 'date', 'pending_date' => 'date', 'draft_wa' => 'number', 'approved' => 'number', 'remarks' => 'text'],
+  'schedule' => ['total_artwork_date' => 'date', 'crm_date' => 'date', 'meta_ads_manager_date' => 'date', 'tiktok_ig_draft' => 'number', 'remarks' => 'text'],
+  'report'   => ['pending_date' => 'date', 'completed_date' => 'date', 'remarks' => 'text'],
+  'valueadd' => ['quota' => 'number', 'completed' => 'number', 'remarks' => 'text'],
+];
+
+$edits = $editableFieldsByTab[$activeTab] ?? [];
+$editingEnabled = !empty($month) && !empty($year); // upsert butuh month & year
 @endphp
+
+@if(!$editingEnabled)
+  <div class="mb-3 rounded-md bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-2">
+    Select <strong>Month</strong> and <strong>Year</strong> to enable editing.
+  </div>
+@endif
 
 <div class="overflow-hidden">
   @if(count($headers) > 0)
@@ -26,48 +43,197 @@ $headers = $colsByTab[$activeTab] ?? [];
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
           @forelse($rows as $index => $row)
+            @php
+              $mfid = $row->master_file_id ?? null;
+            @endphp
+
             @if($activeTab === 'content' || $activeTab === 'editing')
-              <tr class="hover:bg-gray-50 transition-colors duration-150">
+              <tr class="hover:bg-gray-50 transition-colors duration-150" data-row-master="{{ $mfid }}">
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $index + 1 }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $row->company ?? '' }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $row->client ?? '' }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $row->product ?? '' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $row->total_artwork_date ?? '' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $row->pending_date ?? '' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $row->draft_wa ?? '' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $row->approved ?? '' }}</td>
-                <td class="px-6 py-4 text-sm text-gray-900">{{ $row->remarks ?? '' }}</td>
+
+                {{-- total_artwork_date --}}
+                <td class="px-6 py-2 text-sm">
+                  <input type="date"
+                         class="w-44 border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                         value="{{ $row->total_artwork_date ?? '' }}"
+                         {{ $editingEnabled ? '' : 'disabled' }}
+                         data-upsert
+                         data-section="{{ $activeTab }}"
+                         data-field="total_artwork_date"
+                         data-master="{{ $mfid }}"
+                         data-year="{{ $year }}"
+                         data-month="{{ $month }}">
+                </td>
+
+                {{-- pending_date --}}
+                <td class="px-6 py-2 text-sm">
+                  <input type="date"
+                         class="w-44 border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                         value="{{ $row->pending_date ?? '' }}"
+                         {{ $editingEnabled ? '' : 'disabled' }}
+                         data-upsert
+                         data-section="{{ $activeTab }}"
+                         data-field="pending_date"
+                         data-master="{{ $mfid }}"
+                         data-year="{{ $year }}"
+                         data-month="{{ $month }}">
+                </td>
+
+                {{-- draft_wa --}}
+                <td class="px-6 py-2 text-sm">
+                  <input type="number" min="0"
+                         class="w-28 border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                         value="{{ $row->draft_wa ?? '' }}"
+                         {{ $editingEnabled ? '' : 'disabled' }}
+                         data-upsert
+                         data-section="{{ $activeTab }}"
+                         data-field="draft_wa"
+                         data-master="{{ $mfid }}"
+                         data-year="{{ $year }}"
+                         data-month="{{ $month }}">
+                </td>
+
+                {{-- approved --}}
+                <td class="px-6 py-2 text-sm">
+                  <input type="number" min="0"
+                         class="w-28 border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                         value="{{ $row->approved ?? '' }}"
+                         {{ $editingEnabled ? '' : 'disabled' }}
+                         data-upsert
+                         data-section="{{ $activeTab }}"
+                         data-field="approved"
+                         data-master="{{ $mfid }}"
+                         data-year="{{ $year }}"
+                         data-month="{{ $month }}">
+                </td>
+
+                {{-- remarks --}}
+                <td class="px-6 py-2 text-sm">
+                  <input type="text"
+                         class="w-64 border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                         value="{{ $row->remarks ?? '' }}"
+                         {{ $editingEnabled ? '' : 'disabled' }}
+                         data-upsert
+                         data-section="{{ $activeTab }}"
+                         data-field="remarks"
+                         data-master="{{ $mfid }}"
+                         data-year="{{ $year }}"
+                         data-month="{{ $month }}">
+                </td>
               </tr>
+
             @elseif($activeTab === 'schedule')
-              <tr class="hover:bg-gray-50 transition-colors duration-150">
+              <tr class="hover:bg-gray-50 transition-colors duration-150" data-row-master="{{ $mfid }}">
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $index + 1 }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $row->company ?? '' }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $row->client ?? '' }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $row->product ?? '' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $row->total_artwork_date ?? '' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $row->crm_date ?? '' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $row->meta_ads_manager_date ?? '' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $row->tiktok_ig_draft ?? '' }}</td>
-                <td class="px-6 py-4 text-sm text-gray-900">{{ $row->remarks ?? '' }}</td>
+
+                {{-- total_artwork_date --}}
+                <td class="px-6 py-2 text-sm">
+                  <input type="date" class="w-44 border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                         value="{{ $row->total_artwork_date ?? '' }}" {{ $editingEnabled ? '' : 'disabled' }}
+                         data-upsert data-section="{{ $activeTab }}" data-field="total_artwork_date"
+                         data-master="{{ $mfid }}" data-year="{{ $year }}" data-month="{{ $month }}">
+                </td>
+
+                {{-- crm_date --}}
+                <td class="px-6 py-2 text-sm">
+                  <input type="date" class="w-44 border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                         value="{{ $row->crm_date ?? '' }}" {{ $editingEnabled ? '' : 'disabled' }}
+                         data-upsert data-section="{{ $activeTab }}" data-field="crm_date"
+                         data-master="{{ $mfid }}" data-year="{{ $year }}" data-month="{{ $month }}">
+                </td>
+
+                {{-- meta_ads_manager_date --}}
+                <td class="px-6 py-2 text-sm">
+                  <input type="date" class="w-44 border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                         value="{{ $row->meta_ads_manager_date ?? '' }}" {{ $editingEnabled ? '' : 'disabled' }}
+                         data-upsert data-section="{{ $activeTab }}" data-field="meta_ads_manager_date"
+                         data-master="{{ $mfid }}" data-year="{{ $year }}" data-month="{{ $month }}">
+                </td>
+
+                {{-- tiktok_ig_draft --}}
+                <td class="px-6 py-2 text-sm">
+                  <input type="number" min="0" class="w-28 border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                         value="{{ $row->tiktok_ig_draft ?? '' }}" {{ $editingEnabled ? '' : 'disabled' }}
+                         data-upsert data-section="{{ $activeTab }}" data-field="tiktok_ig_draft"
+                         data-master="{{ $mfid }}" data-year="{{ $year }}" data-month="{{ $month }}">
+                </td>
+
+                {{-- remarks --}}
+                <td class="px-6 py-2 text-sm">
+                  <input type="text" class="w-64 border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                         value="{{ $row->remarks ?? '' }}" {{ $editingEnabled ? '' : 'disabled' }}
+                         data-upsert data-section="{{ $activeTab }}" data-field="remarks"
+                         data-master="{{ $mfid }}" data-year="{{ $year }}" data-month="{{ $month }}">
+                </td>
               </tr>
+
             @elseif($activeTab === 'report')
-              <tr class="hover:bg-gray-50 transition-colors duration-150">
+              <tr class="hover:bg-gray-50 transition-colors duration-150" data-row-master="{{ $mfid }}">
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $index + 1 }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $row->company ?? '' }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $row->client ?? '' }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $row->product ?? '' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $row->pending_date ?? '' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $row->completed_date ?? '' }}</td>
-                <td class="px-6 py-4 text-sm text-gray-900">{{ $row->remarks ?? '' }}</td>
+
+                {{-- pending_date --}}
+                <td class="px-6 py-2 text-sm">
+                  <input type="date" class="w-44 border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                         value="{{ $row->pending_date ?? '' }}" {{ $editingEnabled ? '' : 'disabled' }}
+                         data-upsert data-section="{{ $activeTab }}" data-field="pending_date"
+                         data-master="{{ $mfid }}" data-year="{{ $year }}" data-month="{{ $month }}">
+                </td>
+
+                {{-- completed_date --}}
+                <td class="px-6 py-2 text-sm">
+                  <input type="date" class="w-44 border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                         value="{{ $row->completed_date ?? '' }}" {{ $editingEnabled ? '' : 'disabled' }}
+                         data-upsert data-section="{{ $activeTab }}" data-field="completed_date"
+                         data-master="{{ $mfid }}" data-year="{{ $year }}" data-month="{{ $month }}">
+                </td>
+
+                {{-- remarks --}}
+                <td class="px-6 py-2 text-sm">
+                  <input type="text" class="w-64 border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                         value="{{ $row->remarks ?? '' }}" {{ $editingEnabled ? '' : 'disabled' }}
+                         data-upsert data-section="{{ $activeTab }}" data-field="remarks"
+                         data-master="{{ $mfid }}" data-year="{{ $year }}" data-month="{{ $month }}">
+                </td>
               </tr>
+
             @elseif($activeTab === 'valueadd')
-              <tr class="hover:bg-gray-50 transition-colors duration-150">
+              <tr class="hover:bg-gray-50 transition-colors duration-150" data-row-master="{{ $mfid }}">
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $index + 1 }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $row->company ?? '' }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $row->client ?? '' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $row->quota ?? '' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $row->completed ?? '' }}</td>
-                <td class="px-6 py-4 text-sm text-gray-900">{{ $row->remarks ?? '' }}</td>
+
+                {{-- quota --}}
+                <td class="px-6 py-2 text-sm">
+                  <input type="number" min="0" class="w-28 border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                         value="{{ $row->quota ?? '' }}" {{ $editingEnabled ? '' : 'disabled' }}
+                         data-upsert data-section="{{ $activeTab }}" data-field="quota"
+                         data-master="{{ $mfid }}" data-year="{{ $year }}" data-month="{{ $month }}">
+                </td>
+
+                {{-- completed --}}
+                <td class="px-6 py-2 text-sm">
+                  <input type="number" min="0" class="w-28 border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                         value="{{ $row->completed ?? '' }}" {{ $editingEnabled ? '' : 'disabled' }}
+                         data-upsert data-section="{{ $activeTab }}" data-field="completed"
+                         data-master="{{ $mfid }}" data-year="{{ $year }}" data-month="{{ $month }}">
+                </td>
+
+                {{-- remarks --}}
+                <td class="px-6 py-2 text-sm">
+                  <input type="text" class="w-64 border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                         value="{{ $row->remarks ?? '' }}" {{ $editingEnabled ? '' : 'disabled' }}
+                         data-upsert data-section="{{ $activeTab }}" data-field="remarks"
+                         data-master="{{ $mfid }}" data-year="{{ $year }}" data-month="{{ $month }}">
+                </td>
               </tr>
             @endif
           @empty

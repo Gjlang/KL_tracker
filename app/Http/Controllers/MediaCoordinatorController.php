@@ -11,7 +11,6 @@ use Carbon\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 
-
 class MediaCoordinatorController extends Controller
 {
     /** Tab → table name */
@@ -46,9 +45,8 @@ class MediaCoordinatorController extends Controller
         $year  = (int)($req->query('year') ?: now()->year);
         $month = $this->normalizeMonth($req->query('month'));
 
-        // Hanya untuk debug cepat
-        $mastersCount = (clone $this->baseMediaMasters())
-            ->count();
+        // Debug cepat
+        $mastersCount = (clone $this->baseMediaMasters())->count();
         Log::info("MEDIA INDEX: masters count = {$mastersCount}, year={$year}, month=".($month ?? 'null'));
 
         $rowsByTab = [];
@@ -67,7 +65,37 @@ class MediaCoordinatorController extends Controller
     }
 
     /**
-     * Build fresh masters subquery PER CALL (menghindari builder reuse).
+     * Ambil daftar master_file_id yang punya job di media_monthly_details
+     * untuk (year, month) tertentu.
+     * Robust ke data yang kadang kosong kolom year/month: fallback ke YEAR/MONTH(value_date).
+     */
+    private function monthlyMasterIdsFor(int $year, ?int $month): array
+    {
+        // Base filter by year (kolom year ATAU value_date)
+        $q = DB::table('media_monthly_details')
+            ->select('master_file_id')
+            ->where(function ($w) use ($year) {
+                $w->where('year', $year)
+                  ->orWhereRaw('YEAR(COALESCE(value_date, DATE(CONCAT(year,"-01-01")))) = ?', [$year]);
+            });
+
+        // Jika month dipilih → harus match bulan tsb (kolom month ATAU value_date)
+        if ($month !== null) {
+            $q->where(function ($w) use ($month) {
+                $w->where('month', $month)
+                  ->orWhereRaw('MONTH(COALESCE(value_date, DATE(CONCAT(year,"-", LPAD(month,2,"0"), "-01")))) = ?', [$month]);
+            });
+        }
+
+        $ids = $q->distinct()->pluck('master_file_id')->all();
+        Log::info('MEDIA monthlyMasterIdsFor: found '.count($ids).' ids for year='.$year.' month='.($month ?? 'null'));
+
+        return $ids;
+    }
+
+    /**
+     * Build fresh masters subquery PER CALL (menghindari builder reuse)
+     * + RESTRICT masters ke daftar yang ada di media_monthly_details (STRICT by monthly).
      */
     private function querySectionRowsFreshMasters(string $section, int $year, ?int $month)
     {
@@ -95,33 +123,57 @@ class MediaCoordinatorController extends Controller
                 array_push($select, 't.quota','t.completed','t.remarks');
         }
 
-        // FRESH masters subquery setiap kali:
+        // Ambil daftar master yang VALID untuk (year, month) dari media_monthly_details
+        // STRICT: kalau month dipilih → hanya yang punya entry di bulan tsb
+        // Jika month null → tampilkan semua yg punya entry di tahun tsb (minimal satu bulan)
+        $validMasterIds = $this->monthlyMasterIdsFor($year, $month);
+
+        // Jika tidak ada satupun → gak usah lanjut (biar view tampil "no data")
+        if (empty($validMasterIds)) {
+            return collect();
+        }
+
+        // FRESH masters yang hanya media + dibatasi valid master ids
         $mastersFresh = (clone $this->baseMediaMasters())
+            ->whereIn('id', $validMasterIds)
             ->select('id as master_file_id', 'company', 'client', 'product', 'product_category');
 
+        // Jadikan subquery "mf", lalu LEFT JOIN ke tabel tab (basis mf sudah strict)
         $mfSub = DB::query()->fromSub($mastersFresh, 'mf');
 
-        $query = $mfSub->leftJoin($table, function($join) use ($month, $year) {
-                    $join->on('t.master_file_id', '=', 'mf.master_file_id')
-                         ->where('t.year', '=', $year);
-                    if ($month !== null) {
-                        $join->where('t.month', '=', $month);
-                    }
-                })
-                ->select($select)
-                ->orderBy('mf.company');
+            $query = $mfSub->leftJoin($table, function($join) use ($month, $year) {
+                        $join->on('t.master_file_id', '=', 'mf.master_file_id')
+                            ->where('t.year', '=', $year);
+                        if ($month !== null) {
+                            $join->where('t.month', '=', $month);
+                        }
+                    })
+                    ->select($select)
+                    ->orderBy('mf.company');
 
-        return $query->get();
+            return $query->get();
+
     }
 
     private function baseMediaMasters()
     {
-        // Aturan: product_category mengandung "media" (ci) ATAU product termasuk daftar produk media (opsional)
-        $mediaProducts = ['SOCIAL MEDIA','MEDIA','SM','SMM']; // tambahkan kode produk kamu kalau perlu
+        $mediaProducts = [
+            'TIKTOK MANAGEMENT',
+            'YOUTUBE MANAGEMENT',
+            'FB/IG MANAGEMENT',
+            'FB SPONSORED ADS',
+            'TIKTOK MANAGEMENT BOOST',
+            'GIVEAWAYS/ CONTEST MANAGEMENT',
+            'XIAOHONGSHU MANAGEMENT',
+        ];
+
         return DB::table('master_files')
             ->where(function ($q) use ($mediaProducts) {
-                $q->whereRaw('LOWER(product_category) LIKE ?', ['%media%'])
-                  ->orWhereIn(DB::raw('UPPER(product)'), $mediaProducts);
+                // 1) match persis product di whitelist
+                $q->whereIn(DB::raw('UPPER(product)'), $mediaProducts)
+
+                // 2) atau kategori mengandung "media" (jaga-jaga kalau ada category Media lain)
+                ->orWhereRaw('LOWER(product_category) LIKE ?', ['%media%']);
             });
     }
 
@@ -158,7 +210,6 @@ class MediaCoordinatorController extends Controller
 
         // Upsert
         $now = now();
-        // Laravel upsert: values, uniqueBy, update
         DB::table($table)->upsert(
             [[
                 'master_file_id' => $masterFileId,
@@ -176,33 +227,114 @@ class MediaCoordinatorController extends Controller
     }
 
     // ===================== EXPORT =====================
-    public function export(Request $req): StreamedResponse
-    {
-        $section = $req->query('tab', 'content');
-        if (!array_key_exists($section, self::TAB_TO_TABLE)) {
-            $section = 'content';
-        }
-
-        $year  = (int)($req->query('year') ?: now()->year);
-        $month = $this->normalizeMonth($req->query('month'));
-
-        // Use fresh masters for export as well
-        $rows = $this->querySectionRowsFreshMasters($section, $year, $month);
-
-        $filename = "media_{$section}_{$year}-".str_pad((int)($month ?: 0),2,'0',STR_PAD_LEFT).".csv";
-        $headers  = $this->csvHeaders($section);
-
-        return response()->streamDownload(function () use ($rows, $headers, $section) {
-            $out = fopen('php://output','w');
-            fputcsv($out, $headers);
-            $i = 0;
-            foreach ($rows as $r) {
-                $i++;
-                fputcsv($out, $this->csvRow($section, $i, $r));
-            }
-            fclose($out);
-        }, $filename, ['Content-Type' => 'text/csv']);
+public function export(Request $req): StreamedResponse
+{
+    $section = $req->query('tab', 'content');
+    if (!array_key_exists($section, self::TAB_TO_TABLE)) {
+        $section = 'content';
     }
+
+    $year  = (int)($req->query('year') ?: now()->year);
+    $month = $this->normalizeMonth($req->query('month'));
+
+    // Use fresh masters for export as well (sudah strict)
+    $rows = $this->querySectionRowsFreshMasters($section, $year, $month);
+
+    $filename = "media_{$section}_{$year}-".str_pad((int)($month ?: 0),2,'0',STR_PAD_LEFT).".csv";
+    $headers  = $this->csvHeaders($section);
+
+    return response()->streamDownload(function () use ($rows, $headers, $section) {
+        $out = fopen('php://output','w');
+
+        // >>> Tambah BOM supaya Excel baca UTF-8 dengan benar
+        fwrite($out, "\xEF\xBB\xBF");
+
+        // Header
+        fputcsv($out, $headers);
+
+        // Rows
+        $i = 0;
+        foreach ($rows as $r) {
+            $i++;
+            fputcsv($out, $this->csvRow($section, $i, $r));
+        }
+        fclose($out);
+    }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+}
+
+// ===== Helpers: formatters untuk CSV =====
+private function fmtDate(?string $s): string
+{
+    if (!$s) return '';
+    try { return Carbon::parse($s)->format('d/m/Y'); } catch (\Throwable $e) { return ''; }
+}
+private function fmtInt($v): string
+{
+    if ($v === null || $v === '') return '';
+    return (string) max(0, (int) $v);
+}
+private function fmtText($v): string
+{
+    $t = trim((string)$v);
+    return $t === '' ? '' : $t;
+}
+
+// ===== Per-tab row builder (pakai formatter di atas) =====
+private function csvRow(string $section, int $no, $r): array
+{
+    switch ($section) {
+        case 'content':
+        case 'editing':
+            return [
+                $no,
+                $this->fmtText($r->company ?? ''),
+                $this->fmtText($r->client ?? ''),
+                $this->fmtText($r->product ?? ''),
+                $this->fmtDate($r->total_artwork_date ?? null),
+                $this->fmtDate($r->pending_date ?? null),
+                $this->fmtInt($r->draft_wa ?? null),
+                $this->fmtInt($r->approved ?? null),
+                $this->fmtText($r->remarks ?? ''),
+            ];
+
+        case 'schedule':
+            return [
+                $no,
+                $this->fmtText($r->company ?? ''),
+                $this->fmtText($r->client ?? ''),
+                $this->fmtText($r->product ?? ''),
+                $this->fmtDate($r->total_artwork_date ?? null),
+                $this->fmtDate($r->crm_date ?? null),
+                $this->fmtDate($r->meta_ads_manager_date ?? null),
+                $this->fmtInt($r->tiktok_ig_draft ?? null),
+                $this->fmtText($r->remarks ?? ''),
+            ];
+
+        case 'report':
+            return [
+                $no,
+                $this->fmtText($r->company ?? ''),
+                $this->fmtText($r->client ?? ''),
+                $this->fmtText($r->product ?? ''),
+                $this->fmtDate($r->pending_date ?? null),
+                $this->fmtDate($r->completed_date ?? null),
+                $this->fmtText($r->remarks ?? ''),
+            ];
+
+        case 'valueadd':
+        default:
+            return [
+                $no,
+                $this->fmtText($r->company ?? ''),
+                $this->fmtText($r->client ?? ''),
+                $this->fmtInt($r->quota ?? null),
+                $this->fmtInt($r->completed ?? null),
+                $this->fmtText($r->remarks ?? ''),
+            ];
+    }
+}
+
+
 
     // ===================== Helpers =====================
 
@@ -229,111 +361,6 @@ class MediaCoordinatorController extends Controller
         ];
         $k = strtolower(trim((string)$input));
         return $map[$k] ?? null;
-    }
-
-    /** Ambil monthlyIds dari media_monthly_details → fallback monthly_details (UPPER(category)='MEDIA'). */
-    private function resolveMonthlyIds(int $year, int $month)
-    {
-        $ids = collect();
-
-        if (Schema::hasTable('media_monthly_details')) {
-            $q = DB::table('media_monthly_details')->select('master_file_id')->whereNotNull('master_file_id');
-
-            if (Schema::hasColumn('media_monthly_details','year') && Schema::hasColumn('media_monthly_details','month')) {
-                $q->where('year', $year)->where('month', $month);
-            } elseif (Schema::hasColumn('media_monthly_details','date')) {
-                $q->whereYear('date', $year)->whereMonth('date', $month);
-            } else {
-                // kolom waktu tidak jelas → kembali kosong (STRICT)
-                return collect();
-            }
-
-            $ids = $q->distinct()->pluck('master_file_id');
-        }
-        else if (Schema::hasTable('monthly_details')) {
-            $q = DB::table('monthly_details')->select('master_file_id')
-                ->whereNotNull('master_file_id')
-                ->whereRaw('UPPER(category) = ?', ['MEDIA']);
-
-            if (Schema::hasColumn('monthly_details','year') && Schema::hasColumn('monthly_details','month')) {
-                $q->where('year', $year)->where('month', $month);
-            } elseif (Schema::hasColumn('monthly_details','date')) {
-                $q->whereYear('date', $year)->whereMonth('date', $month);
-            } else {
-                return collect();
-            }
-
-            $ids = $q->distinct()->pluck('master_file_id');
-        }
-
-        return $ids->filter()->values();
-    }
-
-    /** Buat semua baris kosong (default) untuk setiap tab. */
-    private function autoSyncRows($monthlyIds, int $year, int $month): void
-    {
-        $now = now();
-        DB::transaction(function () use ($monthlyIds, $year, $month, $now) {
-            foreach (self::TAB_TO_TABLE as $table) {
-                $payload = [];
-                foreach ($monthlyIds as $mid) {
-                    $payload[] = [
-                        'master_file_id' => (int)$mid,
-                        'year'           => $year,
-                        'month'          => $month,
-                        'created_at'     => $now,
-                        'updated_at'     => $now,
-                    ];
-                }
-                if (!empty($payload)) {
-                    DB::table($table)->upsert($payload, ['master_file_id','year','month'], ['updated_at']);
-                }
-            }
-        });
-    }
-
-    /** Ambil rows per section + join master_files */
-    private function querySectionRows(string $section, $monthlyIds, int $year, int $month)
-    {
-        $table = self::TAB_TO_TABLE[$section] . ' as t';
-
-        $selectCommon = [
-            't.id', 't.master_file_id', 't.year', 't.month',
-            'mf.company', 'mf.client', 'mf.product', 'mf.product_category'
-        ];
-
-        switch ($section) {
-            case 'content':
-            case 'editing':
-                $select = array_merge($selectCommon, [
-                    't.total_artwork_date','t.pending_date','t.draft_wa','t.approved','t.remarks'
-                ]);
-                break;
-            case 'schedule':
-                $select = array_merge($selectCommon, [
-                    't.total_artwork_date','t.crm_date','t.meta_ads_manager_date','t.tiktok_ig_draft','t.remarks'
-                ]);
-                break;
-            case 'report':
-                $select = array_merge($selectCommon, [
-                    't.pending_date','t.completed_date','t.remarks'
-                ]);
-                break;
-            case 'valueadd':
-            default:
-                $select = array_merge($selectCommon, [
-                    't.quota','t.completed','t.remarks'
-                ]);
-        }
-
-        return DB::table($table)
-            ->join('master_files as mf', 'mf.id', '=', 't.master_file_id')
-            ->whereIn('t.master_file_id', $monthlyIds)
-            ->where('t.year', $year)
-            ->where('t.month', $month)
-            ->orderBy('mf.company')
-            ->select($select)
-            ->get();
     }
 
     /** Field normalizer (date / int / text) */
@@ -388,33 +415,6 @@ class MediaCoordinatorController extends Controller
             case 'valueadd':
             default:
                 return ['No','Company','Client name','Quota','Completed','Remarks'];
-        }
-    }
-
-    private function csvRow(string $section, int $no, $r): array
-    {
-        switch ($section) {
-            case 'content':
-            case 'editing':
-                return [
-                    $no, $r->company, $r->client, $r->product,
-                    $r->total_artwork_date, $r->pending_date, $r->draft_wa, $r->approved, $r->remarks
-                ];
-            case 'schedule':
-                return [
-                    $no, $r->company, $r->client, $r->product,
-                    $r->total_artwork_date, $r->crm_date, $r->meta_ads_manager_date, $r->tiktok_ig_draft, $r->remarks
-                ];
-            case 'report':
-                return [
-                    $no, $r->company, $r->client, $r->product,
-                    $r->pending_date, $r->completed_date, $r->remarks
-                ];
-            case 'valueadd':
-            default:
-                return [
-                    $no, $r->company, $r->client, $r->quota, $r->completed, $r->remarks
-                ];
         }
     }
 }

@@ -6,9 +6,16 @@
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     {{-- Header --}}
     <div class="mb-8">
-      <h1 class="text-3xl font-bold text-gray-900">Media Coordinator</h1>
-      <p class="mt-2 text-gray-600">Manage content, editing, schedule, reports, and value-add activities</p>
+      <h1 class="text-3xl font-bold text-gray-900">Social Media Coordinator List</h1>
     </div>
+
+    <a href="{{ route('dashboard.media') }}"
+            class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 transition">
+        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+        </svg>
+        Monthly KLTG
+    </a>
 
     {{-- Filter Section --}}
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
@@ -44,7 +51,7 @@
           </button>
 
           @if(request()->has('month') || request()->has('year'))
-            <a href="{{ route('coordinator.media.index') }}" class="inline-flex items-center px-4 py-2 bg-gray-600 text-white font-medium rounded-md hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors">
+            <a href="{{ route('coordinator.media.index') }}" class="inline-flex items-center px-4 py-2 bg-gray-600 text-black font-medium rounded-md hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors">
               Clear
             </a>
           @endif
@@ -112,23 +119,87 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
 <script>
+  // === define first, attach to window ===
   window.mediaUpsert = async function ({section, master_file_id, year, month, field, value}) {
     try {
       const res = await fetch("{{ route('coordinator.media.upsert') }}", {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
           'X-Requested-With': 'XMLHttpRequest',
         },
         body: JSON.stringify({ section, master_file_id, year, month, field, value })
       });
-      if (!res.ok) return false;
+      if (!res.ok) {
+        console.error('Upsert HTTP not ok', res.status, await res.text());
+        return false;
+      }
       const data = await res.json();
       return !!data.ok;
     } catch (e) {
+      console.error('Upsert error', e);
       return false;
     }
+  };
+
+  // === only attach listeners after DOM ready ===
+  function attachMediaListeners() {
+    // Avoid double-binding
+    if (window.__mediaUpsertBound) return;
+    window.__mediaUpsertBound = true;
+
+    document.addEventListener('change', async (e) => {
+      const el = e.target;
+      if (!el.matches('[data-upsert]')) return;
+
+      const payload = {
+        section: el.getAttribute('data-section'),
+        master_file_id: parseInt(el.getAttribute('data-master') || '0', 10),
+        year: parseInt(el.getAttribute('data-year') || '0', 10),
+        month: parseInt(el.getAttribute('data-month') || '0', 10),
+        field: el.getAttribute('data-field'),
+        value: el.value
+      };
+
+      // Guards
+      if (!payload.section || !payload.master_file_id || !payload.year || !payload.month || !payload.field) {
+        console.warn('Invalid upsert payload', payload);
+        return;
+      }
+      if (typeof window.mediaUpsert !== 'function') {
+        console.error('mediaUpsert missing on window');
+        return;
+      }
+
+      // visual feedback
+      el.disabled = true;
+      const ok = await window.mediaUpsert(payload);
+      el.disabled = false;
+
+      if (ok) {
+        el.classList.add('ring-2','ring-green-400');
+        setTimeout(() => el.classList.remove('ring-2','ring-green-400'), 500);
+      } else {
+        el.classList.add('ring-2','ring-red-400');
+        setTimeout(() => el.classList.remove('ring-2','ring-red-400'), 900);
+        alert('Save failed. Please try again.');
+      }
+    }, false);
   }
+
+  // DOM ready (handles Blade/Livewire/Turbo re-renders safely)
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attachMediaListeners);
+  } else {
+    attachMediaListeners();
+  }
+
+  // (Optional) If you use Livewire/Turbo/Alpine that re-renders the DOM, re-attach here:
+  document.addEventListener('livewire:navigated', attachMediaListeners);
+  document.addEventListener('turbo:load', attachMediaListeners);
+  document.addEventListener('alpine:init', attachMediaListeners);
 </script>
+
 @endsection
