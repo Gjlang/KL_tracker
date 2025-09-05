@@ -5,6 +5,8 @@ namespace App\Exports;
 use App\Models\MasterFile;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+
 
 class MasterFilesExport
 {
@@ -63,14 +65,17 @@ class MasterFilesExport
     }
 
     public function headings(): array
-    {
-        return [
+{
+    $date = now()->format('Y-m-d');
+    return [
+        ["MASTER FILES - {$date}"],  // Title row
+        [
             'Date Created',
             'Company Name',
             'Client',
-            'Person In Charge',   // ✅ new
-            'Email',              // ✅ new
-            'Contact Number',     // ✅ new
+            'Person In Charge',
+            'Email',
+            'Contact Number',
             'Product',
             'Month',
             'Start Date',
@@ -82,8 +87,9 @@ class MasterFilesExport
             'Artwork',
             'Invoice Date',
             'Invoice Number',
-        ];
-    }
+        ],
+    ];
+}
 
     public function getData(): array
     {
@@ -100,6 +106,38 @@ class MasterFilesExport
 
         return $data;
     }
+
+    public function styles(Worksheet $sheet)
+{
+    // Merge the first row across all columns
+    $sheet->mergeCells('A1:Q1'); // adjust Q to match your last column
+
+    // Style the title
+    return [
+        1 => [ // row 1
+            'font' => ['bold' => true, 'size' => 14],
+            'alignment' => ['horizontal' => 'center'],
+            'fill' => [
+                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'color' => ['rgb' => 'FFFF00'], // Yellow
+            ],
+        ],
+        2 => [ // headings row
+            'font' => ['bold' => true],
+            'fill' => [
+                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'color' => ['rgb' => 'DDDDDD'], // Light gray for column headers
+            ],
+        ],
+    ];
+}
+
+
+public function title(): string
+{
+    return 'Master Files';
+}
+
 
     public function mapRow($row): array
     {

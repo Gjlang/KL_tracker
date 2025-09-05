@@ -20,8 +20,8 @@ use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use App\Models\KltgMonthlyDetail;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Str;
-
-
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
 
 class MasterFileController extends Controller
@@ -157,7 +157,17 @@ class MasterFileController extends Controller
             ->groupBy('product_category');
 
         // 🔧 NEW: Get media ongoing jobs data
-        $mediaOngoingJobs = MasterFile::where('category', 'Media')->get(); // Adjust as needed
+        if (Schema::hasColumn('master_files', 'product_category')) {
+                $mediaOngoingJobs = MasterFile::where('product_category', 'Media')->get();
+            } else {
+                // Fallback: infer "Media" by product keywords
+                $mediaOngoingJobs = MasterFile::where(function ($q) {
+                    $q->whereRaw('LOWER(product) LIKE ?', ['%media%'])
+                    ->orWhereRaw('LOWER(product) LIKE ?', ['%fb%'])
+                    ->orWhereRaw('LOWER(product) LIKE ?', ['%ig%'])
+                    ->orWhereIn('product', ['FB IG Ad', 'Facebook', 'Instagram']);
+                })->get();
+            }
 
         return view('dashboard', compact(
             'masterFiles',
@@ -465,12 +475,30 @@ private function guessProductType(MasterFile $file): string
     if ($from = $request->get('date_from')) { $q->whereDate($field, '>=', $from); }
     if ($to   = $request->get('date_to'))   { $q->whereDate($field, '<=', $to);   }
 
-    $rows = $q->orderByDesc('created_at')->cursor();
+     $rows = $q->orderByDesc('created_at')->cursor();
 
     // ----- Build spreadsheet -----
     $ss = new Spreadsheet();
     $sheet = $ss->getActiveSheet();
 
+    // === NEW: Title row (A1:Q1) ===
+    $lastColIndex = 17; // You have 17 headings below
+    $lastColLetter = Coordinate::stringFromColumnIndex($lastColIndex);
+    $title = 'MASTER_FILES_' . now()->format('Y-m-d');
+
+    $sheet->setCellValue('A1', $title);
+    $sheet->mergeCells("A1:{$lastColLetter}1");
+    $sheet->getStyle('A1')->applyFromArray([
+        'font' => ['bold' => true, 'size' => 14],
+        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        'fill' => [
+            'fillType' => Fill::FILL_SOLID,
+            'color' => ['rgb' => 'FFFF00'], // Yellow background
+        ],
+    ]);
+    $sheet->getRowDimension(1)->setRowHeight(24); // a bit taller
+
+    // Headings now start at ROW 2 (previously row 1)
     $headings = [
         'Date Created',
         'Company Name',
@@ -490,13 +518,23 @@ private function guessProductType(MasterFile $file): string
         'Invoice Number',
         'Product Category',
     ];
+
+    // (Optional) style headings light gray and bold
     $col = 1;
     foreach ($headings as $h) {
         $letter = Coordinate::stringFromColumnIndex($col++);
-        $sheet->setCellValue($letter.'1', $h);
+        $sheet->setCellValue($letter.'2', $h);   // << row 2 now
     }
+    $sheet->getStyle("A2:{$lastColLetter}2")->applyFromArray([
+        'font' => ['bold' => true],
+        'fill' => [
+            'fillType' => Fill::FILL_SOLID,
+            'color' => ['rgb' => 'EEEEEE'],
+        ],
+    ]);
 
-    $r = 2;
+    // Data now starts at ROW 3 (previously row 2)
+    $r = 3;
     foreach ($rows as $row) {
         $c = 1;
         $put = function ($value) use (&$c, $r, $sheet) {
@@ -511,9 +549,9 @@ private function guessProductType(MasterFile $file): string
 
         $put((string) $row->created_at);
         $put($row->company);
-        $put($row->client);                // displayed as "Person In Charge"
-        $put($row->email ?? '');           // may be NULL if column missing
-        $put($row->contact_number ?? '');  // may be NULL if column missing
+        $put($row->client);
+        $put($row->email ?? '');
+        $put($row->contact_number ?? '');
         $put($row->product);
         $put($row->month);
         $put($fmtDate($row->start_date));
@@ -534,7 +572,11 @@ private function guessProductType(MasterFile $file): string
         $sheet->getColumnDimension($letter)->setAutoSize(true);
     }
 
-    $filename = 'master_files_'.now()->format('Ymd_His').'.xlsx';
+    // Optional: freeze header (so title + headings stay visible while scrolling)
+    $sheet->freezePane('A3');
+
+    // Optional: uppercase file name prefix
+    $filename = 'MASTER_FILES_'.now()->format('Ymd_His').'.xlsx';
     $writer = new Xlsx($ss);
 
     return response()->streamDownload(function () use ($writer, $ss) {
@@ -755,4 +797,14 @@ private function guessProductType(MasterFile $file): string
             return response()->json(['success' => false, 'error' => 'Server error'], 500);
         }
     }
+
+    public function destroy($id)
+{
+    $file = MasterFile::findOrFail($id);
+    $file->delete();
+
+    return redirect()->route('masterfile.index')
+        ->with('success', 'Record deleted successfully.');
+}
+
 }

@@ -115,6 +115,7 @@ Route::post('/monthly-jobs/{id}/update', [MasterFileController::class, 'updateMo
 // Export routes
 Route::get('/export-monthly-ongoing', [MasterFileController::class, 'exportMonthlyOngoing'])->name('export.monthly.ongoing');
 Route::get('/serials/preview', [MasterFileController::class, 'previewSerials'])->name('serials.preview');
+Route::delete('/masterfile/{id}', [MasterFileController::class, 'destroy'])->name('masterfile.destroy');
 
 // ===============================================
 // COORDINATOR ROUTES
@@ -211,8 +212,6 @@ Route::prefix('media-ongoing')->name('media.ongoing.')->group(function () {
     Route::post('/monthly-job/update', [MediaOngoingJobController::class, 'inlineUpdate'])->name('monthly.job.update');
     Route::post('/details/upsert', [MediaOngoingJobController::class, 'upsert'])->name('details.upsert');
 });
-
-
 
 // ===============================================
 // MEDIA MONTHLY ROUTES
