@@ -63,7 +63,7 @@
 
                                    <a href="{{ route('masterfile.print', ['file' => $file->id]) }}"
                                         class="inline-flex items-center px-3 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">
-                                        Download PDF
+                                        Download Job Order
                                     </a>
 
 

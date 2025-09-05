@@ -23,13 +23,17 @@ class MediaCoordinatorController extends Controller
     ];
 
     /** Tab → editable whitelist */
-    private const TAB_WHITELIST = [
-        'content'  => ['total_artwork_date','pending_date','draft_wa','approved','remarks'],
-        'editing'  => ['total_artwork_date','pending_date','draft_wa','approved','remarks'],
-        'schedule' => ['total_artwork_date','crm_date','meta_ads_manager_date','tiktok_ig_draft','remarks'],
-        'report'   => ['pending_date','completed_date','remarks'],
-        'valueadd' => ['quota','completed','remarks'],
-    ];
+   private const TAB_WHITELIST = [
+    'content'  => ['total_artwork_date','pending_date','draft_wa','approved','remarks'],
+    'editing'  => ['total_artwork_date','pending_date','draft_wa','approved','remarks'],
+    'schedule' => ['total_artwork_date','crm_date','meta_ads_manager_date','tiktok_ig_draft','remarks'],
+    'report'   => ['pending','completed','remarks'], // sdh kamu betulkan sebelumnya
+    // ⛔ sebelum: 'valueadd' => ['quota','completed','remarks'],
+    // ✅ sesuaikan dengan kolom DB kamu:
+    'valueadd' => ['quota','completed'],
+];
+
+
 
     /** Month labels */
     private const MONTHS = [1=>'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -116,11 +120,27 @@ class MediaCoordinatorController extends Controller
                 array_push($select, 't.total_artwork_date','t.crm_date','t.meta_ads_manager_date','t.tiktok_ig_draft','t.remarks');
                 break;
             case 'report':
-                array_push($select, 't.pending_date','t.completed_date','t.remarks');
-                break;
+    // map real columns -> aliases so your CSV/UI can still read pending_date/completed_date
+    array_push(
+        $select,
+        DB::raw('t.pending as pending_date'),
+        DB::raw('t.completed as completed_date'),
+        't.remarks'
+    );
+    break;
             case 'valueadd':
-            default:
-                array_push($select, 't.quota','t.completed','t.remarks');
+default:
+    array_push($select, 't.quota','t.completed');
+
+    // ⬇⬇⬇ Tambahkan guard kolom remarks
+    if (Schema::hasColumn('media_value_adds', 'remarks')) {
+        $select[] = 't.remarks';
+    } else {
+        // supaya view/CSV masih punya properti ->remarks (kosong)
+        $select[] = DB::raw('NULL as remarks');
+    }
+    break;
+
         }
 
         // Ambil daftar master yang VALID untuk (year, month) dari media_monthly_details
@@ -365,21 +385,27 @@ private function csvRow(string $section, int $no, $r): array
 
     /** Field normalizer (date / int / text) */
     private function normalizeFieldValue(string $section, string $field, $raw)
-    {
-        $dateFields = [
-            'content'  => ['total_artwork_date','pending_date'],
-            'editing'  => ['total_artwork_date','pending_date'],
-            'schedule' => ['total_artwork_date','crm_date','meta_ads_manager_date'],
-            'report'   => ['pending_date','completed_date'],
-            'valueadd' => [], // none
-        ];
-        $intFields = [
-            'content'  => ['draft_wa','approved'],
-            'editing'  => ['draft_wa','approved'],
-            'schedule' => ['tiktok_ig_draft'],
-            'report'   => [],
-            'valueadd' => ['completed'],
-        ];
+{
+    $dateFields = [
+        'content'  => ['total_artwork_date','pending_date'],
+        'editing'  => ['total_artwork_date','pending_date'],
+        'schedule' => ['total_artwork_date','crm_date','meta_ads_manager_date'],
+        // BEFORE: 'report'   => ['pending_date','completed_date'],
+        // AFTER:  report has no date fields in DB
+        'report'   => [],
+        'valueadd' => [], // none
+    ];
+    $intFields = [
+        'content'  => ['draft_wa','approved'],
+        'editing'  => ['draft_wa','approved'],
+        'schedule' => ['tiktok_ig_draft'],
+        // completed is tinyint(1) in media_reports
+        'report'   => ['completed'],
+        'valueadd' => ['completed'],
+    ];
+
+    // (rest stays the same…)
+
 
         if (in_array($field, $dateFields[$section] ?? [], true)) {
             $raw = trim((string)$raw);
