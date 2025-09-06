@@ -111,6 +111,7 @@
                                 </svg>
                                 Project Information
                             </h3>
+
                         </div>
                         <div class="p-6 space-y-6">
                             <div class="space-y-2">
@@ -207,6 +208,94 @@
                     </div>
                 </div>
             </form>
+
+            @if($file->product_category === 'Outdoor')
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden lg:col-span-3">
+                <div class="px-6 py-4 bg-gradient-to-r from-emerald-50 to-green-50 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 7l9-4 9 4-9 4-9-4zm0 10l9 4 9-4m-9-4l9 4M3 17l9-4"></path>
+                    </svg>
+                    Outdoor Placements
+                </h3>
+                </div>
+
+                <div class="p-6 space-y-4">
+                {{-- Optional: header-level fields --}}
+                <div class="grid sm:grid-cols-3 gap-4 text-sm">
+                    @if($file->outdoor_size)
+                    <div><span class="text-gray-500">Size (header):</span> {{ $file->outdoor_size }}</div>
+                    @endif
+                    @if($file->outdoor_district_council)
+                    <div><span class="text-gray-500">Council (header):</span> {{ $file->outdoor_district_council }}</div>
+                    @endif
+                    @if($file->outdoor_coordinates)
+                    <div>
+                        <span class="text-gray-500">Coords (header):</span>
+                        <a class="text-indigo-600 hover:underline" target="_blank"
+                        href="https://www.google.com/maps/search/?api=1&query={{ urlencode($file->outdoor_coordinates) }}">
+                        {{ $file->outdoor_coordinates }}
+                        </a>
+                    </div>
+                    @endif
+                </div>
+
+                {{-- Summary --}}
+                <div class="text-sm text-gray-600">
+                    Total locations:
+                    <span class="font-semibold">{{ $file->outdoorItems->count() }}</span>
+                    @php $totalQty = $file->outdoorItems->sum('qty'); @endphp
+                    @if($totalQty !== $file->outdoorItems->count())
+                    • Total qty: <span class="font-semibold">{{ $totalQty }}</span>
+                    @endif
+                </div>
+
+                {{-- Table --}}
+                @if($file->outdoorItems->isEmpty())
+                    <div class="text-sm text-gray-500">No locations added.</div>
+                @else
+                    <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm border">
+                        <thead class="bg-emerald-50">
+                        <tr class="text-left">
+                            <th class="p-2 border">#</th>
+                            <th class="p-2 border">Sub Product</th>
+                            <th class="p-2 border">Site / Location</th>
+                            <th class="p-2 border">Size</th>
+                            <th class="p-2 border">Council</th>
+                            <th class="p-2 border">Coordinates</th>
+                            <th class="p-2 border text-right">Qty</th>
+                            <th class="p-2 border">Remarks</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach($file->outdoorItems as $i => $item)
+                            <tr class="odd:bg-white even:bg-gray-50">
+                            <td class="p-2 border">{{ $i + 1 }}</td>
+                            <td class="p-2 border">{{ $item->sub_product }}</td>
+                            <td class="p-2 border">{{ $item->site }}</td>
+                            <td class="p-2 border">{{ $item->size }}</td>
+                            <td class="p-2 border">{{ $item->district_council }}</td>
+                            <td class="p-2 border">
+                                @if($item->coordinates)
+                                <a class="text-indigo-600 hover:underline" target="_blank"
+                                    href="https://www.google.com/maps/search/?api=1&query={{ urlencode($item->coordinates) }}">
+                                    {{ $item->coordinates }}
+                                </a>
+                                @endif
+                            </td>
+                            <td class="p-2 border text-right">{{ $item->qty ?? 1 }}</td>
+                            <td class="p-2 border">{{ $item->remarks }}</td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                    </div>
+                @endif
+                </div>
+            </div>
+            @endif
         </div>
     </div>
 

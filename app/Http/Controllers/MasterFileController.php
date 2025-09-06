@@ -360,77 +360,113 @@ class MasterFileController extends Controller
 
     // 🔧 FIXED: Single store method with AUTO-SEED KLTG DISABLED
     public function store(Request $request)
-    {
-        $allowedProducts = [
-            'HM','TB','TTM','BB','Star','KLTG','Flyers','Bunting', 'Newspaper',
-            'KLTG listing','KLTG quarter page','Signages','FB IG Ad','NP',
-            // ✅ New ones:
-            'YouTube Management',
-            'FB/IG Management',
-            'TikTok Management Boost',
-            'Giveaways/ Contest Management',
-            'Xiaohongshu Management',
-        ];
+{
+    // 1) VALIDASI biasa + bulk_placements
+    $data = $request->validate([
+        // === field existing kamu ===
+        'month' => ['required','string','max:255'],
+        'date' => ['required','date'],
+        'company' => ['required','string','max:255'],
+        'product' => ['required','string','max:255'],
+        'product_category' => ['nullable','string','max:255'],
+        'location' => ['nullable','string','max:255'],
+        'traffic' => ['required','string','max:255'],
+        'duration' => ['nullable','string','max:255'],
+        'amount' => ['nullable','numeric','between:0,999999999.99'],
+        'status' => ['required','string','max:255'],
+        'remarks' => ['nullable','string'],
+        'client' => ['required','string','max:255'],
+        'date_finish' => ['nullable','date'],
+        'job_number' => ['nullable','string','max:255'],
+        'artwork' => ['nullable','string','max:255'],
+        'invoice_date' => ['nullable','date'],
+        'invoice_number' => ['nullable','string','max:255'],
+        'contact_number' => ['nullable','string','max:255'],
+        'email' => ['nullable','email','max:255'],
 
-        $validated = $request->validate([
-            'month'           => 'required|string',
-            'date'            => 'required|date',
-            'company'         => 'required|string',
-            'product'         => 'required|in:' . implode(',', $allowedProducts),
-            'traffic'         => 'required|string',
-            'duration'        => 'required|string',
-            'status'          => 'required|string',
-            'client'          => 'required|string',
-            'date_finish'     => 'nullable|date',
-            'job_number'      => 'nullable|string',
-            'artwork'         => 'nullable|in:BGOC,Client',
-            'invoice_date'    => 'nullable|date',
-            'contact_number'  => 'nullable|string|max:50',
-            'email'           => 'nullable|email|max:255',
-            'invoice_number'  => 'nullable|string',
-            'amount' => ['nullable','numeric','between:0,999999999.99'],
-            // KLTG
-            'kltg_industry' => ['nullable','string','max:255'],
-            'kltg_x' => ['nullable','string','max:255'],
-            'kltg_edition' => ['nullable','string','max:255'],
-            'kltg_material_cbp' => ['nullable','string','max:255'],
-            'kltg_print' => ['nullable','string','max:255'],
-            'kltg_article' => ['nullable','string','max:255'],
-            'kltg_video' => ['nullable','string','max:255'],
-            'kltg_leaderboard' => ['nullable','string','max:255'],
-            'kltg_qr_code' => ['nullable','string','max:255'],
-            'kltg_blog' => ['nullable','string','max:255'],
-            'kltg_em' => ['nullable','string','max:255'],
-            'kltg_remarks' => ['nullable','string','max:255'],
+        // === field khusus KLTG / Outdoor (kalau kamu pakai) ===
+        'kltg_industry' => ['nullable','string','max:255'],
+        'kltg_x' => ['nullable','string','max:255'],
+        'kltg_edition' => ['nullable','string','max:255'],
+        'kltg_material_cbp' => ['nullable','string','max:255'],
+        'kltg_print' => ['nullable','string','max:255'],
+        'kltg_article' => ['nullable','string','max:255'],
+        'kltg_video' => ['nullable','string','max:255'],
+        'kltg_leaderboard' => ['nullable','string','max:255'],
+        'kltg_qr_code' => ['nullable','string','max:255'],
+        'kltg_blog' => ['nullable','string','max:255'],
+        'kltg_em' => ['nullable','string','max:255'],
+        'kltg_remarks' => ['nullable','string','max:255'],
 
-            // Outdoor
-            'outdoor_size' => ['nullable','string','max:255'],
-            'outdoor_district_council' => ['nullable','string','max:255'],
-            'outdoor_coordinates' => ['nullable','string','max:255'],
-        ]);
+        'outdoor_size' => ['nullable','string','max:255'],
+        'outdoor_district_council' => ['nullable','string','max:255'],
+        'outdoor_coordinates' => ['nullable','string','max:255'],
 
-        // Detect category for JO prefix + (optionally) persist it
-        $detectedCategory = method_exists(MasterFile::class, 'detectCategory')
-            ? MasterFile::detectCategory($validated['product'])
-            : $this->guessCategoryFromProduct($validated['product']);
+        // === textarea bulk ===
+        'bulk_placements' => ['nullable','string'],
+    ]);
 
-        if (Schema::hasColumn('master_files', 'product_category')) {
-            $validated['product_category'] = $detectedCategory;
+    DB::transaction(function() use ($request, $data) {
+        // 2) SIMPAN HEADER
+        /** @var \App\Models\MasterFile $masterFile */
+        $masterFile = \App\Models\MasterFile::create($data);
+
+        // 3) JIKA OUTDOOR & textarea diisi -> parse jadi banyak child
+        $isOutdoor = ($data['product_category'] ?? '') === 'Outdoor';
+        $raw = trim((string) $request->input('bulk_placements', ''));
+
+        if ($isOutdoor && $raw !== '') {
+            $lines = preg_split("/\r\n|\n|\r/", $raw);
+            $defaultSub = $data['product'] ?? null; // contoh: BB, TB, Bunting, dll
+
+            $items = [];
+            foreach ($lines as $line) {
+                $line = trim($line);
+                if ($line === '') continue;
+
+                // pakai | atau koma sebagai separator
+                $sep = str_contains($line, '|') ? '|' : ',';          // utamakan '|'
+                $parts = array_map('trim', str_getcsv($line, $sep));   // CSV-aware (boleh quoted)
+
+                // mapping dasar
+                $site        = $parts[0] ?? null;
+                $size        = $parts[1] ?? null;
+                $council     = $parts[2] ?? null;
+                $coordinates = $parts[3] ?? null;
+                $remarks     = $parts[4] ?? null;
+
+                // prefix opsional: "BB: Site name"
+                if ($site && preg_match('/^(BB|TB|Bunting|Flyers|Star|Signages|Newspaper)\s*:\s*(.+)$/i', $site, $m)) {
+                    $sub  = $m[1];
+                    $site = $m[2];
+                }
+
+                // AUTO-MERGE kalau lat & long kepotong jadi dua angka berurutan
+                if ($coordinates && $remarks
+                    && preg_match('/^-?\d+(\.\d+)?$/', $coordinates)
+                    && preg_match('/^-?\d+(\.\d+)?$/', $remarks)) {
+                    $coordinates = $coordinates . ',' . $remarks;  // gabungkan jadi "lat,long"
+                    $remarks = null;
+                }
+
+                $items[] = [
+                'sub_product'      => $sub ?? ($data['product'] ?? 'Outdoor'),
+                'qty'              => 1,
+                'site'             => $site,
+                'size'             => $size,
+                'district_council' => $council,
+                'coordinates'      => $coordinates,
+                'remarks'          => $remarks,
+                ];
+            }
+
+            if (!empty($items)) {
+                $masterFile->outdoorItems()->createMany($items);
+            }
         }
+    });
 
-        if (empty($validated['job_number'])) {
-            // Generate job number using category/product + global monthly suffix
-            $validated['job_number'] = app(\App\Services\JobNumberService::class)
-                ->generate(
-                    $detectedCategory,
-                    $validated['product']
-                );
-        }
-
-        // Create MasterFile
-        $mf = MasterFile::create($validated);
-        return redirect()->route('dashboard')
-            ->with('success', 'Master File data added successfully!');
+    return redirect()->route('dashboard')->with('success','Saved.');
     }
 
     private function guessCategoryFromProduct(string $product): string
@@ -469,19 +505,7 @@ class MasterFileController extends Controller
         return back()->with('status', "Import done. Created: {$stats['created']}, Updated: {$stats['updated']}, Skipped: {$stats['skipped']}.");
     }
 
-//     public function printKltg(MasterFile $file)
-// {
-//     $data = [
-//         'file'         => $file,
-//         'date'         => $file->date ? Carbon::parse($file->date)->format('d/m/Y') : '',
-//         'date_finish'  => $file->date_finish ? Carbon::parse($file->date_finish)->format('d/m/Y') : '',
-//         'invoice_date' => $file->invoice_date ? Carbon::parse($file->invoice_date)->format('d/m/Y') : '',
-//     ];
 
-//     return Pdf::loadView('prints.kltg_job_order', $data)
-//         ->setPaper('a4', 'portrait')
-//         ->download('KLTG_JobOrder_'.$file->company.'.pdf');
-// }
 
 public function printAuto(MasterFile $file)
 {
@@ -938,6 +962,8 @@ private function guessProductType(MasterFile $file): string
             return response()->json(['success' => false, 'error' => 'Server error'], 500);
         }
     }
+
+
 
     public function destroy($id)
 {

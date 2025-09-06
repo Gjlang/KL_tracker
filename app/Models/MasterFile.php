@@ -68,6 +68,7 @@ class MasterFile extends Model
             'BB',
             'Star',
             'KLTG',
+            'Newspaper',
             'Flyers',
             'Bunting',
             'KLTG listing',
@@ -248,7 +249,8 @@ class MasterFile extends Model
         return $this->hasOne(OutdoorCoordinatorTracking::class);
     }
 
-
-
+    public function outdoorItems(){
+    return $this->hasMany(OutdoorItem::class);
+    }
 
 }

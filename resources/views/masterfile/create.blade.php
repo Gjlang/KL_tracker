@@ -144,11 +144,11 @@
         </div>
 
         <div>
-  <label for="amount" class="text-gray-700 font-medium mb-1 block">Amount (MYR)</label>
-  <input type="number" name="amount" id="amount" step="0.01" min="0"
-         value="{{ old('amount') }}"
-         class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition">
-</div>
+            <label for="amount" class="text-gray-700 font-medium mb-1 block">Amount (MYR)</label>
+            <input type="number" name="amount" id="amount" step="0.01" min="0"
+                    value="{{ old('amount') }}"
+                    class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition">
+        </div>
 
 
         <div>
@@ -265,32 +265,31 @@
             </div>
         </div>
 
-        {{-- Outdoor Panel --}}
-        <div x-show="selectedCategory === 'Outdoor'" x-cloak
-             class="rounded-xl border border-emerald-200 bg-white/70 p-5 shadow-sm">
+            {{-- Outdoor Panel --}}
+            <div x-show="selectedCategory === 'Outdoor'" x-cloak
+                class="rounded-xl border border-emerald-200 bg-white/70 p-5 shadow-sm">
             <h4 class="text-sm font-semibold text-emerald-700 mb-4">Outdoor Details</h4>
-            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <!-- Location field exists above -->
-                <div>
-                    <label class="text-gray-700 font-medium mb-1 block" for="outdoor_size">Size</label>
-                    <input type="text" name="outdoor_size" id="outdoor_size" value="{{ old('outdoor_size') }}"
-                           class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-indigo-500">
-                </div>
-                <div>
-                    <label class="text-gray-700 font-medium mb-1 block" for="outdoor_district_council">District Council</label>
-                    <input type="text" name="outdoor_district_council" id="outdoor_district_council" value="{{ old('outdoor_district_council') }}"
-                           class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-indigo-500">
-                </div>
-                <div>
-                    <label class="text-gray-700 font-medium mb-1 block" for="outdoor_coordinates">Coordinates</label>
-                    <input type="text" name="outdoor_coordinates" id="outdoor_coordinates" value="{{ old('outdoor_coordinates') }}"
-                           class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-indigo-500">
-                </div>
+
+
+            {{-- BULK locations: satu baris = satu lokasi --}}
+            <hr class="my-4">
+            <label class="text-gray-700 font-medium mb-1 block">
+                Bulk locations (one line = one location)
+            </label>
+            <textarea name="bulk_placements" rows="6"
+                class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-emerald-500"
+                placeholder="Format: site | size | council | coords | remarks
+            Example:
+            Wangsa Maju LRT | 10x20ft | DBKL | 3.154,101.74 | Near station
+            BB: Jalan Kuching KM3 | 60x20ft | DBKL | 3.182,101.68 | City inbound
+            TB: Setia Alam Exit | 12x24ft | MBSA | 3.090,101.48 | Toll plaza">{{ old('bulk_placements') }}</textarea>
+            <p class="text-xs text-gray-500 mt-2">
+            • Use <code>|</code> or a comma to separate columns.<br>
+            • Optional prefix <code>BB:</code> / <code>TB:</code> before the <em>site</em> will override the sub-product for that line.<br>
+            • Without a prefix → it will use the value from your <strong>Product</strong> dropdown (e.g., BB / TB).
+            </p>
             </div>
-        </div>
-
-
-                <!-- Submit Button -->
+            <!-- Submit Button -->
                 <div class="pt-4">
                     <button type="submit" class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl font-semibold shadow-xl transition duration-300 ease-in-out">
                         ➕ Save Master File
