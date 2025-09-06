@@ -152,6 +152,8 @@
                   </div>
                 </div>
 
+                 @include('dashboard.master._tabs', ['active' => $active ?? ''])
+
                 <!-- Active Filters Display -->
                 @if(request('search') || request('status') || request('month') || request('product_category'))
                   <div class="mt-4 text-sm">
@@ -175,6 +177,7 @@
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[220px] whitespace-nowrap">Company Name</th>
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[170px] whitespace-nowrap">Person In Charge</th>
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[220px] whitespace-nowrap">Email</th>
+                          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[220px] whitespace-nowrap">Amount</th>
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[170px] whitespace-nowrap">Contact Number</th>
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[120px] whitespace-nowrap">Product</th>
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[120px] whitespace-nowrap">Month</th>
@@ -201,6 +204,7 @@
                               </td>
                               <td class="px-6 py-4 text-sm text-gray-900">{{ $file->client ?? '-' }}</td>
                               <td class="px-6 py-4 text-sm text-gray-900">{{ $file->email ?? '-' }}</td>
+                              <td class="px-6 py-4 text-sm text-gray-900">{{ $file->amount ?? '-' }}</td>
                               <td class="px-6 py-4 text-sm text-gray-900">{{ $file->contact_number ?? '-' }}</td>
                               <td class="px-6 py-4 text-sm text-gray-900">{{ $file->product }}</td>
                               <td class="px-6 py-4 text-sm text-gray-900">{{ $file->month }}</td>

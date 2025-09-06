@@ -19,10 +19,17 @@ class MasterFile extends Model
      * The attributes that are mass assignable.
      */
     protected $fillable = [
-        'month','date','company','product','product_category','location','traffic',
-        'duration','status','remarks','client','date_finish','job_number','artwork',
-        'invoice_date','invoice_number',
-        'contact_number','email',
+        'month','date','company','product','product_category','location','traffic','duration',
+        'status','remarks','client','date_finish','job_number','artwork','invoice_date',
+        'invoice_number','contact_number','email',
+
+        // KLTG-only
+        'kltg_industry','kltg_x','kltg_edition','kltg_material_cbp','kltg_print',
+        'kltg_article','kltg_video','kltg_leaderboard','kltg_qr_code','kltg_blog','kltg_em','kltg_remarks',
+
+        // Outdoor-only
+        'outdoor_size','outdoor_district_council','outdoor_coordinates',
+        'amount',
     ];
 
 
@@ -35,6 +42,7 @@ class MasterFile extends Model
         'invoice_date' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'amount' => 'decimal:2',
     ];
 
     /**
@@ -189,7 +197,7 @@ class MasterFile extends Model
     {
         $product = strtolower(trim($product));
 
-        $outdoor = ['hm', 'tb', 'ttm', 'bb', 'star', 'flyers', 'bunting', 'signages'];
+        $outdoor = ['hm', 'tb', 'ttm', 'bb', 'star', 'flyers', 'bunting', 'signages', 'newspaper'];
         $kltg = ['kltg', 'kltg listing', 'kltg quarter page'];
         $media = ['fb ig ad'];
 

@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\TaskController;
-use App\Http\Controllers\MasterFileController;
 use App\Http\Controllers\MediaOngoingJobController;
 use App\Http\Controllers\OutdoorCoordinatorController;
 use App\Http\Controllers\KltgCoordinatorController;
@@ -18,7 +17,10 @@ use App\Http\Controllers\KltgMonthlyController;
 use App\Http\Controllers\OutdoorOngoingJobController;
 use App\Http\Controllers\MediaMonthlyDetailController;
 use App\Http\Controllers\CoordinatorMediaController;
+use App\Http\Controllers\SerialController;
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\MasterFileController;
+
 
 // ===============================================
 // ROOT & AUTHENTICATION ROUTES
@@ -102,6 +104,13 @@ Route::prefix('masterfile')->name('masterfile.')->group(function () {
     // Print routes
     Route::get('/{file}/print', [MasterFileController::class, 'printAuto'])->whereNumber('file')->name('print');
 });
+
+Route::prefix('dashboard/master')->name('dashboard.master.')->middleware('auth')->group(function () {
+    Route::get('/kltg', [MasterFileController::class, 'kltg'])->name('kltg');
+    Route::get('/outdoor', [MasterFileController::class, 'outdoor'])->name('outdoor');
+});
+
+
 
 // MasterFile backward compatibility routes
 Route::get('masterfiles/{id}', [MasterFileController::class, 'show'])->name('masterfiles.show');
@@ -218,6 +227,10 @@ Route::prefix('media-ongoing')->name('media.ongoing.')->group(function () {
 // ===============================================
 
 Route::post('/media/monthly/upsert', [MediaMonthlyDetailController::class, 'upsert'])->name('media.monthly.upsert');
+
+
+Route::get('/serials/preview', [SerialController::class, 'preview'])
+    ->name('serials.preview');
 
 // ===============================================
 // JOB ROUTES

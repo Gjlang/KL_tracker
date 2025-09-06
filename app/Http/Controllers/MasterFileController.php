@@ -26,6 +26,109 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
 class MasterFileController extends Controller
 {
+
+
+    private function selectExistingColumns(array $wanted): array
+{
+    $tableCols = Schema::getColumnListing((new MasterFile)->getTable());
+    return array_values(array_unique(array_filter(
+        array_merge(['id'], $wanted),
+        fn ($c) => in_array($c, $tableCols, true)
+    )));
+}
+
+       public function kltg(Request $request)
+{
+    // Kolom yang diminta (sesuai list kamu)
+    $columns = [
+        'month','date','company','product','product_category','location','traffic','duration','amount',
+        'status','remarks','client','date_finish','job_number','artwork','invoice_date','invoice_number',
+        'created_at','updated_at','contact_number','email',
+        'kltg_industry','kltg_x','kltg_edition','kltg_material_cbp','kltg_print','kltg_article',
+        'kltg_video','kltg_leaderboard','kltg_qr_code','kltg_blog','kltg_em','kltg_remarks',
+    ];
+
+    // Variasi nama produk untuk KLTG (lowercase semua)
+    $kltgSet = array_map('strtolower', [
+        'kltg', 'kltg listing', 'kltg quarter page',
+    ]);
+
+    $select = $this->selectExistingColumns($columns);
+
+    $rows = MasterFile::query()
+        ->select($select)
+        ->where(function ($q) use ($kltgSet) {
+            // LOWER(product) in set  OR  LOWER(product_category) in set
+            $q->whereIn(DB::raw('LOWER(product)'), $kltgSet)
+              ->orWhereIn(DB::raw('LOWER(product_category)'), $kltgSet);
+        })
+        ->latest('created_at')
+        ->paginate(25)
+        ->appends($request->query());
+
+    return view('dashboard.master.kltg', [
+        'rows'    => $rows,
+        'columns' => $columns,
+    ]);
+}
+
+    /** GET /dashboard/master/outdoor */
+    public function outdoor(Request $request)
+{
+    // Kolom yang diminta (sesuai list kamu)
+    $columns = [
+        'id','month','date','company','product','product_category','location','traffic','duration','amount',
+        'status','remarks','client','date_finish','job_number','artwork','invoice_date','invoice_number',
+        'created_at','updated_at','contact_number','email',
+        'outdoor_size','outdoor_district_council','outdoor_coordinates',
+    ];
+
+    // Variasi nama produk untuk Outdoor (lowercase semua) + 'outdoor'
+    $outdoorSet = array_map('strtolower', [
+        'outdoor', // jika ada yang tersimpan begitu
+        'hm','tb','ttm','bb','star','flyers','bunting','signages',
+    ]);
+
+    $select = $this->selectExistingColumns($columns);
+
+    $rows = MasterFile::query()
+        ->select($select)
+        ->where(function ($q) use ($outdoorSet) {
+            // LOWER(product) in set  OR  LOWER(product_category) in set
+            $q->whereIn(DB::raw('LOWER(product)'), $outdoorSet)
+              ->orWhereIn(DB::raw('LOWER(product_category)'), $outdoorSet);
+        })
+        ->latest('created_at')
+        ->paginate(25)
+        ->appends($request->query());
+
+    return view('dashboard.master.outdoor', [
+        'rows'    => $rows,
+        'columns' => $columns,
+    ]);
+}
+
+    /**
+     * Utility: ensure we only select columns that truly exist,
+     * always include the primary key so Blade links can work.
+     */
+    private function buildQueryBits(array $wanted, string $kind): array
+    {
+        $tableCols = Schema::getColumnListing((new MasterFile)->getTable());
+
+        $select = array_values(array_unique(array_filter(array_merge(['id'], $wanted), function ($c) use ($tableCols) {
+            return in_array($c, $tableCols, true);
+        })));
+
+        // if a project sometimes stores type in product, sometimes in category
+        $filters = [
+            'by_product'  => in_array('product', $tableCols, true),
+            'by_category' => in_array('product_category', $tableCols, true),
+        ];
+
+        return [$select, $filters];
+    }
+
     public function index(Request $request)
     {
         // Debug: Log the incoming request parameters
@@ -72,7 +175,7 @@ class MasterFileController extends Controller
 
             if ($hasPC) {
                 $query->whereIn('product', match ($request->product_category) {
-                    'Outdoor' => ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages'],
+                    'Outdoor' => ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages', 'Newspaper'],
                     'Media' => ['FB IG Ad'],
                     'KLTG' => ['KLTG', 'KLTG listing', 'KLTG quarter page','NP'],
                     default => []
@@ -82,7 +185,7 @@ class MasterFileController extends Controller
                 $cat = strtolower($request->product_category);
                 if ($cat === 'outdoor') {
                     $query->where(function($q) {
-                        $q->whereIn('product', ['HM','TB','TTM','BB','Star','Flyers','Bunting','Signages'])
+                        $q->whereIn('product', ['HM','TB','TTM','BB','Star','Flyers','Bunting','Signages','Newspaper'])
                           ->orWhereRaw('LOWER(product) LIKE ?', ['%outdoor%']);
                     });
                 } elseif ($cat === 'kltg') {
@@ -206,6 +309,25 @@ class MasterFileController extends Controller
         'invoice_number'   => ['sometimes','nullable','string','max:255'],
         'location'         => ['sometimes','nullable','string','max:255'],
         'remarks'          => ['sometimes','nullable','string'],
+
+        // KLTG-only (all optional)
+        'kltg_industry'      => ['nullable','string','max:255'],
+        'kltg_x'             => ['nullable','string','max:255'],
+        'kltg_edition'       => ['nullable','string','max:255'],
+        'kltg_material_cbp'  => ['nullable','string','max:255'],
+        'kltg_print'         => ['nullable','string','max:255'],
+        'kltg_article'       => ['nullable','string','max:255'],
+        'kltg_video'         => ['nullable','string','max:255'],
+        'kltg_leaderboard'   => ['nullable','string','max:255'],
+        'kltg_qr_code'       => ['nullable','string','max:255'],
+        'kltg_blog'          => ['nullable','string','max:255'],
+        'kltg_em'            => ['nullable','string','max:255'],
+        'kltg_remarks'       => ['nullable','string','max:255'],
+
+        // Outdoor-only
+        'outdoor_size'             => ['nullable','string','max:255'],
+        'outdoor_district_council' => ['nullable','string','max:255'],
+        'outdoor_coordinates'      => ['nullable','string','max:255'],
     ]);
 
     // If you have custom parsing (e.g., month names), do it here before save.
@@ -240,7 +362,7 @@ class MasterFileController extends Controller
     public function store(Request $request)
     {
         $allowedProducts = [
-            'HM','TB','TTM','BB','Star','KLTG','Flyers','Bunting',
+            'HM','TB','TTM','BB','Star','KLTG','Flyers','Bunting', 'Newspaper',
             'KLTG listing','KLTG quarter page','Signages','FB IG Ad','NP',
             // ✅ New ones:
             'YouTube Management',
@@ -266,6 +388,25 @@ class MasterFileController extends Controller
             'contact_number'  => 'nullable|string|max:50',
             'email'           => 'nullable|email|max:255',
             'invoice_number'  => 'nullable|string',
+            'amount' => ['nullable','numeric','between:0,999999999.99'],
+            // KLTG
+            'kltg_industry' => ['nullable','string','max:255'],
+            'kltg_x' => ['nullable','string','max:255'],
+            'kltg_edition' => ['nullable','string','max:255'],
+            'kltg_material_cbp' => ['nullable','string','max:255'],
+            'kltg_print' => ['nullable','string','max:255'],
+            'kltg_article' => ['nullable','string','max:255'],
+            'kltg_video' => ['nullable','string','max:255'],
+            'kltg_leaderboard' => ['nullable','string','max:255'],
+            'kltg_qr_code' => ['nullable','string','max:255'],
+            'kltg_blog' => ['nullable','string','max:255'],
+            'kltg_em' => ['nullable','string','max:255'],
+            'kltg_remarks' => ['nullable','string','max:255'],
+
+            // Outdoor
+            'outdoor_size' => ['nullable','string','max:255'],
+            'outdoor_district_council' => ['nullable','string','max:255'],
+            'outdoor_coordinates' => ['nullable','string','max:255'],
         ]);
 
         // Detect category for JO prefix + (optionally) persist it
@@ -376,7 +517,7 @@ private function guessProductType(MasterFile $file): string
     $hay = strtolower(trim(implode(' ', $candidates)));
 
     // --- HARD EQUALITY MAPS (most reliable) ---
-    $equalsOutdoor = ['bb','tb','np','bunting','flyers','star','signages','signage'];
+    $equalsOutdoor = ['bb','tb','np','bunting','flyers','star','signages','signage', 'newspaper'];
     if (in_array(strtolower(trim($file->product ?? '')), $equalsOutdoor, true) ||
         in_array(strtolower(trim($file->product_category ?? '')), $equalsOutdoor, true)) {
         return 'outdoor';
