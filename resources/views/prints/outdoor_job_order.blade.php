@@ -93,22 +93,29 @@
   </table>
 
   <!-- JOB TABLE -->
-  <table style="margin-top:6px;" class="job-rows">
+ <table style="margin-top:6px;" class="job-rows">
     <tr>
-      <th class="w40">SITE / LOCATION</th>
-      <th class="w20">SIZE</th>
-      <th class="w20">DURATION</th>
-      <th class="w20">IN CHARGE DATE</th>
+        <th class="w40">SITE / LOCATION</th>
+        <th class="w20">SIZE</th>
+        <th class="w20">DURATION</th>
+        <th class="w20">IN CHARGE DATE</th>
     </tr>
     @for ($i = 0; $i < 6; $i++)
-      <tr>
-        <td>{{ $i==0 ? ($file->location ?? '') : '' }}</td>
-        <td>{{ $i==0 ? ($file->size ?? '') : '' }}</td>
-        <td>{{ $i==0 ? ($file->duration ?? '') : '' }}</td>
-        <td>{{ $i==0 ? ($file->in_charge_date ?? '') : '' }}</td>
-      </tr>
+        <tr>
+            <td>{{ $i==0 ? ($file->location ?? '') : '' }}</td>
+            <td>{{ $i==0 ? ($file->size ?? '') : '' }}</td>
+            <td>{{ $i==0 ? ($file->duration ?? '') : '' }}</td>
+            <td>
+    @if ($i==0)
+        {{ $file->date ? \Carbon\Carbon::parse($file->date)->format('d/m/Y') : '' }}
+        {{ $file->date_finish ? ' - ' . \Carbon\Carbon::parse($file->date_finish)->format('d/m/Y') : '' }}
+    @endif
+</td>
+
+        </tr>
     @endfor
-  </table>
+</table>
+
 
   <!-- REMARKS -->
   <table style="margin-top:6px;" class="remarks">

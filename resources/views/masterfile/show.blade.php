@@ -85,15 +85,6 @@
                                         </svg>
                                         Cancel
                                     </button>
-
-                                   <form action="{{ route('masterfile.destroy', $file->id) }}" method="POST"
-                                        onsubmit="return confirm('Delete this record? This cannot be undone.');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="px-3 py-2 bg-red-600 text-black rounded hover:bg-red-700">
-                                            Delete
-                                        </button>
-                                    </form>
                                 </div>
                             </div>
                         </div>
