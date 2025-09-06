@@ -189,7 +189,7 @@
                                         </td>
                                     @endforeach
 
-                                    <td class="px-4 py-4 align-middle border-b border-gray-100">
+                                    {{-- <td class="px-4 py-4 align-middle border-b border-gray-100">
                                         <form method="post" action="{{ route('coordinator.outdoor.destroy',$row->id) }}"
                                               onsubmit="return confirm('Delete this row?')">
                                             @csrf @method('DELETE')
@@ -200,7 +200,7 @@
                                                 Delete
                                             </button>
                                         </form>
-                                    </td>
+                                    </td> --}}
                                 </tr>
                             @endforeach
                         @elseif(isset($outdoorJobs) && $outdoorJobs->count() > 0)

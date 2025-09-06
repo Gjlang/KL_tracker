@@ -17,8 +17,8 @@ class OutdoorCoordinatorController  extends Controller
 
 public function index(Request $request)
 {
-    // 1) Month & Year
-    $rawMonth = $request->input('month', $request->input('outdoor_month')); // jaga kompatibel lama
+    // 1) Normalize Month & Year (accept 1..12, "Jan", "January")
+    $rawMonth = $request->input('month', $request->input('outdoor_month'));
     $rawYear  = $request->input('year',  $request->input('outdoor_year'));
 
     $month = null;
@@ -39,129 +39,103 @@ public function index(Request $request)
     }
     $year = (int)($rawYear ?: now()->year);
 
-    // 2) Sumber monthly
-    $mdTable = null; $mdHasCategory = false;
-    if (Schema::hasTable('outdoor_monthly_details')) {
-        $mdTable = 'outdoor_monthly_details';
-    } elseif (Schema::hasTable('monthly_details')) {
-        $mdTable = 'monthly_details';
-        $mdHasCategory = Schema::hasColumn('monthly_details', 'category');
-    }
+    // 2) Pick monthly source table
+    $mdTable = Schema::hasTable('outdoor_monthly_details') ? 'outdoor_monthly_details'
+             : (Schema::hasTable('monthly_details') ? 'monthly_details' : null);
+    $mdHasCategory = $mdTable === 'monthly_details' && Schema::hasColumn('monthly_details', 'category');
 
-    // 3) Ambil daftar master_file_id dari monthly (STRICT)
+    // 3) Selected master_file_ids for (year, month) — CAST ensures matching even if stored as text like "2,025"
     $monthlyIds = collect();
     if ($month && $mdTable) {
+        $monthFull = Carbon::create()->month($month)->format('F'); // "January"
+        $monthAbbr = Carbon::create()->month($month)->format('M'); // "Jan"
+
         if ($mdTable === 'outdoor_monthly_details') {
-            $monthlyIds = DB::table('outdoor_monthly_details')
-                ->where('year', $year)->where('month', $month)
-                ->distinct()->pluck('master_file_id');
-        } else { // monthly_details generik
+            $monthlyIds = DB::table('outdoor_monthly_details as md')
+                ->join('master_files as mf', 'mf.id', '=', 'md.master_file_id')
+                ->whereRaw('CAST(REPLACE(md.year, ",", "") AS UNSIGNED) = ?', [$year])
+                ->where(function ($q) use ($month, $monthFull, $monthAbbr) {
+                    $q->whereRaw('CAST(REPLACE(md.month, ",", "") AS UNSIGNED) = ?', [$month])
+                      ->orWhereRaw('LOWER(md.month) = ?', [strtolower($monthFull)])
+                      ->orWhereRaw('LOWER(md.month) = ?', [strtolower($monthAbbr)]);
+                })
+                ->where(function ($q) {
+                    $q->whereRaw('LOWER(mf.product_category) = "outdoor"')
+                      ->orWhereRaw('LOWER(mf.product_category) LIKE "%outdoor%"');
+                })
+                ->distinct()
+                ->pluck('md.master_file_id');
+        } else {
+            $q = DB::table('monthly_details as md')
+                ->join('master_files as mf', 'mf.id', '=', 'md.master_file_id')
+                ->whereRaw('CAST(REPLACE(md.year, ",", "") AS UNSIGNED) = ?', [$year])
+                ->where(function ($w) use ($month, $monthFull, $monthAbbr) {
+                    $w->whereRaw('CAST(REPLACE(md.month, ",", "") AS UNSIGNED) = ?', [$month])
+                      ->orWhereRaw('LOWER(md.month) = ?', [strtolower($monthFull)])
+                      ->orWhereRaw('LOWER(md.month) = ?', [strtolower($monthAbbr)]);
+                })
+                ->where(function ($q) {
+                    $q->whereRaw('LOWER(mf.product_category) = "outdoor"')
+                      ->orWhereRaw('LOWER(mf.product_category) LIKE "%outdoor%"');
+                });
+
             if ($mdHasCategory) {
-                $monthlyIds = DB::table('monthly_details')
-                    ->where('year', $year)->where('month', $month)
-                    ->whereRaw('UPPER(category) = ?', ['OUTDOOR'])
-                    ->distinct()->pluck('master_file_id');
-            } else {
-                $monthlyIds = DB::table('monthly_details as md')
-                    ->join('master_files as mf','mf.id','=','md.master_file_id')
-                    ->where('md.year', $year)->where('md.month', $month)
-                    ->where(function($q){
-                        $q->where('mf.product_category','Outdoor')
-                          ->orWhere('mf.product_category','like','%outdoor%');
-                    })
-                    ->distinct()->pluck('md.master_file_id');
+                $q->whereRaw('UPPER(md.category) = "OUTDOOR"');
             }
-        }
-        $monthlyIds = $monthlyIds->map(fn($v)=>(int)$v)->unique()->values();
-    }
 
-    // 4) Auto-sync ke outdoor_coordinator_trackings hanya untuk ID bulan ini
-    if ($month && $mdTable) {
-    // nama bulan dalam teks (Oct/October) utk fallback jika kolom 'month' disimpan sebagai string
-    $monthFull = \Carbon\Carbon::create()->month($month)->format('F'); // "October"
-    $monthAbbr = \Carbon\Carbon::create()->month($month)->format('M'); // "Oct"
-
-    if ($mdTable === 'outdoor_monthly_details') {
-        $monthlyIds = DB::table('outdoor_monthly_details as md')
-            ->join('master_files as mf','mf.id','=','md.master_file_id')
-            ->where('md.year', $year)
-            ->where(function ($q) use ($month, $monthFull, $monthAbbr) {
-                $q->where('md.month', $month) // numeric
-                  ->orWhereRaw('LOWER(md.month) = ?', [strtolower($monthFull)]) // "october"
-                  ->orWhereRaw('LOWER(md.month) = ?', [strtolower($monthAbbr)]); // "oct"
-            })
-            ->where(function ($q) {
-                $q->where('mf.product_category', 'Outdoor')
-                  ->orWhere('mf.product_category', 'like', '%outdoor%');
-            })
-            ->distinct()
-            ->pluck('md.master_file_id')
-            ->map(fn($v)=>(int)$v)
-            ->unique()
-            ->values();
-
-    } else { // monthly_details (generic)
-        $q = DB::table('monthly_details as md')
-            ->join('master_files as mf','mf.id','=','md.master_file_id')
-            ->where('md.year', $year)
-            ->where(function ($w) use ($month, $monthFull, $monthAbbr) {
-                $w->where('md.month', $month)
-                  ->orWhereRaw('LOWER(md.month) = ?', [strtolower($monthFull)])
-                  ->orWhereRaw('LOWER(md.month) = ?', [strtolower($monthAbbr)]);
-            })
-            ->where(function ($q) {
-                $q->where('mf.product_category', 'Outdoor')
-                  ->orWhere('mf.product_category', 'like', '%outdoor%');
-            });
-
-        if ($mdHasCategory) {
-            $q->whereRaw('UPPER(md.category) = ?', ['OUTDOOR']);
+            $monthlyIds = $q->distinct()->pluck('md.master_file_id');
         }
 
-        $monthlyIds = $q->distinct()
-            ->pluck('md.master_file_id')
-            ->map(fn($v)=>(int)$v)
-            ->unique()
-            ->values();
+        $monthlyIds = $monthlyIds->map(fn ($v) => (int)$v)->unique()->values();
     }
-}
 
-    // 5) Query: kunci ke monthlyIds saat month dipilih (STRICT)
-    $base = OutdoorCoordinatorTracking::query()
-        ->with(['masterFile'=>function($q){
-            $q->select('id','company','client','product','product_category','location');
-        }])
-        ->whereHas('masterFile', function($q){
-            $q->where(function($qq){
-                $qq->where('product_category','Outdoor')
-                   ->orWhere('product_category','like','%outdoor%');
-            });
+    // 4) Start from master_files (Outdoor only), LEFT JOIN tracking so selected jobs show even without tracking rows
+    $base = MasterFile::query()
+        ->from('master_files as mf')
+        ->leftJoin('outdoor_coordinator_trackings as t', 't.master_file_id', '=', 'mf.id')
+        ->where(function ($q) {
+            $q->whereRaw('LOWER(mf.product_category) = "outdoor"')
+              ->orWhereRaw('LOWER(mf.product_category) LIKE "%outdoor%"');
         });
 
     if ($month) {
         if ($mdTable && $monthlyIds->isNotEmpty()) {
-            $base->whereIn('master_file_id', $monthlyIds->all());
+            $base->whereIn('mf.id', $monthlyIds->all());
         } else {
-            // bulan dipilih tapi monthly kosong / tabel nggak ada -> kosong
+            // Month chosen but nothing selected → empty
             $base->whereRaw('1=0');
         }
     }
 
-    $rows = (clone $base)
-        ->orderBy('outdoor_coordinator_trackings.created_at', 'asc')
+    $records = $base
+        ->select([
+            'mf.id as master_file_id',
+            'mf.company','mf.client','mf.product','mf.product_category','mf.location',
+            't.id as tracking_id','t.site','t.payment','t.material','t.artwork',
+            't.received_approval','t.sent_to_printer','t.collection_printer','t.installation',
+            't.dismantle','t.remarks','t.next_follow_up','t.status',
+            't.created_at as tracking_created_at',
+        ])
+        ->orderByRaw('LOWER(mf.company) asc')
         ->paginate(20)
         ->appends($request->query());
 
-    // dropdown helper
+    // 5) Month dropdown data
     $months = [];
-    for ($i=1;$i<=12;$i++){
-        $months[] = ['value'=>$i,'label'=>\Carbon\Carbon::create()->month($i)->format('F')];
+    for ($i = 1; $i <= 12; $i++) {
+        $months[] = ['value' => $i, 'label' => Carbon::create()->month($i)->format('F')];
     }
 
-    return view('coordinators.outdoor', compact('rows','months','month','year') + [
-        'mdTable' => $mdTable ?: 'no_monthly_table',
+    return view('coordinators.outdoor', [
+        'rows'       => $records,        // <-- name matches most blades
+        'months'        => $months,
+        'month'         => $month,
+        'year'          => $year,
+        'mdTable'       => $mdTable ?: 'no_monthly_table',
+        'selectedCount' => $monthlyIds->count(),
     ]);
 }
+
 
 
     // Alternative: Even simpler test to isolate the issue
@@ -340,7 +314,7 @@ public function index(Request $request)
     {
         // Get outdoor master files that don't have tracking records yet
         $outdoorMasterFiles = MasterFile::where(function($query) {
-            $query->whereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages'])
+            $query->whereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages', 'Newspaper'])
                   ->orWhere('product_category', 'LIKE', '%outdoor%')
                   ->orWhere('product_category', 'Outdoor');
         })
@@ -374,7 +348,7 @@ public function index(Request $request)
     public function syncFromMasterFile()
     {
         $outdoor = MasterFile::where(function($query) {
-            $query->whereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages'])
+            $query->whereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages', 'Newspaper'])
                   ->orWhere('product_category', 'LIKE', '%outdoor%')
                   ->orWhere('product_category', 'Outdoor');
         })->get();
@@ -406,7 +380,7 @@ public function index(Request $request)
     {
         // Get only outdoor-related master files that don't have tracking records yet
         $masterFiles = MasterFile::where(function($query) {
-            $query->whereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages'])
+            $query->whereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages', 'Newspaper'])
                   ->orWhere('product_category', 'LIKE', '%outdoor%')
                   ->orWhere('product_category', 'Outdoor');
         })
@@ -476,7 +450,7 @@ public function index(Request $request)
 
         // Get all outdoor master files for the dropdown
         $masterFiles = MasterFile::where(function($query) {
-            $query->whereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages'])
+            $query->whereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages', 'Newspaper'])
                   ->orWhere('product_category', 'LIKE', '%outdoor%')
                   ->orWhere('product_category', 'Outdoor');
         })
@@ -625,7 +599,7 @@ public function index(Request $request)
 
         // Get outdoor master files that don't have tracking records yet
         $outdoorFiles = MasterFile::where(function($query) {
-            $query->whereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages'])
+            $query->whereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages', 'Newspaper'])
                   ->orWhere('product_category', 'LIKE', '%outdoor%')
                   ->orWhere('product_category', 'Outdoor');
         })
