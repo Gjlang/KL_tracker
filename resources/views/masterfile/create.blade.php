@@ -56,6 +56,14 @@
                    required>
         </div>
 
+        <!-- ✅ New: Sales Person -->
+        <div>
+            <label for="sales_person" class="text-gray-700 font-medium mb-1 block">Sales Person</label>
+            <input type="text" name="sales_person" id="sales_person" placeholder="e.g., Aisyah / Daniel"
+                value="{{ old('sales_person') }}"
+                class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out">
+        </div>
+
         <!-- ✅ New: Contact Number -->
         <div>
             <label for="contact_number" class="text-gray-700 font-medium mb-1 block">Contact Number</label>

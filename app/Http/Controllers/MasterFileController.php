@@ -376,6 +376,7 @@ class MasterFileController extends Controller
         'status' => ['required','string','max:255'],
         'remarks' => ['nullable','string'],
         'client' => ['required','string','max:255'],
+        'sales_person' => ['nullable','string','max:255'],
         'date_finish' => ['nullable','date'],
         'job_number' => ['nullable','string','max:255'],
         'artwork' => ['nullable','string','max:255'],
