@@ -27,41 +27,31 @@
 </head>
 <body class="font-sans antialiased bg-gray-50">
     <div class="min-h-screen">
-        <!-- Navigation -->
-        <nav class="bg-white shadow-sm border-b border-gray-200">
+         <!-- Enhanced Navigation -->
+        <nav class="glassmorphism shadow-soft border-b border-white/20 sticky top-0 z-50">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between h-16">
-                    <div class="flex">
-                        <!-- Logo -->
-                        <div class="shrink-0 flex items-center">
-                            <a href="{{ route('dashboard') }}" class="text-xl font-bold text-gray-800">
-                                Job Tracker
+                    <div class="flex items-center">
+                        <!-- Enhanced Logo -->
+                        <div class="shrink-0 flex items-center group">
+                            <div class="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center mr-3 shadow-lg group-hover:shadow-xl transition-all duration-300">
+                                <i class="fas fa-briefcase text-white text-lg"></i>
+                            </div>
+                            <a href="{{ route('dashboard') }}" class="text-xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+                                Job Tracker Pro
                             </a>
                         </div>
 
-                        <!-- Navigation Links -->
+                        <!-- Enhanced Navigation Links -->
                         <div class="hidden space-x-8 sm:-my-px sm:ml-10 sm:flex">
                             <a href="{{ route('dashboard') }}"
-                               class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('dashboard') ? 'border-indigo-400 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium">
+                               class="nav-link inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('dashboard') ? 'border-indigo-400 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700' }} text-sm font-medium">
+                                <i class="fas fa-tachometer-alt mr-2 text-sm"></i>
                                 Dashboard
-                            </a>
-
-                            <a href="{{ route('jobs.index') }}"
-                               class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('jobs.*') ? 'border-indigo-400 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium">
-                                All Jobs
-                            </a>
-
-                            <a href="{{ route('jobs.monthly') }}"
-                               class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('jobs.monthly') ? 'border-indigo-400 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium">
-                                Monthly View
-                            </a>
-
-                            <a href="{{ route('calendar') }}"
-                               class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('calendar') ? 'border-indigo-400 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium">
-                                Calendar
                             </a>
                         </div>
                     </div>
+
                 </div>
             </div>
         </nav>

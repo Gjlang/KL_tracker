@@ -146,13 +146,12 @@
         Monthly KLTG
     </a>
 
-    <form method="GET" action="{{ route('coordinator.kltg.export') }}" class="inline">
-  <input type="hidden" name="subcategory" value="{{ $activeTab }}">   {{-- kltg|video|article|lb|em --}}
-  <input type="hidden" name="month" value="{{ request('month') }}">
-  <input type="hidden" name="year" value="{{ request('year') }}">
-  {{-- optional --}}
-  <input type="hidden" name="working" value="{{ request('working') }}"> {{-- working|completed|'' --}}
-  <button type="submit" class="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700">
+    <form method="GET" action="{{ route('coordinator.kltg.export') }}" class="inline" id="exportForm">
+  <input type="hidden" name="subcategory" value="{{ $activeTab }}">
+  <input type="hidden" name="month" id="exportMonth">
+  <input type="hidden" name="year" id="exportYear">
+  <input type="hidden" name="working" value="{{ request('working') }}">
+  <button type="submit" class="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700" onclick="syncExportForm()">
     Export
   </button>
 </form>
@@ -280,6 +279,31 @@
 
   {{-- KLTG Configuration (MUST come before autosave script) --}}
   <script>
+
+    function syncExportForm() {
+  const monthSelect = document.querySelector('select[name="month"]');
+  const yearSelect = document.querySelector('select[name="year"]');
+
+  document.getElementById('exportMonth').value = monthSelect.value;
+  document.getElementById('exportYear').value = yearSelect.value;
+}
+
+// Auto-sync when dropdowns change
+document.addEventListener('DOMContentLoaded', function() {
+  const monthSelect = document.querySelector('select[name="month"]');
+  const yearSelect = document.querySelector('select[name="year"]');
+
+  monthSelect.addEventListener('change', () => {
+    document.getElementById('exportMonth').value = monthSelect.value;
+  });
+
+  yearSelect.addEventListener('change', () => {
+    document.getElementById('exportYear').value = yearSelect.value;
+  });
+
+  // Initialize with current values
+  syncExportForm();
+});
     window.KLTG = {
       upsertUrl: @json(route('coordinator.kltg.upsert')),
       csrf: @json(csrf_token())

@@ -17,98 +17,57 @@ class OutdoorCoordinatorController  extends Controller
 
 public function index(Request $request)
 {
-    // 1) Normalize Month & Year (accept 1..12, "Jan", "January")
-    $rawMonth = $request->input('month', $request->input('outdoor_month'));
-    $rawYear  = $request->input('year',  $request->input('outdoor_year'));
+    $debug     = $request->boolean('debug');
+    $nofilter  = $request->boolean('nofilter');
+    $forceId   = $request->input('force_id'); // e.g. 37
 
-    $month = null;
-    if ($rawMonth !== null && $rawMonth !== '') {
-        $m = trim((string)$rawMonth);
-        if (ctype_digit($m)) {
-            $month = max(1, min(12, (int)$m));
-        } else {
-            $map = [
-                'jan'=>1,'january'=>1,'feb'=>2,'february'=>2,'mar'=>3,'march'=>3,
-                'apr'=>4,'april'=>4,'may'=>5,'jun'=>6,'june'=>6,'jul'=>7,'july'=>7,
-                'aug'=>8,'august'=>8,'sep'=>9,'september'=>9,'oct'=>10,'october'=>10,
-                'nov'=>11,'november'=>11,'dec'=>12,'december'=>12,
-            ];
-            $key = strtolower(preg_replace('/[^a-z]/i', '', $m));
-            $month = $map[$key] ?? null;
-        }
-    }
-    $year = (int)($rawYear ?: now()->year);
+    $month = (int) ($request->input('month') ?: now()->month);
+    $year  = (int) ($request->input('year')  ?: now()->year);
 
-    // 2) Pick monthly source table
-    $mdTable = Schema::hasTable('outdoor_monthly_details') ? 'outdoor_monthly_details'
-             : (Schema::hasTable('monthly_details') ? 'monthly_details' : null);
-    $mdHasCategory = $mdTable === 'monthly_details' && Schema::hasColumn('monthly_details', 'category');
+    // 1) Selected IDs for (year, month)
+    $selectedMasterIds = DB::table('outdoor_monthly_details')
+        ->where('year',  $year)
+        ->where('month', $month)
+        ->distinct()
+        ->pluck('master_file_id')
+        ->map(fn ($v) => (int) $v)
+        ->unique()
+        ->values();
 
-    // 3) Selected master_file_ids for (year, month) — CAST ensures matching even if stored as text like "2,025"
-    $monthlyIds = collect();
-    if ($month && $mdTable) {
-        $monthFull = Carbon::create()->month($month)->format('F'); // "January"
-        $monthAbbr = Carbon::create()->month($month)->format('M'); // "Jan"
-
-        if ($mdTable === 'outdoor_monthly_details') {
-            $monthlyIds = DB::table('outdoor_monthly_details as md')
-                ->join('master_files as mf', 'mf.id', '=', 'md.master_file_id')
-                ->whereRaw('CAST(REPLACE(md.year, ",", "") AS UNSIGNED) = ?', [$year])
-                ->where(function ($q) use ($month, $monthFull, $monthAbbr) {
-                    $q->whereRaw('CAST(REPLACE(md.month, ",", "") AS UNSIGNED) = ?', [$month])
-                      ->orWhereRaw('LOWER(md.month) = ?', [strtolower($monthFull)])
-                      ->orWhereRaw('LOWER(md.month) = ?', [strtolower($monthAbbr)]);
-                })
-                ->where(function ($q) {
-                    $q->whereRaw('LOWER(mf.product_category) = "outdoor"')
-                      ->orWhereRaw('LOWER(mf.product_category) LIKE "%outdoor%"');
-                })
-                ->distinct()
-                ->pluck('md.master_file_id');
-        } else {
-            $q = DB::table('monthly_details as md')
-                ->join('master_files as mf', 'mf.id', '=', 'md.master_file_id')
-                ->whereRaw('CAST(REPLACE(md.year, ",", "") AS UNSIGNED) = ?', [$year])
-                ->where(function ($w) use ($month, $monthFull, $monthAbbr) {
-                    $w->whereRaw('CAST(REPLACE(md.month, ",", "") AS UNSIGNED) = ?', [$month])
-                      ->orWhereRaw('LOWER(md.month) = ?', [strtolower($monthFull)])
-                      ->orWhereRaw('LOWER(md.month) = ?', [strtolower($monthAbbr)]);
-                })
-                ->where(function ($q) {
-                    $q->whereRaw('LOWER(mf.product_category) = "outdoor"')
-                      ->orWhereRaw('LOWER(mf.product_category) LIKE "%outdoor%"');
-                });
-
-            if ($mdHasCategory) {
-                $q->whereRaw('UPPER(md.category) = "OUTDOOR"');
-            }
-
-            $monthlyIds = $q->distinct()->pluck('md.master_file_id');
-        }
-
-        $monthlyIds = $monthlyIds->map(fn ($v) => (int)$v)->unique()->values();
+    // Allow force override for sanity check
+    if ($forceId) {
+        $selectedMasterIds = collect([(int)$forceId]);
     }
 
-    // 4) Start from master_files (Outdoor only), LEFT JOIN tracking so selected jobs show even without tracking rows
+    // 2) Base query
     $base = MasterFile::query()
         ->from('master_files as mf')
-        ->leftJoin('outdoor_coordinator_trackings as t', 't.master_file_id', '=', 'mf.id')
-        ->where(function ($q) {
-            $q->whereRaw('LOWER(mf.product_category) = "outdoor"')
-              ->orWhereRaw('LOWER(mf.product_category) LIKE "%outdoor%"');
-        });
+        ->leftJoin('outdoor_coordinator_trackings as t', 't.master_file_id', '=', 'mf.id');
 
-    if ($month) {
-        if ($mdTable && $monthlyIds->isNotEmpty()) {
-            $base->whereIn('mf.id', $monthlyIds->all());
-        } else {
-            // Month chosen but nothing selected → empty
-            $base->whereRaw('1=0');
-        }
+    // 3) Outdoor filter (skip when nofilter=1)
+    if (!$nofilter) {
+        $outdoorCodes  = ['TB','BB','NEWSPAPER','BUNTING','FLYERS','STAR','SIGNAGES'];
+        $outdoorLabels = ['TB - Tempboard','BB - Billboard','Newspaper','Bunting','Flyers','Star','Signages'];
+
+        $base->where(function ($q) use ($outdoorCodes, $outdoorLabels) {
+            $q->whereRaw('LOWER(mf.product) = ?', ['outdoor'])
+              ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%'])
+              ->orWhereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
+              ->orWhereIn('mf.product_category', $outdoorCodes)
+              ->orWhereIn('mf.product_category', $outdoorLabels)
+              ->orWhereRaw('LEFT(mf.product_category, 2) IN ("TB","BB")');
+        });
     }
 
-    $records = $base
-        ->select([
+    // 4) Selected-only
+    if ($selectedMasterIds->isNotEmpty()) {
+        $base->whereIn('mf.id', $selectedMasterIds->all());
+    } else {
+        $base->whereRaw('1=0');
+    }
+
+    // 5) Select fields
+    $records = $base->select([
             'mf.id as master_file_id',
             'mf.company','mf.client','mf.product','mf.product_category','mf.location',
             't.id as tracking_id','t.site','t.payment','t.material','t.artwork',
@@ -120,23 +79,35 @@ public function index(Request $request)
         ->paginate(20)
         ->appends($request->query());
 
-    // 5) Month dropdown data
+    if ($debug) {
+        Log::info('Outdoor@index DEBUG', [
+            'year' => $year,
+            'month' => $month,
+            'nofilter' => $nofilter,
+            'force_id' => $forceId,
+            'selected_ids' => $selectedMasterIds->all(),
+            'page_rows' => $records->pluck('master_file_id')->all(),
+        ]);
+    }
+
+    // months for dropdown
     $months = [];
     for ($i = 1; $i <= 12; $i++) {
         $months[] = ['value' => $i, 'label' => Carbon::create()->month($i)->format('F')];
     }
 
     return view('coordinators.outdoor', [
-        'rows'       => $records,        // <-- name matches most blades
+        'rows'          => $records,
         'months'        => $months,
         'month'         => $month,
         'year'          => $year,
-        'mdTable'       => $mdTable ?: 'no_monthly_table',
-        'selectedCount' => $monthlyIds->count(),
+        'selectedCount' => $selectedMasterIds->count(),
+        'debug'         => $debug,
+        'selectedIds'   => $selectedMasterIds,
+        'nofilter'      => $nofilter,
+        'forceId'       => $forceId,
     ]);
 }
-
-
 
     // Alternative: Even simpler test to isolate the issue
     public function index_minimal_test()

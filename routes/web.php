@@ -103,12 +103,17 @@ Route::prefix('masterfile')->name('masterfile.')->group(function () {
 
     // Print routes
     Route::get('/{file}/print', [MasterFileController::class, 'printAuto'])->whereNumber('file')->name('print');
+
 });
 
+// ✅ Put dashboard routes (including export) under the dashboard group
 Route::prefix('dashboard/master')->name('dashboard.master.')->middleware('auth')->group(function () {
     Route::get('/kltg', [MasterFileController::class, 'kltg'])->name('kltg');
     Route::get('/outdoor', [MasterFileController::class, 'outdoor'])->name('outdoor');
+     Route::get('/export/kltg', [MasterFileController::class, 'exportKltgXlsx'])->name('export.kltg');
+    Route::get('/export/outdoor', [MasterFileController::class, 'exportOutdoorXlsx'])->name('export.outdoor');
 });
+
 
 
 
@@ -153,7 +158,12 @@ Route::prefix('coordinator/outdoor')->name('coordinator.outdoor.')->group(functi
     // Export routes
     Route::get('/export', [OutdoorCoordinatorController::class, 'export'])->name('export');
     Route::get('/export-matrix', [OutdoorOngoingJobController::class, 'exportMatrix'])->name('exportMatrix');
+    Route::get('/coordinator/kltg/export-xlsx', [KltgCoordinatorController::class, 'exportXlsx'])
+    ->name('coordinator.kltg.export.xlsx');
+
 });
+
+
 
 // KLTG COORDINATOR
 Route::prefix('coordinator/kltg')->name('coordinator.kltg.')->group(function () {
