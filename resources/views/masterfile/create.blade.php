@@ -316,7 +316,7 @@ function productPicker() {
     // ===== Data =====
     categories: {
       'KLTG': [
-        { label: 'KLTG',                value: 'KLTG' },
+        { label: 'THE GUIDE',                value: 'THE GUIDE' },
         { label: 'KLTG listing',        value: 'KLTG listing' },
         { label: 'KLTG Quarter Page',   value: 'KLTG Quarter Page' },
       ],

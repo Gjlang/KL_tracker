@@ -21,7 +21,7 @@ class MasterFile extends Model
     protected $fillable = [
         'month','date','company','product','product_category','location','traffic','duration',
         'status','remarks','client','date_finish','job_number','artwork','invoice_date',
-        'invoice_number','contact_number','email',
+        'invoice_number','contact_number','email','sales_person',
 
         // KLTG-only
         'kltg_industry','kltg_x','kltg_edition','kltg_material_cbp','kltg_print',
@@ -77,6 +77,24 @@ class MasterFile extends Model
             'FB IG Ad'
         ];
     }
+
+    protected static function booted()
+{
+    static::creating(function ($m) {
+        // Selalu generate baru saat create (abaikan input job_number)
+        $m->job_number = app(\App\Services\JobNumberService::class)
+            ->generate((string)($m->product_category ?? ''), (string)($m->product ?? ''));
+    });
+
+    // Opsional: rapikan saat update kalau formatnya salah
+    static::updating(function ($m) {
+        if (!$m->job_number || !preg_match('/^[A-Z0-9]{2,6}-\d{4}-\d{4}$/', $m->job_number)) {
+            $m->job_number = app(\App\Services\JobNumberService::class)
+                ->generate((string)($m->product_category ?? ''), (string)($m->product ?? ''));
+        }
+    });
+}
+
 
     /**
      * Get the available artwork options

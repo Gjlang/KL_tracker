@@ -130,8 +130,6 @@
                                 <th class="px-4 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wide border-b border-gray-200 min-w-[160px]">Collected</th>
                                 <th class="px-4 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wide border-b border-gray-200 min-w-[160px]">Install</th>
                                 <th class="px-4 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wide border-b border-gray-200 min-w-[160px]">Dismantle</th>
-                                <th class="px-4 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wide border-b border-gray-200 min-w-[160px]">Status</th>
-                                <th class="px-4 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wide border-b border-gray-200 min-w-[120px]">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -162,33 +160,56 @@
                                         </div>
                                     </td>
 
-                                     @foreach (['site','payment','material','artwork','received_approval','sent_to_printer','collection_printer','installation','dismantle','status'] as $col)
-                                        <td class="px-4 py-4 align-middle border-b border-gray-100">
-                                            <div class="relative">
-                                                <input type="text"
-                                                       class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 hover:border-gray-300"
-                                                       value="{{ $row->$col }}"
-                                                       data-id="{{ $row->id }}" name="{{ $col }}">
-                                                <div class="absolute right-2 top-1/2 transform -translate-y-1/2 hidden" data-save-indicator>
-                                                    <svg class="animate-spin h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24">
-                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                    </svg>
-                                                </div>
-                                                <div class="absolute right-2 top-1/2 transform -translate-y-1/2 hidden" data-save-success>
-                                                    <svg class="h-4 w-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                                    </svg>
-                                                </div>
-                                                <div class="absolute right-2 top-1/2 transform -translate-y-1/2 hidden" data-save-error>
-                                                    <svg class="h-4 w-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                                    </svg>
-                                                </div>
-                                            </div>
-                                        </td>
-                                    @endforeach
+                                     {{-- Replace your input field loop section with this fixed version --}}
+@foreach (['site','payment','material','artwork','received_approval','sent_to_printer','collection_printer','installation','dismantle','status'] as $col)
+    <td class="px-4 py-4 align-middle border-b border-gray-100">
+        <div class="relative">
+            @php
+                // Ensure we have a tracking record ID
+                $trackingId = $row->id;
 
+                // If no tracking record exists, we need to create one first
+                if (!$trackingId && isset($row->master_file_id)) {
+                    // Create tracking record on-the-fly
+                    $trackingRecord = \App\Models\OutdoorCoordinatorTracking::firstOrCreate(
+                        ['master_file_id' => $row->master_file_id],
+                        [
+                            'status' => 'pending',
+                            'site' => $row->masterFile?->location ?? null
+                        ]
+                    );
+                    $trackingId = $trackingRecord->id;
+                }
+            @endphp
+
+            <input type="{{ in_array($col, ['received_approval','sent_to_printer','collection_printer','installation','dismantle']) ? 'date' : 'text' }}"
+                   class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 hover:border-gray-300"
+                   value="{{ $row->$col ?? '' }}"
+                   data-id="{{ $trackingId }}"
+                   data-master-id="{{ $row->master_file_id ?? $row->masterFile?->id }}"
+                   name="{{ $col }}"
+                   placeholder="{{ ucfirst(str_replace('_', ' ', $col)) }}">
+
+            {{-- Save indicators --}}
+            <div class="absolute right-2 top-1/2 transform -translate-y-1/2 hidden" data-save-indicator>
+                <svg class="animate-spin h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
+            <div class="absolute right-2 top-1/2 transform -translate-y-1/2 hidden" data-save-success>
+                <svg class="h-4 w-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+            </div>
+            <div class="absolute right-2 top-1/2 transform -translate-y-1/2 hidden" data-save-error>
+                <svg class="h-4 w-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </div>
+        </div>
+    </td>
+@endforeach
                                     {{-- <td class="px-4 py-4 align-middle border-b border-gray-100">
                                         <form method="post" action="{{ route('coordinator.outdoor.destroy',$row->id) }}"
                                               onsubmit="return confirm('Delete this row?')">
@@ -304,121 +325,248 @@
     </div>
 
     {{-- Enhanced Autosave with Visual Feedback --}}
-    <script>
-    (function(){
-        const token = '{{ csrf_token() }}';
-        let timers = {};
+<script>
 
-        function showIndicator(input, type) {
-            const parent = input.parentElement;
-            const indicators = parent.querySelectorAll('[data-save-indicator], [data-save-success], [data-save-error]');
-            indicators.forEach(el => el.classList.add('hidden'));
+    async function saveCell(mfId, field, value) {
+  const year  = parseInt(document.querySelector('#filterYear').value, 10);
+  const month = parseInt(document.querySelector('#filterMonth').value, 10);
 
-            const indicator = parent.querySelector(`[data-save-${type}]`);
-            if (indicator) {
-                indicator.classList.remove('hidden');
+  const res = await fetch('/coordinator/outdoor/upsert', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+    },
+    body: JSON.stringify({
+      master_file_id: mfId,
+      year, month,
+      field, value
+    })
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    console.error('Save failed', json);
+    // tampilkan error kecil di UI kalau perlu
+  }
+}
+
+(function(){
+    const token = '{{ csrf_token() }}';
+    let timers = {};
+
+    function showIndicator(input, type) {
+        const parent = input.parentElement;
+        const indicators = parent.querySelectorAll('[data-save-indicator], [data-save-success], [data-save-error]');
+        indicators.forEach(el => el.classList.add('hidden'));
+
+        const indicator = parent.querySelector(`[data-save-${type}]`);
+        if (indicator) {
+            indicator.classList.remove('hidden');
+        }
+    }
+
+    function hideAllIndicators(input) {
+        const parent = input.parentElement;
+        const indicators = parent.querySelectorAll('[data-save-indicator], [data-save-success], [data-save-error]');
+        indicators.forEach(el => el.classList.add('hidden'));
+    }
+
+    // Enhanced save function with better error handling
+    function saveFieldData(trackingId, fieldName, fieldValue) {
+        console.log('Saving field:', { trackingId, fieldName, fieldValue });
+
+        return fetch('{{ route("coordinator.outdoor.upsert") }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': token,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                id: trackingId,        // The tracking record ID
+                field: fieldName,      // Field name to update
+                value: fieldValue      // New value
+            })
+        })
+        .then(async response => {
+            const responseText = await response.text();
+            console.log('Response status:', response.status);
+            console.log('Response text:', responseText);
+
+            let responseData;
+            try {
+                responseData = JSON.parse(responseText);
+            } catch (e) {
+                console.error('Failed to parse JSON response:', responseText);
+                throw new Error('Invalid server response');
             }
+
+            if (!response.ok) {
+                console.error('HTTP Error:', response.status, responseData);
+                if (responseData.errors) {
+                    console.error('Validation errors:', responseData.errors);
+                    console.error('Debug info:', responseData.debug_info);
+                }
+                throw new Error(responseData.message || `HTTP ${response.status}`);
+            }
+
+            return responseData;
+        });
+    }
+
+    document.addEventListener('input', function(e){
+        const el = e.target;
+        if (!el.matches('input[name]')) return;
+
+        const trackingId = el.dataset.id;
+        const fieldName = el.name;
+        const fieldValue = el.value;
+        const key = `${trackingId}-${fieldName}`;
+
+        // Validate required data
+        if (!trackingId) {
+            console.error('Missing tracking ID for field:', fieldName);
+            showIndicator(el, 'error');
+            return;
         }
 
-        function hideAllIndicators(input) {
-            const parent = input.parentElement;
-            const indicators = parent.querySelectorAll('[data-save-indicator], [data-save-success], [data-save-error]');
-            indicators.forEach(el => el.classList.add('hidden'));
+        if (!fieldName) {
+            console.error('Missing field name for tracking ID:', trackingId);
+            showIndicator(el, 'error');
+            return;
         }
 
-        document.addEventListener('input', function(e){
-            const el = e.target;
-            if (!el.matches('input[name]')) return;
+        console.log('Input detected:', { trackingId, fieldName, fieldValue });
 
-            const id = el.dataset.id;
-            const fieldName = el.name;
-            const key = `${id}-${fieldName}`;
+        // Show loading indicator immediately
+        showIndicator(el, 'indicator');
 
-            // Show loading indicator immediately
-            showIndicator(el, 'indicator');
+        // Clear existing timer for this field
+        if (timers[key]) {
+            clearTimeout(timers[key]);
+        }
 
-            // Clear existing timer for this field
-            if (timers[key]) {
-                clearTimeout(timers[key]);
-            }
+        // Set new timer with longer delay for better UX
+        timers[key] = setTimeout(async () => {
+            try {
+                const result = await saveFieldData(trackingId, fieldName, fieldValue);
+                console.log('Save successful:', result);
 
-            // Set new timer
-            timers[key] = setTimeout(() => {
-                fetch('{{ route("coordinator.outdoor.upsert") }}', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': token,
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        id: id,
-                        field: el.name,
-                        value: el.value
-                    })
-                }).then(r => {
-                    if(r.ok) {
-                        showIndicator(el, 'success');
-                        // Hide success indicator after 1.2 seconds
-                        setTimeout(() => hideAllIndicators(el), 1200);
-                    } else {
-                        showIndicator(el, 'error');
-                        console.error('Save failed', r.status);
+                showIndicator(el, 'success');
+
+                // Update status indicator if status was auto-updated
+                if (result.status && fieldName !== 'status') {
+                    const row = el.closest('tr');
+                    const statusCell = row?.querySelector('[data-field="status"]');
+                    if (statusCell && statusCell.textContent !== result.status) {
+                        statusCell.textContent = result.status;
+                        statusCell.className = `px-2 py-1 text-xs rounded-full status-${result.status}`;
+
+                        // Flash the status cell to show it updated
+                        statusCell.style.backgroundColor = '#dcfce7';
+                        setTimeout(() => {
+                            statusCell.style.backgroundColor = '';
+                        }, 1000);
                     }
-                }).catch(err => {
-                    showIndicator(el, 'error');
-                    console.error('Save error:', err);
-                });
+                }
 
-                // Clean up timer reference
-                delete timers[key];
-            }, 400);
-        }, {passive:true});
+                // Hide success indicator after 1.5 seconds
+                setTimeout(() => hideAllIndicators(el), 1500);
 
-        // Export function - moved here to ensure it's available immediately
-        window.exportOutdoorData = function() {
-            // Check if export route exists
-            window.exportOutdoorData = function () {
-      // baca nilai month dari form filter
-      const form = document.querySelector('form[method="GET"]');
-      const month = form ? (form.querySelector('select[name="month"]')?.value || '') : '';
+            } catch (error) {
+                console.error('Save failed:', error);
+                showIndicator(el, 'error');
 
-      let exportUrl = '{{ route("coordinator.outdoor.export") }}';
-      if (month) {
-          exportUrl += `?month=${encodeURIComponent(month)}`;
-      }
-      window.location.href = exportUrl;
-         };
-        };
+                // Keep error indicator visible longer
+                setTimeout(() => hideAllIndicators(el), 3000);
 
-        // Additional export function for outdoor projects
-        window.exportOutdoorProjects = function() {
-            // Check if export route exists
-            @if(Route::has('masterfile.export'))
-                window.location.href = '{{ route("masterfile.export") }}?category=outdoor';
-            @else
-                alert('Export functionality is not yet implemented.');
-            @endif
-        };
+                // Optionally show user-friendly error message
+                if (error.message) {
+                    // You could show a toast notification here
+                    console.warn('User-friendly error:', error.message);
+                }
+            }
 
-        // Initialize on DOM load
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('Enhanced Outdoor Coordinator Dashboard loaded successfully');
+            // Clean up timer reference
+            delete timers[key];
+        }, 600); // Slightly longer delay to reduce server requests
+    }, {passive:true});
 
-            // Initialize table enhancements
-            const table = document.querySelector('table');
-            if (table) {
-                // Add smooth scrolling for horizontal scroll
-                table.parentElement.style.scrollBehavior = 'smooth';
+    // Export function - moved here to ensure it's available immediately
+    window.exportOutdoorData = function() {
+        const form = document.querySelector('form[method="GET"]');
+        const month = form ? (form.querySelector('select[name="month"]')?.value || '') : '';
+
+        let exportUrl = '{{ route("coordinator.outdoor.export") }}';
+        if (month) {
+            exportUrl += `?month=${encodeURIComponent(month)}`;
+        }
+        console.log('Exporting with URL:', exportUrl);
+        window.location.href = exportUrl;
+    };
+
+    // Additional export function for outdoor projects
+    window.exportOutdoorProjects = function() {
+        @if(Route::has('masterfile.export'))
+            window.location.href = '{{ route("masterfile.export") }}?category=outdoor';
+        @else
+            alert('Export functionality is not yet implemented.');
+        @endif
+    };
+
+    // Initialize on DOM load
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Enhanced Outdoor Coordinator Dashboard loaded successfully');
+
+        // Debug: Log all input fields with their data attributes
+        const inputs = document.querySelectorAll('input[name]');
+        console.log('Found input fields:', inputs.length);
+
+        inputs.forEach((input, index) => {
+            const trackingId = input.dataset.id;
+            const fieldName = input.name;
+
+            if (!trackingId) {
+                console.warn(`Input ${index} missing data-id:`, input);
+            }
+            if (!fieldName) {
+                console.warn(`Input ${index} missing name:`, input);
             }
         });
-    })();
-    </script>
 
-    @push('scripts')
-    <script>
-        // Additional scripts can be added here if needed
-        // The main functions are now defined in the global scope above
-    </script>
+        // Initialize table enhancements
+        const table = document.querySelector('table');
+        if (table) {
+            table.parentElement.style.scrollBehavior = 'smooth';
+        }
+
+        // Add global error handler for unhandled promise rejections
+        window.addEventListener('unhandledrejection', function(event) {
+            console.error('Unhandled promise rejection:', event.reason);
+        });
+    });
+})();
+</script>
+
+@push('scripts')
+<script>
+    // Additional debugging and utility functions
+    window.debugOutdoorData = function() {
+        const inputs = document.querySelectorAll('input[name]');
+        console.log('Current form data:');
+        inputs.forEach(input => {
+            console.log({
+                id: input.dataset.id,
+                name: input.name,
+                value: input.value,
+                element: input
+            });
+        });
+    };
+
+    // Call this in browser console if you need to debug: debugOutdoorData()
+</script>
     @endpush
 </x-app-layout>

@@ -13,11 +13,32 @@ use Symfony\Component\HttpFoundation\StreamedResponse; // add at top
 use Illuminate\Foundation\Configuration\Exceptions;
 use Throwable;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Arr;
+
 
 
 
 class OutdoorCoordinatorController  extends Controller
 {
+
+     protected $table = 'outdoor_coordinator_trackings';
+
+    protected $fillable = [
+        'master_file_id',
+        'site','payment','material','artwork',
+        'received_approval','sent_to_printer','collection_printer',
+        'installation','dismantle','next_follow_up',
+        'remarks','status',
+    ];
+
+    protected $casts = [
+        'received_approval'  => 'date',
+        'sent_to_printer'    => 'date',
+        'collection_printer' => 'date',
+        'installation'       => 'date',
+        'dismantle'          => 'date',
+        'next_follow_up'     => 'date',
+    ];
 
     public function index(Request $request)
 {
@@ -33,24 +54,22 @@ class OutdoorCoordinatorController  extends Controller
             return ($n >= 1 && $n <= 12) ? $n : null;
         }
         $map = [
-            'jan'=>1, 'january'=>1, 'feb'=>2, 'february'=>2, 'mar'=>3, 'march'=>3,
-            'apr'=>4, 'april'=>4, 'may'=>5, 'jun'=>6, 'june'=>6, 'jul'=>7, 'july'=>7,
-            'aug'=>8, 'august'=>8, 'sep'=>9, 'sept'=>9, 'september'=>9, 'oct'=>10, 'october'=>10,
-            'nov'=>11, 'november'=>11, 'dec'=>12, 'december'=>12
+            'jan'=>1,'january'=>1,'feb'=>2,'february'=>2,'mar'=>3,'march'=>3,
+            'apr'=>4,'april'=>4,'may'=>5,'jun'=>6,'june'=>6,'jul'=>7,'july'=>7,
+            'aug'=>8,'august'=>8,'sep'=>9,'sept'=>9,'september'=>9,'oct'=>10,'october'=>10,
+            'nov'=>11,'november'=>11,'dec'=>12,'december'=>12
         ];
         $key = strtolower(preg_replace('/[^a-z]/i', '', $m));
         return $map[$key] ?? null;
     };
 
-    $month = $normalize($rawMonth) ?? (int) now()->month;   // DEFAULT to current month
-    $year  = (int) ($rawYear ?: now()->year);              // DEFAULT to current year
+    $month = $normalize($rawMonth) ?? (int) now()->month;   // default current month
+    $year  = (int) ($rawYear ?: now()->year);               // default current year
 
-    // 2) Build the selected set directly from outdoor_monthly_details
-    // FIXED: Only count rows with actual data, not empty skeleton rows
+    // 2) Which master files are selected for this month/year?
     $selectedMasterIds = DB::table('outdoor_monthly_details')
         ->where('year', $year)
         ->where('month', $month)
-        // NEW: only count rows that actually carry meaningful data
         ->where(function ($q) {
             $q->whereNotNull('value_date')
               ->orWhere(function ($w) {
@@ -58,15 +77,13 @@ class OutdoorCoordinatorController  extends Controller
                     ->whereRaw('TRIM(value_text) <> ""');
               });
         })
-        // Optional: tighten to specific fields that imply actual selection
-        // ->whereIn('field_key', ['status', 'installed_on', 'progress'])
         ->distinct()
         ->pluck('master_file_id')
         ->map(fn($v) => (int)$v)
         ->unique()
         ->values();
 
-    // 3) Apply the selected-only filter (or force empty)
+    // 3) Base dataset (only show records selected for the month/year)
     $base = MasterFile::query()
         ->from('master_files as mf')
         ->leftJoin('outdoor_coordinator_trackings as t', 't.master_file_id', '=', 'mf.id')
@@ -74,39 +91,29 @@ class OutdoorCoordinatorController  extends Controller
             $q->whereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%'])
               ->orWhereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
               ->orWhereIn('mf.product_category', [
-                  'TB', 'BB', 'NEWSPAPER', 'BUNTING', 'FLYERS', 'STAR', 'SIGNAGES',
-                  'TB - Tempboard', 'BB - Billboard', 'Newspaper', 'Bunting', 'Flyers', 'Star', 'Signages'
+                  'TB','BB','NEWSPAPER','BUNTING','FLYERS','STAR','SIGNAGES',
+                  'TB - Tempboard','BB - Billboard','Newspaper','Bunting','Flyers','Star','Signages'
               ]);
         });
 
-    // Critical fix: Only show selected records for the month/year
     if ($selectedMasterIds->isNotEmpty()) {
         $base->whereIn('mf.id', $selectedMasterIds->all());
     } else {
-        $base->whereRaw('1=0'); // Nothing selected for this month/year - return empty
+        $base->whereRaw('1=0'); // nothing selected this month → empty table
     }
 
-    // 4) Execute query with proper field selection
-    $records = $base
-        ->select([
-            // Tracking ID for operations
+    $records = $base->select([
             't.id as id',
             'mf.id as master_file_id',
+            'mf.company','mf.client','mf.product','mf.product_category','mf.location',
 
-            // Master file data
-            'mf.company',
-            'mf.client',
-            'mf.product',
-            'mf.product_category',
-            'mf.location',
-
-            // Tracking fields
-            't.site', 't.payment', 't.material', 't.artwork',
-            't.received_approval', 't.sent_to_printer', 't.collection_printer', 't.installation',
-            't.dismantle', 't.remarks', 't.next_follow_up', 't.status',
+            // Baseline (non-month) tracking values (will be overlaid from monthly_details)
+            't.site','t.payment','t.material','t.artwork',
+            't.received_approval','t.sent_to_printer','t.collection_printer','t.installation',
+            't.dismantle','t.remarks','t.next_follow_up','t.status',
             't.created_at as tracking_created_at',
 
-            // Snapshot fields for when tracking doesn't exist
+            // Snapshots for fallback
             'mf.company as company_snapshot',
             'mf.product as product_snapshot',
         ])
@@ -114,25 +121,57 @@ class OutdoorCoordinatorController  extends Controller
         ->paginate(20)
         ->appends($request->query());
 
-    // Add masterFile relationship data to each record for Blade compatibility
-    foreach ($records as $record) {
-        $record->masterFile = (object) [
-            'id' => $record->master_file_id,
-            'company' => $record->company,
-            'client' => $record->client,
-            'product' => $record->product,
-            'product_category' => $record->product_category,
-            'location' => $record->location,
+    // 4) Overlay month-specific values from outdoor_monthly_details onto the page of results
+    $pageMfIds = $records->pluck('master_file_id')->all();
+
+    $monthlyRows = DB::table('outdoor_monthly_details')
+        ->select('master_file_id','field_key','value_text','value_date')
+        ->where('year', $year)
+        ->where('month', $month)
+        ->whereIn('master_file_id', $pageMfIds)
+        ->get()
+        ->groupBy('master_file_id');
+
+    // Map field_key -> column on the row
+    $textCols = ['site','payment','material','artwork','remarks','status'];
+    $dateCols = ['received_approval','sent_to_printer','collection_printer','installation','dismantle','next_follow_up'];
+    $validKeys = array_merge($textCols, $dateCols);
+
+    foreach ($records as $row) {
+        // provide masterFile object for Blade compatibility
+        $row->masterFile = (object)[
+            'id' => $row->master_file_id,
+            'company' => $row->company,
+            'client' => $row->client,
+            'product' => $row->product,
+            'product_category' => $row->product_category,
+            'location' => $row->location,
         ];
+
+        if (!isset($monthlyRows[$row->master_file_id])) continue;
+
+        foreach ($monthlyRows[$row->master_file_id] as $md) {
+            $key = strtolower((string)$md->field_key);
+            if (!in_array($key, $validKeys, true)) continue;
+
+            if (in_array($key, $dateCols, true)) {
+                if (!empty($md->value_date)) {
+                    $row->{$key} = $md->value_date; // YYYY-MM-DD
+                }
+            } else {
+                // text-like
+                $val = trim((string)($md->value_text ?? ''));
+                if ($val !== '') {
+                    $row->{$key} = $val;
+                }
+            }
+        }
     }
 
     // 5) Month dropdown data
     $months = [];
     for ($i = 1; $i <= 12; $i++) {
-        $months[] = [
-            'value' => $i,
-            'label' => Carbon::create()->month($i)->format('F')
-        ];
+        $months[] = ['value' => $i, 'label' => Carbon::create()->month($i)->format('F')];
     }
 
     return view('coordinators.outdoor', [
@@ -140,7 +179,7 @@ class OutdoorCoordinatorController  extends Controller
         'months'        => $months,
         'month'         => $month,
         'year'          => $year,
-        'selectedCount' => $selectedMasterIds->count(), // Fixed: accurate count
+        'selectedCount' => $selectedMasterIds->count(),
         'hasSelection'  => $selectedMasterIds->isNotEmpty(),
     ]);
 }
@@ -296,44 +335,6 @@ class OutdoorCoordinatorController  extends Controller
         return $years;
     }
 
-    /**
-     * Automatically create tracking records for outdoor master files that don't have them yet
-     */
-    private function autoCreateTrackingRecords()
-    {
-        // Get outdoor master files that don't have tracking records yet
-        $outdoorMasterFiles = MasterFile::where(function($query) {
-            $query->whereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages', 'Newspaper'])
-                  ->orWhere('product_category', 'LIKE', '%outdoor%')
-                  ->orWhere('product_category', 'Outdoor');
-        })
-        ->whereNotExists(function($query) {
-            $query->select(DB::raw(1))
-                  ->from('outdoor_coordinator_trackings')
-                  ->whereRaw('outdoor_coordinator_trackings.master_file_id = master_files.id');
-        })
-        ->get();
-
-        // Create tracking records for each outdoor master file
-        foreach ($outdoorMasterFiles as $masterFile) {
-            OutdoorCoordinatorTracking::create([
-                'master_file_id' => $masterFile->id,
-                'status' => 'pending',
-                'site' => $masterFile->location ?? null,
-                'payment' => null,
-                'material' => null,
-                'artwork' => null,
-                'received_approval' => null,
-                'sent_to_printer' => null,
-                'collection_printer' => null,
-                'installation' => null,
-                'dismantle' => null,
-                'remarks' => null,
-                'next_follow_up' => null,
-            ]);
-        }
-    }
-
     public function syncFromMasterFile()
     {
         $outdoor = MasterFile::where(function($query) {
@@ -365,67 +366,6 @@ class OutdoorCoordinatorController  extends Controller
         return redirect()->route('coordinator.outdoor.index')->with('success', $message);
     }
 
-    public function create()
-    {
-        // Get only outdoor-related master files that don't have tracking records yet
-        $masterFiles = MasterFile::where(function($query) {
-            $query->whereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages', 'Newspaper'])
-                  ->orWhere('product_category', 'LIKE', '%outdoor%')
-                  ->orWhere('product_category', 'Outdoor');
-        })
-        ->whereNotExists(function($query) {
-            $query->select(DB::raw(1))
-                  ->from('outdoor_coordinator_trackings')
-                  ->whereRaw('outdoor_coordinator_trackings.master_file_id = master_files.id');
-        })
-        ->orderBy('client')
-        ->get();
-
-        return view('coordinator.outdoor.create', compact('masterFiles'));
-    }
-
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'master_file_id' => 'required|exists:master_files,id',
-            'site' => 'nullable|string|max:255',
-            'payment' => 'nullable|string|max:100',
-            'material' => 'nullable|string|max:100',
-            'artwork' => 'nullable|string|max:100',
-            'received_approval' => 'nullable|date',
-            'sent_to_printer' => 'nullable|date',
-            'collection_printer' => 'nullable|date',
-            'installation' => 'nullable|date',
-            'dismantle' => 'nullable|date',
-            'remarks' => 'nullable|string',
-            'next_follow_up' => 'nullable|date',
-            'status' => 'nullable|in:pending,ongoing,completed'
-        ]);
-
-        // Set default status if not provided
-        if (!isset($validated['status'])) {
-            if (!empty($validated['dismantle'])) {
-                $validated['status'] = 'completed';
-            } elseif (!empty($validated['installation'])) {
-                $validated['status'] = 'ongoing';
-            } else {
-                $validated['status'] = 'pending';
-            }
-        }
-
-        // Check if tracking record already exists for this master file
-        $existingTracking = OutdoorCoordinatorTracking::where('master_file_id', $validated['master_file_id'])->first();
-
-        if ($existingTracking) {
-            return redirect()->route('coordinator.outdoor.index')
-                           ->with('error', 'Tracking record already exists for this master file!');
-        }
-
-        OutdoorCoordinatorTracking::create($validated);
-
-        return redirect()->route('coordinator.outdoor.index')
-                        ->with('success', 'Outdoor tracking record created successfully!');
-    }
 
     public function show($id)
     {
@@ -449,126 +389,8 @@ class OutdoorCoordinatorController  extends Controller
         return view('coordinator.outdoor.edit', compact('tracking', 'masterFiles'));
     }
 
-    /**
-     * 🔥 FIXED: Update method now handles both full forms and AJAX partial updates
-     */
-    public function update(Request $request, $id)
-    {
-        $tracking = OutdoorCoordinatorTracking::findOrFail($id);
 
-        // Use 'sometimes' validation rules to allow partial updates
-        $rules = [
-            'master_file_id'     => 'sometimes|required|exists:master_files,id',
-            'site'               => 'sometimes|nullable|string|max:255',
-            'payment'            => 'sometimes|nullable|string|max:100',
-            'material'           => 'sometimes|nullable|string|max:100',
-            'artwork'            => 'sometimes|nullable|string|max:100',
-            'received_approval'  => 'sometimes|nullable|date',
-            'sent_to_printer'    => 'sometimes|nullable|date',
-            'collection_printer' => 'sometimes|nullable|date',
-            'installation'       => 'sometimes|nullable|date',
-            'dismantle'          => 'sometimes|nullable|date',
-            'remarks'            => 'sometimes|nullable|string',
-            'next_follow_up'     => 'sometimes|nullable|date',
-            'status'             => 'sometimes|nullable|in:pending,ongoing,completed'
-        ];
 
-        $validated = $request->validate($rules);
-
-        // Auto-update status based on progress if status not explicitly provided
-        if (!isset($validated['status'])) {
-            $tracking->fill($validated); // Fill with new data to check latest state
-
-            if (!empty($tracking->dismantle)) {
-                $validated['status'] = 'completed';
-            } elseif (!empty($tracking->installation)) {
-                $validated['status'] = 'ongoing';
-            } else {
-                $validated['status'] = 'pending';
-            }
-        }
-
-        $tracking->update($validated);
-
-        // Return appropriate response based on request type
-        if ($request->expectsJson()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Record updated successfully',
-                'data' => $tracking->load('masterFile')
-            ]);
-        }
-
-        return redirect()->route('coordinator.outdoor.index')
-                        ->with('success', 'Outdoor tracking record updated successfully!');
-    }
-
-    /**
-     * 🔥 ENHANCED: Better inline update method
-     */
-    public function updateInline(Request $request)
-    {
-        try {
-            $validated = $request->validate([
-                'id' => 'required|exists:outdoor_coordinator_trackings,id',
-                'field' => 'required|string',
-                'value' => 'nullable|string',
-            ]);
-
-            $job = OutdoorCoordinatorTracking::with('masterFile')->findOrFail($validated['id']);
-
-            // Define allowed fields for inline editing
-            $allowedFields = [
-                'site', 'payment', 'material', 'artwork', 'remarks', 'status',
-                'received_approval', 'sent_to_printer', 'collection_printer',
-                'installation', 'dismantle', 'next_follow_up'
-            ];
-
-            if (!in_array($validated['field'], $allowedFields)) {
-                return response()->json(['success' => false, 'error' => 'Invalid field']);
-            }
-
-            // Handle date validation
-            $dateFields = [
-                'received_approval', 'sent_to_printer', 'collection_printer',
-                'installation', 'dismantle', 'next_follow_up'
-            ];
-
-            if (in_array($validated['field'], $dateFields) && !empty($validated['value'])) {
-                $date = \DateTime::createFromFormat('Y-m-d', $validated['value']);
-                if (!$date || $date->format('Y-m-d') !== $validated['value']) {
-                    return response()->json(['success' => false, 'error' => 'Invalid date format']);
-                }
-            }
-
-            // Handle status validation
-            if ($validated['field'] === 'status' && !in_array($validated['value'], ['pending', 'ongoing', 'completed', null])) {
-                return response()->json(['success' => false, 'error' => 'Invalid status']);
-            }
-
-            $job->{$validated['field']} = $validated['value'];
-            $job->save();
-
-            // Auto-update status if we modified a progress field
-            if ($validated['field'] !== 'status') {
-                $newStatus = $this->calculateStatus($job);
-                if ($newStatus !== $job->status) {
-                    $job->status = $newStatus;
-                    $job->save();
-                }
-            }
-
-            return response()->json([
-                'success' => true,
-                'status' => $job->status,
-                'value' => $validated['value']
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('updateInline error', ['error' => $e->getMessage()]);
-            return response()->json(['success' => false, 'error' => 'Server error']);
-        }
-    }
 
     public function destroy($id)
     {
@@ -626,150 +448,251 @@ class OutdoorCoordinatorController  extends Controller
         return redirect()->route('coordinator.outdoor.index')
                        ->with('info', 'No new outdoor master files found to create tracking records.');
     }
-
 public function upsert(Request $request)
 {
-    // DEBUG: Log the raw request to see exactly what's being sent
-    Log::info('Upsert Request Raw Data:', [
-        'all_input' => $request->all(),
-        'method' => $request->method(),
-        'content_type' => $request->header('Content-Type'),
-    ]);
+    try {
+        // Log the incoming request for debugging
+        Log::info('Upsert request received', [
+            'all_data' => $request->all(),
+            'method' => $request->method(),
+            'content_type' => $request->header('Content-Type')
+        ]);
 
-    // 0) Normalize "empty" values BEFORE validate (critical for date rules)
-    $input = $request->all();
+        // Normalize input data - handle empty strings and null values
+        $raw = $request->all();
 
-    // Normalize empty strings to null for ALL fields (not just dates)
-    foreach ($input as $key => $value) {
-        if ($value === '' || $value === 'null' || $value === 'undefined') {
-            $input[$key] = null;
-        }
-    }
+        // Log raw data before normalization
+        Log::info('Raw data before normalization', $raw);
 
-    // Extra normalization for date fields specifically
-    $dateKeys = [
-        'received_approval', 'sent_to_printer', 'collection_printer',
-        'installation', 'dismantle', 'next_follow_up'
-    ];
-
-    foreach ($dateKeys as $k) {
-        if (array_key_exists($k, $input)) {
-            $val = $input[$k];
-            // Handle various "empty" representations
-            if ($val === '' || $val === 'null' || $val === '0000-00-00' || $val === 'Invalid date') {
-                $input[$k] = null;
+        foreach ($raw as $k => $v) {
+            if (is_string($v) && in_array($v, ['', 'null', 'undefined', 'NULL'])) {
+                $raw[$k] = null;
             }
         }
-    }
 
-    Log::info('Normalized Input:', $input);
+        Log::info('Data after normalization', $raw);
 
-    // 1) Enhanced validation with better error messages
-    $validator = Validator::make($input, [
-        'master_file_id'      => ['required', 'integer', 'exists:master_files,id'],
-        'site'                => ['nullable', 'string', 'max:255'],
-        'payment'             => ['nullable', 'string', 'max:255'],
-        'material'            => ['nullable', 'string', 'max:255'],
-        'artwork'             => ['nullable', 'string', 'max:255'],
-        // More flexible date validation
-        'received_approval'   => ['nullable', 'date'],
-        'sent_to_printer'     => ['nullable', 'date'],
-        'collection_printer'  => ['nullable', 'date'],
-        'installation'        => ['nullable', 'date'],
-        'dismantle'           => ['nullable', 'date'],
-        'next_follow_up'      => ['nullable', 'date'],
-        'remarks'             => ['nullable', 'string'],
-        'status'              => ['nullable', 'string', 'max:50'],
-        // Add common extra fields that might be sent
-        'id'                  => ['nullable', 'integer'], // Often sent from frontend
-        'tracking_created_at' => ['nullable'], // From your select query
-        'company'             => ['nullable'], // From your select query
-        'product'             => ['nullable'], // From your select query
-        'client'              => ['nullable'], // From your select query
-        'location'            => ['nullable'], // From your select query
-        'product_category'    => ['nullable'], // From your select query
-        'company_snapshot'    => ['nullable'], // From your select query
-        'product_snapshot'    => ['nullable'], // From your select query
-    ], [
-        // Custom error messages for better debugging
-        'master_file_id.required' => 'Master file ID is required',
-        'master_file_id.exists' => 'Master file ID does not exist in database',
-        'received_approval.date' => 'Received approval must be a valid date',
-        'sent_to_printer.date' => 'Sent to printer must be a valid date',
-        'collection_printer.date' => 'Collection printer must be a valid date',
-        'installation.date' => 'Installation must be a valid date',
-        'dismantle.date' => 'Dismantle must be a valid date',
-        'next_follow_up.date' => 'Next follow up must be a valid date',
-    ]);
+        // Handle different request formats
+        $masterFileId = null;
+        $patch = [];
 
-    if ($validator->fails()) {
-        Log::error('Validation Failed:', [
-            'errors' => $validator->errors()->toArray(),
-            'failed_rules' => $validator->failed(),
-            'input_data' => $input
+        // Format 1: Field/Value pair (inline editing)
+        if (isset($raw['field']) && array_key_exists('value', $raw)) {
+            Log::info('Processing field/value format', [
+                'field' => $raw['field'],
+                'value' => $raw['value']
+            ]);
+
+            // Try to get master_file_id from different sources
+            if (!empty($raw['master_file_id'])) {
+                $masterFileId = (int) $raw['master_file_id'];
+            } elseif (!empty($raw['id'])) {
+                $tracking = OutdoorCoordinatorTracking::find($raw['id']);
+                $masterFileId = $tracking ? $tracking->master_file_id : null;
+            }
+
+            $field = (string) $raw['field'];
+            $fillable = (new OutdoorCoordinatorTracking())->getFillable();
+
+            if (in_array($field, $fillable, true)) {
+                $patch[$field] = $raw['value'];
+            } else {
+                Log::warning('Field not in fillable array', [
+                    'field' => $field,
+                    'fillable' => $fillable
+                ]);
+                return response()->json([
+                    'ok' => false,
+                    'message' => "Field '{$field}' is not allowed for editing",
+                    'allowed_fields' => $fillable
+                ], 422);
+            }
+        }
+        // Format 2: Full object data
+        else {
+            Log::info('Processing full object format');
+
+            if (!empty($raw['master_file_id'])) {
+                $masterFileId = (int) $raw['master_file_id'];
+            }
+
+            $fillable = (new OutdoorCoordinatorTracking())->getFillable();
+            $patch = array_intersect_key($raw, array_flip($fillable));
+            unset($patch['master_file_id']); // Handle separately
+        }
+
+        Log::info('Processing data', [
+            'master_file_id' => $masterFileId,
+            'patch_data' => $patch
         ]);
 
-        return response()->json([
-            'ok' => false,
-            'message' => 'Validation failed',
-            'errors' => $validator->errors(),
-            'debug_info' => [
-                'received_master_file_id' => $input['master_file_id'] ?? 'NOT_PROVIDED',
-                'master_file_exists' => isset($input['master_file_id']) ?
-                    DB::table('master_files')->where('id', $input['master_file_id'])->exists() : false,
-                'problematic_dates' => collect($dateKeys)->mapWithKeys(function($key) use ($input) {
-                    return [$key => $input[$key] ?? 'NOT_PROVIDED'];
-                })
-            ]
-        ], 422);
-    }
+        // Validate master_file_id
+        if (!$masterFileId) {
+            Log::error('Master file ID missing');
+            return response()->json([
+                'ok' => false,
+                'message' => 'Master file ID is required',
+                'debug_info' => [
+                    'raw_master_file_id' => $raw['master_file_id'] ?? 'not_set',
+                    'raw_id' => $raw['id'] ?? 'not_set',
+                    'available_keys' => array_keys($raw)
+                ]
+            ], 422);
+        }
 
-    $data = $validator->validated();
+        // Check if master file exists
+        $masterFile = MasterFile::find($masterFileId);
+        if (!$masterFile) {
+            Log::error('Master file not found', ['id' => $masterFileId]);
+            return response()->json([
+                'ok' => false,
+                'message' => 'Master file not found',
+                'master_file_id' => $masterFileId
+            ], 422);
+        }
 
-    // Only keep fields that are actually fillable in the model
-    $trackingModel = new \App\Models\OutdoorCoordinatorTracking();
-    $fillableFields = $trackingModel->getFillable();
+        // Build validation rules
+        $dateFields = ['received_approval', 'sent_to_printer', 'collection_printer', 'installation', 'dismantle', 'next_follow_up'];
+        $rules = [];
 
-    Log::info('Model fillable fields:', $fillableFields);
+        foreach ($patch as $key => $value) {
+            if (in_array($key, $dateFields)) {
+                // More flexible date validation
+                $rules[$key] = ['nullable', 'date'];
+            } elseif ($key === 'status') {
+                $rules[$key] = ['nullable', 'string', 'in:pending,ongoing,completed'];
+            } elseif ($key === 'remarks') {
+                $rules[$key] = ['nullable', 'string', 'max:1000'];
+            } else {
+                $rules[$key] = ['nullable', 'string', 'max:255'];
+            }
+        }
 
-    // Filter to only fillable fields
-    $dataToSave = collect($data)->only($fillableFields)->all();
-
-    Log::info('Data being saved:', $dataToSave);
-
-    // Default status if empty (avoid NOT NULL errors)
-    if (!isset($dataToSave['status']) || $dataToSave['status'] === null) {
-        $dataToSave['status'] = 'pending';
-    }
-
-    try {
-        // 2) Upsert (by master_file_id)
-        $tracking = \App\Models\OutdoorCoordinatorTracking::firstOrNew([
-            'master_file_id' => $dataToSave['master_file_id'],
+        Log::info('Validation rules', [
+            'rules' => $rules,
+            'data_to_validate' => $patch
         ]);
 
-        $tracking->fill($dataToSave)->save();
+        // Validate the patch data
+        if (!empty($patch) && !empty($rules)) {
+            $validator = Validator::make($patch, $rules);
 
-        Log::info('Successfully saved tracking:', [
-            'id' => $tracking->id,
-            'master_file_id' => $tracking->master_file_id
+            if ($validator->fails()) {
+                Log::error('Validation failed', [
+                    'errors' => $validator->errors()->toArray(),
+                    'data' => $patch,
+                    'rules' => $rules
+                ]);
+
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors(),
+                    'debug_info' => [
+                        'validated_data' => $patch,
+                        'validation_rules' => $rules
+                    ]
+                ], 422);
+            }
+
+            $patch = $validator->validated();
+            Log::info('Validation passed', ['validated_data' => $patch]);
+        }
+
+        // Process date fields
+        foreach ($dateFields as $field) {
+            if (isset($patch[$field]) && $patch[$field] !== null) {
+                try {
+                    $date = Carbon::parse($patch[$field])->format('Y-m-d');
+                    $patch[$field] = $date;
+                    Log::info("Date processed: {$field} = {$date}");
+                } catch (\Exception $e) {
+                    Log::warning("Date parsing failed for {$field}", [
+                        'value' => $patch[$field],
+                        'error' => $e->getMessage()
+                    ]);
+                    $patch[$field] = null;
+                }
+            }
+        }
+
+        // Find or create tracking record
+        $tracking = OutdoorCoordinatorTracking::firstOrNew([
+            'master_file_id' => $masterFileId
+        ]);
+
+        $isNewRecord = !$tracking->exists;
+        Log::info('Tracking record', [
+            'is_new' => $isNewRecord,
+            'existing_id' => $tracking->id ?? 'none'
+        ]);
+
+        // Update fields
+        if (!empty($patch)) {
+            foreach ($patch as $key => $value) {
+                $tracking->$key = $value;
+                Log::info("Updated field: {$key} = " . ($value ?? 'null'));
+            }
+        }
+
+        // Auto-calculate status if not explicitly set
+        if (!isset($patch['status'])) {
+            $oldStatus = $tracking->status;
+            if (!empty($tracking->dismantle)) {
+                $tracking->status = 'completed';
+            } elseif (!empty($tracking->installation)) {
+                $tracking->status = 'ongoing';
+            } else {
+                $tracking->status = 'pending';
+            }
+
+            if ($oldStatus !== $tracking->status) {
+                Log::info("Status auto-updated: {$oldStatus} -> {$tracking->status}");
+            }
+        }
+
+        // Save the record
+        $tracking->save();
+
+        Log::info('Upsert successful', [
+            'tracking_id' => $tracking->id,
+            'master_file_id' => $tracking->master_file_id,
+            'was_new' => $isNewRecord,
+            'final_status' => $tracking->status
         ]);
 
         return response()->json([
             'ok' => true,
             'id' => $tracking->id,
-            'message' => 'Saved successfully',
+            'master_file_id' => $tracking->master_file_id,
+            'status' => $tracking->status,
+            'message' => $isNewRecord ? 'Record created successfully' : 'Record updated successfully',
+            'data' => $tracking->fresh() // Get fresh data from DB
         ]);
 
-    } catch (\Exception $e) {
-        Log::error('Database save failed:', [
-            'error' => $e->getMessage(),
-            'data' => $dataToSave
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        Log::error('Validation exception', [
+            'errors' => $e->errors(),
+            'request_data' => $request->all()
         ]);
 
         return response()->json([
             'ok' => false,
-            'message' => 'Database error: ' . $e->getMessage(),
+            'message' => 'Validation failed',
+            'errors' => $e->errors()
+        ], 422);
+
+    } catch (\Exception $e) {
+        Log::error('Upsert failed with exception', [
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+            'request_data' => $request->all()
+        ]);
+
+        return response()->json([
+            'ok' => false,
+            'message' => 'Server error: ' . $e->getMessage(),
+            'error_type' => get_class($e)
         ], 500);
     }
 }

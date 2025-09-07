@@ -7,48 +7,82 @@
     @media (max-width: 1280px) { .kltg-input { width: 14rem; } }
     @media (max-width: 1024px) { .kltg-input { width: 12rem; } }
 
-    /* Tidy table visuals */
-    .kltg-table th, .kltg-table td { vertical-align: middle; }
-    .kltg-table thead th {
-      position: sticky; top: 0; z-index: 10;
-      background: #F9FAFB; /* gray-50 */
-      box-shadow: inset 0 -1px 0 0 rgba(0,0,0,.06);
-    }
+   /* Tidy table visuals with borders */
+.kltg-table {
+  border-collapse: collapse;
+  width: 100%;
+}
 
-    /* Subtle cell hover to aid scanning */
-    .kltg-row:hover td { background: #FAFAFF; } /* very light */
+.kltg-table th, .kltg-table td {
+  vertical-align: middle;
+  border: 1px solid #E5E7EB; /* gray-200 border for all cells */
+  padding: 0.75rem; /* Better padding */
+}
 
-    /* Compact, consistent input chrome */
-    .kltg-input {
-      border-radius: .5rem; /* rounded-lg */
-      padding: .375rem .5rem; /* ~py-1.5 px-2 */
-      border: 1px solid #E5E7EB; /* gray-200 */
-      background: #fff;
-      outline: none;
-      transition: box-shadow .12s ease, border-color .12s ease, background-color .12s ease;
-    }
-    .kltg-input:focus {
-      border-color: #6366F1; /* indigo-500 */
-      box-shadow: 0 0 0 3px rgba(99,102,241,.15);
-    }
+.kltg-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #F9FAFB; /* gray-50 */
+  border-bottom: 2px solid #D1D5DB; /* Thicker bottom border for header */
+  box-shadow: inset 0 -1px 0 0 rgba(0,0,0,.06);
+  font-weight: 600;
+}
 
-    /* Inline status colors from autosave */
-    .bg-yellow-50 { background-color: #FFFBEB !important; }
-    .border-yellow-300 { border-color: #FCD34D !important; }
-    .bg-green-50 { background-color: #F0FDF4 !important; }
-    .border-green-300 { border-color: #86EFAC !important; }
-    .bg-red-50 { background-color: #FEF2F2 !important; }
-    .border-red-300 { border-color: #FCA5A5 !important; }
+/* Row striping for better readability */
+.kltg-table tbody tr:nth-child(even) {
+  background-color: #F8FAFC; /* Very light gray for alternating rows */
+}
 
-    /* Read-only badge look for Edition/Publication */
-    .kltg-badge {
-      display: inline-block;
-      padding: .25rem .5rem;
-      border-radius: .5rem;
-      background: #F3F4F6; /* gray-100 */
-      color: #111827;      /* gray-900 */
-      min-width: 8rem;
-    }
+/* Enhanced hover effect */
+.kltg-row:hover td {
+  background: #F1F5F9 !important; /* More visible hover - blue-gray-100 */
+}
+
+/* Compact, consistent input chrome */
+.kltg-input {
+  border-radius: .5rem; /* rounded-lg */
+  padding: .375rem .5rem; /* ~py-1.5 px-2 */
+  border: 1px solid #E5E7EB; /* gray-200 */
+  background: #fff;
+  outline: none;
+  transition: box-shadow .12s ease, border-color .12s ease, background-color .12s ease;
+  width: 100%;
+  min-width: 120px;
+}
+
+.kltg-input:focus {
+  border-color: #6366F1; /* indigo-500 */
+  box-shadow: 0 0 0 3px rgba(99,102,241,.15);
+}
+
+/* Inline status colors from autosave */
+.bg-yellow-50 { background-color: #FFFBEB !important; }
+.border-yellow-300 { border-color: #FCD34D !important; }
+.bg-green-50 { background-color: #F0FDF4 !important; }
+.border-green-300 { border-color: #86EFAC !important; }
+.bg-red-50 { background-color: #FEF2F2 !important; }
+.border-red-300 { border-color: #FCA5A5 !important; }
+
+/* Read-only badge look for Edition/Publication */
+.kltg-badge {
+  display: inline-block;
+  padding: .25rem .5rem;
+  border-radius: .5rem;
+  background: #F3F4F6; /* gray-100 */
+  color: #111827;      /* gray-900 */
+  min-width: 8rem;
+  text-align: center;
+  border: 1px solid #D1D5DB; /* Add subtle border to badge */
+}
+
+/* Table container enhancement */
+.table-wrapper {
+  border: 1px solid #D1D5DB; /* gray-300 */
+  border-radius: 0.75rem;
+  overflow: hidden;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
   </style>
 @endpush
 
@@ -210,7 +244,9 @@
     </div>
 
     <!-- Table -->
-    <div class="mt-4 overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
+    <div class="mt-4 overflow-x-auto table-wrapper">
+
+
       <table class="kltg-table min-w-full text-sm">
         <thead>
           <tr>
