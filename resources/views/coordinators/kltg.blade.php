@@ -251,7 +251,7 @@
         <thead>
           <tr>
             <th class="px-3 py-3 text-left font-semibold text-gray-700">No</th>
-            <th class="px-3 py-3 text-left font-semibold text-gray-700">Date In</th>
+            <th class="px-3 py-3 text-left font-semibold text-gray-700">Date Created</th>
             <th class="px-3 py-3 text-left font-semibold text-gray-700">Company</th>
             <th class="px-3 py-3 text-left font-semibold text-gray-700">Person In Charge</th>
             @foreach ($columns[$activeTab] as $col)

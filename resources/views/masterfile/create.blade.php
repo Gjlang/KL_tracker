@@ -24,6 +24,11 @@
                 Back to Dashboard
             </a>
         </div>
+        <p x-data="{ today: new Date().toLocaleDateString('en-MY', { weekday:'long', year:'numeric', month:'long', day:'numeric' }) }"
+            class="text-sm text-gray-600 mb-4">
+            🗒️ Today: <span x-text="today"></span>
+        </p>
+
 
     <div class="max-w-6xl mx-auto py-12 px-6">
         <div class="bg-gradient-to-br from-blue-50 via-blue-100 to-indigo-200 border border-gray-200 rounded-2xl shadow-xl p-10">

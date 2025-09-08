@@ -838,7 +838,7 @@ public function upsert(Request $request)
                     if ($value && !in_array($value, ['0000-00-00', '0000-00-00 00:00:00', '', null])) {
                         try {
                             $value = date('Y-m-d', strtotime($value));
-                        } catch (\Throwable $e) {
+                        } catch (Throwable $e) {
                             // Keep original
                         }
                     } else {

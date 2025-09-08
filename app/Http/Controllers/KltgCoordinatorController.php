@@ -660,419 +660,167 @@ public function getEligibleMasterFiles(Request $request)
     }
 
 
-//     public function export(Request $request)
-// {
-//     Log::info('EXPORT - Request params:', $request->all());
 
-//     $working      = $request->get('working');
-//     $activeSubcat = $this->normalizeSubcat($request->get('subcategory'));
-//     $key          = $this->storedToTab($activeSubcat);
-
-//     Log::info('EXPORT - Normalized:', [
-//         'activeSubcat' => $activeSubcat,
-//         'key'          => $key,
-//         'working'      => $working
-//     ]);
-
-//     $columnsBySubcat = [
-//         'print' => [
-//             'title_snapshot','company_snapshot','client_bp','x','edition','publication',
-//             'artwork_bp_client',
-//             'artwork_reminder','material_record','artwork_done',
-//             'send_chop_sign','chop_sign_approval',
-//             'park_in_file_server','remarks',
-//         ],
-//         'video' => [
-//             'title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text',
-//             'video_done','pending_approval','video_approved',
-//             'video_scheduled','video_posted','post_link',
-//         ],
-//         'article' => [
-//             'title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text',
-//             'article_done','article_approved','article_scheduled','article_posted',
-//             'post_link',
-//         ],
-//         'lb' => [
-//             'title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text',
-//             'video_done','pending_approval','video_approved',
-//             'video_scheduled','video_posted','post_link',
-//         ],
-//         'em' => [
-//             'company_snapshot','client_bp','remarks',
-//             'em_date_write','em_date_to_post','em_post_date','em_qty','blog_link',
-//         ],
-//     ];
-
-//     $labels = [
-//         'title_snapshot'=>'Title','company_snapshot'=>'Company','client_bp'=>'Client/BP','x'=>'X (text)',
-//         'edition'=>'Edition','publication'=>'Publication','artwork_bp_client'=>'Artwork BP/Client',
-//         'artwork_reminder_date'=>'Artwork Reminder','material_received_date'=>'Material Received',
-//         'artwork_done'=>'Artwork Done','send_chop_sign_date'=>'Send Chop & Sign',
-//         'chop_sign_approval_date'=>'Chop & Sig Approval', 'park_in_file_server'=>'Park in File Server',
-//         'remarks'=>'Remarks', 'material_reminder_text'=>'Material Reminder (Text)',
-//         'video_done'=>'Video Done','pending_approval'=>'Pending Approval','video_approved'=>'Video Approved',
-//         'video_scheduled'=>'Video Scheduled','video_posted'=>'Video Posted','post_link'=>'Post Link',
-//     ];
-
-//     $fields     = $columnsBySubcat[$key] ?? $columnsBySubcat['print'];
-//     $headersRow = array_merge(['ID'], array_map(fn($f) => $labels[$f] ?? Str::headline($f), $fields));
-
-//     // Base query (subcategory only)
-//     $query = KltgCoordinatorList::query()
-//         ->leftJoin('master_files', 'kltg_coordinator_lists.master_file_id', '=', 'master_files.id')
-//         ->whereRaw('TRIM(UPPER(kltg_coordinator_lists.subcategory)) = ?', [strtoupper($activeSubcat)])
-//         ->select('kltg_coordinator_lists.*');
-
-//     // Working/completed toggle
-//     if ($working === 'working') {
-//         $query->where(fn($q) => $q->whereNull('kltg_coordinator_lists.park_in_file_server')
-//                                   ->orWhere('kltg_coordinator_lists.park_in_file_server',''));
-//     } elseif ($working === 'completed') {
-//         $query->whereNotNull('kltg_coordinator_lists.park_in_file_server')
-//               ->where('kltg_coordinator_lists.park_in_file_server','!=','');
-//     }
-
-//     $finalCount = $query->count();
-//     Log::info('EXPORT - Final query result:', [
-//         'count'    => $finalCount,
-//         'sql'      => $query->toSql(),
-//         'bindings' => $query->getBindings()
-//     ]);
-
-//     // Dynamic title lines
-//     $tabTitle   = $this->subcatTitle($key);         // PRINT ARTWORK / VIDEO / ARTICLE / LB / EM
-//     $brandTitle = 'KLTG - COORDINATOR LIST';        // change to 'THE GUIDE - COORDINATOR LIST' if needed
-//     $mainTitle  = $brandTitle . ' - ' . $tabTitle;
-//     $monthLabel = $this->monthFilterLabel($request);
-
-//     $filename = sprintf('kltg_%s_%s.csv', strtolower($activeSubcat), now()->format('Ymd_His'));
-//     $headers  = [
-//         'Content-Type'        => 'text/csv; charset=UTF-8',
-//         'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-//         'Cache-Control'       => 'no-store, no-cache, must-revalidate',
-//         'Pragma'              => 'no-cache',
-//         'Expires'             => '0',
-//     ];
-
-//     return response()->stream(function () use ($query, $fields, $headersRow, $mainTitle, $monthLabel, $working) {
-//         $out = fopen('php://output', 'w');
-
-//         // Excel-friendly UTF-8 BOM
-//         echo "\xEF\xBB\xBF";
-
-//         // Title + meta
-//         fputcsv($out, [$mainTitle]);
-//         fputcsv($out, ['Generated: ' . now()->format('Y-m-d H:i:s')]);
-//         if ($monthLabel) {
-//             fputcsv($out, ['Month: ' . $monthLabel]);
-//         }
-//         if ($working === 'working') {
-//             fputcsv($out, ['Status: Working']);
-//         } elseif ($working === 'completed') {
-//             fputcsv($out, ['Status: Completed']);
-//         }
-//         fputcsv($out, []); // spacer
-
-//         // Column headers
-//         fputcsv($out, $headersRow);
-
-//         // Data rows (streamed)
-//         foreach ($query->orderByDesc('kltg_coordinator_lists.created_at')->cursor() as $row) {
-//             $values = [$row->id];
-//             foreach ($fields as $f) {
-//                 $values[] = $this->valueForField($row, $f);
-//             }
-//             fputcsv($out, $values);
-//         }
-
-//         fclose($out);
-//     }, 200, $headers);
-// }
-
-// private function subcatTitle(string $key): string
-// {
-//     $map = [
-//         'print'   => 'PRINT ARTWORK',
-//         'video'   => 'VIDEO',
-//         'article' => 'ARTICLE',
-//         'lb'      => 'LB',     // or 'LIGHTBOX' if you prefer
-//         'em'      => 'EM',     // keep as-is; change to 'EMAIL MARKETING' if desired
-//     ];
-//     return $map[strtolower(trim($key))] ?? Str::upper($key);
-// }
-
-// private function monthFilterLabel(Request $request): ?string
-// {
-//     $rawMonth = $request->input('month');
-//     $rawYear  = $request->input('year');
-
-//     if ($rawMonth === null && $rawYear === null) {
-//         return null;
-//     }
-
-//     // Normalize month
-//     $month = null;
-//     if ($rawMonth !== null && $rawMonth !== '') {
-//         $m = strtolower(trim((string)$rawMonth));
-//         $map = [
-//             'jan'=>1,'january'=>1,'feb'=>2,'february'=>2,'mar'=>3,'march'=>3,
-//             'apr'=>4,'april'=>4,'may'=>5,'jun'=>6,'june'=>6,'jul'=>7,'july'=>7,
-//             'aug'=>8,'august'=>8,'sep'=>9,'september'=>9,'oct'=>10,'october'=>10,
-//             'nov'=>11,'november'=>11,'dec'=>12,'december'=>12,
-//         ];
-//         $month = ctype_digit($m) ? max(1, min(12, (int)$m)) : ($map[$m] ?? null);
-//     }
-
-//     // Normalize year
-//     $year = null;
-//     if ($rawYear !== null && $rawYear !== '') {
-//         $year = (int) $rawYear;
-//         if ($year < 1900 || $year > 9999) {
-//             $year = null;
-//         }
-//     }
-
-//     // Build label
-//     try {
-//         if ($month && $year) {
-//             return Carbon::createFromDate($year, $month, 1)->format('F Y'); // e.g., "September 2025"
-//         }
-//         if ($month && !$year) {
-//             return Carbon::createFromDate(now()->year, $month, 1)->format('F'); // e.g., "September"
-//         }
-//         if (!$month && $year) {
-//             return (string) $year;
-//         }
-//     } catch (\Throwable $e) {
-//         // fall through
-//     }
-
-//     return null;
-// }
-
-// protected function valueForField($row, $fieldKey)
-// {
-//     // Mapping dari field key ke database column
-//     $fieldMapping = [
-//         // Basic fields
-//         'title_snapshot' => 'title_snapshot',
-//         'company_snapshot' => 'company_snapshot',
-//         'client_bp' => 'client_bp',
-//         'x' => 'x',
-//         'edition' => 'edition',
-//         'publication' => 'publication',
-//         'remarks' => 'remarks',
-
-//         // KLTG/Print specific (with _date suffix in form, without in DB)
-//         'artwork_bp_client' => 'artwork_bp_client',
-//         'artwork_reminder_date' => 'artwork_reminder',
-//         'material_received_date' => 'material_record',
-//         'artwork_done' => 'artwork_done',
-//         'send_chop_sign_date' => 'send_chop_sign',
-//         'chop_sign_approval_date' => 'chop_sign_approval',
-//         'park_in_file_server' => 'park_in_file_server',
-
-//         // Video/Article/LB fields
-//         'material_reminder_text' => 'material_reminder_text',
-//         'video_done' => 'video_done',
-//         'pending_approval' => 'pending_approval',
-//         'video_approved' => 'video_approved',
-//         'video_scheduled' => 'video_scheduled',
-//         'video_posted' => 'video_posted',
-//         'article_done' => 'article_done',
-//         'article_approved' => 'article_approved',
-//         'article_scheduled' => 'article_scheduled',
-//         'article_posted' => 'article_posted',
-//         'post_link' => 'post_link',
-
-//         // EM fields
-//         'em_date_write' => 'em_date_write',
-//         'em_date_to_post' => 'em_date_to_post',
-//         'em_post_date' => 'em_post_date',
-//         'em_qty' => 'em_qty',
-//         'blog_link' => 'blog_link',
-//     ];
-
-//     // Get the actual database column name
-//     $dbColumn = $fieldMapping[$fieldKey] ?? $fieldKey;
-
-//     // Get the value from the row
-//     $value = $row->{$dbColumn} ?? '';
-
-//     // Handle date formatting
-//     if (in_array($fieldKey, [
-//           'artwork_reminder','material_record','artwork_done',
-//         'send_chop_sign','chop_sign_approval',
-//         'video_done','pending_approval','video_approved',
-//         'video_scheduled','video_posted',
-//         'article_done','article_approved','article_scheduled','article_posted',
-//         'em_date_write','em_date_to_post','em_post_date',
-//     ])) {
-//         if (empty($value)) {
-//             return '';
-//         }
-
-//         // If it's already a Carbon/DateTime object
-//         if (is_object($value) && method_exists($value, 'format')) {
-//             return $value->format('Y-m-d');
-//         }
-
-//         // If it's a string, try to parse it
-//         if (is_string($value)) {
-//             try {
-//                 return Carbon::parse($value)->format('Y-m-d');
-//             } catch (\Throwable $e) {
-//                 return $value; // Return as-is if can't parse
-//             }
-//         }
-//     }
-
-//     // For non-date fields, return as string
-//     return (string) $value;
-// }
 
    public function export(Request $request)
-    {
-        // Log request parameters for debugging
-        Log::info('EXPORT - Request params:', $request->all());
+{
+    // Log request parameters for debugging
+    Log::info('EXPORT - Request params:', $request->all());
 
-        // Get and normalize request parameters
-        $working = $request->get('working');
-        $activeSubcat = $this->normalizeSubcat($request->get('subcategory'));
-        $key = $this->storedToTab($activeSubcat);
+    // Get and normalize request parameters
+    $working = $request->get('working');
+    $activeSubcat = $this->normalizeSubcat($request->get('subcategory'));
+    $key = $this->storedToTab($activeSubcat);
 
-        Log::info('EXPORT - Normalized:', [
-            'activeSubcat' => $activeSubcat,
-            'key' => $key,
-            'working' => $working
-        ]);
+    Log::info('EXPORT - Normalized:', [
+        'activeSubcat' => $activeSubcat,
+        'key'          => $key,
+        'working'      => $working,
+    ]);
 
-        // Define columns for each subcategory
-        $columnsBySubcat = $this->getColumnsBySubcat();
+    // Define columns for each subcategory
+    $columnsBySubcat = $this->getColumnsBySubcat();
 
-        // Define field labels for headers
-        $labels = $this->getFieldLabels();
+    // Define field labels for headers
+    $labels = $this->getFieldLabels();
 
-        // Get fields for current subcategory
-        $fields = $columnsBySubcat[$key] ?? $columnsBySubcat['print'];
+    // Get fields for current subcategory
+    $fields = $columnsBySubcat[$key] ?? $columnsBySubcat['print'];
 
-        // Create header row
-        $headersRow = array_merge(['ID'], array_map(
-            fn($f) => $labels[$f] ?? Str::headline($f),
-            $fields
-        ));
-
-        // Build database query
-        $query = $this->buildQuery($activeSubcat, $working);
-
-        // Log query information
-        $finalCount = $query->count();
-        Log::info('EXPORT - Final query result:', [
-            'count' => $finalCount,
-            'sql' => $query->toSql(),
-            'bindings' => $query->getBindings()
-        ]);
-
-        // Generate filename
-        $filename = sprintf(
-            'kltg_%s_%s.csv',
-            strtolower($activeSubcat),
-            now()->format('Ymd_His')
-        );
-
-        // Set response headers
-        $headers = [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-            'Cache-Control' => 'no-store, no-cache',
-        ];
-
-        // Generate title and labels for CSV
-        $tabTitle = $this->subcatTitle($key);
-        $brandTitle = 'KLTG - COORDINATOR LIST';
-        $mainTitle = $brandTitle . ' - ' . $tabTitle;
-        $monthLabel = $this->monthFilterLabel($request);
-
-        // Return streamed CSV response
-        return response()->stream(
-            function () use ($query, $fields, $headersRow, $activeSubcat, $mainTitle, $monthLabel, $working) {
-                $this->streamCsvOutput($query, $fields, $headersRow, $mainTitle, $monthLabel, $working);
-            },
-            200,
-            $headers
-        );
+    // Always include created_at at the end
+    if (!in_array('created_at', $fields, true)) {
+        $fields[] = 'created_at';
     }
 
-    /**
-     * Define columns for each subcategory
-     */
-    private function getColumnsBySubcat(): array
-    {
-        return [
-            'print' => [
-                'title_snapshot', 'company_snapshot', 'client_bp', 'x', 'edition', 'publication',
-                'artwork_bp_client', 'artwork_reminder', 'material_received_date', 'artwork_done',
-                'send_chop_sign', 'chop_sign_approval', 'park_in_file_server', 'remarks',
-            ],
-            'video' => [
-                'title_snapshot', 'company_snapshot', 'client_bp', 'x', 'remarks', 'material_reminder_text',
-                'video_done', 'pending_approval', 'video_approved',
-                'video_scheduled', 'video_posted', 'post_link',
-            ],
-            'article' => [
-                'title_snapshot', 'company_snapshot', 'client_bp', 'x', 'remarks', 'material_reminder_text',
-                'article_done', 'article_approved', 'article_scheduled', 'article_posted', 'post_link',
-            ],
-            'lb' => [
-                'title_snapshot', 'company_snapshot', 'client_bp', 'x', 'remarks', 'material_reminder_text',
-                'video_done', 'pending_approval', 'video_approved',
-                'video_scheduled', 'video_posted', 'post_link',
-            ],
-            'em' => [
-                'company_snapshot', 'client_bp', 'remarks',
-                'em_date_write', 'em_date_to_post', 'em_post_date', 'em_qty', 'blog_link',
-            ],
-        ];
-    }
+    // Create header row (ID + humanized labels)
+    $headersRow = array_merge(['ID'], array_map(
+        fn ($f) => $labels[$f] ?? Str::headline($f),
+        $fields
+    ));
 
-    /**
-     * Define field labels for CSV headers
-     */
-    private function getFieldLabels(): array
-    {
-        return [
-            'title_snapshot' => 'Title',
-            'company_snapshot' => 'Company',
-            'client_bp' => 'Client/BP',
-            'x' => 'X (text)',
-            'edition' => 'Edition',
-            'publication' => 'Publication',
-            'artwork_bp_client' => 'Artwork BP/Client',
-            'artwork_reminder_date' => 'Artwork Reminder',
-            'material_received_date' => 'Material Received',
-            'artwork_done' => 'Artwork Done',
-            'send_chop_sign_date' => 'Send Chop & Sign',
-            'chop_sign_approval_date' => 'Chop & Sig Approval',
-            'park_in_file_server' => 'Park in File Server',
-            'remarks' => 'Remarks',
-            'material_reminder_text' => 'Material Reminder (Text)',
-            'video_done' => 'Video Done',
-            'pending_approval' => 'Pending Approval',
-            'video_approved' => 'Video Approved',
-            'video_scheduled' => 'Video Scheduled',
-            'video_posted' => 'Video Posted',
-            'post_link' => 'Post Link',
-            'article_done' => 'Article Done',
-            'article_approved' => 'Article Approved',
-            'article_scheduled' => 'Article Scheduled',
-            'article_posted' => 'Article Posted',
-            'em_date_write' => 'EM Date Write',
-            'em_date_to_post' => 'EM Date to Post',
-            'em_post_date' => 'EM Post Date',
-            'em_qty' => 'EM Quantity',
-            'blog_link' => 'Blog Link',
-        ];
-    }
+    // Build database query
+    $query = $this->buildQuery($activeSubcat, $working);
+
+    // Log query information
+    $finalCount = $query->count();
+    Log::info('EXPORT - Final query result:', [
+        'count'    => $finalCount,
+        'sql'      => $query->toSql(),
+        'bindings' => $query->getBindings(),
+    ]);
+
+    // Generate filename
+    $filename = sprintf(
+        'kltg_%s_%s.csv',
+        strtolower($activeSubcat),
+        now()->format('Ymd_His')
+    );
+
+    // Set response headers
+    $headers = [
+        'Content-Type'        => 'text/csv; charset=UTF-8',
+        'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        'Cache-Control'       => 'no-store, no-cache',
+    ];
+
+    // Titles for CSV
+    $tabTitle   = $this->subcatTitle($key);
+    $brandTitle = 'KLTG - COORDINATOR LIST';
+    $mainTitle  = $brandTitle . ' - ' . $tabTitle;
+    $monthLabel = $this->monthFilterLabel($request);
+
+    // Return streamed CSV response
+    return response()->stream(
+        function () use ($query, $fields, $headersRow, $activeSubcat, $mainTitle, $monthLabel, $working) {
+            $this->streamCsvOutput($query, $fields, $headersRow, $mainTitle, $monthLabel, $working);
+        },
+        200,
+        $headers
+    );
+}
+
+/**
+ * Define columns for each subcategory
+ * (Keep these as DB/field keys used by valueForField)
+ */
+private function getColumnsBySubcat(): array
+{
+    return [
+        'print' => [
+            'title_snapshot', 'company_snapshot', 'client_bp', 'x', 'edition', 'publication',
+            'artwork_bp_client', 'artwork_reminder', 'material_received_date', 'artwork_done',
+            'send_chop_sign', 'chop_sign_approval', 'park_in_file_server', 'remarks',
+        ],
+        'video' => [
+            'title_snapshot', 'company_snapshot', 'client_bp', 'x', 'remarks', 'material_reminder_text',
+            'video_done', 'pending_approval', 'video_approved',
+            'video_scheduled', 'video_posted', 'post_link',
+        ],
+        'article' => [
+            'title_snapshot', 'company_snapshot', 'client_bp', 'x', 'remarks', 'material_reminder_text',
+            'article_done', 'article_approved', 'article_scheduled', 'article_posted', 'post_link',
+        ],
+        'lb' => [
+            'title_snapshot', 'company_snapshot', 'client_bp', 'x', 'remarks', 'material_reminder_text',
+            'video_done', 'pending_approval', 'video_approved',
+            'video_scheduled', 'video_posted', 'post_link',
+        ],
+        'em' => [
+            'company_snapshot', 'client_bp', 'remarks',
+            'em_date_write', 'em_date_to_post', 'em_post_date', 'em_qty', 'blog_link',
+        ],
+    ];
+}
+
+/**
+ * Define field labels for CSV headers
+ * (Keys must match fields above so header lookup works)
+ */
+private function getFieldLabels(): array
+{
+    return [
+        'title_snapshot'           => 'Title',
+        'company_snapshot'         => 'Company',
+        'client_bp'                => 'Client/BP',
+        'x'                        => 'X (text)',
+        'edition'                  => 'Edition',
+        'publication'              => 'Publication',
+        'artwork_bp_client'        => 'Artwork BP/Client',
+
+        // Match the field keys in getColumnsBySubcat():
+        'artwork_reminder'         => 'Artwork Reminder',
+        'material_received_date'   => 'Material Received',
+        'artwork_done'             => 'Artwork Done',
+        'send_chop_sign'           => 'Send Chop & Sign',
+        'chop_sign_approval'       => 'Chop & Sig Approval',
+
+        'park_in_file_server'      => 'Park in File Server',
+        'remarks'                  => 'Remarks',
+
+        'material_reminder_text'   => 'Material Reminder (Text)',
+        'video_done'               => 'Video Done',
+        'pending_approval'         => 'Pending Approval',
+        'video_approved'           => 'Video Approved',
+        'video_scheduled'          => 'Video Scheduled',
+        'video_posted'             => 'Video Posted',
+        'post_link'                => 'Post Link',
+
+        'article_done'             => 'Article Done',
+        'article_approved'         => 'Article Approved',
+        'article_scheduled'        => 'Article Scheduled',
+        'article_posted'           => 'Article Posted',
+
+        'em_date_write'            => 'EM Date Write',
+        'em_date_to_post'          => 'EM Date to Post',
+        'em_post_date'             => 'EM Post Date',
+        'em_qty'                   => 'EM Quantity',
+        'blog_link'                => 'Blog Link',
+
+        // New label for created_at so header is explicit
+        'created_at'               => 'Created Date',
+    ];
+}
+
 
     /**
      * Build database query based on filters
@@ -1082,7 +830,9 @@ public function getEligibleMasterFiles(Request $request)
         $query = KltgCoordinatorList::query()
             ->leftJoin('master_files', 'kltg_coordinator_lists.master_file_id', '=', 'master_files.id')
             ->whereRaw('TRIM(UPPER(kltg_coordinator_lists.subcategory)) = ?', [strtoupper($activeSubcat)])
-            ->select('kltg_coordinator_lists.*');
+            ->select('kltg_coordinator_lists.*')
+            ->addSelect(DB::raw('master_files.created_at as mf_created_at')); // ✅ pull MF created_at
+
 
         // Apply working/completed filter
         if ($working === 'working') {
@@ -1253,6 +1003,7 @@ public function getEligibleMasterFiles(Request $request)
             'em_post_date' => 'em_post_date',
             'em_qty' => 'em_qty',
             'blog_link' => 'blog_link',
+            'created_at' => 'mf_created_at',
         ];
 
         // Get database column name
