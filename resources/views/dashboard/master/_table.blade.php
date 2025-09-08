@@ -3,23 +3,44 @@
     use Illuminate\Support\Str;
     use Carbon\Carbon;
 
-    // Small formatter helper (safe against bad/missing values)
-    $fmt = function (string $col, $val) {
-        if ($val === null || $val === '') return '—';
+    /** @var array|null $column_labels */
+    /** @var array|null $dateColumns */
 
-        if (in_array($col, ['amount'], true)) {
-            return number_format((float) $val, 2);
+    // Default date columns (can be overridden from parent include)
+    $dateCols = $dateColumns ?? ['created_at', 'updated_at', 'date', 'date_finish', 'start_date', 'end_date', 'invoice_date'];
+
+    // Small formatter helper (safe against bad/missing values)
+    $fmt = function (string $col, $val) use ($dateCols) {
+        // Normalize "empty"
+        if ($val === null || $val === '' || (is_array($val) && count(array_filter($val, fn($v) => $v !== null && $v !== '')) === 0)) {
+            return '—';
         }
 
-        if (in_array($col, ['date','invoice_date','created_at','updated_at','date_finish'], true)) {
+        // Arrays (e.g., multi locations)
+        if (is_array($val)) {
+            return implode(', ', array_filter($val, fn($v) => $v !== null && $v !== ''));
+        }
+
+        // Amount formatting
+        if ($col === 'amount') {
+            $num = is_numeric($val) ? (float) $val : 0;
+            return number_format($num, 2);
+        }
+
+        // Date formatting => n/j/y (e.g., 9/8/25)
+        if (in_array($col, $dateCols, true)) {
             try {
-                return Carbon::parse($val)->format('M d, Y');
+                // Accept Carbon, DateTime, or string
+                $dt = $val instanceof \DateTimeInterface ? $val : Carbon::parse($val);
+                return $dt->format('n/j/y');
             } catch (\Throwable $e) {
-                return $val; // leave as-is if it can't be parsed
+                // If parse fails, return raw
+                return (string) $val;
             }
         }
 
-        return $val;
+        // Everything else
+        return is_scalar($val) ? (string) $val : '—';
     };
 @endphp
 
@@ -28,8 +49,14 @@
         <thead class="bg-gray-50">
             <tr>
                 @foreach($columns as $c)
+                    @php
+                        $key = is_array($c) ? ($c['key'] ?? '') : $c;
+                        $label = is_array($c)
+                            ? ($c['label'] ?? Str::headline($key))
+                            : ($column_labels[$c] ?? Str::headline($c));
+                    @endphp
                     <th class="px-4 py-3 text-left font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
-                        {{ Str::headline($c) }}
+                        {{ $label }}
                     </th>
                 @endforeach
             </tr>
@@ -38,8 +65,12 @@
             @forelse($rows as $row)
                 <tr class="hover:bg-gray-50">
                     @foreach($columns as $c)
+                        @php
+                            $colKey = is_array($c) ? ($c['key'] ?? '') : $c;
+                            $cellValue = data_get($row, $colKey);
+                        @endphp
                         <td class="px-4 py-3 whitespace-nowrap text-gray-800">
-                            {{ $fmt($c, data_get($row, $c)) }}
+                            {{ $fmt($colKey, $cellValue) }}
                         </td>
                     @endforeach
                 </tr>
@@ -54,6 +85,12 @@
     </table>
 </div>
 
-<div class="mt-4">
-    {{ $rows->onEachSide(1)->links() }}
-</div>
+@if(isset($paginator))
+    <div class="mt-4">
+        {{ $paginator->onEachSide(1)->links() }}
+    </div>
+@elseif(method_exists($rows, 'links'))
+    <div class="mt-4">
+        {{ $rows->onEachSide(1)->links() }}
+    </div>
+@endif

@@ -1011,7 +1011,7 @@ public function getEligibleMasterFiles(Request $request)
         return [
             'print' => [
                 'title_snapshot', 'company_snapshot', 'client_bp', 'x', 'edition', 'publication',
-                'artwork_bp_client', 'artwork_reminder', 'material_record', 'artwork_done',
+                'artwork_bp_client', 'artwork_reminder', 'material_received_date', 'artwork_done',
                 'send_chop_sign', 'chop_sign_approval', 'park_in_file_server', 'remarks',
             ],
             'video' => [

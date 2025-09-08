@@ -3,6 +3,9 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
 
@@ -268,6 +271,119 @@ class MasterFile extends Model
     public function outdoorItems(){
     return $this->hasMany(OutdoorItem::class);
     }
+
+    protected function applyMonthFilter($query, $rawMonth)
+{
+    // Normalisasi input (1..12), terima "Jan", "January", "9", dll
+    $m = null;
+    if ($rawMonth !== null && $rawMonth !== '' && (int)$rawMonth !== 0) {
+        $s = trim((string)$rawMonth);
+        $map = [
+            'jan'=>1,'january'=>1,'feb'=>2,'february'=>2,'mar'=>3,'march'=>3,
+            'apr'=>4,'april'=>4,'may'=>5,'jun'=>6,'june'=>6,'jul'=>7,'july'=>7,
+            'aug'=>8,'august'=>8,'sep'=>9,'sept'=>9,'september'=>9,
+            'oct'=>10,'october'=>10,'nov'=>11,'november'=>11,'dec'=>12,'december'=>12,
+        ];
+        if (ctype_digit($s)) {
+            $m = max(1, min(12, (int)$s));
+        } else {
+            $k = strtolower($s);
+            $m = $map[$k] ?? null;
+        }
+    }
+
+    if (!$m) return $query; // 0/empty = all months
+
+    // Bentuk teks untuk dibandingkan dengan kolom 'month' yang bertipe string
+    $full  = strtolower(Carbon::create(null, $m, 1)->format('F')); // January
+    $abbr  = strtolower(Carbon::create(null, $m, 1)->format('M')); // Jan
+
+    return $query->where(function ($w) use ($m, $full, $abbr) {
+        // 1) Kolom month (bisa angka atau teks)
+        if (Schema::hasColumn('master_files', 'month')) {
+            $w->where(function($x) use ($m, $full, $abbr) {
+                $x->whereRaw('CAST(`month` AS UNSIGNED) = ?', [$m])        // angka "1"
+                  ->orWhereRaw('LOWER(`month`) = ?', [$full])              // "january"
+                  ->orWhereRaw('LOWER(`month`) = ?', [$abbr]);             // "jan"
+            });
+        }
+
+        // 2) Fallback: tanggal mulai/akhir
+        if (Schema::hasColumn('master_files', 'date')) {
+            $w->orWhereRaw('MONTH(`date`) = ?', [$m]);
+        }
+        if (Schema::hasColumn('master_files', 'date_finish')) {
+            $w->orWhereRaw('MONTH(`date_finish`) = ?', [$m]);
+        }
+    });
+}
+    protected function masterIndex(Request $request, string $scope)
+{
+    $month = (int) $request->query('month', 0); // 0 = all
+    $q     = trim((string) $request->query('q', ''));
+
+    // Adjust this base query to your real scope logic:
+    // Example 1: using product_category
+    $query = MasterFile::query()
+        ->when($scope === 'kltg', fn($qq) => $qq->where('product_category', 'KLTG'))
+        ->when($scope === 'outdoor', fn($qq) => $qq->where('product_category', 'Outdoor'));
+
+    // Month filter (supports either a "month" numeric column, or derives from "date")
+    if ($month >= 1 && $month <= 12) {
+        if (Schema::hasColumn('master_files', 'month')) {
+            $query->where('month', $month);
+        } elseif (Schema::hasColumn('master_files', 'date')) {
+            $query->whereRaw('MONTH(`date`) = ?', [$month]);
+        } else {
+            // If your date column is named differently, add more fallbacks here
+            $query->whereRaw('1=0'); // no-op fallback if neither exists
+        }
+    }
+
+    // Global search across common fields (tweak list as needed)
+    if ($q !== '') {
+        $like = '%' . str_replace(['%', '_'], ['\\%','\\_'], $q) . '%';
+        $query->where(function ($w) use ($like) {
+            foreach ([
+                'company', 'client', 'product', 'product_category',
+                'location', 'site', 'size', 'district_council',
+                'remarks', 'status', 'job_number', 'invoice_number', 'email',
+            ] as $col) {
+                if (Schema::hasColumn('master_files', $col)) {
+                    $w->orWhere($col, 'LIKE', $like);
+                }
+            }
+            // If you want to search month name via date:
+            if (Schema::hasColumn('master_files', 'date')) {
+                $w->orWhereRaw("DATE_FORMAT(`date`, '%M %Y') LIKE ?", [$like]);
+            }
+        });
+    }
+
+    // Sort & paginate
+    $rows = $query->latest('created_at')->paginate(20)->withQueryString();
+
+    // Build the $columns for your _table partial (if you already do this elsewhere, keep it)
+    // Example columns — match your existing table headers/fields:
+    $columns = [
+        'created_at'       => 'Created',
+        'company'          => 'Company',
+        'client'           => 'Person In Charge',
+        'product'          => 'Product',
+        'product_category' => 'Category',
+        'location'         => 'Location',
+        'status'           => 'Status',
+        'job_number'       => 'Job No',
+    ];
+
+    $active = $scope; // for the tabs
+
+    // Return the appropriate view
+    if ($scope === 'kltg') {
+        return view('dashboard.master.kltg', compact('rows', 'columns', 'active'));
+    }
+    return view('dashboard.master.outdoor', compact('rows', 'columns', 'active'));
+}
 
 
 

@@ -51,23 +51,6 @@
                                 </div>
                             </div>
 
-                            {{-- ===== FORM DELETE (terpisah, JANGAN di dalam form update) ===== --}}
-<form action="{{ route('masterfile.destroy', $file->id) }}"
-      method="POST"
-      onsubmit="return confirm('Are you sure you want to delete this record? This cannot be undone.');"
-      class="mt-2 flex justify-end">
-    @csrf
-    @method('DELETE')
-    <button type="submit"
-            class="inline-flex items-center px-6 py-2.5 bg-red-600 text-black text-sm font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-150">
-        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M6 18L18 6M6 6l12 12"></path>
-        </svg>
-        Delete
-    </button>
-</form>
-
                             <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 lg:gap-6">
                                 <div class="text-right text-sm text-gray-500">
                                     <div class="font-medium text-gray-900">ID: #{{ $file->id }}</div>
@@ -138,7 +121,7 @@
                             </div>
 
                             <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-500">Duration</label>
+                                <label class="text-sm font-medium text-gray-500">Remarks</label>
                                 <input name="duration" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="{{ old('duration',$file->duration) }}" disabled>
                             </div>
                         </div>

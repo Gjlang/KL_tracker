@@ -8,18 +8,40 @@ use App\Models\OutdoorCoordinatorTracking;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Schema;
-use Symfony\Component\HttpFoundation\StreamedResponse; // add at top
-use Illuminate\Foundation\Configuration\Exceptions;
-use Throwable;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Arr;
-
-
-
 
 class OutdoorCoordinatorController  extends Controller
 {
+
+
+    private array $rows;
+    private string $title;
+
+    public function __construct(array $rows, string $title)
+    {
+        $this->rows  = $rows;   // plain array of row arrays
+        $this->title = $title;  // e.g. OUTDOOR_EXPORT_2025-09-08
+    }
+
+    /** Data starts on row 3 (two heading rows) */
+    public function array(): array
+    {
+        return $this->rows;
+    }
+
+    /** Two heading rows: big title (row 1), column headers (row 2) */
+    public function headings(): array
+    {
+        return [
+            [$this->title],
+            [
+                'ID', 'Master File ID', 'Client', 'Product', 'Site',
+                'Payment', 'Material', 'Artwork', 'Received Approval',
+                'Sent to Printer', 'Collection Printer', 'Installation',
+                'Dismantle', 'Remarks', 'Next Follow Up', 'Status',
+            ],
+        ];
+    }
 
      protected $table = 'outdoor_coordinator_trackings';
 
@@ -448,324 +470,7 @@ class OutdoorCoordinatorController  extends Controller
         return redirect()->route('coordinator.outdoor.index')
                        ->with('info', 'No new outdoor master files found to create tracking records.');
     }
-public function upsert(Request $request)
-{
-    try {
-        // Log the incoming request for debugging
-        Log::info('Upsert request received', [
-            'all_data' => $request->all(),
-            'method' => $request->method(),
-            'content_type' => $request->header('Content-Type')
-        ]);
 
-        // Normalize input data - handle empty strings and null values
-        $raw = $request->all();
-
-        // Log raw data before normalization
-        Log::info('Raw data before normalization', $raw);
-
-        foreach ($raw as $k => $v) {
-            if (is_string($v) && in_array($v, ['', 'null', 'undefined', 'NULL'])) {
-                $raw[$k] = null;
-            }
-        }
-
-        Log::info('Data after normalization', $raw);
-
-        // Handle different request formats
-        $masterFileId = null;
-        $patch = [];
-
-        // Format 1: Field/Value pair (inline editing)
-        if (isset($raw['field']) && array_key_exists('value', $raw)) {
-            Log::info('Processing field/value format', [
-                'field' => $raw['field'],
-                'value' => $raw['value']
-            ]);
-
-            // Try to get master_file_id from different sources
-            if (!empty($raw['master_file_id'])) {
-                $masterFileId = (int) $raw['master_file_id'];
-            } elseif (!empty($raw['id'])) {
-                $tracking = OutdoorCoordinatorTracking::find($raw['id']);
-                $masterFileId = $tracking ? $tracking->master_file_id : null;
-            }
-
-            $field = (string) $raw['field'];
-            $fillable = (new OutdoorCoordinatorTracking())->getFillable();
-
-            if (in_array($field, $fillable, true)) {
-                $patch[$field] = $raw['value'];
-            } else {
-                Log::warning('Field not in fillable array', [
-                    'field' => $field,
-                    'fillable' => $fillable
-                ]);
-                return response()->json([
-                    'ok' => false,
-                    'message' => "Field '{$field}' is not allowed for editing",
-                    'allowed_fields' => $fillable
-                ], 422);
-            }
-        }
-        // Format 2: Full object data
-        else {
-            Log::info('Processing full object format');
-
-            if (!empty($raw['master_file_id'])) {
-                $masterFileId = (int) $raw['master_file_id'];
-            }
-
-            $fillable = (new OutdoorCoordinatorTracking())->getFillable();
-            $patch = array_intersect_key($raw, array_flip($fillable));
-            unset($patch['master_file_id']); // Handle separately
-        }
-
-        Log::info('Processing data', [
-            'master_file_id' => $masterFileId,
-            'patch_data' => $patch
-        ]);
-
-        // Validate master_file_id
-        if (!$masterFileId) {
-            Log::error('Master file ID missing');
-            return response()->json([
-                'ok' => false,
-                'message' => 'Master file ID is required',
-                'debug_info' => [
-                    'raw_master_file_id' => $raw['master_file_id'] ?? 'not_set',
-                    'raw_id' => $raw['id'] ?? 'not_set',
-                    'available_keys' => array_keys($raw)
-                ]
-            ], 422);
-        }
-
-        // Check if master file exists
-        $masterFile = MasterFile::find($masterFileId);
-        if (!$masterFile) {
-            Log::error('Master file not found', ['id' => $masterFileId]);
-            return response()->json([
-                'ok' => false,
-                'message' => 'Master file not found',
-                'master_file_id' => $masterFileId
-            ], 422);
-        }
-
-        // Build validation rules
-        $dateFields = ['received_approval', 'sent_to_printer', 'collection_printer', 'installation', 'dismantle', 'next_follow_up'];
-        $rules = [];
-
-        foreach ($patch as $key => $value) {
-            if (in_array($key, $dateFields)) {
-                // More flexible date validation
-                $rules[$key] = ['nullable', 'date'];
-            } elseif ($key === 'status') {
-                $rules[$key] = ['nullable', 'string', 'in:pending,ongoing,completed'];
-            } elseif ($key === 'remarks') {
-                $rules[$key] = ['nullable', 'string', 'max:1000'];
-            } else {
-                $rules[$key] = ['nullable', 'string', 'max:255'];
-            }
-        }
-
-        Log::info('Validation rules', [
-            'rules' => $rules,
-            'data_to_validate' => $patch
-        ]);
-
-        // Validate the patch data
-        if (!empty($patch) && !empty($rules)) {
-            $validator = Validator::make($patch, $rules);
-
-            if ($validator->fails()) {
-                Log::error('Validation failed', [
-                    'errors' => $validator->errors()->toArray(),
-                    'data' => $patch,
-                    'rules' => $rules
-                ]);
-
-                return response()->json([
-                    'ok' => false,
-                    'message' => 'Validation failed',
-                    'errors' => $validator->errors(),
-                    'debug_info' => [
-                        'validated_data' => $patch,
-                        'validation_rules' => $rules
-                    ]
-                ], 422);
-            }
-
-            $patch = $validator->validated();
-            Log::info('Validation passed', ['validated_data' => $patch]);
-        }
-
-        // Process date fields
-        foreach ($dateFields as $field) {
-            if (isset($patch[$field]) && $patch[$field] !== null) {
-                try {
-                    $date = Carbon::parse($patch[$field])->format('Y-m-d');
-                    $patch[$field] = $date;
-                    Log::info("Date processed: {$field} = {$date}");
-                } catch (\Exception $e) {
-                    Log::warning("Date parsing failed for {$field}", [
-                        'value' => $patch[$field],
-                        'error' => $e->getMessage()
-                    ]);
-                    $patch[$field] = null;
-                }
-            }
-        }
-
-        // Find or create tracking record
-        $tracking = OutdoorCoordinatorTracking::firstOrNew([
-            'master_file_id' => $masterFileId
-        ]);
-
-        $isNewRecord = !$tracking->exists;
-        Log::info('Tracking record', [
-            'is_new' => $isNewRecord,
-            'existing_id' => $tracking->id ?? 'none'
-        ]);
-
-        // Update fields
-        if (!empty($patch)) {
-            foreach ($patch as $key => $value) {
-                $tracking->$key = $value;
-                Log::info("Updated field: {$key} = " . ($value ?? 'null'));
-            }
-        }
-
-        // Auto-calculate status if not explicitly set
-        if (!isset($patch['status'])) {
-            $oldStatus = $tracking->status;
-            if (!empty($tracking->dismantle)) {
-                $tracking->status = 'completed';
-            } elseif (!empty($tracking->installation)) {
-                $tracking->status = 'ongoing';
-            } else {
-                $tracking->status = 'pending';
-            }
-
-            if ($oldStatus !== $tracking->status) {
-                Log::info("Status auto-updated: {$oldStatus} -> {$tracking->status}");
-            }
-        }
-
-        // Save the record
-        $tracking->save();
-
-        Log::info('Upsert successful', [
-            'tracking_id' => $tracking->id,
-            'master_file_id' => $tracking->master_file_id,
-            'was_new' => $isNewRecord,
-            'final_status' => $tracking->status
-        ]);
-
-        return response()->json([
-            'ok' => true,
-            'id' => $tracking->id,
-            'master_file_id' => $tracking->master_file_id,
-            'status' => $tracking->status,
-            'message' => $isNewRecord ? 'Record created successfully' : 'Record updated successfully',
-            'data' => $tracking->fresh() // Get fresh data from DB
-        ]);
-
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        Log::error('Validation exception', [
-            'errors' => $e->errors(),
-            'request_data' => $request->all()
-        ]);
-
-        return response()->json([
-            'ok' => false,
-            'message' => 'Validation failed',
-            'errors' => $e->errors()
-        ], 422);
-
-    } catch (\Exception $e) {
-        Log::error('Upsert failed with exception', [
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString(),
-            'request_data' => $request->all()
-        ]);
-
-        return response()->json([
-            'ok' => false,
-            'message' => 'Server error: ' . $e->getMessage(),
-            'error_type' => get_class($e)
-        ], 500);
-    }
-}
-
-//    public function upsert(Request $request)
-//     {
-//         // Validate incoming fields
-//         $data = $request->validate([
-//             'master_file_id'      => ['required','integer','exists:master_files,id'],
-//             'site'                => ['nullable','string','max:255'],
-//             'payment'             => ['nullable','string','max:255'],
-//             'material'            => ['nullable','string','max:255'],
-//             'artwork'             => ['nullable','string','max:255'],
-//             'received_approval'   => ['nullable','date'],
-//             'sent_to_printer'     => ['nullable','date'],
-//             'collection_printer'  => ['nullable','date'],
-//             'installation'        => ['nullable','date'],
-//             'dismantle'           => ['nullable','date'],
-//             'remarks'             => ['nullable','string'],
-//             'next_follow_up'      => ['nullable','date'],
-//             'status'              => ['nullable','string','max:50'], // pending/ongoing/completed
-//             // If you REALLY have this column in DB:
-//             // 'person_in_charge' => ['nullable','string','max:255'],
-//         ]);
-
-//         // Normalize empty strings to null for dates
-//         foreach (['received_approval','sent_to_printer','collection_printer','installation','dismantle','next_follow_up'] as $k) {
-//             if (isset($data[$k]) && $data[$k] === '') $data[$k] = null;
-//         }
-//         if (empty($data['status'])) {
-//             $data['status'] = 'pending'; // default to avoid NOT NULL errors
-//         }
-
-//         try {
-//             $tracking = DB::transaction(function () use ($data) {
-//                 // Update existing by master_file_id or create new
-//                 $rec = OutdoorCoordinatorTracking::firstOrNew([
-//                     'master_file_id' => $data['master_file_id'],
-//                 ]);
-
-//                 // Only fill keys that actually exist in the table
-//                 $fill = collect($data)->only((new OutdoorCoordinatorTracking)->getFillable())->toArray();
-//                 $rec->fill($fill);
-//                 $rec->save();
-
-//                 return $rec;
-//             });
-
-//             return response()->json([
-//                 'ok' => true,
-//                 'id' => $tracking->id,
-//                 'master_file_id' => $tracking->master_file_id,
-//                 'message' => 'Saved',
-//             ]);
-//         } catch (Throwable $e) {
-//             // Log and return a readable message to the frontend
-//             Log::error('Outdoor upsert failed', [
-//                 'payload' => $request->all(),
-//                 'error'   => $e->getMessage(),
-//                 'trace'   => $e->getTraceAsString(),
-//             ]);
-
-//             return response()->json([
-//                 'ok' => false,
-//                 'message' => 'Save failed',
-//                 'error' => $e->getMessage(),
-//             ], 500);
-//         }
-//     }
-
-    /**
-     * Get available master files for API calls
-     */
     public function getAvailableMasterFiles()
     {
         $masterFiles = MasterFile::where(function($q) {
@@ -783,144 +488,55 @@ public function upsert(Request $request)
         return response()->json($masterFiles);
     }
 
+    public function styles(Worksheet $sheet)
+    {
+        // Merge the big title across A1:P1 (16 columns)
+        $sheet->mergeCells('A1:P1');
 
-    public function export(Request $request): StreamedResponse
-{
-    // ---- DEBUG: Log untuk melihat apa yang terjadi ----
-    Log::info('Export started', [
-        'month_requested' => $request->integer('month'),
-        'all_params' => $request->all()
-    ]);
-
-    // ---- 1) Get month filter ----
-    $month = $request->integer('month'); // 1-12
-
-    // ---- DEBUG: Cek total data di tabel ----
-    $totalRows = DB::table('outdoor_coordinator_trackings')->count();
-    Log::info("Total rows in outdoor_coordinator_trackings: {$totalRows}");
-
-    // ---- 2) Build query dengan JOIN ke master_files ----
-    $q = DB::table('outdoor_coordinator_trackings as oct')
-        ->join('master_files as mf', 'oct.master_file_id', '=', 'mf.id')
-        ->select([
-            'oct.id',
-            'oct.master_file_id',
-            'mf.client',           // ✅ Ambil dari master_files
-            'mf.product',          // ✅ Ambil dari master_files
-            'oct.site',
-            'oct.payment',
-            'oct.material',
-            'oct.artwork',
-            'oct.received_approval',
-            'oct.sent_to_printer',
-            'oct.collection_printer',
-            'oct.installation',
-            'oct.dismantle',
-            'oct.remarks',
-            'oct.next_follow_up',
-            'oct.status',
+        // Title style
+        $sheet->getStyle('A1')->applyFromArray([
+            'font' => ['bold' => true, 'size' => 14, 'color' => ['rgb' => '000000']],
+            'alignment' => ['horizontal' => 'center', 'vertical' => 'center'],
+            'fill' => ['fillType' => 'solid', 'color' => ['rgb' => 'FFFF00']], // yellow
         ]);
 
-    // ---- 3) Month filtering ----
-    if ($month) {
-        Log::info("Filtering by month: {$month}");
+        // Header row style
+        $sheet->getStyle('A2:P2')->applyFromArray([
+            'font' => ['bold' => true],
+            'alignment' => ['horizontal' => 'center', 'vertical' => 'center'],
+            'fill' => ['fillType' => 'solid', 'color' => ['rgb' => 'D9D9D9']], // light grey
+            'borders' => [
+                'allBorders' => ['borderStyle' => 'thin', 'color' => ['rgb' => '000000']],
+            ],
+        ]);
 
-        // Filter berdasarkan date fields yang ada di outdoor_coordinator_trackings
-        $q->where(function ($query) use ($month) {
-            $query->whereRaw("MONTH(oct.received_approval) = ?", [$month])
-                  ->orWhereRaw("MONTH(oct.sent_to_printer) = ?", [$month])
-                  ->orWhereRaw("MONTH(oct.collection_printer) = ?", [$month])
-                  ->orWhereRaw("MONTH(oct.installation) = ?", [$month])
-                  ->orWhereRaw("MONTH(oct.dismantle) = ?", [$month]);
-        });
-
-        // DEBUG: Cek berapa yang match filter
-        $filteredCount = $q->count();
-        Log::info("Rows matching month filter: {$filteredCount}");
-    }
-
-    $rows = $q->orderBy('oct.id')->get();
-
-    // ---- DEBUG: Log hasil query ----
-    Log::info("Final query returned rows: " . count($rows));
-    if (count($rows) > 0) {
-        Log::info("Sample first row: ", (array) $rows[0]);
-    }
-
-    // ---- 4) Jika tidak ada data dengan filter, export semua data ----
-    if ($rows->isEmpty()) {
-        Log::info("No filtered data found, exporting ALL data");
-        $rows = DB::table('outdoor_coordinator_trackings as oct')
-            ->join('master_files as mf', 'oct.master_file_id', '=', 'mf.id')
-            ->select([
-                'oct.id', 'oct.master_file_id', 'mf.client', 'mf.product', 'oct.site',
-                'oct.payment', 'oct.material', 'oct.artwork', 'oct.received_approval',
-                'oct.sent_to_printer', 'oct.collection_printer', 'oct.installation',
-                'oct.dismantle', 'oct.remarks', 'oct.next_follow_up', 'oct.status'
-            ])
-            ->orderBy('oct.id')
-            ->get();
-
-        Log::info("All data export returned rows: " . count($rows));
-    }
-
-    // ---- 5) Generate CSV ----
-    $monthName = $month ? "month-{$month}" : 'all';
-    $filename = "outdoor-coordinator-{$monthName}.csv";
-
-    $headers = [
-        'Content-Type'        => 'text/csv; charset=UTF-8',
-        'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-    ];
-
-    $csvHeaders = [
-        'ID', 'Master File ID', 'Client', 'Product', 'Site',
-        'Payment', 'Material', 'Artwork', 'Received Approval',
-        'Sent to Printer', 'Collection Printer', 'Installation',
-        'Dismantle', 'Remarks', 'Next Follow Up', 'Status'
-    ];
-
-    $dbColumns = [
-        'id', 'master_file_id', 'client', 'product', 'site',
-        'payment', 'material', 'artwork', 'received_approval',
-        'sent_to_printer', 'collection_printer', 'installation',
-        'dismantle', 'remarks', 'next_follow_up', 'status'
-    ];
-
-    return response()->streamDownload(function () use ($rows, $csvHeaders, $dbColumns) {
-        $out = fopen('php://output', 'w');
-
-        // BOM for Excel
-        fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
-
-        // Write headers
-        fputcsv($out, $csvHeaders);
-
-        // Write data
-        foreach ($rows as $row) {
-            $line = [];
-            foreach ($dbColumns as $col) {
-                $value = $row->$col ?? '';
-
-                // Format dates
-                if (in_array($col, ['received_approval', 'sent_to_printer', 'collection_printer', 'installation', 'dismantle', 'next_follow_up'])) {
-                    if ($value && !in_array($value, ['0000-00-00', '0000-00-00 00:00:00', '', null])) {
-                        try {
-                            $value = date('Y-m-d', strtotime($value));
-                        } catch (\Throwable $e) {
-                            // Keep original
-                        }
-                    } else {
-                        $value = '';
-                    }
-                }
-                $line[] = $value;
-            }
-            fputcsv($out, $line);
+        // Body borders (optional)
+        $highestRow = $sheet->getHighestRow();
+        if ($highestRow >= 3) {
+            $sheet->getStyle("A3:P{$highestRow}")->applyFromArray([
+                'borders' => [
+                    'allBorders' => ['borderStyle' => 'thin', 'color' => ['rgb' => 'CCCCCC']],
+                ],
+            ]);
         }
 
-        fclose($out);
-    }, $filename, $headers);
-}
+        return [];
+    }
 
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function (AfterSheet $event) {
+                // Freeze header under row 2 (so row 3 is first scroll row)
+                $event->sheet->getDelegate()->freezePane('A3');
+
+                // Set date formats for date columns (I,J,K,L,M,O = 9,10,11,12,13,15)
+                foreach (['I','J','K','L','M','O'] as $col) {
+                    $event->sheet->getDelegate()
+                        ->getStyle("{$col}3:{$col}{$event->sheet->getDelegate()->getHighestRow()}")
+                        ->getNumberFormat()->setFormatCode('yyyy-mm-dd');
+                }
+            },
+        ];
+    }
 }

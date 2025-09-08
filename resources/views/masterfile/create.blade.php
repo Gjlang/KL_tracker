@@ -160,7 +160,7 @@
 
 
         <div>
-            <label for="duration" class="text-gray-700 font-medium mb-1 block">Duration</label>
+            <label for="duration" class="text-gray-700 font-medium mb-1 block">Remarks</label>
             <input type="text" name="duration" id="duration" placeholder="e.g., 3 months" value="{{ old('duration') }}"
                    class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
         </div>
@@ -263,6 +263,11 @@
                 <div>
                     <label class="text-gray-700 font-medium mb-1 block" for="kltg_em">EM</label>
                     <input type="text" name="kltg_em" id="kltg_em" value="{{ old('kltg_em') }}"
+                           class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="text-gray-700 font-medium mb-1 block" for="barter">Barter</label>
+                    <input type="text" name="barter" id="barter" value="{{ old('barter') }}"
                            class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-indigo-500">
                 </div>
                 <div>

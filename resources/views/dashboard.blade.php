@@ -41,7 +41,7 @@
               <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center mb-6 gap-4">
                 <!-- Header Information -->
                 <div>
-                  <h3 class="text-2xl font-semibold text-gray-900">Master File Data</h3>
+                  <h3 class="text-2xl font-semibold text-gray-900">Master Proposal Confirmation</h3>
                   <p class="text-sm text-gray-600 mt-1">
                     @if(isset($masterFiles) && $masterFiles->count() > 0)
                       Showing {{ $masterFiles->count() }} records
@@ -52,14 +52,14 @@
                 </div>
 
                 <!-- Action Buttons -->
-
-                <a href="{{ route('information.booth') }}" class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 shadow-md transition-colors">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                    </svg>
-                    🧾 Information Booth
-                </a>
                 <div class="flex flex-wrap gap-3">
+
+                    <a href="{{ route('masterfile.create') }}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    Add New
+                  </a>
                   <a href="{{ route('calendar.index') }}" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-md transition-colors">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
@@ -93,12 +93,12 @@
                         </button>
                     </form>
                   <!-- Add New Button -->
-                  <a href="{{ route('masterfile.create') }}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                    </svg>
-                    Add New
-                  </a>
+                  <a href="{{ route('information.booth') }}" class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 shadow-md transition-colors">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        🧾 Information Booth
+                    </a>
                 </div>
               </div>
 
@@ -181,6 +181,7 @@
                       <thead class="bg-gray-100 sticky top-0 z-10">
                         <tr>
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[120px] whitespace-nowrap">Date Created</th>
+                          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[220px] whitespace-nowrap">Sales Person</th>
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[220px] whitespace-nowrap">Company Name</th>
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[170px] whitespace-nowrap">Person In Charge</th>
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[220px] whitespace-nowrap">Email</th>
@@ -190,7 +191,7 @@
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[120px] whitespace-nowrap">Month</th>
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[120px] whitespace-nowrap">Start Date</th>
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[120px] whitespace-nowrap">End Date</th>
-                          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[120px] whitespace-nowrap">Duration</th>
+                          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[120px] whitespace-nowrap">Remarks</th>
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[120px] whitespace-nowrap">Status</th>
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[120px] whitespace-nowrap">Job</th>
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[120px] whitespace-nowrap">Artwork</th>
@@ -204,6 +205,7 @@
                           @foreach($masterFiles as $file)
                             <tr class="{{ $loop->iteration % 2 === 0 ? 'bg-white' : 'bg-gray-50' }} hover:bg-gray-100 transition-colors duration-200">
                               <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $file->created_at ? $file->created_at->format('M d, Y') : '-' }}</td>
+                              <td class="px-6 py-4 text-sm text-gray-900">{{ $file->sales_person ?? '-' }}</td>
                               <td class="px-6 py-4 text-sm text-gray-900">
                                 <a href="{{ route('masterfile.show', $file->id) }}" class="text-blue-600 hover:text-blue-800 hover:underline transition-colors duration-150 font-medium">
                                   <div class="max-w-[200px] truncate" title="{{ $file->company }}">{{ $file->company }}</div>
