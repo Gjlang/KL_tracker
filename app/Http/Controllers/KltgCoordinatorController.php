@@ -828,7 +828,7 @@ private function getFieldLabels(): array
     private function buildQuery(string $activeSubcat, ?string $working)
     {
         $query = KltgCoordinatorList::query()
-            ->leftJoin('master_files', 'kltg_coordinator_lists.master_file_id', '=', 'master_files.id')
+            ->join('master_files', 'kltg_coordinator_lists.master_file_id', '=', 'master_files.id')
             ->whereRaw('TRIM(UPPER(kltg_coordinator_lists.subcategory)) = ?', [strtoupper($activeSubcat)])
             ->select('kltg_coordinator_lists.*')
             ->addSelect(DB::raw('master_files.created_at as mf_created_at')); // ✅ pull MF created_at
@@ -979,7 +979,7 @@ private function getFieldLabels(): array
             'artwork_bp_client' => 'artwork_bp_client',
             'artwork_reminder_date' => 'artwork_reminder',
             'material_received_date' => 'material_record',
-            'artwork_done' => 'artwork_done',
+            'artwork_done_date' => 'artwork_done',
             'send_chop_sign_date' => 'send_chop_sign',
             'chop_sign_approval_date' => 'chop_sign_approval',
             'park_in_file_server' => 'park_in_file_server',
@@ -1017,10 +1017,10 @@ private function getFieldLabels(): array
             'video_done', 'pending_approval', 'video_approved',
             'video_scheduled', 'video_posted',
             'article_done', 'article_approved', 'article_scheduled', 'article_posted',
-            'em_date_write', 'em_date_to_post', 'em_post_date',
+            'em_date_write', 'em_date_to_post', 'em_post_date','mf_created_at',
         ];
 
-        if (in_array($fieldKey, $dateFields)) {
+        if (in_array($dbColumn, $dateFields, true) || in_array($fieldKey, $dateFields, true)) {
             if (empty($value)) {
                 return '';
             }
