@@ -20,6 +20,8 @@ use App\Http\Controllers\CoordinatorMediaController;
 use App\Http\Controllers\SerialController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\MasterFileController;
+use App\Http\Controllers\InformationBoothController;
+
 
 
 // ===============================================
@@ -130,6 +132,25 @@ Route::post('/monthly-jobs/{id}/update', [MasterFileController::class, 'updateMo
 Route::get('/export-monthly-ongoing', [MasterFileController::class, 'exportMonthlyOngoing'])->name('export.monthly.ongoing');
 Route::get('/serials/preview', [MasterFileController::class, 'previewSerials'])->name('serials.preview');
 Route::delete('/masterfile/{id}', [MasterFileController::class, 'destroy'])->name('masterfile.destroy');
+
+
+// ===============================================
+// INFORMATION BOOTH ROUTES
+// ===============================================
+Route::middleware(['auth'])->group(function () {
+    Route::get('/information-booth', [InformationBoothController::class, 'index'])
+        ->name('information.booth');
+
+    Route::post('/information-booth/feeds', [InformationBoothController::class, 'store'])
+        ->name('information.booth.feeds.store');
+
+    Route::patch('/information-booth/feeds/{feed}', [InformationBoothController::class, 'update'])
+        ->name('information.booth.feeds.update');
+
+    Route::delete('/information-booth/feeds/{feed}', [InformationBoothController::class, 'destroy'])
+        ->name('information.booth.feeds.destroy');
+});
+
 
 // ===============================================
 // COORDINATOR ROUTES

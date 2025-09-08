@@ -79,23 +79,21 @@ class MasterFile extends Model
     }
 
     protected static function booted()
-{
-    static::creating(function ($m) {
-        // Selalu generate baru saat create (abaikan input job_number)
-        $m->job_number = app(\App\Services\JobNumberService::class)
-            ->generate((string)($m->product_category ?? ''), (string)($m->product ?? ''));
-    });
-
-    // Opsional: rapikan saat update kalau formatnya salah
-    static::updating(function ($m) {
-        if (!$m->job_number || !preg_match('/^[A-Z0-9]{2,6}-\d{4}-\d{4}$/', $m->job_number)) {
+    {
+        static::creating(function ($m) {
+            // Selalu generate baru saat create (abaikan input job_number)
             $m->job_number = app(\App\Services\JobNumberService::class)
                 ->generate((string)($m->product_category ?? ''), (string)($m->product ?? ''));
-        }
-    });
-}
+        });
 
-
+        // Opsional: rapikan saat update kalau formatnya salah
+        static::updating(function ($m) {
+            if (!$m->job_number || !preg_match('/^[A-Z0-9]{2,6}-\d{4}-\d{4}$/', $m->job_number)) {
+                $m->job_number = app(\App\Services\JobNumberService::class)
+                    ->generate((string)($m->product_category ?? ''), (string)($m->product ?? ''));
+            }
+        });
+    }
     /**
      * Get the available artwork options
      */
@@ -270,5 +268,7 @@ class MasterFile extends Model
     public function outdoorItems(){
     return $this->hasMany(OutdoorItem::class);
     }
+
+
 
 }

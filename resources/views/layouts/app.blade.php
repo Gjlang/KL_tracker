@@ -38,7 +38,7 @@
                                 <i class="fas fa-briefcase text-white text-lg"></i>
                             </div>
                             <a href="{{ route('dashboard') }}" class="text-xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-                                Job Tracker Pro
+                                MASTER CLIENTELE
                             </a>
                         </div>
 

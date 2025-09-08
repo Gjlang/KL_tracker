@@ -4,7 +4,7 @@
 <div class="mx-auto max-w-7xl p-4">
     @include('dashboard.master._tabs', ['active' => $active ?? 'outdoor'])
 
-    <h1 class="text-xl font-semibold mb-3">Outdoor Master Files</h1>
+    <h1 class="text-xl font-semibold mb-3">OUTDOOR MASTER CLIENTELE</h1>
 
     <!-- Export button -->
     <div class="mb-4">

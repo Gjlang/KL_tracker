@@ -42,9 +42,7 @@ class MasterFileController extends Controller
 {
     // Kolom yang diminta (sesuai list kamu)
     $columns = [
-        'month','date','company','product','product_category','location','traffic','duration','amount',
-        'status','remarks','client','date_finish','job_number','artwork','invoice_date','invoice_number',
-        'created_at','updated_at','contact_number','email',
+        'created_at','month','date','date_finish','company','product','product_category',
         'kltg_industry','kltg_x','kltg_edition','kltg_material_cbp','kltg_print','kltg_article',
         'kltg_video','kltg_leaderboard','kltg_qr_code','kltg_blog','kltg_em','kltg_remarks',
     ];
@@ -73,218 +71,283 @@ class MasterFileController extends Controller
     ]);
 }
 
-    /** GET /dashboard/master/outdoor */
-    public function outdoor(Request $request)
+
+
+public function outdoor(Request $request)
 {
-    // Kolom yang diminta (sesuai list kamu)
-    $columns = [
-        'id','month','date','company','product','product_category','location','traffic','duration','amount',
-        'status','remarks','client','date_finish','job_number','artwork','invoice_date','invoice_number',
-        'created_at','updated_at','contact_number','email',
+    // Kolom yang mau ditampilkan (urutan = tampilan tabel)
+    $colKeys = [
+        'created_at','month','company','product','location','duration','date','date_finish',
         'outdoor_size','outdoor_district_council','outdoor_coordinates',
     ];
 
-    // Variasi nama produk untuk Outdoor (lowercase semua) + 'outdoor'
-    $outdoorSet = array_map('strtolower', [
-        'outdoor', // jika ada yang tersimpan begitu
-        'hm','tb','ttm','bb','star','flyers','bunting','signages',
-    ]);
+    $labels = [
+        'created_at'               => 'CREATED AT',
+        'month'                    => 'MONTH',
+        'company'                  => 'COMPANY',
+        'product'                  => 'PRODUCT',
+        'location'                 => 'LOCATION',
+        'duration'                 => 'DURATION',
+        'date'                     => 'DATE',
+        'date_finish'              => 'DATE FINISH',
+        'outdoor_size'             => 'OUTDOOR SIZE',
+        'outdoor_district_council' => 'OUTDOOR DISTRICT COUNCIL',
+        'outdoor_coordinates'      => 'OUTDOOR COORDINATES',
+    ];
 
-    $select = $this->selectExistingColumns($columns);
+    // JOIN master_files (mf) x outdoor_items (oi)
+    $q = MasterFile::query()
+        ->from('master_files as mf')
+        ->join('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id') // pakai leftJoin kalau mau tetap show meski tak ada item
+        ->select([
+            'mf.created_at',
+            'mf.month',
+            'mf.company',
+            'mf.product',
+            DB::raw('oi.site as location'),
+            'mf.duration',
+            'mf.date',
+            'mf.date_finish',
+            DB::raw('oi.size as outdoor_size'),
+            DB::raw('oi.district_council as outdoor_district_council'),
+            DB::raw('oi.coordinates as outdoor_coordinates'),
+        ])
+        ->where(function ($w) {
+            $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
+              ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%'])
+              ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%billboard%']);
+        });
 
-    $rows = MasterFile::query()
-        ->select($select)
-        ->where(function ($q) use ($outdoorSet) {
-            // LOWER(product) in set  OR  LOWER(product_category) in set
-            $q->whereIn(DB::raw('LOWER(product)'), $outdoorSet)
-              ->orWhereIn(DB::raw('LOWER(product_category)'), $outdoorSet);
-        })
-        ->latest('created_at')
-        ->paginate(25)
-        ->appends($request->query());
+    // (opsional) filter ringan tetap jalan
+    if ($term = trim((string)$request->get('search', ''))) {
+        $q->where(function ($w) use ($term) {
+            $w->where('mf.company','like',"%{$term}%")
+              ->orWhere('mf.product','like',"%{$term}%")
+              ->orWhere('oi.site','like',"%{$term}%");
+        });
+    }
+    if ($m = $request->get('month')) {
+        $q->where('mf.month', $m);
+    }
+    if ($from = $request->get('date_from')) $q->whereDate('mf.created_at','>=',$from);
+    if ($to   = $request->get('date_to'))   $q->whereDate('mf.created_at','<=',$to);
+
+    $rowsRaw = $q->orderByDesc('mf.created_at')->paginate(25)->appends($request->query());
+
+    // Map ke struktur rows sesuai $colKeys
+    $rows = $rowsRaw->through(function ($r) use ($colKeys) {
+        $fmt = fn($v) => $v ? \Carbon\Carbon::parse($v)->format('MMM dd, YYYY') : '—';
+        $out = [];
+        foreach ($colKeys as $k) {
+            $val = $r->{$k} ?? null;
+            if (in_array($k, ['created_at','date','date_finish'], true)) $val = $fmt($val);
+            $out[$k] = $val ?? '—';
+        }
+        return $out;
+    });
+
+    $columns = array_map(fn($k) => ['key'=>$k,'label'=>$labels[$k]], $colKeys);
 
     return view('dashboard.master.outdoor', [
         'rows'    => $rows,
         'columns' => $columns,
+        'active'  => 'outdoor',
+        // kalau _table.blade.php butuh paginator asli:
+        'paginator' => $rowsRaw,
     ]);
 }
 
-    /**
-     * Utility: ensure we only select columns that truly exist,
-     * always include the primary key so Blade links can work.
-     */
-    private function buildQueryBits(array $wanted, string $kind): array
-    {
-        $tableCols = Schema::getColumnListing((new MasterFile)->getTable());
 
-        $select = array_values(array_unique(array_filter(array_merge(['id'], $wanted), function ($c) use ($tableCols) {
-            return in_array($c, $tableCols, true);
-        })));
+    /** GET /dashboard/master/outdoor */
+//     public function outdoor(Request $request)
+// {
+//     // Kolom yang diminta (sesuai list kamu)
+//     $columns = [
+//         'created_at','month','company','product','location','duration','date','date_finish',
+//         'outdoor_size','outdoor_district_council','outdoor_coordinates',
+//     ];
 
-        // if a project sometimes stores type in product, sometimes in category
-        $filters = [
-            'by_product'  => in_array('product', $tableCols, true),
-            'by_category' => in_array('product_category', $tableCols, true),
-        ];
+//     // Variasi nama produk untuk Outdoor (lowercase semua) + 'outdoor'
+//     $outdoorSet = array_map('strtolower', [
+//         'outdoor', // jika ada yang tersimpan begitu
+//         'hm','tb','ttm','bb','star','flyers','bunting','signages',
+//     ]);
 
-        return [$select, $filters];
-    }
+//     $select = $this->selectExistingColumns($columns);
 
-    public function index(Request $request)
-    {
-        // Debug: Log the incoming request parameters
-        Log::info('Filter Request:', [
-            'search' => $request->get('search'),
-            'status' => $request->get('status'),
-            'month' => $request->get('month'),
-            'all_params' => $request->all()
-        ]);
+//     $rows = MasterFile::query()
+//         ->select($select)
+//         ->where(function ($q) use ($outdoorSet) {
+//             // LOWER(product) in set  OR  LOWER(product_category) in set
+//             $q->whereIn(DB::raw('LOWER(product)'), $outdoorSet)
+//               ->orWhereIn(DB::raw('LOWER(product_category)'), $outdoorSet);
+//         })
+//         ->latest('created_at')
+//         ->paginate(25)
+//         ->appends($request->query());
 
-        $query = MasterFile::query();
+//     return view('dashboard.master.outdoor', [
+//         'rows'    => $rows,
+//         'columns' => $columns,
+//     ]);
+// }
 
-        // Apply search filter - make sure we're using the right parameter name
-        if ($request->filled('search') && !empty(trim($request->get('search')))) {
-            $searchTerm = trim($request->get('search'));
-            Log::info('Applying search filter:', ['term' => $searchTerm]);
 
-            $query->where(function ($q) use ($searchTerm) {
-                $q->where('company', 'LIKE', '%' . $searchTerm . '%')
-                ->orWhere('product', 'LIKE', '%' . $searchTerm . '%')
-                ->orWhere('status', 'LIKE', '%' . $searchTerm . '%')
-                ->orWhere('client', 'LIKE', '%' . $searchTerm . '%')
-                ->orWhere('month', 'LIKE', '%' . $searchTerm . '%');
-            });
-        }
+//     public function index(Request $request)
+//     {
+//         // Debug: Log the incoming request parameters
+//         Log::info('Filter Request:', [
+//             'search' => $request->get('search'),
+//             'status' => $request->get('status'),
+//             'month' => $request->get('month'),
+//             'all_params' => $request->all()
+//         ]);
 
-        // Apply status filter
-        if ($request->filled('status') && !empty(trim($request->get('status')))) {
-            $statusFilter = trim($request->get('status'));
-            Log::info('Applying status filter:', ['status' => $statusFilter]);
-            $query->where('status', $statusFilter);
-        }
+//         $query = MasterFile::query();
 
-        // Apply month filter
-        if ($request->filled('month') && !empty(trim($request->get('month')))) {
-            $monthFilter = trim($request->get('month'));
-            Log::info('Applying month filter:', ['month' => $monthFilter]);
-            $query->where('month', $monthFilter);
-        }
+//         // Apply search filter - make sure we're using the right parameter name
+//         if ($request->filled('search') && !empty(trim($request->get('search')))) {
+//             $searchTerm = trim($request->get('search'));
+//             Log::info('Applying search filter:', ['term' => $searchTerm]);
 
-        // 🔧 UPDATED: Apply product category filter with fallback
-        if ($request->filled('product_category')) {
-            $hasPC = Schema::hasColumn('master_files', 'product_category');
+//             $query->where(function ($q) use ($searchTerm) {
+//                 $q->where('company', 'LIKE', '%' . $searchTerm . '%')
+//                 ->orWhere('product', 'LIKE', '%' . $searchTerm . '%')
+//                 ->orWhere('status', 'LIKE', '%' . $searchTerm . '%')
+//                 ->orWhere('client', 'LIKE', '%' . $searchTerm . '%')
+//                 ->orWhere('month', 'LIKE', '%' . $searchTerm . '%');
+//             });
+//         }
 
-            if ($hasPC) {
-                $query->whereIn('product', match ($request->product_category) {
-                    'Outdoor' => ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages', 'Newspaper'],
-                    'Media' => ['FB IG Ad'],
-                    'KLTG' => ['KLTG', 'KLTG listing', 'KLTG quarter page','NP'],
-                    default => []
-                });
-            } else {
-                // fallback: filter lewat product
-                $cat = strtolower($request->product_category);
-                if ($cat === 'outdoor') {
-                    $query->where(function($q) {
-                        $q->whereIn('product', ['HM','TB','TTM','BB','Star','Flyers','Bunting','Signages','Newspaper'])
-                          ->orWhereRaw('LOWER(product) LIKE ?', ['%outdoor%']);
-                    });
-                } elseif ($cat === 'kltg') {
-                    $query->whereRaw('LOWER(product) LIKE ?', ['%kltg%']);
-                } elseif ($cat === 'media') {
-                    $query->where(function($q) {
-                        $q->whereRaw('LOWER(product) LIKE ?', ['%media%'])
-                          ->orWhereIn('product', ['FB IG Ad', 'Facebook', 'Instagram']);
-                    });
-                }
-            }
+//         // Apply status filter
+//         if ($request->filled('status') && !empty(trim($request->get('status')))) {
+//             $statusFilter = trim($request->get('status'));
+//             Log::info('Applying status filter:', ['status' => $statusFilter]);
+//             $query->where('status', $statusFilter);
+//         }
 
-            Log::info('Applying product category filter:', ['category' => $request->product_category]);
-        }
+//         // Apply month filter
+//         if ($request->filled('month') && !empty(trim($request->get('month')))) {
+//             $monthFilter = trim($request->get('month'));
+//             Log::info('Applying month filter:', ['month' => $monthFilter]);
+//             $query->where('month', $monthFilter);
+//         }
 
-        // Debug: Log the final SQL query
-        Log::info('Final Query SQL:', ['sql' => $query->toSql(), 'bindings' => $query->getBindings()]);
+//         // 🔧 UPDATED: Apply product category filter with fallback
+//         if ($request->filled('product_category')) {
+//             $hasPC = Schema::hasColumn('master_files', 'product_category');
 
-        // Get paginated results with filters retained
-        $masterFiles = $query->orderBy('date', 'desc')->paginate(25)->withQueryString();
+//             if ($hasPC) {
+//                 $query->whereIn('product', match ($request->product_category) {
+//                     'Outdoor' => ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages', 'Newspaper'],
+//                     'Media' => ['FB IG Ad'],
+//                     'KLTG' => ['KLTG', 'KLTG listing', 'KLTG quarter page','NP'],
+//                     default => []
+//                 });
+//             } else {
+//                 // fallback: filter lewat product
+//                 $cat = strtolower($request->product_category);
+//                 if ($cat === 'outdoor') {
+//                     $query->where(function($q) {
+//                         $q->whereIn('product', ['HM','TB','TTM','BB','Star','Flyers','Bunting','Signages','Newspaper'])
+//                           ->orWhereRaw('LOWER(product) LIKE ?', ['%outdoor%']);
+//                     });
+//                 } elseif ($cat === 'kltg') {
+//                     $query->whereRaw('LOWER(product) LIKE ?', ['%kltg%']);
+//                 } elseif ($cat === 'media') {
+//                     $query->where(function($q) {
+//                         $q->whereRaw('LOWER(product) LIKE ?', ['%media%'])
+//                           ->orWhereIn('product', ['FB IG Ad', 'Facebook', 'Instagram']);
+//                     });
+//                 }
+//             }
 
-        // Debug: Log the result count
-        Log::info('Query Results:', ['count' => $masterFiles->count(), 'total' => $masterFiles->total()]);
+//             Log::info('Applying product category filter:', ['category' => $request->product_category]);
+//         }
 
-        // Get stats for dashboard cards
-        $totalJobs = MasterFile::count();
-        $completedJobs = MasterFile::where('status', 'completed')->count();
-        $ongoingJobs = MasterFile::where('status', 'ongoing')->count();
-        $pendingJobs = MasterFile::where('status', 'pending')->count();
+//         // Debug: Log the final SQL query
+//         Log::info('Final Query SQL:', ['sql' => $query->toSql(), 'bindings' => $query->getBindings()]);
 
-        // Get confirmation links data grouped by year
-        $grouped = MasterFile::whereNotNull('date')
-                            ->orderBy('date', 'desc')
-                            ->get()
-                            ->groupBy(function($item) {
-                                return Carbon::parse($item->date)->format('Y');
-                            });
+//         // Get paginated results with filters retained
+//         $masterFiles = $query->orderBy('date', 'desc')->paginate(25)->withQueryString();
 
-        // Get recent jobs (assuming you have a Job model)
-        $recentJobs = collect(); // Empty collection as fallback
-        if (class_exists('\App\Models\Job')) {
-            $recentJobs = \App\Models\Job::orderBy('created_at', 'desc')->take(5)->get();
-        }
+//         // Debug: Log the result count
+//         Log::info('Query Results:', ['count' => $masterFiles->count(), 'total' => $masterFiles->total()]);
 
-        // 🔧 UPDATED: Monthly Ongoing data grouped by product_category with fallback
-        $hasPC = Schema::hasColumn('master_files', 'product_category');
-        $monthlyByCategory = MasterFile::orderBy('date')
-            ->get()
-            ->map(function ($item) use ($hasPC) {
-                // Auto-fill missing category based on product name
-                if ($hasPC && !$item->product_category) {
-                    if (str_contains(strtolower($item->product), 'fb') || str_contains(strtolower($item->product), 'ig')) {
-                        $item->product_category = 'Media';
-                    } elseif (str_contains(strtolower($item->product), 'kltg')) {
-                        $item->product_category = 'KLTG';
-                    } else {
-                        $item->product_category = 'Outdoor';
-                    }
-                } elseif (!$hasPC) {
-                    // If no product_category column, create it dynamically
-                    $product = strtolower((string)$item->product);
-                    if (str_contains($product, 'kltg')) {
-                        $item->product_category = 'KLTG';
-                    } elseif (str_contains($product, 'fb') || str_contains($product, 'ig') || str_contains($product, 'media')) {
-                        $item->product_category = 'Media';
-                    } else {
-                        $item->product_category = 'Outdoor';
-                    }
-                }
-                return $item;
-            })
-            ->groupBy('product_category');
+//         // Get stats for dashboard cards
+//         $totalJobs = MasterFile::count();
+//         $completedJobs = MasterFile::where('status', 'completed')->count();
+//         $ongoingJobs = MasterFile::where('status', 'ongoing')->count();
+//         $pendingJobs = MasterFile::where('status', 'pending')->count();
 
-        // 🔧 NEW: Get media ongoing jobs data
-        if (Schema::hasColumn('master_files', 'product_category')) {
-                $mediaOngoingJobs = MasterFile::where('product_category', 'Media')->get();
-            } else {
-                // Fallback: infer "Media" by product keywords
-                $mediaOngoingJobs = MasterFile::where(function ($q) {
-                    $q->whereRaw('LOWER(product) LIKE ?', ['%media%'])
-                    ->orWhereRaw('LOWER(product) LIKE ?', ['%fb%'])
-                    ->orWhereRaw('LOWER(product) LIKE ?', ['%ig%'])
-                    ->orWhereIn('product', ['FB IG Ad', 'Facebook', 'Instagram']);
-                })->get();
-            }
+//         // Get confirmation links data grouped by year
+//         $grouped = MasterFile::whereNotNull('date')
+//                             ->orderBy('date', 'desc')
+//                             ->get()
+//                             ->groupBy(function($item) {
+//                                 return Carbon::parse($item->date)->format('Y');
+//                             });
 
-        return view('dashboard', compact(
-            'masterFiles',
-            'totalJobs',
-            'completedJobs',
-            'ongoingJobs',
-            'pendingJobs',
-            'grouped',
-            'recentJobs',
-            'monthlyByCategory', // 🔧 UPDATED: Pass grouped data instead of flat data
-            'mediaOngoingJobs' // 🔧 NEW: Pass media ongoing jobs data
-        ));
-    }
+//         // Get recent jobs (assuming you have a Job model)
+//         $recentJobs = collect(); // Empty collection as fallback
+//         if (class_exists('\App\Models\Job')) {
+//             $recentJobs = \App\Models\Job::orderBy('created_at', 'desc')->take(5)->get();
+//         }
+
+//         // 🔧 UPDATED: Monthly Ongoing data grouped by product_category with fallback
+//         $hasPC = Schema::hasColumn('master_files', 'product_category');
+//         $monthlyByCategory = MasterFile::orderBy('date')
+//             ->get()
+//             ->map(function ($item) use ($hasPC) {
+//                 // Auto-fill missing category based on product name
+//                 if ($hasPC && !$item->product_category) {
+//                     if (str_contains(strtolower($item->product), 'fb') || str_contains(strtolower($item->product), 'ig')) {
+//                         $item->product_category = 'Media';
+//                     } elseif (str_contains(strtolower($item->product), 'kltg')) {
+//                         $item->product_category = 'KLTG';
+//                     } else {
+//                         $item->product_category = 'Outdoor';
+//                     }
+//                 } elseif (!$hasPC) {
+//                     // If no product_category column, create it dynamically
+//                     $product = strtolower((string)$item->product);
+//                     if (str_contains($product, 'kltg')) {
+//                         $item->product_category = 'KLTG';
+//                     } elseif (str_contains($product, 'fb') || str_contains($product, 'ig') || str_contains($product, 'media')) {
+//                         $item->product_category = 'Media';
+//                     } else {
+//                         $item->product_category = 'Outdoor';
+//                     }
+//                 }
+//                 return $item;
+//             })
+//             ->groupBy('product_category');
+
+//         // 🔧 NEW: Get media ongoing jobs data
+//         if (Schema::hasColumn('master_files', 'product_category')) {
+//                 $mediaOngoingJobs = MasterFile::where('product_category', 'Media')->get();
+//             } else {
+//                 // Fallback: infer "Media" by product keywords
+//                 $mediaOngoingJobs = MasterFile::where(function ($q) {
+//                     $q->whereRaw('LOWER(product) LIKE ?', ['%media%'])
+//                     ->orWhereRaw('LOWER(product) LIKE ?', ['%fb%'])
+//                     ->orWhereRaw('LOWER(product) LIKE ?', ['%ig%'])
+//                     ->orWhereIn('product', ['FB IG Ad', 'Facebook', 'Instagram']);
+//                 })->get();
+//             }
+
+//         return view('dashboard', compact(
+//             'masterFiles',
+//             'totalJobs',
+//             'completedJobs',
+//             'ongoingJobs',
+//             'pendingJobs',
+//             'grouped',
+//             'recentJobs',
+//             'monthlyByCategory', // 🔧 UPDATED: Pass grouped data instead of flat data
+//             'mediaOngoingJobs' // 🔧 NEW: Pass media ongoing jobs data
+//         ));
+//     }
 
     public function update(Request $request, int $id): RedirectResponse
 {
@@ -593,9 +656,9 @@ private function guessProductType(MasterFile $file): string
         'date_finish as end_date',
         'duration',
         'status',
-        'traffic',
         'job_number',
         'artwork',
+        'traffic',
         'invoice_date',
         'invoice_number',
         'product_category',
@@ -662,7 +725,7 @@ private function guessProductType(MasterFile $file): string
     // === NEW: Title row (A1:Q1) ===
     $lastColIndex = 17; // You have 17 headings below
     $lastColLetter = Coordinate::stringFromColumnIndex($lastColIndex);
-    $title = 'MASTER_FILES_' . now()->format('Y-m-d');
+    $title = 'MASTER_PROPOSAL_CONFIRMATION_' . now()->format('Y-m-d');
 
     $sheet->setCellValue('A1', $title);
     $sheet->mergeCells("A1:{$lastColLetter}1");
@@ -689,12 +752,11 @@ private function guessProductType(MasterFile $file): string
         'End Date',
         'Duration (days)',
         'Status',
-        'Traffic',
         'Job Number',
         'Artwork',
+        'Traffic',
         'Invoice Date',
         'Invoice Number',
-        'Product Category',
     ];
 
     // (Optional) style headings light gray and bold
@@ -736,14 +798,28 @@ private function guessProductType(MasterFile $file): string
         $put($fmtDate($row->end_date));
         $put($row->duration);
         $put($row->status);
-        $put($row->traffic);
         $put($row->job_number);
         $put($row->artwork);
+        $put($row->traffic);
         $put($fmtDate($row->invoice_date));
         $put($row->invoice_number);
-        $put($row->product_category);
         $r++;
     }
+
+        // === Apply borders to all cells (headings + data) ===
+    $lastDataRow = $r - 1; // because $r++ already moved past the last
+    $lastColLetter = Coordinate::stringFromColumnIndex(count($headings));
+
+    $sheet->getStyle("A2:{$lastColLetter}{$lastDataRow}")
+        ->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+        ]);
+
 
     foreach (range(1, count($headings)) as $colIndex) {
         $letter = Coordinate::stringFromColumnIndex($colIndex);
@@ -754,7 +830,7 @@ private function guessProductType(MasterFile $file): string
     $sheet->freezePane('A3');
 
     // Optional: uppercase file name prefix
-    $filename = 'MASTER_FILES_'.now()->format('Ymd_His').'.xlsx';
+    $filename = 'MASTER_PROPOSAL CONFIRMATION_'.now()->format('Ymd_His').'.xlsx';
     $writer = new Xlsx($ss);
 
     return response()->streamDownload(function () use ($writer, $ss) {
@@ -767,9 +843,10 @@ private function guessProductType(MasterFile $file): string
 
 public function exportKltgXlsx(Request $request): StreamedResponse
 {
-    // Helpers
+    // ===== Helpers =====
     $cols = Schema::getColumnListing('master_files');
     $has  = fn($c) => in_array($c, $cols, true);
+
     $normalizeMonth = function($raw) {
         if ($raw === null || $raw === '') return [];
         $m = trim((string)$raw);
@@ -784,43 +861,43 @@ public function exportKltgXlsx(Request $request): StreamedResponse
         return [(string)$n, str_pad((string)$n, 2, '0', STR_PAD_LEFT), $m];
     };
 
-    // Select (urutan sesuai heading)
-    $select = [
-        'month',
-        'date as date',
-        'company',
-        'product',
-        'product_category',
-        'location',
-        'traffic',
-        'duration',
-        $has('amount') ? 'amount' : DB::raw('NULL as amount'),
-        'status',
-        'remarks',
-        'client',
-        'date_finish',
-        'job_number',
-        'artwork',
-        'invoice_date',
-        'invoice_number',
-        'created_at',
-        'updated_at',
-        $has('contact_number') ? 'contact_number' : DB::raw('NULL as contact_number'),
-        $has('email') ? 'email' : DB::raw('NULL as email'),
-        $has('kltg_industry')     ? 'kltg_industry'     : DB::raw('NULL as kltg_industry'),
-        $has('kltg_x')            ? 'kltg_x'            : DB::raw('NULL as kltg_x'),
-        $has('kltg_edition')      ? 'kltg_edition'      : DB::raw('NULL as kltg_edition'),
-        $has('kltg_material_cbp') ? 'kltg_material_cbp' : DB::raw('NULL as kltg_material_cbp'),
-        $has('kltg_print')        ? 'kltg_print'        : DB::raw('NULL as kltg_print'),
-        $has('kltg_article')      ? 'kltg_article'      : DB::raw('NULL as kltg_article'),
-        $has('kltg_video')        ? 'kltg_video'        : DB::raw('NULL as kltg_video'),
-        $has('kltg_leaderboard')  ? 'kltg_leaderboard'  : DB::raw('NULL as kltg_leaderboard'),
-        $has('kltg_qr_code')      ? 'kltg_qr_code'      : DB::raw('NULL as kltg_qr_code'),
-        $has('kltg_blog')         ? 'kltg_blog'         : DB::raw('NULL as kltg_blog'),
-        $has('kltg_em')           ? 'kltg_em'           : DB::raw('NULL as kltg_em'),
-        $has('kltg_remarks')      ? 'kltg_remarks'      : DB::raw('NULL as kltg_remarks'),
+    // ===== Column spec (ONLY these columns, in this exact order) =====
+    $colKeys = [
+        'created_at','month','date','date_finish','company','product','product_category',
+        'kltg_industry','kltg_x','kltg_edition','kltg_material_cbp','kltg_print','kltg_article',
+        'kltg_video','kltg_leaderboard','kltg_qr_code','kltg_blog','kltg_em','kltg_remarks',
     ];
 
+    $labels = [
+        'created_at'        => 'Created date',
+        'month'             => 'Month',
+        'date'              => 'Date',
+        'date_finish'       => 'Date Finish',
+        'company'           => 'Company',
+        'product'           => 'Product',
+        'product_category'  => 'Product Category',
+        'kltg_industry'     => 'Kltg Industry',
+        'kltg_x'            => 'Kltg X',
+        'kltg_edition'      => 'Kltg Edition',
+        'kltg_material_cbp' => 'Kltg Material Cbp',
+        'kltg_print'        => 'Kltg Print',
+        'kltg_article'      => 'Kltg Article',
+        'kltg_video'        => 'Kltg Video',
+        'kltg_leaderboard'  => 'Kltg Leaderboard',
+        'kltg_qr_code'      => 'Kltg Qr Code',
+        'kltg_blog'         => 'Kltg Blog',
+        'kltg_em'           => 'Kltg Em',
+        'kltg_remarks'      => 'Kltg Remarks',
+    ];
+
+    // ===== Build SELECT strictly for the chosen columns =====
+    $select = [];
+    foreach ($colKeys as $k) {
+        // handle aliases if needed (here `date` is already the same name)
+        $select[] = $has($k) ? $k : DB::raw("NULL as {$k}");
+    }
+
+    // ===== Base Query (scope KLTG/The Guide + has any KLTG fields) =====
     $q = MasterFile::query()->select($select)
         ->where(function ($w) {
             $w->whereRaw('LOWER(product_category) LIKE ?', ['%kltg%'])
@@ -841,20 +918,17 @@ public function exportKltgXlsx(Request $request): StreamedResponse
               ->orWhereNotNull('kltg_remarks');
         });
 
-    // Filters
-    $hasEmail = $has('email');
-    $hasPhone = $has('contact_number');
-
+    // ===== Filters (tetap kompatibel dengan yang lama) =====
     if ($term = trim((string)$request->get('search', ''))) {
-        $q->where(function ($w) use ($term, $hasEmail, $hasPhone) {
+        $q->where(function ($w) use ($term) {
             $w->where('company', 'like', "%{$term}%")
               ->orWhere('client', 'like', "%{$term}%")
               ->orWhere('product', 'like', "%{$term}%")
               ->orWhere('status', 'like', "%{$term}%")
               ->orWhere('traffic', 'like', "%{$term}%")
-              ->orWhere('invoice_number', 'like', "%{$term}%");
-            if ($hasEmail) $w->orWhere('email', 'like', "%{$term}%");
-            if ($hasPhone) $w->orWhere('contact_number', 'like', "%{$term}%");
+              ->orWhere('invoice_number', 'like', "%{$term}%")
+              ->orWhere('email', 'like', "%{$term}%")
+              ->orWhere('contact_number', 'like', "%{$term}%");
         });
     }
     if (($status = $request->get('status')) !== null && $status !== '') {
@@ -875,20 +949,14 @@ public function exportKltgXlsx(Request $request): StreamedResponse
 
     $rows = $q->orderByDesc('created_at')->cursor();
 
-    // Spreadsheet
+    // ===== Spreadsheet =====
     $ss = new Spreadsheet();
     $sheet = $ss->getActiveSheet();
 
-    $headings = [
-        'Month','Date','Company','Product','Product Category','Location','Traffic','Duration','Amount','Status',
-        'Remarks','Client','Date Finish','Job Number','Artwork','Invoice Date','Invoice Number',
-        'Created At','Updated At','Contact Number','Email',
-        'Kltg Industry','Kltg X','Kltg Edition','Kltg Material Cbp','Kltg Print','Kltg Article',
-        'Kltg Video','Kltg Leaderboard','Kltg Qr Code','Kltg Blog','Kltg Em','Kltg Remarks',
-    ];
-
+    // Title row 1
+    $headings = array_map(fn($k) => $labels[$k] ?? ucfirst(str_replace('_',' ',$k)), $colKeys);
     $lastColLetter = Coordinate::stringFromColumnIndex(count($headings));
-    $sheet->setCellValue('A1', 'KLTG_EXPORT_'.now()->format('Y-m-d'));
+    $sheet->setCellValue('A1', 'KLTG_MATER_CLIENTELE_'.now()->format('Y-m-d'));
     $sheet->mergeCells("A1:{$lastColLetter}1");
     $sheet->getStyle('A1')->applyFromArray([
         'font' => ['bold' => true, 'size' => 14],
@@ -909,49 +977,22 @@ public function exportKltgXlsx(Request $request): StreamedResponse
     // Data rows from row 3
     $r = 3;
     $fmt = function($v) {
-        if (empty($v)) return '';
+        if ($v === null || $v === '') return '';
         if ($v instanceof \DateTimeInterface) return $v->format('Y-m-d');
-        try { return Carbon::parse($v)->format('Y-m-d'); } catch (\Throwable $e) { return (string)$v; }
+        try { return \Carbon\Carbon::parse($v)->format('Y-m-d'); } catch (\Throwable $e) { return (string)$v; }
     };
 
     foreach ($rows as $row) {
-        $values = [
-            $row->month,
-            $fmt($row->date ?? null),
-            $row->company,
-            $row->product,
-            $row->product_category,
-            $row->location,
-            $row->traffic,
-            $row->duration,
-            $row->amount,
-            $row->status,
-            $row->remarks,
-            $row->client,
-            $fmt($row->date_finish ?? null),
-            $row->job_number,
-            $row->artwork,
-            $fmt($row->invoice_date ?? null),
-            $row->invoice_number,
-            (string)$row->created_at,
-            (string)$row->updated_at,
-            $row->contact_number,
-            $row->email,
-            $row->kltg_industry,
-            $row->kltg_x,
-            $row->kltg_edition,
-            $row->kltg_material_cbp,
-            $row->kltg_print,
-            $row->kltg_article,
-            $row->kltg_video,
-            $row->kltg_leaderboard,
-            $row->kltg_qr_code,
-            $row->kltg_blog,
-            $row->kltg_em,
-            $row->kltg_remarks,
-        ];
-
-        foreach ($values as $i => $val) {
+        // build per the same colKeys order
+        $out = [];
+        foreach ($colKeys as $k) {
+            $val = $row->{$k} ?? null;
+            if (in_array($k, ['created_at','date','date_finish'], true)) {
+                $val = $fmt($val);
+            }
+            $out[] = $val;
+        }
+        foreach ($out as $i => $val) {
             $sheet->setCellValue(Coordinate::stringFromColumnIndex($i + 1).$r, $val);
         }
         $r++;
@@ -974,8 +1015,10 @@ public function exportKltgXlsx(Request $request): StreamedResponse
 
 public function exportOutdoorXlsx(Request $request): StreamedResponse
 {
+    // ===== Helpers =====
     $cols = Schema::getColumnListing('master_files');
     $has  = fn($c) => in_array($c, $cols, true);
+
     $normalizeMonth = function($raw) {
         if ($raw === null || $raw === '') return [];
         $m = trim((string)$raw);
@@ -990,34 +1033,33 @@ public function exportOutdoorXlsx(Request $request): StreamedResponse
         return [(string)$n, str_pad((string)$n, 2, '0', STR_PAD_LEFT), $m];
     };
 
-    $select = [
-        'id',
-        'month',
-        'date as date',
-        'company',
-        'product',
-        'product_category',
-        'location',
-        'traffic',
-        'duration',
-        $has('amount') ? 'amount' : DB::raw('NULL as amount'),
-        'status',
-        'remarks',
-        'client',
-        'date_finish',
-        'job_number',
-        'artwork',
-        'invoice_date',
-        'invoice_number',
-        'created_at',
-        'updated_at',
-        $has('contact_number') ? 'contact_number' : DB::raw('NULL as contact_number'),
-        $has('email') ? 'email' : DB::raw('NULL as email'),
-        $has('outdoor_size')             ? 'outdoor_size'             : DB::raw('NULL as outdoor_size'),
-        $has('outdoor_district_council') ? 'outdoor_district_council' : DB::raw('NULL as outdoor_district_council'),
-        $has('outdoor_coordinates')      ? 'outdoor_coordinates'      : DB::raw('NULL as outdoor_coordinates'),
+    // ===== Column spec (ONLY these columns, exact order) =====
+    $colKeys = [
+        'created_at','month','company','product','location','duration','date','date_finish',
+        'outdoor_size','outdoor_district_council','outdoor_coordinates',
     ];
 
+    $labels = [
+        'created_at'               => 'Created At',
+        'month'                    => 'Month',
+        'company'                  => 'Company',
+        'product'                  => 'Product',
+        'location'                 => 'Location',
+        'duration'                 => 'Duration',
+        'date'                     => 'Date',
+        'date_finish'              => 'Date Finish',
+        'outdoor_size'             => 'Outdoor Size',
+        'outdoor_district_council' => 'Outdoor District Council',
+        'outdoor_coordinates'      => 'Outdoor Coordinates',
+    ];
+
+    // ===== Safe SELECT =====
+    $select = [];
+    foreach ($colKeys as $k) {
+        $select[] = $has($k) ? $k : DB::raw("NULL as {$k}");
+    }
+
+    // ===== Query =====
     $q = MasterFile::query()->select($select)
         ->where(function ($w) {
             $w->whereRaw('LOWER(product_category) LIKE ?', ['%outdoor%'])
@@ -1029,19 +1071,11 @@ public function exportOutdoorXlsx(Request $request): StreamedResponse
         });
 
     // Filters
-    $hasEmail = $has('email');
-    $hasPhone = $has('contact_number');
-
     if ($term = trim((string)$request->get('search', ''))) {
-        $q->where(function ($w) use ($term, $hasEmail, $hasPhone) {
+        $q->where(function ($w) use ($term) {
             $w->where('company', 'like', "%{$term}%")
-              ->orWhere('client', 'like', "%{$term}%")
               ->orWhere('product', 'like', "%{$term}%")
-              ->orWhere('status', 'like', "%{$term}%")
-              ->orWhere('traffic', 'like', "%{$term}%")
-              ->orWhere('invoice_number', 'like', "%{$term}%");
-            if ($hasEmail) $w->orWhere('email', 'like', "%{$term}%");
-            if ($hasPhone) $w->orWhere('contact_number', 'like', "%{$term}%");
+              ->orWhere('location', 'like', "%{$term}%");
         });
     }
     if (($status = $request->get('status')) !== null && $status !== '') {
@@ -1050,10 +1084,12 @@ public function exportOutdoorXlsx(Request $request): StreamedResponse
     if (($pc = $request->get('product_category')) !== null && $pc !== '') {
         $q->whereRaw('LOWER(product_category) = ?', [strtolower(trim($pc))]);
     }
+
     $monthOptions = $normalizeMonth($request->get('month'));
     if (!empty($monthOptions)) {
         $q->whereIn('month', $monthOptions);
     }
+
     $allowedDateFields = ['created_at','updated_at','date','date_finish','invoice_date'];
     $field = $request->get('date_field', 'created_at');
     if (!in_array($field, $allowedDateFields, true)) $field = 'created_at';
@@ -1062,17 +1098,14 @@ public function exportOutdoorXlsx(Request $request): StreamedResponse
 
     $rows = $q->orderByDesc('created_at')->cursor();
 
-    // Spreadsheet
+    // ===== Spreadsheet =====
     $ss = new Spreadsheet();
     $sheet = $ss->getActiveSheet();
 
-    $headings = [
-        'Id','Month','Date','Company','Product','Product Category','Location','Traffic','Duration','Amount',
-        'Status','Remarks','Client','Date Finish','Job Number','Artwork','Invoice Date','Invoice Number',
-        'Created At','Updated At','Contact Number','Email','Outdoor Size','Outdoor District Council','Outdoor Coordinates',
-    ];
-
+    $headings = array_map(fn($k) => $labels[$k] ?? ucfirst(str_replace('_',' ',$k)), $colKeys);
     $lastColLetter = Coordinate::stringFromColumnIndex(count($headings));
+
+    // Title
     $sheet->setCellValue('A1', 'OUTDOOR_EXPORT_'.now()->format('Y-m-d'));
     $sheet->mergeCells("A1:{$lastColLetter}1");
     $sheet->getStyle('A1')->applyFromArray([
@@ -1091,48 +1124,30 @@ public function exportOutdoorXlsx(Request $request): StreamedResponse
         'fill' => ['fillType' => Fill::FILL_SOLID, 'color' => ['rgb' => 'EEEEEE']],
     ]);
 
-    // Data rows from row 3
+    // Data rows
     $r = 3;
     $fmt = function($v) {
-        if (empty($v)) return '';
+        if ($v === null || $v === '') return '';
         if ($v instanceof \DateTimeInterface) return $v->format('Y-m-d');
-        try { return Carbon::parse($v)->format('Y-m-d'); } catch (\Throwable $e) { return (string)$v; }
+        try { return \Carbon\Carbon::parse($v)->format('Y-m-d'); } catch (\Throwable $e) { return (string)$v; }
     };
 
     foreach ($rows as $row) {
-        $values = [
-            $row->id,
-            $row->month,
-            $fmt($row->date ?? null),
-            $row->company,
-            $row->product,
-            $row->product_category,
-            $row->location,
-            $row->traffic,
-            $row->duration,
-            $row->amount,
-            $row->status,
-            $row->remarks,
-            $row->client,
-            $fmt($row->date_finish ?? null),
-            $row->job_number,
-            $row->artwork,
-            $fmt($row->invoice_date ?? null),
-            $row->invoice_number,
-            (string)$row->created_at,
-            (string)$row->updated_at,
-            $row->contact_number,
-            $row->email,
-            $row->outdoor_size,
-            $row->outdoor_district_council,
-            $row->outdoor_coordinates,
-        ];
-        foreach ($values as $i => $val) {
+        $out = [];
+        foreach ($colKeys as $k) {
+            $val = $row->{$k} ?? null;
+            if (in_array($k, ['created_at','date','date_finish'], true)) {
+                $val = $fmt($val);
+            }
+            $out[] = $val;
+        }
+        foreach ($out as $i => $val) {
             $sheet->setCellValue(Coordinate::stringFromColumnIndex($i + 1).$r, $val);
         }
         $r++;
     }
 
+    // Autosize + freeze
     for ($i=1; $i<=count($headings); $i++) {
         $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($i))->setAutoSize(true);
     }
@@ -1145,7 +1160,6 @@ public function exportOutdoorXlsx(Request $request): StreamedResponse
         $ss->disconnectWorksheets();
     }, $filename, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
 }
-
 
 
 

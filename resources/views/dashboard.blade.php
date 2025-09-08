@@ -52,6 +52,13 @@
                 </div>
 
                 <!-- Action Buttons -->
+
+                <a href="{{ route('information.booth') }}" class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 shadow-md transition-colors">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    🧾 Information Booth
+                </a>
                 <div class="flex flex-wrap gap-3">
                   <a href="{{ route('calendar.index') }}" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-md transition-colors">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -152,7 +159,7 @@
                   </div>
                 </div>
 
-                 @include('dashboard.master._tabs', ['active' => $active ?? ''])
+                @include('dashboard.master._tabs', ['active' => $active ?? ''])
 
                 <!-- Active Filters Display -->
                 @if(request('search') || request('status') || request('month') || request('product_category'))
@@ -185,9 +192,9 @@
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[120px] whitespace-nowrap">End Date</th>
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[120px] whitespace-nowrap">Duration</th>
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[120px] whitespace-nowrap">Status</th>
-                          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[100px] whitespace-nowrap">Traffic</th>
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[120px] whitespace-nowrap">Job</th>
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[120px] whitespace-nowrap">Artwork</th>
+                          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[100px] whitespace-nowrap">Traffic</th>
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[120px] whitespace-nowrap">Invoice Date</th>
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[160px] whitespace-nowrap">Invoice Number</th>
                         </tr>
@@ -217,9 +224,9 @@
                                   {{ ucfirst($file->status) }}
                                 </span>
                               </td>
-                              <td class="px-6 py-4 text-sm text-gray-900">{{ $file->traffic ?? '-' }}</td>
                               <td class="px-6 py-4 text-sm text-gray-900">{{ $file->job_number ?? '-' }}</td>
                               <td class="px-6 py-4 text-sm text-gray-900">{{ $file->artwork ?? '-' }}</td>
+                              <td class="px-6 py-4 text-sm text-gray-900">{{ $file->traffic ?? '-' }}</td>
                               <td class="px-6 py-4 text-sm text-gray-900">{{ $file->invoice_date ?? '-' }}</td>
                               <td class="px-6 py-4 text-sm text-gray-900">{{ $file->invoice_number ?? '-' }}</td>
                             </tr>

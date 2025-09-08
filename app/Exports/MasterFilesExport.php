@@ -68,7 +68,7 @@ class MasterFilesExport
 {
     $date = now()->format('Y-m-d');
     return [
-        ["MASTER FILES - {$date}"],  // Title row
+        ["MASTER PROPOSAL CONFIRMATION - {$date}"],  // Title row
         [
             'Date Created',
             'Company Name',
@@ -82,9 +82,9 @@ class MasterFilesExport
             'End Date',
             'Duration',
             'Status',
-            'Traffic',
             'Job',
             'Artwork',
+            'Traffic',
             'Invoice Date',
             'Invoice Number',
         ],
@@ -168,9 +168,9 @@ public function title(): string
             $formatDate($row->end_date),
             $row->duration,
             $row->status,
-            $row->traffic,
             $row->job_number ?? $row->job,
             $row->artwork,
+            $row->traffic,
             $formatDate($row->invoice_date),
             $row->invoice_number,
         ];
