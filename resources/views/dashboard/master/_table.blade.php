@@ -5,43 +5,44 @@
 
     /** @var array|null $column_labels */
     /** @var array|null $dateColumns */
+    /** @var array|null $editable       // e.g. ['company'=>'text','location'=>'text','date'=>'date'] */
+    /** @var string|null $updateUrl     // e.g. route('clientele.inline.update') */
+    /** @var array $updatePayloadExtra  // optional: extra keys to send (e.g. ['scope'=>'outdoor']) */
 
-    // Default date columns (can be overridden from parent include)
-    $dateCols = $dateColumns ?? ['created_at', 'updated_at', 'date', 'date_finish', 'start_date', 'end_date', 'invoice_date'];
+    $updateUrl = $updateUrl ?? url('/inline-update');      // fallback
+    $updatePayloadExtra = $updatePayloadExtra ?? [];
 
-    // Small formatter helper (safe against bad/missing values)
+    // default date columns
+    $dateCols = $dateColumns ?? ['created_at','updated_at','date','date_finish','start_date','end_date','invoice_date'];
+
+    // TABLE display formatter
     $fmt = function (string $col, $val) use ($dateCols) {
-        // Normalize "empty"
-        if ($val === null || $val === '' || (is_array($val) && count(array_filter($val, fn($v) => $v !== null && $v !== '')) === 0)) {
-            return '—';
-        }
+        if ($val === null || $val === '' || (is_array($val) && count(array_filter($val, fn($v) => $v !== null && $v !== '')) === 0)) return '—';
+        if (is_array($val)) return implode(', ', array_filter($val, fn($v) => $v !== null && $v !== ''));
+        if ($col === 'amount') return number_format(is_numeric($val) ? (float)$val : 0, 2);
 
-        // Arrays (e.g., multi locations)
-        if (is_array($val)) {
-            return implode(', ', array_filter($val, fn($v) => $v !== null && $v !== ''));
-        }
-
-        // Amount formatting
-        if ($col === 'amount') {
-            $num = is_numeric($val) ? (float) $val : 0;
-            return number_format($num, 2);
-        }
-
-        // Date formatting => n/j/y (e.g., 9/8/25)
         if (in_array($col, $dateCols, true)) {
             try {
-                // Accept Carbon, DateTime, or string
                 $dt = $val instanceof \DateTimeInterface ? $val : Carbon::parse($val);
                 return $dt->format('n/j/y');
-            } catch (\Throwable $e) {
-                // If parse fails, return raw
-                return (string) $val;
-            }
+            } catch (\Throwable $e) { return (string)$val; }
         }
-
-        // Everything else
-        return is_scalar($val) ? (string) $val : '—';
+        return is_scalar($val) ? (string)$val : '—';
     };
+
+    // RAW value for input fields
+    $raw = function (string $col, $val) use ($dateCols) {
+        if (in_array($col, $dateCols, true)) {
+            try {
+                $dt = $val instanceof \DateTimeInterface ? $val : ($val ? Carbon::parse($val) : null);
+                return $dt ? $dt->format('Y-m-d') : '';
+            } catch (\Throwable $e) { return ''; }
+        }
+        return is_scalar($val) ? (string)$val : '';
+    };
+
+    // what type to render if editable
+    $editable = $editable ?? []; // e.g. ['company'=>'text', 'date'=>'date', 'outdoor_size'=>'text']
 @endphp
 
 <div class="overflow-x-auto rounded-xl border border-gray-200">
@@ -61,16 +62,65 @@
                 @endforeach
             </tr>
         </thead>
+
         <tbody class="divide-y divide-gray-100 bg-white">
             @forelse($rows as $row)
                 <tr class="hover:bg-gray-50">
                     @foreach($columns as $c)
                         @php
-                            $colKey = is_array($c) ? ($c['key'] ?? '') : $c;
+                            $colKey    = is_array($c) ? ($c['key'] ?? '') : $c;
                             $cellValue = data_get($row, $colKey);
+                            $isEditable = array_key_exists($colKey, $editable);
+                            $type = $isEditable ? ($editable[$colKey] ?? 'text') : null;
+                            $rowId = data_get($row, 'id');
                         @endphp
+
                         <td class="px-4 py-3 whitespace-nowrap text-gray-800">
-                            {{ $fmt($colKey, $cellValue) }}
+                            @if($isEditable && $rowId)
+                                @if($type === 'date')
+                                    <input
+                                        type="date"
+                                        class="mf-edit w-full rounded border border-gray-300 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                        value="{{ $raw($colKey, $cellValue) }}"
+                                        data-id="{{ $rowId }}"
+                                        data-col="{{ $colKey }}"
+                                        data-url="{{ $updateUrl }}"
+                                        data-extra='@json($updatePayloadExtra)'
+                                    />
+                                @elseif($type === 'number')
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        class="mf-edit w-full rounded border border-gray-300 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                        value="{{ $raw($colKey, $cellValue) }}"
+                                        data-id="{{ $rowId }}"
+                                        data-col="{{ $colKey }}"
+                                        data-url="{{ $updateUrl }}"
+                                        data-extra='@json($updatePayloadExtra)'
+                                    />
+                                @elseif($type === 'textarea')
+                                    <textarea
+                                        class="mf-edit w-full rounded border border-gray-300 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                        rows="2"
+                                        data-id="{{ $rowId }}"
+                                        data-col="{{ $colKey }}"
+                                        data-url="{{ $updateUrl }}"
+                                        data-extra='@json($updatePayloadExtra)'
+                                    >{{ $raw($colKey, $cellValue) }}</textarea>
+                                @else
+                                    <input
+                                        type="text"
+                                        class="mf-edit w-full rounded border border-gray-300 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                        value="{{ $raw($colKey, $cellValue) }}"
+                                        data-id="{{ $rowId }}"
+                                        data-col="{{ $colKey }}"
+                                        data-url="{{ $updateUrl }}"
+                                        data-extra='@json($updatePayloadExtra)'
+                                    />
+                                @endif
+                            @else
+                                {{ $fmt($colKey, $cellValue) }}
+                            @endif
                         </td>
                     @endforeach
                 </tr>
@@ -94,3 +144,58 @@
         {{ $rows->onEachSide(1)->links() }}
     </div>
 @endif
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+    // small debounce for inputs
+    const debounce = (fn, ms=350) => {
+        let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+    };
+
+    const save = async (el) => {
+        const url   = el.dataset.url;
+        const id    = el.dataset.id;
+        const col   = el.dataset.col;
+        const extra = (() => { try { return JSON.parse(el.dataset.extra || '{}'); } catch { return {}; }})();
+        const value = (el.type === 'checkbox') ? (el.checked ? 1 : 0) : el.value;
+
+        if (!url || !id || !col) return;
+
+        el.classList.remove('ring-2','ring-red-200','ring-green-200');
+        el.classList.add('opacity-60');
+
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': token,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ id, column: col, value, ...extra })
+            });
+            if (!res.ok) throw new Error(await res.text());
+            el.classList.add('ring-2','ring-green-200');
+        } catch (e) {
+            console.error(e);
+            el.classList.add('ring-2','ring-red-200');
+            alert('Save failed. Check console / server logs.');
+        } finally {
+            el.classList.remove('opacity-60');
+            setTimeout(() => { el.classList.remove('ring-2','ring-green-200','ring-red-200'); }, 900);
+        }
+    };
+
+    // change + debounced input (good UX for text fields)
+    document.body.addEventListener('change', (e) => {
+        if (e.target.classList.contains('mf-edit')) save(e.target);
+    });
+    document.body.addEventListener('input', debounce((e) => {
+        if (e.target.classList.contains('mf-edit')) save(e.target);
+    }, 600));
+});
+</script>
+@endpush

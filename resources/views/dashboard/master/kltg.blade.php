@@ -1,5 +1,10 @@
 @extends('layouts.app')
 
+@push('head')
+    {{-- Needed for inline saves --}}
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+@endpush
+
 @section('content')
 <div class="mx-auto max-w-7xl p-4">
     @include('dashboard.master._tabs', ['active' => $active ?? 'kltg'])
@@ -22,6 +27,31 @@
         </a>
     </div>
 
-    @include('dashboard.master._table', ['rows' => $rows, 'columns' => $columns])
+    {{-- Editable table: choose only the columns you want to allow edits on --}}
+
+    @include('dashboard.master._table', [
+        'rows'    => $rows,
+        'columns' => $columns,
+
+        // Make specific columns editable (key => input type)
+        // adjust to match your $columns keys
+        'editable' => [
+            'company_name' => 'text',
+            'product'      => 'text',
+            'category'     => 'text',
+            'industry'     => 'text',
+            'kltg_x'       => 'text',
+            'edition'      => 'text',
+            'material_cbp' => 'text',
+            'print'        => 'text',
+            'start_date'   => 'date',
+            'end_date'     => 'date',
+            'barter'       => 'text',
+        ],
+
+        // Inline update endpoint + scope so controller can pick model
+        'updateUrl'          => route('clientele.inline.update'),
+        'updatePayloadExtra' => ['scope' => 'kltg'],
+    ])
 </div>
 @endsection

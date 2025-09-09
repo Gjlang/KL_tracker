@@ -21,6 +21,8 @@ use App\Http\Controllers\SerialController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\MasterFileController;
 use App\Http\Controllers\InformationBoothController;
+use App\Http\Controllers\ClienteleController;
+
 
 
 
@@ -262,6 +264,7 @@ Route::post('/media/monthly/upsert', [MediaMonthlyDetailController::class, 'upse
 Route::get('/serials/preview', [SerialController::class, 'preview'])
     ->name('serials.preview');
 
+
 // ===============================================
 // JOB ROUTES
 // ===============================================
@@ -285,3 +288,6 @@ Route::get('/monthly', function () {
              ->get();
     return view('jobs.monthly', compact('jobs'));
 })->name('jobs.monthly');
+
+Route::post('/clientele/inline-update', [ClienteleController::class, 'inlineUpdate'])
+    ->name('clientele.inline.update');
