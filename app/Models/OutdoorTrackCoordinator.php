@@ -6,16 +6,23 @@ use Illuminate\Database\Eloquent\Model;
 
 class OutdoorTrackCoordinator extends Model
 {
-    protected $table = 'outdoor_track_coordinator';
+    // 👇 pastikan table name benar
+    protected $table = 'outdoor_coordinator_trackings';
 
-    protected $fillable = [
-        'master_file_id','company_snapshot','product_snapshot',
-        'site','payment','material','artwork','approval','sent',
-        'collected','install','dismantle','status',
+    // kalau primary key bukan 'id', set disini (seharusnya id)
+    protected $primaryKey = 'id';
+
+    public $timestamps = true; // karena tabel ada created_at/updated_at
+
+    protected $guarded = []; // SEMENTARA kosongkan guard agar semua field bisa diisi
+
+    protected $casts = [
+        'received_approval'   => 'date',
+        'sent_to_printer'     => 'date',
+        'collection_printer'  => 'date',
+        'installation'        => 'date',
+        'dismantle'           => 'date',
+        'next_follow_up'      => 'date',
+        'masterfile_created_at' => 'datetime',
     ];
-
-    public function masterFile()
-    {
-        return $this->belongsTo(MasterFile::class);
-    }
 }

@@ -1,6 +1,11 @@
+{{-- Add CSRF meta to page head --}}
+@push('head')
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+@endpush
+
 <x-app-layout>
     <div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8">
-        <!-- Mobile Header -->
+        {{-- Mobile Header --}}
         <div class="relative z-10 flex-shrink-0 flex h-16 bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 md:hidden">
             <button type="button" class="border-r border-gray-200 px-4 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 md:hidden">
                 <span class="sr-only">Open sidebar</span>
@@ -16,7 +21,7 @@
         </div>
 
         <div class="max-w-full mx-auto">
-            <!-- Desktop Header -->
+            {{-- Desktop Header --}}
             <div class="hidden md:flex items-center justify-between mb-6">
                 <div>
                     <h1 class="text-3xl font-bold text-gray-900">Outdoor Coordinator</h1>
@@ -31,7 +36,7 @@
                 </a>
             </div>
 
-            <!-- Success Messages -->
+            {{-- Success Messages --}}
             @if(session('success'))
                 <div class="bg-green-50 border border-green-200 text-green-700 px-6 py-4 rounded-xl mb-6 flex items-center gap-3">
                     <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -50,42 +55,44 @@
                 </div>
             @endif
 
-            <!-- Filters and Actions -->
+            {{-- Filters and Actions --}}
             <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
                 <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                    <!-- Filters -->
+                    {{-- Filters --}}
                     <div class="flex-1">
                         <form method="GET" action="{{ url()->current() }}" class="space-y-4 relative">
-                        {{-- Month --}}
-                        <div class="relative z-10"> {{-- z-10 keeps the native dropdown above the button bar --}}
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Month</label>
-                            <select name="month"
-                                    class="w-full rounded-xl border border-gray-200 bg-gray-50 hover:bg-white px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors">
-                            <option value="">All Months</option>
-                            @foreach(($months ?? []) as $m)
-                                <option value="{{ $m['value'] }}"
-                                @selected( (int)($month ?? 0) === (int)$m['value'] )>
-                                {{ $m['label'] }}
-                                </option>
-                            @endforeach
-                            </select>
-                        </div>
+                            {{-- Month Filter --}}
+                            <div class="relative z-10">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Month</label>
+                                <select name="month" id="filterMonth"
+                                        class="w-full rounded-xl border border-gray-200 bg-gray-50 hover:bg-white px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors">
+                                    <option value="">All Months</option>
+                                    @foreach(($months ?? []) as $m)
+                                        <option value="{{ $m['value'] }}" @selected((int)($month ?? 0) === (int)$m['value'])>
+                                            {{ $m['label'] }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
 
-                        {{-- Apply bar (put it below and with lower z so it doesn't overlap the dropdown) --}}
-                        <div class="pt-2 z-0">
-                            <button type="submit"
-                                    class="w-full inline-flex items-center justify-center rounded-xl bg-indigo-600 text-white py-3 text-sm font-medium hover:bg-indigo-700 transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L15 12.414V19l-6-3v-3.586L3.293 6.707A1 1 0 013 6V4z" />
-                            </svg>
-                            Apply Filters
-                            </button>
-                        </div>
+                            {{-- Year Filter (hidden input for script reference) --}}
+                            <input type="hidden" id="filterYear" value="{{ now()->year }}">
+
+                            {{-- Apply Button --}}
+                            <div class="pt-2 z-0">
+                                <button type="submit"
+                                        class="w-full inline-flex items-center justify-center rounded-xl bg-indigo-600 text-white py-3 text-sm font-medium hover:bg-indigo-700 transition">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L15 12.414V19l-6-3v-3.586L3.293 6.707A1 1 0 013 6V4z" />
+                                    </svg>
+                                    Apply Filters
+                                </button>
+                            </div>
                         </form>
                     </div>
 
-                    <!-- Actions -->
+                    {{-- Actions --}}
                     <div class="flex items-center gap-3">
                         <button onclick="exportOutdoorData()"
                                 class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl shadow-sm hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200">
@@ -98,8 +105,9 @@
                 </div>
             </div>
 
-            <!-- Enhanced Table -->
+            {{-- Enhanced Table --}}
             <div class="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                {{-- Table Header --}}
                 <div class="px-6 py-4 border-b border-gray-100">
                     <div class="flex items-center justify-between">
                         <div>
@@ -113,8 +121,10 @@
                     </div>
                 </div>
 
+                {{-- Table Content --}}
                 <div class="overflow-x-auto">
                     <table class="min-w-full text-sm">
+                        {{-- Table Headers --}}
                         <thead class="sticky top-0 z-20 bg-gradient-to-r from-gray-50 to-gray-100">
                             <tr>
                                 <th class="sticky left-0 z-30 bg-inherit border-r border-gray-200 px-4 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wide border-b border-gray-200 min-w-[80px] w-[80px] text-center">ID</th>
@@ -132,192 +142,217 @@
                                 <th class="px-4 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wide border-b border-gray-200 min-w-[160px]">Dismantle</th>
                             </tr>
                         </thead>
+
+                        {{-- Table Body --}}
                         <tbody>
-                        @if(isset($rows) && $rows->count() > 0)
-                            @foreach($rows as $i => $row)
-                                @php $mf = $row->masterFile; @endphp
-                                <tr class="odd:bg-white even:bg-gray-50 hover:bg-blue-50/50 transition-colors">
-  <td class="sticky left-0 z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100 text-center font-medium text-gray-900">
-    {{ $rows->firstItem() + $i }}
-  </td>
+                            @if(isset($rows) && $rows->count() > 0)
+                                @foreach($rows as $i => $row)
+                                    @php
+                                        $mf = $row->masterFile;
+                                        $trackingId = $row->id ?? null;
 
-  {{-- Company (read-only) --}}
-  <td class="sticky left-[80px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100">
-    <div class="font-medium text-gray-900 bg-gray-50 rounded-lg px-3 py-2">
-      {{ $mf?->company ?? $row->company_snapshot }}
-    </div>
-  </td>
+                                        // Auto-create tracking record if needed
+                                        if (!$trackingId && isset($row->master_file_id)) {
+                                            $trackingRecord = \App\Models\OutdoorCoordinatorTracking::firstOrCreate(
+                                                [
+                                                    'master_file_id'  => $row->master_file_id,
+                                                    'outdoor_item_id' => $row->outdoor_item_id,
+                                                ],
+                                                [
+                                                    'status' => 'pending',
+                                                    'site'   => $row->site,
+                                                ]
+                                            );
+                                            $trackingId = $trackingRecord->id;
+                                        }
 
-  {{-- Client (read-only from master_files) --}}
-  <td class="sticky left-[280px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100">
-    <div class="text-gray-700 bg-gray-50 rounded-lg px-3 py-2">
-      {{ $mf?->client }}
-    </div>
-  </td>
+                                        // Define editable columns and date fields
+                                        $editableCols = ['payment','material','artwork','received_approval','sent_to_printer','collection_printer','installation','dismantle'];
+                                        $dateCols = ['received_approval','sent_to_printer','collection_printer','installation','dismantle'];
+                                    @endphp
 
-  {{-- Product (read-only) --}}
-  <td class="sticky left-[480px] z-30 bg-inherit border-r px-4 py-4 align-middle border-b border-gray-100">
-    <div class="text-gray-700 bg-gray-50 rounded-lg px-3 py-2">
-      {{ $mf?->product ?? $row->product_snapshot }}
-    </div>
-  </td>
+                                    <tr class="odd:bg-white even:bg-gray-50 hover:bg-blue-50/50 transition-colors">
+                                        {{-- ID Column --}}
+                                        <td class="sticky left-0 z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100 text-center font-medium text-gray-900">
+                                            {{ $rows->firstItem() + $i }}
+                                        </td>
 
-  {{-- SITE (read-only, dari outdoor_items) --}}
-  <td class="sticky left-[640px] z-30 bg-inherit border-r px-4 py-4 align-middle border-b border-gray-100">
-    <div class="text-gray-700 bg-gray-50 rounded-lg px-3 py-2">
-      {{ $row->site ?? '-' }}
-    </div>
-  </td>
-
-  @php
-    // Pastikan ada tracking id untuk row ini
-    $trackingId = $row->id ?? null;
-    if (!$trackingId && isset($row->master_file_id)) {
-        $trackingRecord = \App\Models\OutdoorCoordinatorTracking::firstOrCreate(
-            [
-                'master_file_id'  => $row->master_file_id,
-                'outdoor_item_id' => $row->outdoor_item_id,
-            ],
-            [
-                'status' => 'pending',
-                // snapshot site (opsional)
-                'site'   => $row->site,
-            ]
-        );
-        $trackingId = $trackingRecord->id; // <-- penting: set id-nya
-    }
-
-    // Kolom editable (TANPA 'site')
-    $editableCols = [
-        'payment','material','artwork',
-        'received_approval','sent_to_printer','collection_printer','installation',
-        'dismantle','status'
-    ];
-
-    $dateCols = [
-        'received_approval','sent_to_printer','collection_printer','installation',
-        'dismantle'
-    ];
-  @endphp
-
-  @foreach ($editableCols as $col)
-    @php
-      $val = $row->{$col} ?? '';
-      $isDate = in_array($col, $dateCols, true);
-    @endphp
-    <td class="px-4 py-4 align-middle border-b border-gray-100">
-      <div class="relative">
-        @if ($isDate)
-          <input
-            type="date"
-            class="w-44 border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500"
-            value="{{ $val }}"
-            data-id="{{ $trackingId }}"
-            data-field="{{ $col }}"
-          />
-        @else
-          <input
-            type="text"
-            class="w-44 border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500"
-            value="{{ $val }}"
-            data-id="{{ $trackingId }}"
-            data-field="{{ $col }}"
-            autocomplete="off"
-          />
-        @endif
-      </div>
-    </td>
-  @endforeach
-</tr>
-
-                            @endforeach
-                        @elseif(isset($outdoorJobs) && $outdoorJobs->count() > 0)
-                            @foreach($outdoorJobs as $i => $row)
-                                @php $mf = $row->masterFile; @endphp
-                                <tr class="odd:bg-white even:bg-gray-50 hover:bg-blue-50/50 transition-colors duration-200">
-                                    <td class="sticky left-0 z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100 text-center font-medium text-gray-900">{{ $i + 1 }}</td>
-
-                                    {{-- Company (read-only) --}}
-                                    <td class="sticky left-[80px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100">
-                                        <div class="font-medium text-gray-900 bg-gray-50 rounded-lg px-3 py-2">
-                                            {{ $mf?->company ?? $row->company_snapshot ?? '-' }}
-                                        </div>
-                                    </td>
-
-                                    {{-- Client (read-only from master_files) --}}
-                                    <td class="sticky left-[280px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100">
-                                        <div class="text-gray-700 bg-gray-50 rounded-lg px-3 py-2">
-                                            {{ $mf?->client ?? '-' }}
-                                        </div>
-                                    </td>
-
-                                    {{-- Product (read-only) --}}
-                                    <td class="sticky left-[480px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100">
-                                        <div class="text-gray-700 bg-gray-50 rounded-lg px-3 py-2">
-                                            {{ $mf?->product ?? $row->product_snapshot ?? '-' }}
-                                        </div>
-                                    </td>
-
-                                    @foreach (['site','payment','material','artwork','received_approval','sent_to_printer','collection_printer','installation','dismantle','status'] as $col)
-                                        <td class="px-4 py-4 align-middle border-b border-gray-100">
-                                            <div class="relative">
-                                                <input type="text"
-                                                       class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 hover:border-gray-300"
-                                                       value="{{ $row->$col ?? '' }}"
-                                                       data-id="{{ $row->id }}" name="{{ $col }}">
-                                                <div class="absolute right-2 top-1/2 transform -translate-y-1/2 hidden" data-save-indicator>
-                                                    <svg class="animate-spin h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24">
-                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                    </svg>
-                                                </div>
-                                                <div class="absolute right-2 top-1/2 transform -translate-y-1/2 hidden" data-save-success>
-                                                    <svg class="h-4 w-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                                    </svg>
-                                                </div>
-                                                <div class="absolute right-2 top-1/2 transform -translate-y-1/2 hidden" data-save-error>
-                                                    <svg class="h-4 w-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                                    </svg>
-                                                </div>
+                                        {{-- Company (Read-only) --}}
+                                        <td class="sticky left-[80px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100">
+                                            <div class="font-medium text-gray-900 bg-gray-50 rounded-lg px-3 py-2">
+                                                {{ $mf?->company ?? $row->company_snapshot }}
                                             </div>
                                         </td>
-                                    @endforeach
 
-                                    <td class="px-4 py-4 align-middle border-b border-gray-100">
-                                        <form method="post" action="{{ route('coordinator.outdoor.destroy',$row->id) }}"
-                                              onsubmit="return confirm('Delete this row?')">
-                                            @csrf @method('DELETE')
-                                            <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 hover:border-red-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200">
-                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                        {{-- Client (Read-only) --}}
+                                        <td class="sticky left-[280px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100">
+                                            <div class="text-gray-700 bg-gray-50 rounded-lg px-3 py-2">
+                                                {{ $mf?->client }}
+                                            </div>
+                                        </td>
+
+                                        {{-- Product (Read-only) --}}
+                                        <td class="sticky left-[480px] z-30 bg-inherit border-r px-4 py-4 align-middle border-b border-gray-100">
+                                            <div class="text-gray-700 bg-gray-50 rounded-lg px-3 py-2">
+                                                {{ $mf?->product ?? $row->product_snapshot }}
+                                            </div>
+                                        </td>
+
+                                        {{-- Site (Read-only) --}}
+                                        <td class="sticky left-[640px] z-30 bg-inherit border-r px-4 py-4 align-middle border-b border-gray-100">
+                                            <div class="text-gray-700 bg-gray-50 rounded-lg px-3 py-2">
+                                                {{ $row->site ?? '-' }}
+                                            </div>
+                                        </td>
+
+                                        {{-- Editable Fields --}}
+                                        @foreach ($editableCols as $col)
+                                            @php
+                                                $val = $row->{$col} ?? '';
+                                                $isDate = in_array($col, $dateCols, true);
+                                            @endphp
+                                            <td class="px-4 py-4 align-middle border-b border-gray-100">
+                                                <div class="relative">
+                                                    @if ($isDate)
+                                                        <input type="date"
+                                                            class="w-44 border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outdoor-field"
+                                                            value="{{ $val }}"
+                                                            data-id="{{ $trackingId }}"
+                                                            data-mf="{{ $row->master_file_id }}"
+                                                            data-field="{{ $col }}" />
+                                                    @else
+                                                        <input type="text"
+                                                            class="w-44 border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outdoor-field"
+                                                            value="{{ $val }}"
+                                                            data-id="{{ $trackingId }}"
+                                                            data-mf="{{ $row->master_file_id }}"
+                                                            data-field="{{ $col }}"
+                                                            autocomplete="off" />
+                                                    @endif
+
+                                                    {{-- Save Indicators --}}
+                                                    <div class="absolute right-2 top-1/2 transform -translate-y-1/2 hidden" data-save-indicator>
+                                                        <svg class="animate-spin h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24">
+                                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                        </svg>
+                                                    </div>
+                                                    <div class="absolute right-2 top-1/2 transform -translate-y-1/2 hidden" data-save-success>
+                                                        <svg class="h-4 w-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                        </svg>
+                                                    </div>
+                                                    <div class="absolute right-2 top-1/2 transform -translate-y-1/2 hidden" data-save-error>
+                                                        <svg class="h-4 w-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                        </svg>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        @endforeach
+                                    </tr>
+                                @endforeach
+
+                            @elseif(isset($outdoorJobs) && $outdoorJobs->count() > 0)
+                                {{-- Alternative data source --}}
+                                @foreach($outdoorJobs as $i => $row)
+                                    @php $mf = $row->masterFile; @endphp
+                                    <tr class="odd:bg-white even:bg-gray-50 hover:bg-blue-50/50 transition-colors duration-200">
+                                        <td class="sticky left-0 z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100 text-center font-medium text-gray-900">
+                                            {{ $i + 1 }}
+                                        </td>
+
+                                        {{-- Company (read-only) --}}
+                                        <td class="sticky left-[80px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100">
+                                            <div class="font-medium text-gray-900 bg-gray-50 rounded-lg px-3 py-2">
+                                                {{ $mf?->company ?? $row->company_snapshot ?? '-' }}
+                                            </div>
+                                        </td>
+
+                                        {{-- Client (read-only) --}}
+                                        <td class="sticky left-[280px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100">
+                                            <div class="text-gray-700 bg-gray-50 rounded-lg px-3 py-2">
+                                                {{ $mf?->client ?? '-' }}
+                                            </div>
+                                        </td>
+
+                                        {{-- Product (read-only) --}}
+                                        <td class="sticky left-[480px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100">
+                                            <div class="text-gray-700 bg-gray-50 rounded-lg px-3 py-2">
+                                                {{ $mf?->product ?? $row->product_snapshot ?? '-' }}
+                                            </div>
+                                        </td>
+
+                                        {{-- Editable fields --}}
+                                        @foreach (['site','payment','material','artwork','received_approval','sent_to_printer','collection_printer','installation','dismantle','status'] as $col)
+                                            <td class="px-4 py-4 align-middle border-b border-gray-100">
+                                                <div class="relative">
+                                                    <input type="text"
+                                                           class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 hover:border-gray-300"
+                                                           value="{{ $row->$col ?? '' }}"
+                                                           data-id="{{ $row->id }}"
+                                                           data-mf="{{ $row->master_file_id }}"
+                                                           data-field="{{ $col }}"
+                                                           onblur="saveFieldData(this.dataset.id || null, this.dataset.field, this.value, this.dataset.mf)">
+
+                                                    {{-- Save indicators --}}
+                                                    <div class="absolute right-2 top-1/2 transform -translate-y-1/2 hidden" data-save-indicator>
+                                                        <svg class="animate-spin h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24">
+                                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                        </svg>
+                                                    </div>
+                                                    <div class="absolute right-2 top-1/2 transform -translate-y-1/2 hidden" data-save-success>
+                                                        <svg class="h-4 w-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                        </svg>
+                                                    </div>
+                                                    <div class="absolute right-2 top-1/2 transform -translate-y-1/2 hidden" data-save-error>
+                                                        <svg class="h-4 w-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                        </svg>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        @endforeach
+
+                                        {{-- Delete Action --}}
+                                        <td class="px-4 py-4 align-middle border-b border-gray-100">
+                                            <form method="post" action="{{ route('coordinator.outdoor.destroy',$row->id) }}"
+                                                  onsubmit="return confirm('Delete this row?')">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 hover:border-red-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200">
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                    </svg>
+                                                    Delete
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                @endforeach
+
+                            @else
+                                {{-- Empty State --}}
+                                <tr>
+                                    <td colspan="15" class="px-6 py-16 text-center text-gray-500">
+                                        <div class="flex flex-col items-center max-w-sm mx-auto">
+                                            <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+                                                <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                                                 </svg>
-                                                Delete
-                                            </button>
-                                        </form>
+                                            </div>
+                                            <h4 class="text-lg font-semibold text-gray-900 mb-2">No tracking records found</h4>
+                                        </div>
                                     </td>
                                 </tr>
-                            @endforeach
-                        @else
-                            <tr>
-                                <td colspan="15" class="px-6 py-16 text-center text-gray-500">
-                                    <div class="flex flex-col items-center max-w-sm mx-auto">
-                                        <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
-                                            <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-                                            </svg>
-                                        </div>
-                                        <h4 class="text-lg font-semibold text-gray-900 mb-2">No tracking records found</h4>
-                                    </div>
-                                </td>
-                            </tr>
-                        @endif
+                            @endif
                         </tbody>
                     </table>
                 </div>
 
-                <!-- Pagination -->
+                {{-- Pagination --}}
                 @if(isset($rows) && method_exists($rows, 'links') && $rows->hasPages())
                     <div class="px-6 py-4 border-t border-gray-100">
                         {{ $rows->links() }}
@@ -330,250 +365,107 @@
             </div>
         </div>
     </div>
+</x-app-layout>
 
-    {{-- Enhanced Autosave with Visual Feedback --}}
-<script>
-
-    async function saveCell(mfId, field, value) {
-  const year  = parseInt(document.querySelector('#filterYear').value, 10);
-  const month = parseInt(document.querySelector('#filterMonth').value, 10);
-
-  const res = await fetch('/coordinator/outdoor/upsert', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-    },
-    body: JSON.stringify({
-      master_file_id: mfId,
-      year, month,
-      field, value
-    })
-  });
-
-  const json = await res.json();
-  if (!res.ok) {
-    console.error('Save failed', json);
-    // tampilkan error kecil di UI kalau perlu
-  }
-}
-
-(function(){
-    const token = '{{ csrf_token() }}';
-    let timers = {};
-
-    function showIndicator(input, type) {
-        const parent = input.parentElement;
-        const indicators = parent.querySelectorAll('[data-save-indicator], [data-save-success], [data-save-error]');
-        indicators.forEach(el => el.classList.add('hidden'));
-
-        const indicator = parent.querySelector(`[data-save-${type}]`);
-        if (indicator) {
-            indicator.classList.remove('hidden');
-        }
-    }
-
-    function hideAllIndicators(input) {
-        const parent = input.parentElement;
-        const indicators = parent.querySelectorAll('[data-save-indicator], [data-save-success], [data-save-error]');
-        indicators.forEach(el => el.classList.add('hidden'));
-    }
-
-    // Enhanced save function with better error handling
-    function saveFieldData(trackingId, fieldName, fieldValue) {
-        console.log('Saving field:', { trackingId, fieldName, fieldValue });
-
-        return fetch('{{ route("coordinator.outdoor.upsert") }}', {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': token,
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({
-                id: trackingId,        // The tracking record ID
-                field: fieldName,      // Field name to update
-                value: fieldValue      // New value
-            })
-        })
-        .then(async response => {
-            const responseText = await response.text();
-            console.log('Response status:', response.status);
-            console.log('Response text:', responseText);
-
-            let responseData;
-            try {
-                responseData = JSON.parse(responseText);
-            } catch (e) {
-                console.error('Failed to parse JSON response:', responseText);
-                throw new Error('Invalid server response');
-            }
-
-            if (!response.ok) {
-                console.error('HTTP Error:', response.status, responseData);
-                if (responseData.errors) {
-                    console.error('Validation errors:', responseData.errors);
-                    console.error('Debug info:', responseData.debug_info);
-                }
-                throw new Error(responseData.message || `HTTP ${response.status}`);
-            }
-
-            return responseData;
-        });
-    }
-
-    document.addEventListener('input', function(e){
-        const el = e.target;
-        if (!el.matches('input[name]')) return;
-
-        const trackingId = el.dataset.id;
-        const fieldName = el.name;
-        const fieldValue = el.value;
-        const key = `${trackingId}-${fieldName}`;
-
-        // Validate required data
-        if (!trackingId) {
-            console.error('Missing tracking ID for field:', fieldName);
-            showIndicator(el, 'error');
-            return;
-        }
-
-        if (!fieldName) {
-            console.error('Missing field name for tracking ID:', trackingId);
-            showIndicator(el, 'error');
-            return;
-        }
-
-        console.log('Input detected:', { trackingId, fieldName, fieldValue });
-
-        // Show loading indicator immediately
-        showIndicator(el, 'indicator');
-
-        // Clear existing timer for this field
-        if (timers[key]) {
-            clearTimeout(timers[key]);
-        }
-
-        // Set new timer with longer delay for better UX
-        timers[key] = setTimeout(async () => {
-            try {
-                const result = await saveFieldData(trackingId, fieldName, fieldValue);
-                console.log('Save successful:', result);
-
-                showIndicator(el, 'success');
-
-                // Update status indicator if status was auto-updated
-                if (result.status && fieldName !== 'status') {
-                    const row = el.closest('tr');
-                    const statusCell = row?.querySelector('[data-field="status"]');
-                    if (statusCell && statusCell.textContent !== result.status) {
-                        statusCell.textContent = result.status;
-                        statusCell.className = `px-2 py-1 text-xs rounded-full status-${result.status}`;
-
-                        // Flash the status cell to show it updated
-                        statusCell.style.backgroundColor = '#dcfce7';
-                        setTimeout(() => {
-                            statusCell.style.backgroundColor = '';
-                        }, 1000);
-                    }
-                }
-
-                // Hide success indicator after 1.5 seconds
-                setTimeout(() => hideAllIndicators(el), 1500);
-
-            } catch (error) {
-                console.error('Save failed:', error);
-                showIndicator(el, 'error');
-
-                // Keep error indicator visible longer
-                setTimeout(() => hideAllIndicators(el), 3000);
-
-                // Optionally show user-friendly error message
-                if (error.message) {
-                    // You could show a toast notification here
-                    console.warn('User-friendly error:', error.message);
-                }
-            }
-
-            // Clean up timer reference
-            delete timers[key];
-        }, 600); // Slightly longer delay to reduce server requests
-    }, {passive:true});
-
-    // Export function - moved here to ensure it's available immediately
-    window.exportOutdoorData = function() {
-        const form = document.querySelector('form[method="GET"]');
-        const month = form ? (form.querySelector('select[name="month"]')?.value || '') : '';
-
-        let exportUrl = '{{ route("coordinator.outdoor.export") }}';
-        if (month) {
-            exportUrl += `?month=${encodeURIComponent(month)}`;
-        }
-        console.log('Exporting with URL:', exportUrl);
-        window.location.href = exportUrl;
-    };
-
-    // Additional export function for outdoor projects
-    window.exportOutdoorProjects = function() {
-        @if(Route::has('masterfile.export'))
-            window.location.href = '{{ route("masterfile.export") }}?category=outdoor';
-        @else
-            alert('Export functionality is not yet implemented.');
-        @endif
-    };
-
-    // Initialize on DOM load
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('Enhanced Outdoor Coordinator Dashboard loaded successfully');
-
-        // Debug: Log all input fields with their data attributes
-        const inputs = document.querySelectorAll('input[name]');
-        console.log('Found input fields:', inputs.length);
-
-        inputs.forEach((input, index) => {
-            const trackingId = input.dataset.id;
-            const fieldName = input.name;
-
-            if (!trackingId) {
-                console.warn(`Input ${index} missing data-id:`, input);
-            }
-            if (!fieldName) {
-                console.warn(`Input ${index} missing name:`, input);
-            }
-        });
-
-        // Initialize table enhancements
-        const table = document.querySelector('table');
-        if (table) {
-            table.parentElement.style.scrollBehavior = 'smooth';
-        }
-
-        // Add global error handler for unhandled promise rejections
-        window.addEventListener('unhandledrejection', function(event) {
-            console.error('Unhandled promise rejection:', event.reason);
-        });
-    });
-})();
-</script>
-
+{{-- Enhanced Scripts Section --}}
 @push('scripts')
 <script>
-    // Additional debugging and utility functions
-    window.debugOutdoorData = function() {
-        const inputs = document.querySelectorAll('input[name]');
-        console.log('Current form data:');
-        inputs.forEach(input => {
-            console.log({
-                id: input.dataset.id,
-                name: input.name,
-                value: input.value,
-                element: input
-            });
-        });
-    };
+document.addEventListener('DOMContentLoaded', function() {
+    const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
-    // Call this in browser console if you need to debug: debugOutdoorData()
+    // Event delegation untuk semua input dengan class 'outdoor-field'
+    document.addEventListener('blur', async function(e) {
+        if (!e.target.classList.contains('outdoor-field')) return;
+
+        const element = e.target;
+        await saveField(element);
+    }, true);
+
+    document.addEventListener('change', async function(e) {
+        if (!e.target.classList.contains('outdoor-field')) return;
+        if (e.target.type !== 'date') return;
+
+        const element = e.target;
+        await saveField(element);
+    });
+
+    async function saveField(element) {
+        const trackingId = element.dataset.id || null;
+        const fieldName = element.dataset.field;
+        const fieldValue = element.value;
+        const mfId = element.dataset.mf;
+
+        try {
+            const year = parseInt(document.getElementById('filterYear')?.value ?? '{{ now()->year }}', 10);
+            const month = parseInt(document.getElementById('filterMonth')?.value ?? '{{ now()->month }}', 10);
+
+            const payload = trackingId
+                ? { id: trackingId, field: fieldName, value: fieldValue }
+                : { master_file_id: parseInt(mfId, 10), year, month, field: fieldName, value: fieldValue };
+
+            showSaveIndicator(element, 'loading');
+
+            const res = await fetch(`{{ route('coordinator.outdoor.upsert') }}`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': token,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const text = await res.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch {
+                data = { ok: false, message: text };
+            }
+
+            if (!res.ok || data.ok === false) {
+                console.error('Save failed', { status: res.status, data });
+                showSaveIndicator(element, 'error');
+                return;
+            }
+
+            // Update ID jika row baru
+            if (!trackingId && data.id) {
+                element.dataset.id = data.id;
+            }
+
+            showSaveIndicator(element, 'success');
+
+        } catch (e) {
+            console.error('Save error', e);
+            showSaveIndicator(element, 'error');
+        }
+    }
+
+    function showSaveIndicator(element, state) {
+        const parent = element.parentElement;
+        const indicators = {
+            loading: parent.querySelector('[data-save-indicator]'),
+            success: parent.querySelector('[data-save-success]'),
+            error: parent.querySelector('[data-save-error]')
+        };
+
+        // Hide all indicators
+        Object.values(indicators).forEach(el => el?.classList.add('hidden'));
+
+        // Show current state
+        if (indicators[state]) {
+            indicators[state].classList.remove('hidden');
+
+            // Auto-hide success/error after 2 seconds
+            if (state !== 'loading') {
+                setTimeout(() => {
+                    indicators[state].classList.add('hidden');
+                }, 2000);
+            }
+        }
+    }
+});
 </script>
-    @endpush
-</x-app-layout>
+@endpush

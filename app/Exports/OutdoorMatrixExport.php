@@ -80,35 +80,60 @@ class OutdoorMatrixExport
         $sheet = $ss->getActiveSheet();
         $sheet->setTitle('Outdoor');
 
-        // ===== Header (2 rows) =====
-        // Added "Site" between Product and Category
+        // ===== NEW: Main Header Row (Row 1) =====
         $fixedHeaders = ['No','Date','Company','Product','Site','Category','Start','End'];
-        $colIdx = 1;
-        foreach ($fixedHeaders as $h) {
-            $c = $this->col($colIdx);
-            $sheet->setCellValue("{$c}1", $h);
-            $sheet->mergeCells("{$c}1:{$c}2"); // 2-row header
-            $colIdx++;
-        }
-
-        // Month groups (each month is one column with two rows per record: Status (top) / Date (below))
         $months = [
             'JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE',
             'JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'
         ];
 
+        $totalCols = count($fixedHeaders) + count($months);
+        $lastCol = $this->col($totalCols);
+
+        // Main title spanning all columns with today's date
+        $todayDate = Carbon::now()->format('d/m/Y');
+        $sheet->setCellValue('A1', "Outdoor - Monthly - {$todayDate}");
+        $sheet->mergeCells("A1:{$lastCol}1");
+
+        // Style the main header with yellow background
+        $sheet->getStyle("A1:{$lastCol}1")->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'size' => 16
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical'   => Alignment::VERTICAL_CENTER
+            ],
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THICK]],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['argb' => 'FFFFFF00'] // Yellow
+            ],
+        ]);
+
+        // ===== Sub Headers (Rows 2-3) =====
+        $colIdx = 1;
+        foreach ($fixedHeaders as $h) {
+            $c = $this->col($colIdx);
+            $sheet->setCellValue("{$c}2", $h);
+            $sheet->mergeCells("{$c}2:{$c}3"); // 2-row sub header
+            $colIdx++;
+        }
+
+        // Month groups (each month is one column with two rows per record: Status (top) / Date (below))
         foreach ($months as $mName) {
             $c = $this->col($colIdx);
-            $sheet->setCellValue("{$c}1", $mName);
-            $sheet->setCellValue("{$c}2", "Status / Date"); // visual hint
+            $sheet->setCellValue("{$c}2", $mName);
+            $sheet->setCellValue("{$c}3", "Status / Date"); // visual hint
             $colIdx++;
         }
 
         $lastColIdx = $colIdx - 1;
         $lastCol    = $this->col($lastColIdx);
 
-        // Header styles
-        $sheet->getStyle("A1:{$lastCol}2")->applyFromArray([
+        // Sub header styles
+        $sheet->getStyle("A2:{$lastCol}3")->applyFromArray([
             'font' => ['bold' => true],
             'alignment' => [
                 'horizontal' => Alignment::HORIZONTAL_CENTER,
@@ -119,7 +144,7 @@ class OutdoorMatrixExport
         ]);
 
         // ===== Body: 2-row block per record (per SITE row) =====
-        $rowTop = 3;
+        $rowTop = 4; // Start from row 4 now
 
         foreach (array_values($this->records) as $idx => $rec) {
             $rowStatus = $rowTop;       // top line (status)
@@ -129,7 +154,7 @@ class OutdoorMatrixExport
             $date     = $this->fmtDate($this->get($rec, 'date'));
             $company  = (string) $this->get($rec, 'company');
             $product  = (string) $this->get($rec, 'product');
-            $site     = (string) $this->get($rec, 'site');       // NEW
+            $site     = (string) $this->get($rec, 'site');
             $category = (string) ($this->get($rec, 'category') ?: 'Outdoor');
             $start    = $this->fmtDate($this->get($rec, 'start'));
             $end      = $this->fmtDate($this->get($rec, 'end'));
@@ -140,7 +165,7 @@ class OutdoorMatrixExport
                 $date,      // Date
                 $company,
                 $product,
-                $site,      // NEW
+                $site,
                 $category,
                 $start,     // Start
                 $end,       // End
@@ -158,7 +183,6 @@ class OutdoorMatrixExport
                     try {
                         $d = Carbon::parse($val);
                         $sheet->setCellValue($c1, \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel($d->timestamp));
-                        // Fixed: Use correct date format constant
                         $sheet->getStyle($c1)->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_DATE_YYYYMMDD);
                     } catch (\Throwable $e) {
                         // leave as string if parse fails
@@ -204,7 +228,6 @@ class OutdoorMatrixExport
                     try {
                         $d = Carbon::parse($dateMd);
                         $sheet->setCellValue($cellDate, \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel($d->timestamp));
-                        // Fixed: Use correct date format constant
                         $sheet->getStyle($cellDate)->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_DATE_YYYYMMDD);
                     } catch (\Throwable $e) {
                         $sheet->setCellValueExplicit($cellDate, (string)$dateMd, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
@@ -234,11 +257,14 @@ class OutdoorMatrixExport
             $sheet->getColumnDimension($this->col($i))->setWidth(14); // months
         }
 
-        // Freeze header
-        $sheet->freezePane('A3');
+        // Freeze header (updated to row 4)
+        $sheet->freezePane('A4');
 
         // Improve overall alignment
-        $sheet->getStyle("A3:{$lastCol}{$rowTop}")->getAlignment()->setWrapText(true);
+        $sheet->getStyle("A4:{$lastCol}{$rowTop}")->getAlignment()->setWrapText(true);
+
+        // Set row height for the main header
+        $sheet->getRowDimension(1)->setRowHeight(25);
 
         return response()->streamDownload(function () use ($ss) {
             (new Xlsx($ss))->save('php://output');

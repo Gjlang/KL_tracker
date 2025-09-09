@@ -15,185 +15,161 @@ use Throwable;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Arr;
 
-
-
-
-class OutdoorCoordinatorController  extends Controller
+class OutdoorCoordinatorController extends Controller
 {
-
-     protected $table = 'outdoor_coordinator_trackings';
-
-    protected $fillable = [
-        'master_file_id',
-        'site','payment','material','artwork',
-        'received_approval','sent_to_printer','collection_printer',
-        'installation','dismantle','next_follow_up',
-        'remarks','status',
-    ];
-
-    protected $casts = [
-        'received_approval'  => 'date',
-        'sent_to_printer'    => 'date',
-        'collection_printer' => 'date',
-        'installation'       => 'date',
-        'dismantle'          => 'date',
-        'next_follow_up'     => 'date',
-    ];
-
     public function index(Request $request)
-{
-    // 1) Normalize + default month/year (always)
-    $rawMonth = $request->input('month', $request->input('outdoor_month'));
-    $rawYear  = $request->input('year',  $request->input('outdoor_year'));
+    {
+        // 1) Normalize + default month/year (always)
+        $rawMonth = $request->input('month', $request->input('outdoor_month'));
+        $rawYear  = $request->input('year',  $request->input('outdoor_year'));
 
-    $normalize = function($raw): ?int {
-        if ($raw === null || $raw === '') return null;
-        $m = trim((string)$raw);
-        if (ctype_digit($m)) {
-            $n = (int)$m;
-            return ($n >= 1 && $n <= 12) ? $n : null;
-        }
-        $map = [
-            'jan'=>1,'january'=>1,'feb'=>2,'february'=>2,'mar'=>3,'march'=>3,
-            'apr'=>4,'april'=>4,'may'=>5,'jun'=>6,'june'=>6,'jul'=>7,'july'=>7,
-            'aug'=>8,'august'=>8,'sep'=>9,'sept'=>9,'september'=>9,'oct'=>10,'october'=>10,
-            'nov'=>11,'november'=>11,'dec'=>12,'december'=>12
-        ];
-        $key = strtolower(preg_replace('/[^a-z]/i', '', $m));
-        return $map[$key] ?? null;
-    };
-
-    $month = $normalize($rawMonth) ?? (int) now()->month;   // default current month
-    $year  = (int) ($rawYear ?: now()->year);               // default current year
-
-    // 2) Which master files are selected for this month/year?
-    $selectedMasterIds = DB::table('outdoor_monthly_details')
-        ->where('year', $year)
-        ->where('month', $month)
-        ->where(function ($q) {
-            $q->whereNotNull('value_date')
-              ->orWhere(function ($w) {
-                  $w->whereNotNull('value_text')
-                    ->whereRaw('TRIM(value_text) <> ""');
-              });
-        })
-        ->distinct()
-        ->pluck('master_file_id')
-        ->map(fn($v) => (int)$v)
-        ->unique()
-        ->values();
-
-    // 3) Base dataset (one row per site via outdoor_items)
-    $base = DB::table('master_files as mf')
-        ->join('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id') // fan out per site
-        ->leftJoin('outdoor_coordinator_trackings as t', function ($j) {
-            $j->on('t.master_file_id', '=', 'mf.id')
-              ->on('t.outdoor_item_id', '=', 'oi.id'); // tie tracking row to exact site
-        })
-        ->where(function ($q) {
-            $q->whereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%'])
-              ->orWhereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
-              ->orWhereIn('mf.product_category', [
-                  'TB','BB','NEWSPAPER','BUNTING','FLYERS','STAR','SIGNAGES',
-                  'TB - Tempboard','BB - Billboard','Newspaper','Bunting','Flyers','Star','Signages'
-              ]);
-        });
-
-    if ($selectedMasterIds->isNotEmpty()) {
-        $base->whereIn('mf.id', $selectedMasterIds->all());
-    } else {
-        $base->whereRaw('1=0'); // nothing selected this month → empty table
-    }
-
-    $records = $base->select([
-            't.id as id',
-            'mf.id as master_file_id',
-            'oi.id as outdoor_item_id',                 // unique per site
-            'mf.company','mf.client','mf.product','mf.product_category',
-            DB::raw('oi.site as site'),                 // site from outdoor_items
-            // Baseline tracking values (overlaid later by monthly_details if any)
-            't.payment','t.material','t.artwork',
-            't.received_approval','t.sent_to_printer','t.collection_printer','t.installation',
-            't.dismantle','t.remarks','t.next_follow_up','t.status',
-            't.created_at as tracking_created_at',
-            // Snapshots as fallback
-            'mf.company as company_snapshot',
-            'mf.product as product_snapshot',
-        ])
-        ->orderByRaw('LOWER(mf.company) asc')
-        ->paginate(20)
-        ->appends($request->query());
-
-    // 4) Overlay month-specific values from outdoor_monthly_details (page-only)
-    // IMPORTANT: get IDs from the paginator's collection, not the paginator itself
-    $pageMfIds = $records->getCollection()->pluck('master_file_id')->unique()->all();
-
-    $monthlyRows = DB::table('outdoor_monthly_details')
-        ->select('master_file_id','field_key','value_text','value_date')
-        ->where('year', $year)
-        ->where('month', $month)
-        ->whereIn('master_file_id', $pageMfIds)
-        ->get()
-        ->groupBy('master_file_id');
-
-    // Do NOT override site (it's from outdoor_items, read-only)
-    $textCols = ['payment','material','artwork','remarks','status'];
-    $dateCols = ['received_approval','sent_to_printer','collection_printer','installation','dismantle','next_follow_up'];
-    $validKeys = array_merge($textCols, $dateCols);
-
-    // Mutate each row in the paginator's collection
-    $records->setCollection(
-        $records->getCollection()->map(function ($row) use ($monthlyRows, $validKeys, $dateCols) {
-
-            // Provide masterFile object for Blade compatibility (location pulled from site)
-            $row->masterFile = (object)[
-                'id'               => $row->master_file_id,
-                'company'          => $row->company,
-                'client'           => $row->client,
-                'product'          => $row->product,
-                'product_category' => $row->product_category,
-                'location'         => $row->site, // ✅ fix: no more $row->location
+        $normalize = function($raw): ?int {
+            if ($raw === null || $raw === '') return null;
+            $m = trim((string)$raw);
+            if (ctype_digit($m)) {
+                $n = (int)$m;
+                return ($n >= 1 && $n <= 12) ? $n : null;
+            }
+            $map = [
+                'jan'=>1,'january'=>1,'feb'=>2,'february'=>2,'mar'=>3,'march'=>3,
+                'apr'=>4,'april'=>4,'may'=>5,'jun'=>6,'june'=>6,'jul'=>7,'july'=>7,
+                'aug'=>8,'august'=>8,'sep'=>9,'sept'=>9,'september'=>9,'oct'=>10,'october'=>10,
+                'nov'=>11,'november'=>11,'dec'=>12,'december'=>12
             ];
+            $key = strtolower(preg_replace('/[^a-z]/i', '', $m));
+            return $map[$key] ?? null;
+        };
 
-            $mfId = $row->master_file_id;
-            if (!$monthlyRows->has($mfId)) return $row;
+        $month = $normalize($rawMonth) ?? (int) now()->month;   // default current month
+        $year  = (int) ($rawYear ?: now()->year);               // default current year
 
-            foreach ($monthlyRows->get($mfId) as $md) {
-                $key = strtolower((string)$md->field_key);
-                if (!in_array($key, $validKeys, true)) continue;
+        // 2) Which master files are selected for this month/year?
+        $selectedMasterIds = DB::table('outdoor_monthly_details')
+            ->where('year', $year)
+            ->where('month', $month)
+            ->where(function ($q) {
+                $q->whereNotNull('value_date')
+                  ->orWhere(function ($w) {
+                      $w->whereNotNull('value_text')
+                        ->whereRaw('TRIM(value_text) <> ""');
+                  });
+            })
+            ->distinct()
+            ->pluck('master_file_id')
+            ->map(fn($v) => (int)$v)
+            ->unique()
+            ->values();
 
-                if (in_array($key, $dateCols, true)) {
-                    if (!empty($md->value_date)) {
-                        $row->{$key} = $md->value_date; // YYYY-MM-DD
-                    }
-                } else {
-                    $val = trim((string)($md->value_text ?? ''));
-                    if ($val !== '') {
-                        $row->{$key} = $val;
+        // 3) Base dataset (one row per site via outdoor_items)
+        $base = DB::table('master_files as mf')
+            ->join('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id') // fan out per site
+            ->leftJoin('outdoor_coordinator_trackings as t', function ($j) {
+                $j->on('t.master_file_id', '=', 'mf.id')
+                  ->on('t.outdoor_item_id', '=', 'oi.id'); // tie tracking row to exact site
+            })
+            ->where(function ($q) {
+                $q->whereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%'])
+                  ->orWhereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
+                  ->orWhereIn('mf.product_category', [
+                      'TB','BB','NEWSPAPER','BUNTING','FLYERS','STAR','SIGNAGES',
+                      'TB - Tempboard','BB - Billboard','Newspaper','Bunting','Flyers','Star','Signages'
+                  ]);
+            });
+
+        if ($selectedMasterIds->isNotEmpty()) {
+            $base->whereIn('mf.id', $selectedMasterIds->all());
+        } else {
+            $base->whereRaw('1=0'); // nothing selected this month → empty table
+        }
+
+        $records = $base->select([
+                't.id as id',
+                'mf.id as master_file_id',
+                'oi.id as outdoor_item_id',                 // unique per site
+                'mf.company','mf.client','mf.product','mf.product_category',
+                DB::raw('oi.site as site'),                 // site from outdoor_items
+                // Baseline tracking values (overlaid later by monthly_details if any)
+                't.payment','t.material','t.artwork',
+                't.received_approval','t.sent_to_printer','t.collection_printer','t.installation',
+                't.dismantle','t.remarks','t.next_follow_up','t.status',
+                't.created_at as tracking_created_at',
+                // Snapshots as fallback
+                'mf.company as company_snapshot',
+                'mf.product as product_snapshot',
+            ])
+            ->orderByRaw('LOWER(mf.company) asc')
+            ->paginate(20)
+            ->appends($request->query());
+
+        // 4) Overlay month-specific values from outdoor_monthly_details (page-only)
+        // IMPORTANT: get IDs from the paginator's collection, not the paginator itself
+        $pageMfIds = $records->getCollection()->pluck('master_file_id')->unique()->all();
+
+        $monthlyRows = DB::table('outdoor_monthly_details')
+            ->select('master_file_id','field_key','value_text','value_date')
+            ->where('year', $year)
+            ->where('month', $month)
+            ->whereIn('master_file_id', $pageMfIds)
+            ->get()
+            ->groupBy('master_file_id');
+
+        // Do NOT override site (it's from outdoor_items, read-only)
+        $textCols = ['payment','material','artwork','remarks','status'];
+        $dateCols = ['received_approval','sent_to_printer','collection_printer','installation','dismantle','next_follow_up'];
+        $validKeys = array_merge($textCols, $dateCols);
+
+        // Mutate each row in the paginator's collection
+        $records->setCollection(
+            $records->getCollection()->map(function ($row) use ($monthlyRows, $validKeys, $dateCols) {
+
+                // Provide masterFile object for Blade compatibility (location pulled from site)
+                $row->masterFile = (object)[
+                    'id'               => $row->master_file_id,
+                    'company'          => $row->company,
+                    'client'           => $row->client,
+                    'product'          => $row->product,
+                    'product_category' => $row->product_category,
+                    'location'         => $row->site, // ✅ fix: no more $row->location
+                ];
+
+                $mfId = $row->master_file_id;
+                if (!$monthlyRows->has($mfId)) return $row;
+
+                foreach ($monthlyRows->get($mfId) as $md) {
+                    $key = strtolower((string)$md->field_key);
+                    if (!in_array($key, $validKeys, true)) continue;
+
+                    if (in_array($key, $dateCols, true)) {
+                        if (!empty($md->value_date)) {
+                            $row->{$key} = $md->value_date; // YYYY-MM-DD
+                        }
+                    } else {
+                        $val = trim((string)($md->value_text ?? ''));
+                        if ($val !== '') {
+                            $row->{$key} = $val;
+                        }
                     }
                 }
-            }
 
-            return $row;
-        })
-    );
+                return $row;
+            })
+        );
 
-    // 5) Month dropdown data
-    $months = [];
-    for ($i = 1; $i <= 12; $i++) {
-        $months[] = ['value' => $i, 'label' => Carbon::create()->month($i)->format('F')];
+        // 5) Month dropdown data
+        $months = [];
+        for ($i = 1; $i <= 12; $i++) {
+            $months[] = ['value' => $i, 'label' => Carbon::create()->month($i)->format('F')];
+        }
+
+        return view('coordinators.outdoor', [
+            'rows'          => $records,
+            'months'        => $months,
+            'month'         => $month,
+            'year'          => $year,
+            'selectedCount' => $selectedMasterIds->count(),
+            'hasSelection'  => $selectedMasterIds->isNotEmpty(),
+        ]);
     }
-
-    return view('coordinators.outdoor', [
-        'rows'          => $records,
-        'months'        => $months,
-        'month'         => $month,
-        'year'          => $year,
-        'selectedCount' => $selectedMasterIds->count(),
-        'hasSelection'  => $selectedMasterIds->isNotEmpty(),
-    ]);
-}
-
 
     /**
      * 🔥 UPDATED: AJAX Update Field for Inline Editing - Enhanced version
@@ -376,7 +352,6 @@ class OutdoorCoordinatorController  extends Controller
         return redirect()->route('coordinator.outdoor.index')->with('success', $message);
     }
 
-
     public function show($id)
     {
         $tracking = OutdoorCoordinatorTracking::with('masterFile')->findOrFail($id);
@@ -398,9 +373,6 @@ class OutdoorCoordinatorController  extends Controller
 
         return view('coordinator.outdoor.edit', compact('tracking', 'masterFiles'));
     }
-
-
-
 
     public function destroy($id)
     {
@@ -458,519 +430,345 @@ class OutdoorCoordinatorController  extends Controller
         return redirect()->route('coordinator.outdoor.index')
                        ->with('info', 'No new outdoor master files found to create tracking records.');
     }
-public function upsert(Request $request)
-{
-    try {
-        // Log the incoming request for debugging
-        Log::info('Upsert request received', [
-            'all_data' => $request->all(),
-            'method' => $request->method(),
-            'content_type' => $request->header('Content-Type')
-        ]);
 
-        // Normalize input data - handle empty strings and null values
-        $raw = $request->all();
+    public function upsert(\Illuminate\Http\Request $req)
+    {
+        try {
+            // LOG supaya gampang debug
+            Log::info('OC upsert IN', $req->all());
 
-        // Log raw data before normalization
-        Log::info('Raw data before normalization', $raw);
+            $id     = $req->integer('id'); // kalau update
+            $mfId   = $req->integer('master_file_id');
+            $year   = $req->integer('year');
+            $month  = $req->integer('month'); // boleh null kalau tidak dipakai
+            $field  = $req->string('field');
+            $value  = $req->input('value');
 
-        foreach ($raw as $k => $v) {
-            if (is_string($v) && in_array($v, ['', 'null', 'undefined', 'NULL'])) {
-                $raw[$k] = null;
-            }
-        }
-
-        Log::info('Data after normalization', $raw);
-
-        // Handle different request formats
-        $masterFileId = null;
-        $patch = [];
-
-        // Format 1: Field/Value pair (inline editing)
-        if (isset($raw['field']) && array_key_exists('value', $raw)) {
-            Log::info('Processing field/value format', [
-                'field' => $raw['field'],
-                'value' => $raw['value']
-            ]);
-
-            // Try to get master_file_id from different sources
-            if (!empty($raw['master_file_id'])) {
-                $masterFileId = (int) $raw['master_file_id'];
-            } elseif (!empty($raw['id'])) {
-                $tracking = OutdoorCoordinatorTracking::find($raw['id']);
-                $masterFileId = $tracking ? $tracking->master_file_id : null;
+            // daftar kolom yang boleh diisi
+            $allowed = [
+                'client','product','site','payment','material','artwork','remarks','status',
+                'received_approval','sent_to_printer','collection_printer','installation','dismantle','next_follow_up',
+                'month_jan','month_feb','month_mar','month_apr','month_may','month_jun',
+                'month_jul','month_aug','month_sep','month_oct','month_nov','month_dec',
+            ];
+            if (!in_array($field, $allowed, true)) {
+                return response()->json(['ok'=>false,'message'=>"Field not allowed: $field"], 422);
             }
 
-            $field = (string) $raw['field'];
-            $fillable = (new OutdoorCoordinatorTracking())->getFillable();
-
-            if (in_array($field, $fillable, true)) {
-                $patch[$field] = $raw['value'];
-            } else {
-                Log::warning('Field not in fillable array', [
-                    'field' => $field,
-                    'fillable' => $fillable
-                ]);
-                return response()->json([
-                    'ok' => false,
-                    'message' => "Field '{$field}' is not allowed for editing",
-                    'allowed_fields' => $fillable
-                ], 422);
-            }
-        }
-        // Format 2: Full object data
-        else {
-            Log::info('Processing full object format');
-
-            if (!empty($raw['master_file_id'])) {
-                $masterFileId = (int) $raw['master_file_id'];
+            // tipe tanggal?
+            $dateFields = ['received_approval','sent_to_printer','collection_printer','installation','dismantle','next_follow_up'];
+            if (in_array($field, $dateFields, true)) {
+                // normalisasi ke Y-m-d (biar sesuai cast)
+                $value = $value ? \Carbon\Carbon::parse($value)->format('Y-m-d') : null;
             }
 
-            $fillable = (new OutdoorCoordinatorTracking())->getFillable();
-            $patch = array_intersect_key($raw, array_flip($fillable));
-            unset($patch['master_file_id']); // Handle separately
-        }
+            // UPDATE by id jika ada
+            if ($id) {
+                $row = \App\Models\OutdoorCoordinatorTracking::find($id);
+                if (!$row) return response()->json(['ok'=>false,'message'=>'Row not found'], 404);
+                $row->{$field} = $value;
+                // auto-status ringan (optional)
+                if ($field === 'installation' && $value) $row->status = 'completed';
+                $row->save();
 
-        Log::info('Processing data', [
-            'master_file_id' => $masterFileId,
-            'patch_data' => $patch
-        ]);
-
-        // Validate master_file_id
-        if (!$masterFileId) {
-            Log::error('Master file ID missing');
-            return response()->json([
-                'ok' => false,
-                'message' => 'Master file ID is required',
-                'debug_info' => [
-                    'raw_master_file_id' => $raw['master_file_id'] ?? 'not_set',
-                    'raw_id' => $raw['id'] ?? 'not_set',
-                    'available_keys' => array_keys($raw)
-                ]
-            ], 422);
-        }
-
-        // Check if master file exists
-        $masterFile = MasterFile::find($masterFileId);
-        if (!$masterFile) {
-            Log::error('Master file not found', ['id' => $masterFileId]);
-            return response()->json([
-                'ok' => false,
-                'message' => 'Master file not found',
-                'master_file_id' => $masterFileId
-            ], 422);
-        }
-
-        // Build validation rules
-        $dateFields = ['received_approval', 'sent_to_printer', 'collection_printer', 'installation', 'dismantle', 'next_follow_up'];
-        $rules = [];
-
-        foreach ($patch as $key => $value) {
-            if (in_array($key, $dateFields)) {
-                // More flexible date validation
-                $rules[$key] = ['nullable', 'date'];
-            } elseif ($key === 'status') {
-                $rules[$key] = ['nullable', 'string', 'in:pending,ongoing,completed'];
-            } elseif ($key === 'remarks') {
-                $rules[$key] = ['nullable', 'string', 'max:1000'];
-            } else {
-                $rules[$key] = ['nullable', 'string', 'max:255'];
-            }
-        }
-
-        Log::info('Validation rules', [
-            'rules' => $rules,
-            'data_to_validate' => $patch
-        ]);
-
-        // Validate the patch data
-        if (!empty($patch) && !empty($rules)) {
-            $validator = Validator::make($patch, $rules);
-
-            if ($validator->fails()) {
-                Log::error('Validation failed', [
-                    'errors' => $validator->errors()->toArray(),
-                    'data' => $patch,
-                    'rules' => $rules
-                ]);
-
-                return response()->json([
-                    'ok' => false,
-                    'message' => 'Validation failed',
-                    'errors' => $validator->errors(),
-                    'debug_info' => [
-                        'validated_data' => $patch,
-                        'validation_rules' => $rules
-                    ]
-                ], 422);
+                Log::info('OC upsert OUT (update)', ['id'=>$row->id]);
+                return response()->json(['ok'=>true,'id'=>$row->id]);
             }
 
-            $patch = $validator->validated();
-            Log::info('Validation passed', ['validated_data' => $patch]);
-        }
+            // CREATE baru → butuh master_file_id minimal
+            if (!$mfId) return response()->json(['ok'=>false,'message'=>'master_file_id required'], 422);
 
-        // Process date fields
-        foreach ($dateFields as $field) {
-            if (isset($patch[$field]) && $patch[$field] !== null) {
-                try {
-                    $date = Carbon::parse($patch[$field])->format('Y-m-d');
-                    $patch[$field] = $date;
-                    Log::info("Date processed: {$field} = {$date}");
-                } catch (\Exception $e) {
-                    Log::warning("Date parsing failed for {$field}", [
-                        'value' => $patch[$field],
-                        'error' => $e->getMessage()
-                    ]);
-                    $patch[$field] = null;
-                }
-            }
-        }
+            $row = new \App\Models\OutdoorCoordinatorTracking();
+            $row->master_file_id = $mfId;
+            if ($year)  $row->year  = $year;
+            if ($month) $row->month = $month;
 
-        // Find or create tracking record
-        $tracking = OutdoorCoordinatorTracking::firstOrNew([
-            'master_file_id' => $masterFileId
-        ]);
-
-        $isNewRecord = !$tracking->exists;
-        Log::info('Tracking record', [
-            'is_new' => $isNewRecord,
-            'existing_id' => $tracking->id ?? 'none'
-        ]);
-
-        // Update fields
-        if (!empty($patch)) {
-            foreach ($patch as $key => $value) {
-                $tracking->$key = $value;
-                Log::info("Updated field: {$key} = " . ($value ?? 'null'));
-            }
-        }
-
-        // Auto-calculate status if not explicitly set
-        if (!isset($patch['status'])) {
-            $oldStatus = $tracking->status;
-            if (!empty($tracking->dismantle)) {
-                $tracking->status = 'completed';
-            } elseif (!empty($tracking->installation)) {
-                $tracking->status = 'ongoing';
-            } else {
-                $tracking->status = 'pending';
+            // optional: tarik snapshot dari master_files (kalau ada)
+            $mf = DB::table('master_files')->where('id', $mfId)->first();
+            if ($mf) {
+                $row->client  = $mf->company ?? null;   // sesuaikan kalau kolommu 'client' ada di master_files
+                $row->product = $mf->product ?? null;
+                $row->masterfile_created_at = $mf->created_at ?? null;
             }
 
-            if ($oldStatus !== $tracking->status) {
-                Log::info("Status auto-updated: {$oldStatus} -> {$tracking->status}");
-            }
+            // set field yang diedit
+            $row->{$field} = $value;
+
+            // default status
+            if (!$row->status) $row->status = 'pending';
+
+            $row->save();
+
+            Log::info('OC upsert OUT (create)', ['id'=>$row->id]);
+            return response()->json(['ok'=>true,'id'=>$row->id]);
+        } catch (\Throwable $e) {
+            Log::error('OC upsert ERR', ['ex'=>$e]);
+            return response()->json(['ok'=>false,'message'=>$e->getMessage()], 500);
         }
-
-        // Save the record
-        $tracking->save();
-
-        Log::info('Upsert successful', [
-            'tracking_id' => $tracking->id,
-            'master_file_id' => $tracking->master_file_id,
-            'was_new' => $isNewRecord,
-            'final_status' => $tracking->status
-        ]);
-
-        return response()->json([
-            'ok' => true,
-            'id' => $tracking->id,
-            'master_file_id' => $tracking->master_file_id,
-            'status' => $tracking->status,
-            'message' => $isNewRecord ? 'Record created successfully' : 'Record updated successfully',
-            'data' => $tracking->fresh() // Get fresh data from DB
-        ]);
-
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        Log::error('Validation exception', [
-            'errors' => $e->errors(),
-            'request_data' => $request->all()
-        ]);
-
-        return response()->json([
-            'ok' => false,
-            'message' => 'Validation failed',
-            'errors' => $e->errors()
-        ], 422);
-
-    } catch (\Exception $e) {
-        Log::error('Upsert failed with exception', [
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString(),
-            'request_data' => $request->all()
-        ]);
-
-        return response()->json([
-            'ok' => false,
-            'message' => 'Server error: ' . $e->getMessage(),
-            'error_type' => get_class($e)
-        ], 500);
     }
-}
 
     public function getAvailableMasterFiles()
     {
         $masterFiles = MasterFile::where(function($q) {
-        $q->where('product_category', 'Outdoor')
-          ->orWhere('product_category', 'LIKE', '%outdoor%');
-    })
-    ->whereNotExists(function($query) {
-        $query->select(DB::raw(1))
-              ->from('outdoor_coordinator_trackings')
-              ->whereRaw('outdoor_coordinator_trackings.master_file_id = master_files.id');
-    })
-    ->select('id','client','product','product_category','location')
-    ->orderBy('client')
-    ->get();
+            $q->where('product_category', 'Outdoor')
+              ->orWhere('product_category', 'LIKE', '%outdoor%');
+        })
+        ->whereNotExists(function($query) {
+            $query->select(DB::raw(1))
+                  ->from('outdoor_coordinator_trackings')
+                  ->whereRaw('outdoor_coordinator_trackings.master_file_id = master_files.id');
+        })
+        ->select('id','client','product','product_category','location')
+        ->orderBy('client')
+        ->get();
         return response()->json($masterFiles);
     }
 
-
     public function export(Request $request): StreamedResponse
-{
-    // ---- DEBUG: Log untuk melihat apa yang terjadi ----
-    Log::info('Export started', [
-        'month_requested' => $request->integer('month'),
-        'all_params' => $request->all()
-    ]);
-
-    // ---- 1) Get month filter ----
-    $month = $request->integer('month'); // 1-12
-
-    // ---- DEBUG: Cek total data di tabel ----
-    $totalRows = DB::table('outdoor_coordinator_trackings')->count();
-    Log::info("Total rows in outdoor_coordinator_trackings: {$totalRows}");
-
-    // ---- 2) Build query dengan JOIN ke master_files ----
-    $q = DB::table('outdoor_coordinator_trackings as oct')
-        ->join('master_files as mf', 'oct.master_file_id', '=', 'mf.id')
-        ->select([
-            'oct.id',
-            'oct.master_file_id',
-            'mf.client',           // ✅ Ambil dari master_files
-            'mf.product',          // ✅ Ambil dari master_files
-            'oct.site',
-            DB::raw('oi.site as site'),
-            'oct.payment',
-            'oct.material',
-            'oct.artwork',
-            'oct.received_approval',
-            'oct.sent_to_printer',
-            'oct.collection_printer',
-            'oct.installation',
-            'oct.dismantle',
-            'oct.remarks',
-            'oct.next_follow_up',
-            'oct.status',
+    {
+        // ---- DEBUG: Log untuk melihat apa yang terjadi ----
+        Log::info('Export started', [
+            'month_requested' => $request->integer('month'),
+            'all_params' => $request->all()
         ]);
 
-    // ---- 3) Month filtering ----
-    if ($month) {
-        Log::info("Filtering by month: {$month}");
+        // ---- 1) Get month filter ----
+        $month = $request->integer('month'); // 1-12
 
-        // Filter berdasarkan date fields yang ada di outdoor_coordinator_trackings
-        $q->where(function ($query) use ($month) {
-            $query->whereRaw("MONTH(oct.received_approval) = ?", [$month])
-                  ->orWhereRaw("MONTH(oct.sent_to_printer) = ?", [$month])
-                  ->orWhereRaw("MONTH(oct.collection_printer) = ?", [$month])
-                  ->orWhereRaw("MONTH(oct.installation) = ?", [$month])
-                  ->orWhereRaw("MONTH(oct.dismantle) = ?", [$month]);
-        });
+        // ---- DEBUG: Cek total data di tabel ----
+        $totalRows = DB::table('outdoor_coordinator_trackings')->count();
+        Log::info("Total rows in outdoor_coordinator_trackings: {$totalRows}");
 
-        // DEBUG: Cek berapa yang match filter
-        $filteredCount = $q->count();
-        Log::info("Rows matching month filter: {$filteredCount}");
-    }
-
-    $rows = $q->orderBy('oct.id')->get();
-
-    // ---- DEBUG: Log hasil query ----
-    Log::info("Final query returned rows: " . count($rows));
-    if (count($rows) > 0) {
-        Log::info("Sample first row: ", (array) $rows[0]);
-    }
-
-    // ---- 4) Jika tidak ada data dengan filter, export semua data ----
-    if ($rows->isEmpty()) {
-        Log::info("No filtered data found, exporting ALL data");
-        $rows = DB::table('outdoor_coordinator_trackings as oct')
+        // ---- 2) Build query dengan JOIN ke master_files ----
+        $q = DB::table('outdoor_coordinator_trackings as oct')
             ->join('master_files as mf', 'oct.master_file_id', '=', 'mf.id')
             ->select([
-                'oct.id', 'oct.master_file_id', 'mf.client', 'mf.product', 'oct.site',
-                'oct.payment', 'oct.material', 'oct.artwork', 'oct.received_approval',
-                'oct.sent_to_printer', 'oct.collection_printer', 'oct.installation',
-                'oct.dismantle', 'oct.remarks', 'oct.next_follow_up', 'oct.status'
-            ])
-            ->orderBy('oct.id')
-            ->get();
+                'oct.id',
+                'oct.master_file_id',
+                'mf.client',           // ✅ Ambil dari master_files
+                'mf.product',          // ✅ Ambil dari master_files
+                'oct.site',
+                'oct.payment',
+                'oct.material',
+                'oct.artwork',
+                'oct.received_approval',
+                'oct.sent_to_printer',
+                'oct.collection_printer',
+                'oct.installation',
+                'oct.dismantle',
+                'oct.remarks',
+                'oct.next_follow_up',
+                'oct.status',
+            ]);
 
-        Log::info("All data export returned rows: " . count($rows));
-    }
+        // ---- 3) Month filtering ----
+        if ($month) {
+            Log::info("Filtering by month: {$month}");
 
-    // ---- 5) Generate XLSX with enhanced header ----
-    $monthName = $month ? "month-{$month}" : 'all';
-    $filename = "outdoor-coordinator-{$monthName}.xlsx";
+            // Filter berdasarkan date fields yang ada di outdoor_coordinator_trackings
+            $q->where(function ($query) use ($month) {
+                $query->whereRaw("MONTH(oct.received_approval) = ?", [$month])
+                      ->orWhereRaw("MONTH(oct.sent_to_printer) = ?", [$month])
+                      ->orWhereRaw("MONTH(oct.collection_printer) = ?", [$month])
+                      ->orWhereRaw("MONTH(oct.installation) = ?", [$month])
+                      ->orWhereRaw("MONTH(oct.dismantle) = ?", [$month]);
+            });
 
-    $csvHeaders = [
-        'ID', 'Master File ID', 'Client', 'Product', 'Site',
-        'Payment', 'Material', 'Artwork', 'Received Approval',
-        'Sent to Printer', 'Collection Printer', 'Installation',
-        'Dismantle', 'Remarks', 'Next Follow Up', 'Status'
-    ];
-
-    $dbColumns = [
-        'id', 'master_file_id', 'client', 'product', 'site',
-        'payment', 'material', 'artwork', 'received_approval',
-        'sent_to_printer', 'collection_printer', 'installation',
-        'dismantle', 'remarks', 'next_follow_up', 'status'
-    ];
-
-    // Generate month label for header
-    $monthLabel = null;
-    if ($month) {
-        try {
-            $monthLabel = Carbon::createFromDate(now()->year, $month, 1)->format('F Y');
-        } catch (\Throwable $e) {
-            $monthLabel = "Month {$month}";
+            // DEBUG: Cek berapa yang match filter
+            $filteredCount = $q->count();
+            Log::info("Rows matching month filter: {$filteredCount}");
         }
-    }
 
-    return response()->streamDownload(function () use ($rows, $csvHeaders, $dbColumns, $monthLabel) {
-        $this->generateOutdoorCoordinatorXlsx($rows, $csvHeaders, $dbColumns, $monthLabel);
-    }, $filename, [
-        'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-        'Cache-Control' => 'no-cache, no-store, max-age=0',
-    ]);
-}
+        $rows = $q->orderBy('oct.id')->get();
 
-/**
- * Generate outdoor coordinator XLSX with proper formatting
- */
-private function generateOutdoorCoordinatorXlsx($rows, array $headers, array $dbColumns, ?string $monthLabel): void
-{
-    // Create a new Spreadsheet
-    $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-    $sheet = $spreadsheet->getActiveSheet();
+        // ---- DEBUG: Log hasil query ----
+        Log::info("Final query returned rows: " . count($rows));
+        if (count($rows) > 0) {
+            Log::info("Sample first row: ", (array) $rows[0]);
+        }
 
-    $colCount = count($headers);
-    $lastColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colCount);
+        // ---- 4) Jika tidak ada data dengan filter, export semua data ----
+        if ($rows->isEmpty()) {
+            Log::info("No filtered data found, exporting ALL data");
+            $rows = DB::table('outdoor_coordinator_trackings as oct')
+                ->join('master_files as mf', 'oct.master_file_id', '=', 'mf.id')
+                ->select([
+                    'oct.id', 'oct.master_file_id', 'mf.client', 'mf.product', 'oct.site',
+                    'oct.payment', 'oct.material', 'oct.artwork', 'oct.received_approval',
+                    'oct.sent_to_printer', 'oct.collection_printer', 'oct.installation',
+                    'oct.dismantle', 'oct.remarks', 'oct.next_follow_up', 'oct.status'
+                ])
+                ->orderBy('oct.id')
+                ->get();
 
-    // ====== TITLE SECTION ======
-    $currentRow = 1;
+            Log::info("All data export returned rows: " . count($rows));
+        }
 
-    // Main title
-    $sheet->setCellValue('A'.$currentRow, 'OUTDOOR COORDINATOR TRACKING REPORT');
-    $sheet->mergeCells('A'.$currentRow.':'.$lastColumn.$currentRow);
-    $currentRow++;
+        // ---- 5) Generate XLSX with enhanced header ----
+        $monthName = $month ? "month-{$month}" : 'all';
+        $filename = "outdoor-coordinator-{$monthName}.xlsx";
 
-    // Generated timestamp
-    $sheet->setCellValue('A'.$currentRow, 'Generated: ' . now()->format('Y-m-d H:i:s'));
-    $sheet->mergeCells('A'.$currentRow.':'.$lastColumn.$currentRow);
-    $currentRow++;
+        $csvHeaders = [
+            'ID', 'Master File ID', 'Client', 'Product', 'Site',
+            'Payment', 'Material', 'Artwork', 'Received Approval',
+            'Sent to Printer', 'Collection Printer', 'Installation',
+            'Dismantle', 'Remarks', 'Next Follow Up', 'Status'
+        ];
 
-    // Month filter
-    if ($monthLabel) {
-        $sheet->setCellValue('A'.$currentRow, 'Month Filter: ' . $monthLabel);
-    } else {
-        $sheet->setCellValue('A'.$currentRow, 'Month Filter: All Data');
-    }
-    $sheet->mergeCells('A'.$currentRow.':'.$lastColumn.$currentRow);
-    $currentRow++;
+        $dbColumns = [
+            'id', 'master_file_id', 'client', 'product', 'site',
+            'payment', 'material', 'artwork', 'received_approval',
+            'sent_to_printer', 'collection_printer', 'installation',
+            'dismantle', 'remarks', 'next_follow_up', 'status'
+        ];
 
-    // Total records
-    $sheet->setCellValue('A'.$currentRow, 'Total Records: ' . count($rows));
-    $sheet->mergeCells('A'.$currentRow.':'.$lastColumn.$currentRow);
-    $currentRow++;
-
-    // ====== HEADERS ======
-    $headerRow = $currentRow;
-    foreach ($headers as $index => $header) {
-        $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($index + 1);
-        $sheet->setCellValue($col.$headerRow, $header);
-    }
-    $currentRow++;
-
-    // ====== DATA ROWS ======
-    foreach ($rows as $row) {
-        foreach ($dbColumns as $index => $col) {
-            $cellCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($index + 1);
-            $value = $row->$col ?? '';
-
-            // Format dates
-            if (in_array($col, ['received_approval', 'sent_to_printer', 'collection_printer', 'installation', 'dismantle', 'next_follow_up'])) {
-                if ($value && !in_array($value, ['0000-00-00', '0000-00-00 00:00:00', '', null])) {
-                    try {
-                        $value = date('Y-m-d', strtotime($value));
-                    } catch (Throwable $e) {
-                        // Keep original
-                    }
-                } else {
-                    $value = '';
-                }
+        // Generate month label for header
+        $monthLabel = null;
+        if ($month) {
+            try {
+                $monthLabel = Carbon::createFromDate(now()->year, $month, 1)->format('F Y');
+            } catch (\Throwable $e) {
+                $monthLabel = "Month {$month}";
             }
+        }
 
-            $sheet->setCellValue($cellCol.$currentRow, $value);
+        return response()->streamDownload(function () use ($rows, $csvHeaders, $dbColumns, $monthLabel) {
+            $this->generateOutdoorCoordinatorXlsx($rows, $csvHeaders, $dbColumns, $monthLabel);
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            'Cache-Control' => 'no-cache, no-store, max-age=0',
+        ]);
+    }
+
+    /**
+     * Generate outdoor coordinator XLSX with proper formatting
+     */
+    private function generateOutdoorCoordinatorXlsx($rows, array $headers, array $dbColumns, ?string $monthLabel): void
+    {
+        // Create a new Spreadsheet
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $colCount = count($headers);
+        $lastColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colCount);
+
+        // ====== TITLE SECTION ======
+        $currentRow = 1;
+
+        // Main title
+        $sheet->setCellValue('A'.$currentRow, 'OUTDOOR COORDINATOR TRACKING REPORT');
+        $sheet->mergeCells('A'.$currentRow.':'.$lastColumn.$currentRow);
+        $currentRow++;
+
+        // Generated timestamp
+        $sheet->setCellValue('A'.$currentRow, 'Generated: ' . now()->format('Y-m-d H:i:s'));
+        $sheet->mergeCells('A'.$currentRow.':'.$lastColumn.$currentRow);
+        $currentRow++;
+
+        // Month filter
+        if ($monthLabel) {
+            $sheet->setCellValue('A'.$currentRow, 'Month Filter: ' . $monthLabel);
+        } else {
+            $sheet->setCellValue('A'.$currentRow, 'Month Filter: All Data');
+        }
+        $sheet->mergeCells('A'.$currentRow.':'.$lastColumn.$currentRow);
+        $currentRow++;
+
+        // Total records
+        $sheet->setCellValue('A'.$currentRow, 'Total Records: ' . count($rows));
+        $sheet->mergeCells('A'.$currentRow.':'.$lastColumn.$currentRow);
+        $currentRow++;
+
+        // ====== HEADERS ======
+        $headerRow = $currentRow;
+        foreach ($headers as $index => $header) {
+            $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($index + 1);
+            $sheet->setCellValue($col.$headerRow, $header);
         }
         $currentRow++;
+
+        // ====== DATA ROWS ======
+        foreach ($rows as $row) {
+            foreach ($dbColumns as $index => $col) {
+                $cellCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($index + 1);
+                $value = $row->$col ?? '';
+
+                // Format dates
+                if (in_array($col, ['received_approval', 'sent_to_printer', 'collection_printer', 'installation', 'dismantle', 'next_follow_up'])) {
+                    if ($value && !in_array($value, ['0000-00-00', '0000-00-00 00:00:00', '', null])) {
+                        try {
+                            $value = date('Y-m-d', strtotime($value));
+                        } catch (Throwable $e) {
+                            // Keep original
+                        }
+                    } else {
+                        $value = '';
+                    }
+                }
+
+                $sheet->setCellValue($cellCol.$currentRow, $value);
+            }
+            $currentRow++;
+        }
+
+        // ====== STYLING ======
+        $dataRange = 'A1:'.$lastColumn.($currentRow-1);
+
+        // Yellow background for title rows (1-4)
+        $titleRange = 'A1:'.$lastColumn.'4';
+        $sheet->getStyle($titleRange)->applyFromArray([
+            'fill' => [
+                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'startColor' => ['argb' => 'FFFFFF00'], // Yellow
+            ],
+            'font' => ['bold' => true],
+            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                    'color' => ['argb' => 'FF000000'],
+                ],
+            ],
+        ]);
+
+        // Yellow background for header row
+        $headerRange = 'A'.$headerRow.':'.$lastColumn.$headerRow;
+        $sheet->getStyle($headerRange)->applyFromArray([
+            'fill' => [
+                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'startColor' => ['argb' => 'FFFFFF00'], // Yellow
+            ],
+            'font' => ['bold' => true],
+            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                    'color' => ['argb' => 'FF000000'],
+                ],
+            ],
+        ]);
+
+        // Borders for all data
+        $sheet->getStyle($dataRange)->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                    'color' => ['argb' => 'FF000000'],
+                ],
+            ],
+        ]);
+
+        // Auto-size columns
+        foreach (range('A', $lastColumn) as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // ====== OUTPUT ======
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $writer->save('php://output');
+
+        $spreadsheet->disconnectWorksheets();
+        unset($spreadsheet);
     }
-
-    // ====== STYLING ======
-    $dataRange = 'A1:'.$lastColumn.($currentRow-1);
-
-    // Yellow background for title rows (1-4)
-    $titleRange = 'A1:'.$lastColumn.'4';
-    $sheet->getStyle($titleRange)->applyFromArray([
-        'fill' => [
-            'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-            'startColor' => ['argb' => 'FFFFFF00'], // Yellow
-        ],
-        'font' => ['bold' => true],
-        'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
-        'borders' => [
-            'allBorders' => [
-                'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                'color' => ['argb' => 'FF000000'],
-            ],
-        ],
-    ]);
-
-    // Yellow background for header row
-    $headerRange = 'A'.$headerRow.':'.$lastColumn.$headerRow;
-    $sheet->getStyle($headerRange)->applyFromArray([
-        'fill' => [
-            'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-            'startColor' => ['argb' => 'FFFFFF00'], // Yellow
-        ],
-        'font' => ['bold' => true],
-        'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
-        'borders' => [
-            'allBorders' => [
-                'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                'color' => ['argb' => 'FF000000'],
-            ],
-        ],
-    ]);
-
-    // Borders for all data
-    $sheet->getStyle($dataRange)->applyFromArray([
-        'borders' => [
-            'allBorders' => [
-                'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                'color' => ['argb' => 'FF000000'],
-            ],
-        ],
-    ]);
-
-    // Auto-size columns
-    foreach (range('A', $lastColumn) as $col) {
-        $sheet->getColumnDimension($col)->setAutoSize(true);
-    }
-
-    // ====== OUTPUT ======
-    $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-    $writer->save('php://output');
-
-    $spreadsheet->disconnectWorksheets();
-    unset($spreadsheet);
-}
 }
