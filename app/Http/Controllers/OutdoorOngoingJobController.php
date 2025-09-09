@@ -34,36 +34,6 @@ class OutdoorOngoingJobController extends Controller
     return $q;
 }
 
-private function ensureOutdoorSlots(array $masterIds, int $year): void
-{
-    if (empty($masterIds)) return;
-
-    $now = now();
-    $rows = [];
-    foreach ($masterIds as $mfId) {
-        for ($m=1; $m<=12; $m++) {
-            foreach ([['status','text'], ['installed_on','date']] as [$key,$type]) {
-                $rows[] = [
-                    'master_file_id' => $mfId,
-                    'year'           => $year,
-                    'month'          => $m,
-                    'field_key'      => $key,
-                    'field_type'     => $type,
-                    'value_text'     => null,
-                    'value_date'     => null,
-                    'created_at'     => $now,
-                    'updated_at'     => $now,
-                ];
-            }
-        }
-    }
-
-    DB::table('outdoor_monthly_details')->upsert(
-        $rows,
-        ['master_file_id','year','month','field_key'],
-        ['updated_at']
-    );
-}
 
 
    public function index(Request $request)
@@ -164,13 +134,16 @@ $rows = $q->select([
 
     // -------- Existing monthly detail map (keyed by master_file_id:month:key) --------
     $details = DB::table('outdoor_monthly_details')
-        ->where('year', (int) $year)
-        ->whereIn('master_file_id', $rows->pluck('id'))
-        ->get();
+    ->where('year', (int) $year)
+    ->whereIn(
+        'outdoor_item_id',
+        $rows->pluck('outdoor_item_id')->filter()->unique()->values()
+    )
+    ->get();
 
-    $existing = $details->mapWithKeys(function ($r) {
-        return [ $r->master_file_id . ':' . $r->month . ':' . $r->field_key => $r ];
-    });
+$existing = $details->mapWithKeys(function ($r) {
+    return [ $r->outdoor_item_id . ':' . $r->month . ':' . $r->field_key => $r ];
+});
 
     return view('dashboard.outdoor', [
     'rows'           => $rows,
@@ -196,70 +169,6 @@ $rows = $q->select([
         );
     }
 
-    public function upsertMonthlyDetail(Request $req)
-{
-    $data = $req->validate([
-        'master_file_id' => 'required|integer|exists:master_files,id',
-        'year'           => 'required|integer|min:2000|max:2100',
-        'month'          => 'required|integer|min:1|max:12',
-        'field_key'      => 'required|string|in:remark,installed_on,material_received,approved_on,status',
-        'field_type'     => 'required|string|in:text,date',
-        'value'          => 'nullable|string', // raw from input (select/date/text)
-    ]);
-
-    $key   = strtolower($data['field_key']);
-    $type  = $data['field_type'];
-    $value = $data['value'];
-
-    // Normalize
-    $payload = ['field_type' => $type, 'value_text' => null, 'value_date' => null];
-
-    if ($type === 'date') {
-        $payload['value_date'] = $this->parseDateFlexible($value); // returns Y-m-d or null
-    } else {
-        $payload['value_text'] = $value ?? '';
-    }
-
-    try {
-        $saved = OutdoorMonthlyDetail::updateOrCreate(
-            [
-                'master_file_id' => (int)$data['master_file_id'],
-                'year'           => (int)$data['year'],
-                'month'          => (int)$data['month'],
-                'field_key'      => $key,
-            ],
-            $payload
-        );
-
-        return response()->json([
-            'ok'    => true,
-            'saved' => [
-                'master_file_id' => $saved->master_file_id,
-                'year'           => $saved->year,
-                'month'          => $saved->month,
-                'field_key'      => $saved->field_key,
-                'field_type'     => $saved->field_type,
-                'value_text'     => $saved->value_text,
-                'value_date'     => optional($saved->value_date)->format('Y-m-d'),
-            ]
-        ]);
-    } catch (\Throwable $e) {
-        Log::error('Outdoor monthly upsert failed', ['err' => $e->getMessage(), 'payload' => $data]);
-        return response()->json(['ok' => false, 'message' => 'Server error'], 500);
-    }
-}
-
-private function parseDateFlexible(?string $raw): ?string
-{
-    if (!$raw) return null;
-    $raw = trim($raw);
-    $fmts = ['Y-m-d','m/d/Y','d/m/Y'];
-    foreach ($fmts as $fmt) {
-        try { return Carbon::createFromFormat($fmt, $raw)->format('Y-m-d'); } catch (\Throwable $e) {}
-    }
-    try { return Carbon::parse($raw)->format('Y-m-d'); } catch (\Throwable $e) { return null; }
-}
-
 
 
 public function exportMatrix(Request $req)
@@ -268,34 +177,13 @@ public function exportMatrix(Request $req)
     $year    = (int)($req->input('year') ?: now($tz)->year);
     $product = trim((string)$req->input('product', ''));
 
-    // 1) Ambil details PER-MASTER-FILE untuk tahun tsb (tidak ada outdoor_item_id di schema)
-    $details = DB::table('outdoor_monthly_details as omd')
-        ->join('master_files as mf', 'mf.id', '=', 'omd.master_file_id')
-        ->where('omd.year', $year)
-        ->when($product !== '', function ($q) use ($product) {
-            $q->where('mf.product', $product);
-        })
-        ->orderBy('omd.master_file_id')
-        ->orderBy('omd.month')
-        ->get([
-            'omd.master_file_id',
-            'omd.month',
-            'omd.field_key',
-            'omd.field_type',
-            'omd.value_text',
-            'omd.value_date',
-        ]);
-
-    if ($details->isEmpty()) {
-        return back()->with('warning','No data to export.');
-    }
-
-    // 2) Ambil baris PER-SITE (join mf × outdoor_items); filter optional by product & year (pakai date/date_finish/created_at)
+    // 1) Ambil baris PER-SITE (mf × oi), include oi.id sebagai outdoor_item_id
     $sitesQ = DB::table('master_files as mf')
         ->join('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
         ->when($product !== '', function ($q) use ($product) {
             $q->where('mf.product', $product);
         })
+        // batasi ke tahun yang dipilih (sesuai logika lama kamu)
         ->where(function ($w) use ($year) {
             $w->whereYear('mf.date', $year)
               ->orWhereYear('mf.date_finish', $year)
@@ -305,28 +193,46 @@ public function exportMatrix(Request $req)
         ->orderBy('oi.site');
 
     $siteRows = $sitesQ->get([
-        'mf.id        as master_file_id',
+        'mf.id           as master_file_id',
+        'oi.id           as outdoor_item_id', // 🔑 WAJIB
         'mf.company',
         'mf.product',
         'mf.product_category',
-        'mf.date      as ui_date',
-        'mf.date      as start',
-        'mf.date_finish as end',
+        'mf.date         as ui_date',
+        'mf.date         as start',
+        'mf.date_finish  as end',
         'oi.site',
     ]);
 
     if ($siteRows->isEmpty()) {
-        // fallback: tetap export tapi kosong
-        return (new OutdoorMatrixExport([]))
-            ->download('outdoor_coordinator_'.$year.($product ? '_'.Str::slug($product) : '').'.xlsx');
+        return (new \App\Exports\OutdoorMatrixExport([]))
+            ->download('outdoor_coordinator_'.$year.($product ? '_'.\Illuminate\Support\Str::slug($product) : '').'.xlsx');
     }
 
-    // 3) Bentuk peta months per master_file_id dari details (status/date)
-    //    Karena schema kamu belum per-site, nanti akan di-apply ke semua site milik master_file tsb.
-    $monthsByMf = []; // mfId => [1..12 => ['status'=>..,'date'=>..]]
-    foreach ($details->groupBy('master_file_id') as $mfId => $rows) {
+    // 2) Ambil monthly details HANYA untuk daftar site di atas (per-site by outdoor_item_id)
+    $siteIds = $siteRows->pluck('outdoor_item_id')->filter()->unique()->values();
+    $details = DB::table('outdoor_monthly_details as omd')
+        ->where('omd.year', $year)
+        ->whereIn('omd.outdoor_item_id', $siteIds)
+        ->orderBy('omd.outdoor_item_id')
+        ->orderBy('omd.month')
+        ->get([
+            'omd.outdoor_item_id', // 🔑
+            'omd.month',
+            'omd.field_key',
+            'omd.field_type',
+            'omd.value_text',
+            'omd.value_date',
+        ]);
+
+    // 3) Bangun peta months per OUTDOOR ITEM (bukan per master)
+    //    itemId => [1..12 => ['status'=>..,'date'=>..]]
+    $monthsByItem = [];
+    foreach ($details->groupBy('outdoor_item_id') as $itemId => $rows) {
         $months = [];
-        for ($m = 1; $m <= 12; $m++) $months[$m] = ['status' => '', 'date' => null];
+        for ($m = 1; $m <= 12; $m++) {
+            $months[$m] = ['status' => '', 'date' => null];
+        }
 
         foreach ($rows as $r) {
             $mn = (int)$r->month;
@@ -340,26 +246,25 @@ public function exportMatrix(Request $req)
                 $months[$mn]['date'] = $r->value_date;
             }
         }
-        $monthsByMf[$mfId] = $months;
+        $monthsByItem[$itemId] = $months;
     }
 
-    // 4) Build records per-SITE, months diambil dari monthsByMf[mfId]
+    // 4) Build records per-SITE, ambil months dari monthsByItem[outdoor_item_id]
     $records = [];
     foreach ($siteRows as $r) {
-        $mfId   = $r->master_file_id;
-        $months = $monthsByMf[$mfId] ?? (function () {
+        $itemId = (int)$r->outdoor_item_id;
+        $months = $monthsByItem[$itemId] ?? (function () {
             $m = [];
-            for ($i=1;$i<=12;$i++) $m[$i] = ['status'=>'','date'=>null];
+            for ($i=1; $i<=12; $i++) $m[$i] = ['status'=>'','date'=>null];
             return $m;
         })();
 
         $records[] = [
-            // exporter OutdoorMatrixExport kamu support 'summary' shape
             'summary' => [
-                'date'     => $r->ui_date ?: $r->start, // aman kalo null, exporter handle
+                'date'     => $r->ui_date ?: $r->start,
                 'company'  => $r->company,
                 'product'  => $r->product,
-                'site'     => $r->site,                      // ← kolom Site KEISI
+                'site'     => $r->site,
                 'category' => $r->product_category ?: 'Outdoor',
                 'start'    => $r->start,
                 'end'      => $r->end,
@@ -368,50 +273,49 @@ public function exportMatrix(Request $req)
         ];
     }
 
-    $file = 'outdoor_coordinator_'.$year.($product ? '_'.Str::slug($product) : '').'.xlsx';
-    return (new OutdoorMatrixExport($records))->download($file);
+    $file = 'outdoor_coordinator_'.$year.($product ? '_'.\Illuminate\Support\Str::slug($product) : '').'.xlsx';
+    return (new \App\Exports\OutdoorMatrixExport($records))->download($file);
 }
 
 
-    public function upsert(Request $req)
-    {
-        $data = $req->validate([
-            'master_file_id' => 'required|integer|exists:master_files,id',
-            'year'           => 'required|integer|min:2000|max:2100',
-            'month'          => 'required|integer|min:1|max:12',
-            'field_key'      => 'required|string|in:remark,installed_on,material_received,approved_on,status', // ADDED: status
-            'field_type'     => 'required|string|in:text,date',
+   public function upsert(Request $req)
+{
+    Log::info('=== OUTDOOR UPSERT DEBUG START ===', ['raw' => $req->all()]);
 
-            // One of these must be present depending on field_type
-            'value_text'     => 'nullable|string',
-            'value_date'     => 'nullable|date',
-        ]);
+    $data = $req->validate([
+        'master_file_id'  => 'required|integer|exists:master_files,id',
+        'outdoor_item_id' => 'required|integer|exists:outdoor_items,id',
+        'year'            => 'required|integer|min:2000|max:2100',
+        'month'           => 'required|integer|min:1|max:12',
+        'field_key'       => 'required|string|in:remark,installed_on,material_received,approved_on,status',
+        'field_type'      => 'required|string|in:text,date',
+        'value_text'      => 'nullable|string',
+        'value_date'      => 'nullable|date',
+    ]);
 
-        // Normalize values to avoid cross-over writes
-        if ($data['field_type'] === 'text') {
-            $values = ['value_text' => $data['value_text'] ?? '', 'value_date' => null];
-        } else {
-            $values = ['value_text' => null, 'value_date' => $data['value_date'] ?? null];
-        }
+    $values = $data['field_type'] === 'text'
+        ? ['value_text' => $data['value_text'] ?? '', 'value_date' => null]
+        : ['value_text' => null, 'value_date' => $data['value_date'] ?? null];
 
-        try {
-            $saved = OutdoorMonthlyDetail::updateOrCreate(
-                [
-                    'master_file_id' => $data['master_file_id'],
-                    'year'           => $data['year'],
-                    'month'          => $data['month'],
-                    'field_key'      => strtolower($data['field_key']), // Store as lowercase
-                ],
-                array_merge(['field_type' => $data['field_type']], $values)
-            );
+    try {
+        $saved = OutdoorMonthlyDetail::updateOrCreate(
+            [
+                'master_file_id'  => (int)$data['master_file_id'],
+                'outdoor_item_id' => (int)$data['outdoor_item_id'], // 🔑 include site id
+                'year'            => (int)$data['year'],
+                'month'           => (int)$data['month'],
+                'field_key'       => strtolower($data['field_key']),
+            ],
+            array_merge(['field_type' => $data['field_type']], $values)
+        );
 
-            return response()->json(['ok' => true, 'saved' => $saved], 200);
-        } catch (\Throwable $e) {
-            Log::error('Outdoor upsert failed', ['err' => $e->getMessage(), 'in' => $data]);
-            return response()->json([
-                'ok' => false,
-                'message' => 'Failed to save. Check server logs.',
-            ], 500);
-        }
+        Log::info('=== OUTDOOR UPSERT OK ===', ['id' => $saved->id]);
+        return response()->json(['ok' => true, 'saved' => $saved], 200);
+
+    } catch (\Throwable $e) {
+        Log::error('=== OUTDOOR UPSERT FAIL ===', ['err' => $e->getMessage(), 'data' => $data]);
+        return response()->json(['ok' => false, 'message' => $e->getMessage()], 500);
     }
+}
+
 }

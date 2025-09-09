@@ -1,17 +1,31 @@
 @php
-    // Ensure $existing is always a Collection, even if not passed
     /** @var \Illuminate\Support\Collection $existing */
     $existing = isset($existing) && $existing ? collect($existing) : collect();
 
-    // Helper to read saved values without throwing errors
     function omd($existing, $id, $m, $key, $type) {
         $row = $existing->get("{$id}:{$m}:{$key}");
         if (!$row) return '';
-        return $type === 'date'
-            ? optional($row->value_date)->format('Y-m-d')
-            : ($row->value_text ?? '');
+
+        if ($type === 'date') {
+            $v = $row->value_date ?? null;
+            if (!$v) return '';
+            // If it's already 'YYYY-MM-DD', just return it
+            if (is_string($v) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $v)) {
+                return $v;
+            }
+            // If it's Carbon/DateTime or some other string, normalize
+            try {
+                return \Illuminate\Support\Carbon::parse($v)->format('Y-m-d');
+            } catch (\Throwable $e) {
+                return '';
+            }
+        }
+
+        // text
+        return $row->value_text ?? '';
     }
 @endphp
+
 
 {{-- at the top of the file, make sure you have CSRF meta if your layout doesn't --}}
 @push('head')
@@ -222,18 +236,20 @@
                       {{ $end }}
                     </td>
 
-                    {{-- Month cells (STATUS DROPDOWN + DATE) --}}
+                    {{-- Month cells (STATUS DROPDOWN + DATE) - Updated to use outdoor_item_id --}}
                     @foreach($months as $mNum => $mName)
                       @php
-                        $savedStatus = omd($existing, $row->id, $mNum, 'status', 'text');        // '' or 'Installation' | ...
-                        $savedDate   = omd($existing, $row->id, $mNum, 'installed_on', 'date'); // '' or 'YYYY-MM-DD'
+                        // 🔑 KEY CHANGE: Use outdoor_item_id instead of row->id for lookups
+                        $savedStatus = omd($existing, $row->outdoor_item_id, $mNum, 'status', 'text');
+                        $savedDate   = omd($existing, $row->outdoor_item_id, $mNum, 'installed_on', 'date');
                       @endphp
                       <td class="px-3 py-3 align-top border-b border-gray-100 bg-blue-50/30">
                         <div class="space-y-2">
-                          <!-- Status dropdown -->
+                          <!-- Status dropdown - Updated with data-item attribute -->
                           <select
                             class="status-dropdown w-full text-xs font-semibold rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:outline-none bg-white hover:bg-gray-50 shadow-sm transition-all duration-200"
                             data-master="{{ $row->id }}"
+                            data-item="{{ $row->outdoor_item_id }}"
                             data-year="{{ $year }}"
                             data-month="{{ $mNum }}"
                             data-kind="text"
@@ -250,12 +266,13 @@
                               <option value="Material"    {{ $savedStatus==='Material'    ? 'selected' : '' }}>📦 Material</option>
                           </select>
 
-                          <!-- Date input -->
+                          <!-- Date input - Updated with data-item attribute -->
                           <input
                             type="date"
                             value="{{ $savedDate }}"
                             class="w-full text-xs rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:outline-none bg-white hover:bg-gray-50 shadow-sm transition-all duration-200"
                             data-master="{{ $row->id }}"
+                            data-item="{{ $row->outdoor_item_id }}"
                             data-year="{{ $year }}"
                             data-month="{{ $mNum }}"
                             data-kind="date"
@@ -301,15 +318,17 @@
 </x-app-layout>
 
 <script>
-// Outdoor autosave function
+// 🔑 Updated autosave function to use outdoor_item_id
 async function saveOutdoorCell(el) {
   const master_file_id = Number(el.dataset.master);
+  const outdoor_item_id = Number(el.dataset.item);  // 🔑 NEW: Get outdoor_item_id
   const year  = Number(el.dataset.year);
   const month = Number(el.dataset.month);
   const kind  = el.dataset.kind; // "text" | "date"
 
   const payload = {
     master_file_id,
+    outdoor_item_id,                 // 🔑 NEW: Include in payload
     year,
     month,
     field_key: kind === 'date' ? 'installed_on' : 'status',

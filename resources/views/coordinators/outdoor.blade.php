@@ -122,7 +122,6 @@
                                 <th class="sticky left-[280px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wide border-b border-gray-200 min-w-[200px]">Person In Charge</th>
                                 <th class="sticky left-[480px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wide border-b border-gray-200 min-w-[180px]">Product</th>
                                 <th class="sticky left-[480px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wide border-b border-gray-200 min-w-[180px]">Site</th>
-                                <th class="px-4 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wide border-b border-gray-200 min-w-[180px]">Site</th>
                                 <th class="px-4 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wide border-b border-gray-200 min-w-[160px]">Payment</th>
                                 <th class="px-4 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wide border-b border-gray-200 min-w-[160px]">Material</th>
                                 <th class="px-4 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wide border-b border-gray-200 min-w-[160px]">Artwork</th>
@@ -138,94 +137,99 @@
                             @foreach($rows as $i => $row)
                                 @php $mf = $row->masterFile; @endphp
                                 <tr class="odd:bg-white even:bg-gray-50 hover:bg-blue-50/50 transition-colors">
-                                    <td class="sticky left-0 z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100 text-center font-medium text-gray-900">{{ $rows->firstItem() + $i }}</td>
+  <td class="sticky left-0 z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100 text-center font-medium text-gray-900">
+    {{ $rows->firstItem() + $i }}
+  </td>
 
-                                    {{-- Company (read-only) --}}
-                                    <td class="sticky left-[80px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100">
-                                        <div class="font-medium text-gray-900 bg-gray-50 rounded-lg px-3 py-2">
-                                            {{ $mf?->company ?? $row->company_snapshot }}
-                                        </div>
-                                    </td>
+  {{-- Company (read-only) --}}
+  <td class="sticky left-[80px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100">
+    <div class="font-medium text-gray-900 bg-gray-50 rounded-lg px-3 py-2">
+      {{ $mf?->company ?? $row->company_snapshot }}
+    </div>
+  </td>
 
-                                    {{-- Client (read-only from master_files) --}}
-                                    <td class="sticky left-[280px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100">
-                                        <div class="text-gray-700 bg-gray-50 rounded-lg px-3 py-2">
-                                            {{ $mf?->client }}
-                                        </div>
-                                    </td>
+  {{-- Client (read-only from master_files) --}}
+  <td class="sticky left-[280px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100">
+    <div class="text-gray-700 bg-gray-50 rounded-lg px-3 py-2">
+      {{ $mf?->client }}
+    </div>
+  </td>
 
-                                    {{-- Product (read-only) --}}
-                                    <td class="sticky left-[480px] z-30 bg-inherit border-r px-4 py-4 align-middle border-b border-gray-100">
-                                        <div class="text-gray-700 bg-gray-50 rounded-lg px-3 py-2">
-                                            {{ $mf?->product ?? $row->product_snapshot }}
-                                        </div>
-                                    </td>
+  {{-- Product (read-only) --}}
+  <td class="sticky left-[480px] z-30 bg-inherit border-r px-4 py-4 align-middle border-b border-gray-100">
+    <div class="text-gray-700 bg-gray-50 rounded-lg px-3 py-2">
+      {{ $mf?->product ?? $row->product_snapshot }}
+    </div>
+  </td>
 
-                                     {{-- Replace your input field loop section with this fixed version --}}
-@foreach (['site','payment','material','artwork','received_approval','sent_to_printer','collection_printer','installation','dismantle','status'] as $col)
+  {{-- SITE (read-only, dari outdoor_items) --}}
+  <td class="sticky left-[640px] z-30 bg-inherit border-r px-4 py-4 align-middle border-b border-gray-100">
+    <div class="text-gray-700 bg-gray-50 rounded-lg px-3 py-2">
+      {{ $row->site ?? '-' }}
+    </div>
+  </td>
+
+  @php
+    // Pastikan ada tracking id untuk row ini
+    $trackingId = $row->id ?? null;
+    if (!$trackingId && isset($row->master_file_id)) {
+        $trackingRecord = \App\Models\OutdoorCoordinatorTracking::firstOrCreate(
+            [
+                'master_file_id'  => $row->master_file_id,
+                'outdoor_item_id' => $row->outdoor_item_id,
+            ],
+            [
+                'status' => 'pending',
+                // snapshot site (opsional)
+                'site'   => $row->site,
+            ]
+        );
+        $trackingId = $trackingRecord->id; // <-- penting: set id-nya
+    }
+
+    // Kolom editable (TANPA 'site')
+    $editableCols = [
+        'payment','material','artwork',
+        'received_approval','sent_to_printer','collection_printer','installation',
+        'dismantle','status'
+    ];
+
+    $dateCols = [
+        'received_approval','sent_to_printer','collection_printer','installation',
+        'dismantle'
+    ];
+  @endphp
+
+  @foreach ($editableCols as $col)
+    @php
+      $val = $row->{$col} ?? '';
+      $isDate = in_array($col, $dateCols, true);
+    @endphp
     <td class="px-4 py-4 align-middle border-b border-gray-100">
-        <div class="relative">
-            @php
-                // Ensure we have a tracking record ID
-                $trackingId = $row->id;
-
-                // If no tracking record exists, we need to create one first
-                if (!$trackingId && isset($row->master_file_id)) {
-                    // Create tracking record on-the-fly
-                    $trackingRecord = \App\Models\OutdoorCoordinatorTracking::firstOrCreate(
-    [
-        'master_file_id'   => $row->master_file_id,
-        'outdoor_item_id'  => $row->outdoor_item_id,  // << new
-    ],
-    [
-        'status' => 'pending',
-        'site'   => $row->site, // keep a snapshot if you still store it in OCT
-    ]
-);
-                }
-            @endphp
-
-            <input type="{{ in_array($col, ['received_approval','sent_to_printer','collection_printer','installation','dismantle']) ? 'date' : 'text' }}"
-                   class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 hover:border-gray-300"
-                   value="{{ $row->$col ?? '' }}"
-                   data-id="{{ $trackingId }}"
-                   data-master-id="{{ $row->master_file_id ?? $row->masterFile?->id }}"
-                   name="{{ $col }}"
-                   placeholder="{{ ucfirst(str_replace('_', ' ', $col)) }}">
-
-            {{-- Save indicators --}}
-            <div class="absolute right-2 top-1/2 transform -translate-y-1/2 hidden" data-save-indicator>
-                <svg class="animate-spin h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-            </div>
-            <div class="absolute right-2 top-1/2 transform -translate-y-1/2 hidden" data-save-success>
-                <svg class="h-4 w-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                </svg>
-            </div>
-            <div class="absolute right-2 top-1/2 transform -translate-y-1/2 hidden" data-save-error>
-                <svg class="h-4 w-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </div>
-        </div>
+      <div class="relative">
+        @if ($isDate)
+          <input
+            type="date"
+            class="w-44 border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500"
+            value="{{ $val }}"
+            data-id="{{ $trackingId }}"
+            data-field="{{ $col }}"
+          />
+        @else
+          <input
+            type="text"
+            class="w-44 border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500"
+            value="{{ $val }}"
+            data-id="{{ $trackingId }}"
+            data-field="{{ $col }}"
+            autocomplete="off"
+          />
+        @endif
+      </div>
     </td>
-@endforeach
-                                    {{-- <td class="px-4 py-4 align-middle border-b border-gray-100">
-                                        <form method="post" action="{{ route('coordinator.outdoor.destroy',$row->id) }}"
-                                              onsubmit="return confirm('Delete this row?')">
-                                            @csrf @method('DELETE')
-                                            <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 hover:border-red-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200">
-                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                                </svg>
-                                                Delete
-                                            </button>
-                                        </form>
-                                    </td> --}}
-                                </tr>
+  @endforeach
+</tr>
+
                             @endforeach
                         @elseif(isset($outdoorJobs) && $outdoorJobs->count() > 0)
                             @foreach($outdoorJobs as $i => $row)

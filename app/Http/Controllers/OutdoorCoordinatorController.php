@@ -83,52 +83,50 @@ class OutdoorCoordinatorController  extends Controller
         ->unique()
         ->values();
 
-    // 3) Base dataset (only show records selected for the month/year)
-$base = DB::table('master_files as mf')
-    // Fan out to one row per site:
-    ->join('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
-    // Tie tracking rows to *both* the master file and the exact site:
-    ->leftJoin('outdoor_coordinator_trackings as t', function ($j) {
-        $j->on('t.master_file_id', '=', 'mf.id')
-          ->on('t.outdoor_item_id', '=', 'oi.id'); // << key addition
-    })
-    ->where(function ($q) {
-        $q->whereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%'])
-          ->orWhereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
-          ->orWhereIn('mf.product_category', [
-              'TB','BB','NEWSPAPER','BUNTING','FLYERS','STAR','SIGNAGES',
-              'TB - Tempboard','BB - Billboard','Newspaper','Bunting','Flyers','Star','Signages'
-          ]);
-    });
+    // 3) Base dataset (one row per site via outdoor_items)
+    $base = DB::table('master_files as mf')
+        ->join('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id') // fan out per site
+        ->leftJoin('outdoor_coordinator_trackings as t', function ($j) {
+            $j->on('t.master_file_id', '=', 'mf.id')
+              ->on('t.outdoor_item_id', '=', 'oi.id'); // tie tracking row to exact site
+        })
+        ->where(function ($q) {
+            $q->whereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%'])
+              ->orWhereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
+              ->orWhereIn('mf.product_category', [
+                  'TB','BB','NEWSPAPER','BUNTING','FLYERS','STAR','SIGNAGES',
+                  'TB - Tempboard','BB - Billboard','Newspaper','Bunting','Flyers','Star','Signages'
+              ]);
+        });
 
-if ($selectedMasterIds->isNotEmpty()) {
-    $base->whereIn('mf.id', $selectedMasterIds->all());
-} else {
-    $base->whereRaw('1=0'); // nothing selected this month → empty table
-}
+    if ($selectedMasterIds->isNotEmpty()) {
+        $base->whereIn('mf.id', $selectedMasterIds->all());
+    } else {
+        $base->whereRaw('1=0'); // nothing selected this month → empty table
+    }
 
-$records = $base->select([
-        't.id as id',
-        'mf.id as master_file_id',
-        'oi.id as outdoor_item_id',                 // << keep this for row identity
-        'mf.company','mf.client','mf.product','mf.product_category',
-        DB::raw('oi.site as site'),                 // << site comes from outdoor_items
-        // Baseline tracking values (overlaid later by monthly_details if any)
-        't.payment','t.material','t.artwork',
-        't.received_approval','t.sent_to_printer','t.collection_printer','t.installation',
-        't.dismantle','t.remarks','t.next_follow_up','t.status',
-        't.created_at as tracking_created_at',
-        // Snapshots as fallback
-        'mf.company as company_snapshot',
-        'mf.product as product_snapshot',
-    ])
-    ->orderByRaw('LOWER(mf.company) asc')
-    ->paginate(20)
-    ->appends($request->query());
+    $records = $base->select([
+            't.id as id',
+            'mf.id as master_file_id',
+            'oi.id as outdoor_item_id',                 // unique per site
+            'mf.company','mf.client','mf.product','mf.product_category',
+            DB::raw('oi.site as site'),                 // site from outdoor_items
+            // Baseline tracking values (overlaid later by monthly_details if any)
+            't.payment','t.material','t.artwork',
+            't.received_approval','t.sent_to_printer','t.collection_printer','t.installation',
+            't.dismantle','t.remarks','t.next_follow_up','t.status',
+            't.created_at as tracking_created_at',
+            // Snapshots as fallback
+            'mf.company as company_snapshot',
+            'mf.product as product_snapshot',
+        ])
+        ->orderByRaw('LOWER(mf.company) asc')
+        ->paginate(20)
+        ->appends($request->query());
 
-
-    // 4) Overlay month-specific values from outdoor_monthly_details onto the page of results
-    $pageMfIds = $records->pluck('master_file_id')->all();
+    // 4) Overlay month-specific values from outdoor_monthly_details (page-only)
+    // IMPORTANT: get IDs from the paginator's collection, not the paginator itself
+    $pageMfIds = $records->getCollection()->pluck('master_file_id')->unique()->all();
 
     $monthlyRows = DB::table('outdoor_monthly_details')
         ->select('master_file_id','field_key','value_text','value_date')
@@ -138,41 +136,47 @@ $records = $base->select([
         ->get()
         ->groupBy('master_file_id');
 
-    // Map field_key -> column on the row
-    $textCols = ['site','payment','material','artwork','remarks','status'];
+    // Do NOT override site (it's from outdoor_items, read-only)
+    $textCols = ['payment','material','artwork','remarks','status'];
     $dateCols = ['received_approval','sent_to_printer','collection_printer','installation','dismantle','next_follow_up'];
     $validKeys = array_merge($textCols, $dateCols);
 
-    foreach ($records as $row) {
-        // provide masterFile object for Blade compatibility
-        $row->masterFile = (object)[
-            'id' => $row->master_file_id,
-            'company' => $row->company,
-            'client' => $row->client,
-            'product' => $row->product,
-            'product_category' => $row->product_category,
-            'location' => $row->location,
-        ];
+    // Mutate each row in the paginator's collection
+    $records->setCollection(
+        $records->getCollection()->map(function ($row) use ($monthlyRows, $validKeys, $dateCols) {
 
-        if (!isset($monthlyRows[$row->master_file_id])) continue;
+            // Provide masterFile object for Blade compatibility (location pulled from site)
+            $row->masterFile = (object)[
+                'id'               => $row->master_file_id,
+                'company'          => $row->company,
+                'client'           => $row->client,
+                'product'          => $row->product,
+                'product_category' => $row->product_category,
+                'location'         => $row->site, // ✅ fix: no more $row->location
+            ];
 
-        foreach ($monthlyRows[$row->master_file_id] as $md) {
-            $key = strtolower((string)$md->field_key);
-            if (!in_array($key, $validKeys, true)) continue;
+            $mfId = $row->master_file_id;
+            if (!$monthlyRows->has($mfId)) return $row;
 
-            if (in_array($key, $dateCols, true)) {
-                if (!empty($md->value_date)) {
-                    $row->{$key} = $md->value_date; // YYYY-MM-DD
-                }
-            } else {
-                // text-like
-                $val = trim((string)($md->value_text ?? ''));
-                if ($val !== '') {
-                    $row->{$key} = $val;
+            foreach ($monthlyRows->get($mfId) as $md) {
+                $key = strtolower((string)$md->field_key);
+                if (!in_array($key, $validKeys, true)) continue;
+
+                if (in_array($key, $dateCols, true)) {
+                    if (!empty($md->value_date)) {
+                        $row->{$key} = $md->value_date; // YYYY-MM-DD
+                    }
+                } else {
+                    $val = trim((string)($md->value_text ?? ''));
+                    if ($val !== '') {
+                        $row->{$key} = $val;
+                    }
                 }
             }
-        }
-    }
+
+            return $row;
+        })
+    );
 
     // 5) Month dropdown data
     $months = [];
@@ -745,6 +749,7 @@ public function upsert(Request $request)
             'mf.client',           // ✅ Ambil dari master_files
             'mf.product',          // ✅ Ambil dari master_files
             'oct.site',
+            DB::raw('oi.site as site'),
             'oct.payment',
             'oct.material',
             'oct.artwork',
