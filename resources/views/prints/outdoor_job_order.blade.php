@@ -76,7 +76,10 @@
       <th>CONTACT PERSON</th>
       <td>{{ $file->client ?? '' }}</td>
       <th>JOB ORDER DATE</th>
-      <td>{{ $date }}</td>
+<td>
+  {{ $file->created_at ? \Carbon\Carbon::parse($file->created_at)->format('d/m/Y') : '' }}
+</td>
+
     </tr>
     <tr>
       <th>CONTACT NUMBER</th>
@@ -114,7 +117,7 @@
     {{-- Duration: only when there IS an item --}}
     <td>
       @if ($it)
-        {{ $file->month ?? $file->month ?? '' }}
+        {{ $file->duration ?? $file->month ?? '' }}
       @endif
     </td>
 

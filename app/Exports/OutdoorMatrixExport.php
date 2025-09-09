@@ -8,28 +8,11 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class OutdoorMatrixExport
 {
-    /**
-     * Expected $records shape (per row):
-     * [
-     *   'no'       => 1,
-     *   'date'     => '2025-09-18',
-     *   'company'  => 'SAMSUNG',
-     *   'product'  => 'BB',
-     *   'category' => 'Outdoor',
-     *   'start'    => '2025-09-18 00:00:00',
-     *   'end'      => '2025-11-27 00:00:00',
-     *   'months'   => [
-     *      1 => ['status' => 'Install',   'date' => '2025-01-05'],
-     *      2 => ['status' => 'Maintain',  'date' => '2025-02-10'],
-     *      ...
-     *      12 => ['status' => 'Dismantel','date' => '2025-12-20'],
-     *   ]
-     * ]
-     */
     private array $records;
 
     public function __construct(array $records)
@@ -49,22 +32,41 @@ class OutdoorMatrixExport
         return $s;
     }
 
+    /** Safe getter that checks both flat and summary shapes */
+    private function get(array $rec, string $key, $default = '')
+    {
+        if (array_key_exists($key, $rec)) return $rec[$key];
+        $sum = $rec['summary'] ?? [];
+        return $sum[$key] ?? $default;
+    }
+
+    /** Parse to Excel date (Carbon) or return empty string */
+    private function fmtDate($val): string
+    {
+        if (empty($val)) return '';
+        try {
+            return Carbon::parse($val)->format('Y-m-d');
+        } catch (\Throwable $e) {
+            return '';
+        }
+    }
+
     /** Background color for status */
     private function statusColor(?string $status): ?string
     {
         if (!$status) return null;
         $map = [
-            'Install'    => 'FF00B0F0', // blue
-            'Installation'=> 'FF00B0F0',
-            'Maintain'   => 'FF92D050', // light green
-            'Maintenance'=> 'FF92D050',
-            'Booked'     => 'FFFFC000', // orange
-            'On Hold'    => 'FFFFC000',
-            'Done'       => 'FF00B050', // green
-            'Completed'  => 'FF00B050',
-            'Dismantel'  => 'FF7F7F7F', // gray
-            'Dismantle'  => 'FF7F7F7F',
-            'Cancelled'  => 'FF7F7F7F',
+            'Install'      => 'FF00B0F0', // blue
+            'Installation' => 'FF00B0F0',
+            'Maintain'     => 'FF92D050', // light green
+            'Maintenance'  => 'FF92D050',
+            'Booked'       => 'FFFFC000', // orange
+            'On Hold'      => 'FFFFC000',
+            'Done'         => 'FF00B050', // green
+            'Completed'    => 'FF00B050',
+            'Dismantel'    => 'FF7F7F7F', // gray
+            'Dismantle'    => 'FF7F7F7F',
+            'Cancelled'    => 'FF7F7F7F',
         ];
         foreach ($map as $k => $argb) {
             if (strcasecmp($k, $status) === 0) return $argb;
@@ -79,8 +81,8 @@ class OutdoorMatrixExport
         $sheet->setTitle('Outdoor');
 
         // ===== Header (2 rows) =====
-        // Left fixed columns (merged vertically later per record)
-        $fixedHeaders = ['No','Date','Company','Product','Category','Start','End'];
+        // Added "Site" between Product and Category
+        $fixedHeaders = ['No','Date','Company','Product','Site','Category','Start','End'];
         $colIdx = 1;
         foreach ($fixedHeaders as $h) {
             $c = $this->col($colIdx);
@@ -89,7 +91,7 @@ class OutdoorMatrixExport
             $colIdx++;
         }
 
-        // Month groups (each month occupies 1 column containing: row = status, row+1 = date)
+        // Month groups (each month is one column with two rows per record: Status (top) / Date (below))
         $months = [
             'JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE',
             'JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'
@@ -97,9 +99,8 @@ class OutdoorMatrixExport
 
         foreach ($months as $mName) {
             $c = $this->col($colIdx);
-            // Top cell shows the month name, bottom (row 2) shows sub-labels
             $sheet->setCellValue("{$c}1", $mName);
-            $sheet->setCellValue("{$c}2", "Status / Date"); // purely visual hint
+            $sheet->setCellValue("{$c}2", "Status / Date"); // visual hint
             $colIdx++;
         }
 
@@ -117,45 +118,71 @@ class OutdoorMatrixExport
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFE5E5E5']],
         ]);
 
-        // ===== Body: 2-row block per record =====
+        // ===== Body: 2-row block per record (per SITE row) =====
         $rowTop = 3;
 
-        foreach ($this->records as $idx => $rec) {
-            $s = $rec['summary'] ?? [];
-            $rowStatus = $rowTop;       // row that holds status (dropdown in UI)
-            $rowDate   = $rowTop + 1;   // row right below, holds date
+        foreach (array_values($this->records) as $idx => $rec) {
+            $rowStatus = $rowTop;       // top line (status)
+            $rowDate   = $rowTop + 1;   // bottom line (date)
+
+            // ---- Pull values (works for flat or summary)
+            $date     = $this->fmtDate($this->get($rec, 'date'));
+            $company  = (string) $this->get($rec, 'company');
+            $product  = (string) $this->get($rec, 'product');
+            $site     = (string) $this->get($rec, 'site');       // NEW
+            $category = (string) ($this->get($rec, 'category') ?: 'Outdoor');
+            $start    = $this->fmtDate($this->get($rec, 'start'));
+            $end      = $this->fmtDate($this->get($rec, 'end'));
 
             // ---- Left fixed columns (merge vertically across the two rows)
             $leftVals = [
-                $idx + 1,
-                !empty($s['date'])     ? Carbon::parse($s['date'])->format('m/d/Y') : '',
-                $s['company']  ?? '',
-                $s['product']  ?? '',
-                $s['category'] ?? '',
-                !empty($s['start']) ? Carbon::parse($s['start'])->format('m/d/Y') : '',
-                !empty($s['end'])   ? Carbon::parse($s['end'])->format('m/d/Y')   : '',
+                $idx + 1,   // No
+                $date,      // Date
+                $company,
+                $product,
+                $site,      // NEW
+                $category,
+                $start,     // Start
+                $end,       // End
             ];
 
             $col = 1;
             foreach ($leftVals as $val) {
                 $c1 = $this->col($col) . $rowStatus;
                 $c2 = $this->col($col) . $rowDate;
-                // write once then merge down (so it looks like a single tall cell)
-                $sheet->setCellValue($c1, $val);
+
+                // write once then merge down (visual single tall cell)
+                $sheet->setCellValueExplicit($c1, (string)$val, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                // Convert date-looking strings in Date/Start/End to real date format
+                if (in_array($col, [2, 7, 8], true) && !empty($val)) {
+                    try {
+                        $d = Carbon::parse($val);
+                        $sheet->setCellValue($c1, \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel($d->timestamp));
+                        // Fixed: Use correct date format constant
+                        $sheet->getStyle($c1)->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_DATE_YYYYMMDD);
+                    } catch (\Throwable $e) {
+                        // leave as string if parse fails
+                    }
+                }
+
                 $sheet->mergeCells("{$c1}:{$c2}");
                 $sheet->getStyle("{$c1}:{$c2}")
                     ->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
+                $sheet->getStyle("{$c1}:{$c2}")
+                    ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
                 $col++;
             }
 
             // ---- Month columns
+            $monthsData = $rec['months'] ?? [];
             for ($m = 1; $m <= 12; $m++, $col++) {
-                $status = (string)($rec['months'][$m]['status'] ?? '');
-                $date   = $rec['months'][$m]['date'] ?? null;
+                $status = (string)($monthsData[$m]['status'] ?? '');
+                $dateMd = $monthsData[$m]['date']   ?? null;
 
-                // (a) Status on the first row (rowStatus)
+                // (a) Status (rowStatus)
                 $cellStatus = $this->col($col) . $rowStatus;
-                $sheet->setCellValue($cellStatus, $status);
+                $sheet->setCellValueExplicit($cellStatus, $status, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
 
                 if ($argb = $this->statusColor($status)) {
                     $sheet->getStyle($cellStatus)->applyFromArray([
@@ -168,18 +195,27 @@ class OutdoorMatrixExport
                 }
 
                 $sheet->getStyle($cellStatus)->getAlignment()
-                    ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                    ->setVertical(Alignment::VERTICAL_CENTER);
 
-
-                // (b) Date right below (rowDate)
+                // (b) Date (rowDate)
                 $cellDate = $this->col($col) . $rowDate;
-                if (!empty($date)) {
-                    $sheet->setCellValue($cellDate, Carbon::parse($date)->format('m/d/Y'));
+                if (!empty($dateMd)) {
+                    try {
+                        $d = Carbon::parse($dateMd);
+                        $sheet->setCellValue($cellDate, \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel($d->timestamp));
+                        // Fixed: Use correct date format constant
+                        $sheet->getStyle($cellDate)->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_DATE_YYYYMMDD);
+                    } catch (\Throwable $e) {
+                        $sheet->setCellValueExplicit($cellDate, (string)$dateMd, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                    }
                 } else {
                     $sheet->setCellValue($cellDate, '');
                 }
+
                 $sheet->getStyle($cellDate)->getAlignment()
-                      ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                      ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                      ->setVertical(Alignment::VERTICAL_CENTER);
             }
 
             // Borders for the 2-row block
@@ -189,17 +225,20 @@ class OutdoorMatrixExport
             $rowTop += 2;
         }
 
-        // Column widths (left side fixed widths; months autosize or fixed)
-        $widths = [6, 12, 22, 12, 12, 12, 12]; // No, Date, Company, Product, Category, Start, End
+        // Column widths (No, Date, Company, Product, Site, Category, Start, End)
+        $widths = [6, 12, 28, 14, 28, 12, 12, 12];
         for ($i = 1; $i <= count($widths); $i++) {
             $sheet->getColumnDimension($this->col($i))->setWidth($widths[$i-1]);
         }
         for ($i = count($widths) + 1; $i <= $lastColIdx; $i++) {
-            $sheet->getColumnDimension($this->col($i))->setWidth(13); // month columns
+            $sheet->getColumnDimension($this->col($i))->setWidth(14); // months
         }
 
         // Freeze header
         $sheet->freezePane('A3');
+
+        // Improve overall alignment
+        $sheet->getStyle("A3:{$lastCol}{$rowTop}")->getAlignment()->setWrapText(true);
 
         return response()->streamDownload(function () use ($ss) {
             (new Xlsx($ss))->save('php://output');

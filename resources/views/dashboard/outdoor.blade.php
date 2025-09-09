@@ -150,6 +150,10 @@
                   <th class="px-4 py-4 text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200" style="min-width:160px;width:160px;">
                     📦 Product
                   </th>
+                  <th class="px-4 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider border-b border-gray-200"
+                        style="min-width:220px;width:220px;">
+                    📍 Site(s)
+                    </th>
                   <th class="px-4 py-4 text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200" style="min-width:140px;width:140px;">
                     🏷️ Category
                   </th>
@@ -178,6 +182,15 @@
                       $start   = $row->start_date ?? $row->date ?? null;
                       $end     = $row->date_finish ?? $row->end_date ?? null;
 
+                       $sites = [];
+                        if (!empty($row->sites)) {
+                            $sites = array_filter(
+                                array_map('trim', explode('|||', $row->sites)),
+                                fn($site) => $site !== ''
+                            );
+                        }
+                        $siteCount = count($sites);
+
                       // Check if all monthly fields have values (using existing structure)
                       $monthFields = ['check_jan','check_feb','check_mar','check_apr','check_may','check_jun',
                                     'check_jul','check_aug','check_sep','check_oct','check_nov','check_dec'];
@@ -193,6 +206,10 @@
                     <td class="px-4 py-3 align-top border-b border-gray-100 text-gray-700">
                       {{ $row->product }}
                     </td>
+                  <td class="px-4 py-3 align-top border-b border-gray-100">
+  {{ $row->site ?? '—' }}
+</td>
+
                     <td class="px-4 py-3 align-top border-b border-gray-100">
                       <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
                         {{ $row->product_category ?? 'Outdoor' }}
@@ -272,8 +289,8 @@
           </div>
         </div>
 
-        <a
-  href="{{ route('coordinator.outdoor.exportMatrix', ['year' => $year, 'product' => $product]) }}"
+  <a
+  href="{{ route('coordinator.outdoor.exportMatrix', ['year' => $year]) }}"
   class="btn btn-primary">
   Export CSV
 </a>

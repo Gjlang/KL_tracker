@@ -121,6 +121,7 @@
                                 <th class="sticky left-[80px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wide border-b border-gray-200 min-w-[200px]">Company</th>
                                 <th class="sticky left-[280px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wide border-b border-gray-200 min-w-[200px]">Person In Charge</th>
                                 <th class="sticky left-[480px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wide border-b border-gray-200 min-w-[180px]">Product</th>
+                                <th class="sticky left-[480px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wide border-b border-gray-200 min-w-[180px]">Site</th>
                                 <th class="px-4 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wide border-b border-gray-200 min-w-[180px]">Site</th>
                                 <th class="px-4 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wide border-b border-gray-200 min-w-[160px]">Payment</th>
                                 <th class="px-4 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wide border-b border-gray-200 min-w-[160px]">Material</th>
@@ -172,13 +173,15 @@
                 if (!$trackingId && isset($row->master_file_id)) {
                     // Create tracking record on-the-fly
                     $trackingRecord = \App\Models\OutdoorCoordinatorTracking::firstOrCreate(
-                        ['master_file_id' => $row->master_file_id],
-                        [
-                            'status' => 'pending',
-                            'site' => $row->masterFile?->location ?? null
-                        ]
-                    );
-                    $trackingId = $trackingRecord->id;
+    [
+        'master_file_id'   => $row->master_file_id,
+        'outdoor_item_id'  => $row->outdoor_item_id,  // << new
+    ],
+    [
+        'status' => 'pending',
+        'site'   => $row->site, // keep a snapshot if you still store it in OCT
+    ]
+);
                 }
             @endphp
 

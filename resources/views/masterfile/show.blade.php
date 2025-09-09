@@ -105,10 +105,6 @@
 
                         </div>
                         <div class="p-6 space-y-6">
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-500">Date</label>
-                                <input type="date" name="date" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="{{ old('date', \Illuminate\Support\Str::of($file->date)->substr(0,10)) }}" disabled>
-                            </div>
 
                             <div class="space-y-2">
                                 <label class="text-sm font-medium text-gray-500">Month</label>
@@ -120,9 +116,24 @@
                                 <input name="traffic" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="{{ old('traffic',$file->traffic) }}" disabled>
                             </div>
 
+                             <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-500">Current Location</label>
+                                <input name="location" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500" value="{{ old('location',$file->location) }}" disabled>
+                            </div>
+
                             <div class="space-y-2">
                                 <label class="text-sm font-medium text-gray-500">Remarks</label>
                                 <input name="duration" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="{{ old('duration',$file->duration) }}" disabled>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-500">Artwork</label>
+                                <input name="artwork" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" value="{{ old('artwork',$file->artwork) }}" disabled>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-500">Sales Person</label>
+                                <input name="duration" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="{{ old('sales_person',$file->sales_person) }}" disabled>
                             </div>
                         </div>
                     </div>
@@ -164,14 +175,15 @@
                             </div>
 
                             <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-500">Start Date</label>
+                                <input type="date" name="date" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="{{ old('date', \Illuminate\Support\Str::of($file->date)->substr(0,10)) }}" disabled>
+                            </div>
+
+                            <div class="space-y-2">
                                 <label class="text-sm font-medium text-gray-500">Date Finish</label>
                                 <input type="date" name="date_finish" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" value="{{ old('date_finish', \Illuminate\Support\Str::of($file->date_finish)->substr(0,10)) }}" disabled>
                             </div>
 
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-500">Artwork</label>
-                                <input name="artwork" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" value="{{ old('artwork',$file->artwork) }}" disabled>
-                            </div>
                         </div>
                     </div>
 
@@ -196,10 +208,6 @@
                                 <input name="invoice_number" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500" value="{{ old('invoice_number',$file->invoice_number) }}" disabled>
                             </div>
 
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-500">Current Location</label>
-                                <input name="location" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500" value="{{ old('location',$file->location) }}" disabled>
-                            </div>
                         </div>
                     </div>
                 </div>

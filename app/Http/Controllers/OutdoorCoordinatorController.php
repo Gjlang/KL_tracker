@@ -84,42 +84,48 @@ class OutdoorCoordinatorController  extends Controller
         ->values();
 
     // 3) Base dataset (only show records selected for the month/year)
-    $base = MasterFile::query()
-        ->from('master_files as mf')
-        ->leftJoin('outdoor_coordinator_trackings as t', 't.master_file_id', '=', 'mf.id')
-        ->where(function ($q) {
-            $q->whereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%'])
-              ->orWhereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
-              ->orWhereIn('mf.product_category', [
-                  'TB','BB','NEWSPAPER','BUNTING','FLYERS','STAR','SIGNAGES',
-                  'TB - Tempboard','BB - Billboard','Newspaper','Bunting','Flyers','Star','Signages'
-              ]);
-        });
+$base = DB::table('master_files as mf')
+    // Fan out to one row per site:
+    ->join('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
+    // Tie tracking rows to *both* the master file and the exact site:
+    ->leftJoin('outdoor_coordinator_trackings as t', function ($j) {
+        $j->on('t.master_file_id', '=', 'mf.id')
+          ->on('t.outdoor_item_id', '=', 'oi.id'); // << key addition
+    })
+    ->where(function ($q) {
+        $q->whereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%'])
+          ->orWhereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
+          ->orWhereIn('mf.product_category', [
+              'TB','BB','NEWSPAPER','BUNTING','FLYERS','STAR','SIGNAGES',
+              'TB - Tempboard','BB - Billboard','Newspaper','Bunting','Flyers','Star','Signages'
+          ]);
+    });
 
-    if ($selectedMasterIds->isNotEmpty()) {
-        $base->whereIn('mf.id', $selectedMasterIds->all());
-    } else {
-        $base->whereRaw('1=0'); // nothing selected this month → empty table
-    }
+if ($selectedMasterIds->isNotEmpty()) {
+    $base->whereIn('mf.id', $selectedMasterIds->all());
+} else {
+    $base->whereRaw('1=0'); // nothing selected this month → empty table
+}
 
-    $records = $base->select([
-            't.id as id',
-            'mf.id as master_file_id',
-            'mf.company','mf.client','mf.product','mf.product_category','mf.location',
+$records = $base->select([
+        't.id as id',
+        'mf.id as master_file_id',
+        'oi.id as outdoor_item_id',                 // << keep this for row identity
+        'mf.company','mf.client','mf.product','mf.product_category',
+        DB::raw('oi.site as site'),                 // << site comes from outdoor_items
+        // Baseline tracking values (overlaid later by monthly_details if any)
+        't.payment','t.material','t.artwork',
+        't.received_approval','t.sent_to_printer','t.collection_printer','t.installation',
+        't.dismantle','t.remarks','t.next_follow_up','t.status',
+        't.created_at as tracking_created_at',
+        // Snapshots as fallback
+        'mf.company as company_snapshot',
+        'mf.product as product_snapshot',
+    ])
+    ->orderByRaw('LOWER(mf.company) asc')
+    ->paginate(20)
+    ->appends($request->query());
 
-            // Baseline (non-month) tracking values (will be overlaid from monthly_details)
-            't.site','t.payment','t.material','t.artwork',
-            't.received_approval','t.sent_to_printer','t.collection_printer','t.installation',
-            't.dismantle','t.remarks','t.next_follow_up','t.status',
-            't.created_at as tracking_created_at',
-
-            // Snapshots for fallback
-            'mf.company as company_snapshot',
-            'mf.product as product_snapshot',
-        ])
-        ->orderByRaw('LOWER(mf.company) asc')
-        ->paginate(20)
-        ->appends($request->query());
 
     // 4) Overlay month-specific values from outdoor_monthly_details onto the page of results
     $pageMfIds = $records->pluck('master_file_id')->all();
@@ -795,14 +801,9 @@ public function upsert(Request $request)
         Log::info("All data export returned rows: " . count($rows));
     }
 
-    // ---- 5) Generate CSV ----
+    // ---- 5) Generate XLSX with enhanced header ----
     $monthName = $month ? "month-{$month}" : 'all';
-    $filename = "outdoor-coordinator-{$monthName}.csv";
-
-    $headers = [
-        'Content-Type'        => 'text/csv; charset=UTF-8',
-        'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-    ];
+    $filename = "outdoor-coordinator-{$monthName}.xlsx";
 
     $csvHeaders = [
         'ID', 'Master File ID', 'Client', 'Product', 'Site',
@@ -818,40 +819,153 @@ public function upsert(Request $request)
         'dismantle', 'remarks', 'next_follow_up', 'status'
     ];
 
-    return response()->streamDownload(function () use ($rows, $csvHeaders, $dbColumns) {
-        $out = fopen('php://output', 'w');
-
-        // BOM for Excel
-        fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
-
-        // Write headers
-        fputcsv($out, $csvHeaders);
-
-        // Write data
-        foreach ($rows as $row) {
-            $line = [];
-            foreach ($dbColumns as $col) {
-                $value = $row->$col ?? '';
-
-                // Format dates
-                if (in_array($col, ['received_approval', 'sent_to_printer', 'collection_printer', 'installation', 'dismantle', 'next_follow_up'])) {
-                    if ($value && !in_array($value, ['0000-00-00', '0000-00-00 00:00:00', '', null])) {
-                        try {
-                            $value = date('Y-m-d', strtotime($value));
-                        } catch (Throwable $e) {
-                            // Keep original
-                        }
-                    } else {
-                        $value = '';
-                    }
-                }
-                $line[] = $value;
-            }
-            fputcsv($out, $line);
+    // Generate month label for header
+    $monthLabel = null;
+    if ($month) {
+        try {
+            $monthLabel = Carbon::createFromDate(now()->year, $month, 1)->format('F Y');
+        } catch (\Throwable $e) {
+            $monthLabel = "Month {$month}";
         }
+    }
 
-        fclose($out);
-    }, $filename, $headers);
+    return response()->streamDownload(function () use ($rows, $csvHeaders, $dbColumns, $monthLabel) {
+        $this->generateOutdoorCoordinatorXlsx($rows, $csvHeaders, $dbColumns, $monthLabel);
+    }, $filename, [
+        'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        'Cache-Control' => 'no-cache, no-store, max-age=0',
+    ]);
 }
 
+/**
+ * Generate outdoor coordinator XLSX with proper formatting
+ */
+private function generateOutdoorCoordinatorXlsx($rows, array $headers, array $dbColumns, ?string $monthLabel): void
+{
+    // Create a new Spreadsheet
+    $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+
+    $colCount = count($headers);
+    $lastColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colCount);
+
+    // ====== TITLE SECTION ======
+    $currentRow = 1;
+
+    // Main title
+    $sheet->setCellValue('A'.$currentRow, 'OUTDOOR COORDINATOR TRACKING REPORT');
+    $sheet->mergeCells('A'.$currentRow.':'.$lastColumn.$currentRow);
+    $currentRow++;
+
+    // Generated timestamp
+    $sheet->setCellValue('A'.$currentRow, 'Generated: ' . now()->format('Y-m-d H:i:s'));
+    $sheet->mergeCells('A'.$currentRow.':'.$lastColumn.$currentRow);
+    $currentRow++;
+
+    // Month filter
+    if ($monthLabel) {
+        $sheet->setCellValue('A'.$currentRow, 'Month Filter: ' . $monthLabel);
+    } else {
+        $sheet->setCellValue('A'.$currentRow, 'Month Filter: All Data');
+    }
+    $sheet->mergeCells('A'.$currentRow.':'.$lastColumn.$currentRow);
+    $currentRow++;
+
+    // Total records
+    $sheet->setCellValue('A'.$currentRow, 'Total Records: ' . count($rows));
+    $sheet->mergeCells('A'.$currentRow.':'.$lastColumn.$currentRow);
+    $currentRow++;
+
+    // ====== HEADERS ======
+    $headerRow = $currentRow;
+    foreach ($headers as $index => $header) {
+        $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($index + 1);
+        $sheet->setCellValue($col.$headerRow, $header);
+    }
+    $currentRow++;
+
+    // ====== DATA ROWS ======
+    foreach ($rows as $row) {
+        foreach ($dbColumns as $index => $col) {
+            $cellCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($index + 1);
+            $value = $row->$col ?? '';
+
+            // Format dates
+            if (in_array($col, ['received_approval', 'sent_to_printer', 'collection_printer', 'installation', 'dismantle', 'next_follow_up'])) {
+                if ($value && !in_array($value, ['0000-00-00', '0000-00-00 00:00:00', '', null])) {
+                    try {
+                        $value = date('Y-m-d', strtotime($value));
+                    } catch (Throwable $e) {
+                        // Keep original
+                    }
+                } else {
+                    $value = '';
+                }
+            }
+
+            $sheet->setCellValue($cellCol.$currentRow, $value);
+        }
+        $currentRow++;
+    }
+
+    // ====== STYLING ======
+    $dataRange = 'A1:'.$lastColumn.($currentRow-1);
+
+    // Yellow background for title rows (1-4)
+    $titleRange = 'A1:'.$lastColumn.'4';
+    $sheet->getStyle($titleRange)->applyFromArray([
+        'fill' => [
+            'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+            'startColor' => ['argb' => 'FFFFFF00'], // Yellow
+        ],
+        'font' => ['bold' => true],
+        'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
+        'borders' => [
+            'allBorders' => [
+                'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                'color' => ['argb' => 'FF000000'],
+            ],
+        ],
+    ]);
+
+    // Yellow background for header row
+    $headerRange = 'A'.$headerRow.':'.$lastColumn.$headerRow;
+    $sheet->getStyle($headerRange)->applyFromArray([
+        'fill' => [
+            'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+            'startColor' => ['argb' => 'FFFFFF00'], // Yellow
+        ],
+        'font' => ['bold' => true],
+        'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
+        'borders' => [
+            'allBorders' => [
+                'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                'color' => ['argb' => 'FF000000'],
+            ],
+        ],
+    ]);
+
+    // Borders for all data
+    $sheet->getStyle($dataRange)->applyFromArray([
+        'borders' => [
+            'allBorders' => [
+                'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                'color' => ['argb' => 'FF000000'],
+            ],
+        ],
+    ]);
+
+    // Auto-size columns
+    foreach (range('A', $lastColumn) as $col) {
+        $sheet->getColumnDimension($col)->setAutoSize(true);
+    }
+
+    // ====== OUTPUT ======
+    $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+    $writer->save('php://output');
+
+    $spreadsheet->disconnectWorksheets();
+    unset($spreadsheet);
+}
 }
