@@ -1,9 +1,11 @@
+@extends('layouts.app')
+
 {{-- Add CSRF meta to page head --}}
 @push('head')
     <meta name="csrf-token" content="{{ csrf_token() }}">
 @endpush
 
-<x-app-layout>
+@section('content')
     <div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8">
         {{-- Mobile Header --}}
         <div class="relative z-10 flex-shrink-0 flex h-16 bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 md:hidden">
@@ -94,7 +96,7 @@
 
                     {{-- Actions --}}
                     <div class="flex items-center gap-3">
-                        <button onclick="exportOutdoorData()"
+                        <button onclick="window.location.href='{{ route('coordinator.outdoor.export') }}'"
                                 class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl shadow-sm hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3"></path>
@@ -367,128 +369,149 @@
             </div>
         </div>
     </div>
-</x-app-layout>
+@endsection
 
-{{-- Enhanced Scripts Section --}}
 @push('scripts')
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+// PINDAHKAN KE ATAS - DILUAR DOMContentLoaded
+function exportOutdoorData() {
+  window.location.href = "{{ route('coordinator.outdoor.export') }}";
+}
 
-    // Event delegation untuk semua input dengan class 'outdoor-field'
-    document.addEventListener('blur', async function(e) {
-        if (!e.target.classList.contains('outdoor-field')) return;
+document.addEventListener('DOMContentLoaded', function () {
+  const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
-        const element = e.target;
-        await saveField(element);
-    }, true);
+  // Save on blur (textareas/inputs)…
+  document.addEventListener('blur', async (e) => {
+    const el = e.target;
+    if (!el.classList?.contains('outdoor-field')) return;
+    await saveField(el);
+  }, true);
 
-    document.addEventListener('change', async function(e) {
-        if (!e.target.classList.contains('outdoor-field')) return;
-        if (e.target.type !== 'date') return;
+  // …and on any change (date, select, checkbox, etc.)
+  document.addEventListener('change', async (e) => {
+    const el = e.target;
+    if (!el.classList?.contains('outdoor-field')) return;
+    await saveField(el);
+  });
 
-        const element = e.target;
-        await saveField(element);
-    });
+  function normalizeValue(el) {
+    if (el.type === 'checkbox') {
+      return el.checked ? 1 : 0;
+    }
+    if (el.type === 'date' && el.value) {
+      // Ensure YYYY-MM-DD (browser date inputs already do this)
+      return el.value.trim();
+    }
+    return typeof el.value === 'string' ? el.value.trim() : el.value;
+  }
 
-    async function saveField(element) {
-        const tr = element.closest('tr');
-        let trackingId = tr?.dataset?.id || element.dataset.id || null;
-        const fieldName = element.dataset.field;
-        const fieldValue = element.value;
-        const mfId = element.dataset.mf;
-        const oiId = element.dataset.oi;
+  let inflight = new Set();
 
-        try {
-            const year = parseInt(document.getElementById('filterYear')?.value ?? '{{ now()->year }}', 10);
-            const month = parseInt(document.getElementById('filterMonth')?.value ?? '{{ now()->month }}', 10);
+  async function saveField(element) {
+    // Prevent double-fire on the same element
+    if (inflight.has(element)) return;
+    inflight.add(element);
 
-            // Build payload: use ID if available, otherwise create new with master_file_id + year/month
-            const payload = trackingId
-                ? { id: trackingId, field: fieldName, value: fieldValue }
-                : {
-                    master_file_id: parseInt(mfId, 10),
-                    outdoor_item_id: parseInt(oiId, 10),   // <<=== WAJIB
-                    year,
-                    month,
-                    field: fieldName,
-                    value: fieldValue
-                };
-            showSaveIndicator(element, 'loading');
+    const tr = element.closest('tr');
+    let trackingId = tr?.dataset?.id || element.dataset.id || null;
 
-            const res = await fetch(`{{ route('coordinator.outdoor.upsert') }}`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': token,
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: JSON.stringify(payload)
-            });
+    // FIX 1: Use name as fallback if data-field is not present
+    const fieldName = element.dataset.field || element.name;
+    const mfIdRaw   = element.dataset.mf;
+    const oiIdRaw   = element.dataset.oi;
 
-            const text = await res.text();
-            let data;
-            try {
-                data = JSON.parse(text);
-            } catch {
-                data = { ok: false, message: text };
-            }
-
-            if (!res.ok || data.ok === false) {
-                console.error('Save failed', { status: res.status, data });
-                showSaveIndicator(element, 'error');
-                return;
-            }
-
-            // 🔥 CRITICAL FIX: Save the returned ID to prevent duplicate records
-            if (!trackingId && data.id) {
-                const newId = data.id;
-
-                // Set ID on the table row
-                if (tr) {
-                    tr.setAttribute('data-id', newId);
-                }
-
-                // Set ID on ALL inputs in this row so subsequent edits use UPDATE instead of CREATE
-                tr?.querySelectorAll('input.outdoor-field, select.outdoor-field, textarea.outdoor-field').forEach(inp => {
-                    inp.setAttribute('data-id', newId);
-                });
-
-                console.log(`New tracking record created with ID: ${newId}`);
-            }
-
-            showSaveIndicator(element, 'success');
-
-        } catch (e) {
-            console.error('Save error', e);
-            showSaveIndicator(element, 'error');
-        }
+    if (!fieldName) {
+      console.error('Missing field name on element', element);
+      inflight.delete(element);
+      return;
     }
 
-    function showSaveIndicator(element, state) {
-        const parent = element.parentElement;
-        const indicators = {
-            loading: parent.querySelector('[data-save-indicator]'),
-            success: parent.querySelector('[data-save-success]'),
-            error: parent.querySelector('[data-save-error]')
+    const mfId = mfIdRaw ? parseInt(mfIdRaw, 10) : null;
+    const oiId = oiIdRaw ? parseInt(oiIdRaw, 10) : null;
+
+    // FIX 2: Only require master_file_id for CREATE, outdoor_item_id is optional
+    if (!trackingId && !mfId) {
+      console.error('Missing data-mf for CREATE', { mfId, element });
+      inflight.delete(element);
+      return;
+    }
+
+    const year  = parseInt(document.getElementById('filterYear')?.value ?? '{{ now()->year }}', 10);
+    const month = parseInt(document.getElementById('filterMonth')?.value ?? '{{ now()->month }}', 10);
+    const fieldValue = normalizeValue(element);
+
+    // Build payload - include outdoor_item_id only if present
+    const payload = trackingId
+      ? { id: trackingId, field: fieldName, value: fieldValue }
+      : {
+          master_file_id: mfId,
+          ...(oiId ? { outdoor_item_id: oiId } : {}), // Only include if present
+          year: Number.isFinite(year) ? year : undefined,
+          month: Number.isFinite(month) ? month : undefined,
+          field: fieldName,
+          value: fieldValue
         };
 
-        // Hide all indicators
-        Object.values(indicators).forEach(el => el?.classList.add('hidden'));
+    showSaveIndicator(element, 'loading');
 
-        // Show current state
-        if (indicators[state]) {
-            indicators[state].classList.remove('hidden');
+    try {
+      const res = await fetch(`{{ route('coordinator.outdoor.upsert') }}`, {
+        method: 'POST',
+        headers: {
+          'X-CSRF-TOKEN': token,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify(payload)
+      });
 
-            // Auto-hide success/error after 2 seconds
-            if (state !== 'loading') {
-                setTimeout(() => {
-                    indicators[state].classList.add('hidden');
-                }, 2000);
-            }
-        }
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = { ok: false, message: text }; }
+
+      if (!res.ok || data.ok === false) {
+        console.error('Save failed', { status: res.status, data, payload });
+        showSaveIndicator(element, 'error');
+        inflight.delete(element);
+        return;
+      }
+
+      // Persist the new id so next edits go through UPDATE path
+      if (!trackingId && data.id) {
+        const newId = data.id;
+        if (tr) tr.setAttribute('data-id', newId);
+        tr?.querySelectorAll('input.outdoor-field, select.outdoor-field, textarea.outdoor-field')
+          .forEach(inp => inp.setAttribute('data-id', newId));
+        console.log('Created tracking id:', newId);
+      }
+
+      showSaveIndicator(element, 'success');
+    } catch (err) {
+      console.error('Save error', err);
+      showSaveIndicator(element, 'error');
+    } finally {
+      inflight.delete(element);
     }
+  }
+
+  function showSaveIndicator(element, state) {
+    const parent = element.parentElement;
+    const indicators = {
+      loading: parent?.querySelector('[data-save-indicator]'),
+      success: parent?.querySelector('[data-save-success]'),
+      error: parent?.querySelector('[data-save-error]')
+    };
+
+    Object.values(indicators).forEach(el => el?.classList.add('hidden'));
+    if (indicators[state]) {
+      indicators[state].classList.remove('hidden');
+      if (state !== 'loading') {
+        setTimeout(() => indicators[state]?.classList.add('hidden'), 2000);
+      }
+    }
+  }
 });
 </script>
 @endpush

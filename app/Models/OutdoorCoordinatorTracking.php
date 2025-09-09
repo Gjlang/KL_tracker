@@ -10,45 +10,33 @@ class OutdoorCoordinatorTracking extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
-        'master_file_id',
-        'site',
-        'payment',
-        'material',
-        'artwork',
-        'received_approval',
-        'sent_to_printer',
-        'collection_printer',
-        'installation',
-        'dismantle',
-        'remarks',
-        'next_follow_up',
-        'status',
-        // Monthly tracking fields
-        'month_jan',
-        'month_feb',
-        'month_mar',
-        'month_apr',
-        'month_may',
-        'month_jun',
-        'month_jul',
-        'month_aug',
-        'month_sep',
-        'month_oct',
-        'month_nov',
-        'month_dec',
-    ];
+    protected $guarded = [];
 
-    protected $casts = [
-        'received_approval' => 'date',
-        'sent_to_printer' => 'date',
-        'collection_printer' => 'date',
-        'installation' => 'date',
-        'dismantle' => 'date',
-        'next_follow_up' => 'date',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-    ];
+protected $casts = [
+    'received_approval' => 'date',
+    'sent_to_printer' => 'date',
+    'collection_printer' => 'date',
+    'installation' => 'date',
+    'dismantle' => 'date',
+    'next_follow_up' => 'date',
+    'masterfile_created_at' => 'datetime', // ← ADDED for snapshot field
+    'created_at' => 'datetime',
+    'updated_at' => 'datetime',
+
+    // Cast month fields as boolean/integer for easier handling
+    'month_jan' => 'boolean',
+    'month_feb' => 'boolean',
+    'month_mar' => 'boolean',
+    'month_apr' => 'boolean',
+    'month_may' => 'boolean',
+    'month_jun' => 'boolean',
+    'month_jul' => 'boolean',
+    'month_aug' => 'boolean',
+    'month_sep' => 'boolean',
+    'month_oct' => 'boolean',
+    'month_nov' => 'boolean',
+    'month_dec' => 'boolean',
+];
 
     /**
      * Relationship to MasterFile
@@ -208,7 +196,7 @@ class OutdoorCoordinatorTracking extends Model
     public function scopeOutdoorOnly($query)
     {
         return $query->whereHas('masterFile', function ($q) {
-            $q->whereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages', 'Outdoor'])
+            $q->whereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages', 'Outdoor', 'Newspaper'])
               ->orWhere('product_category', 'LIKE', '%outdoor%');
         });
     }

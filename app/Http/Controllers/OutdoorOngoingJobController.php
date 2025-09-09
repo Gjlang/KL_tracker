@@ -278,7 +278,7 @@ public function exportMatrix(Request $req)
 }
 
 
-   public function upsert(Request $req)
+  public function upsert(Request $req)
 {
     Log::info('=== OUTDOOR UPSERT DEBUG START ===', ['raw' => $req->all()]);
 
@@ -293,29 +293,39 @@ public function exportMatrix(Request $req)
         'value_date'      => 'nullable|date',
     ]);
 
-    $values = $data['field_type'] === 'text'
-        ? ['value_text' => $data['value_text'] ?? '', 'value_date' => null]
-        : ['value_text' => null, 'value_date' => $data['value_date'] ?? null];
+    // Normalize field_key consistently (lowercase)
+    $fieldKey = strtolower(trim($data['field_key']));
+
+    // Decide which value column to use
+    $values = [
+        'field_type' => $data['field_type'],
+        'value_text' => $data['field_type'] === 'text' ? ($data['value_text'] ?? '') : null,
+        'value_date' => $data['field_type'] === 'date' ? ($data['value_date'] ?? null) : null,
+    ];
 
     try {
         $saved = OutdoorMonthlyDetail::updateOrCreate(
             [
-                'master_file_id'  => (int)$data['master_file_id'],
-                'outdoor_item_id' => (int)$data['outdoor_item_id'], // 🔑 include site id
-                'year'            => (int)$data['year'],
-                'month'           => (int)$data['month'],
-                'field_key'       => strtolower($data['field_key']),
+                'master_file_id'  => (int) $data['master_file_id'],
+                'outdoor_item_id' => (int) $data['outdoor_item_id'], // 🔑 site id included
+                'year'            => (int) $data['year'],
+                'month'           => (int) $data['month'],
+                'field_key'       => $fieldKey,
             ],
-            array_merge(['field_type' => $data['field_type']], $values)
+            $values
         );
 
         Log::info('=== OUTDOOR UPSERT OK ===', ['id' => $saved->id]);
         return response()->json(['ok' => true, 'saved' => $saved], 200);
 
     } catch (\Throwable $e) {
-        Log::error('=== OUTDOOR UPSERT FAIL ===', ['err' => $e->getMessage(), 'data' => $data]);
+        Log::error('=== OUTDOOR UPSERT FAIL ===', [
+            'err'  => $e->getMessage(),
+            'data' => $data
+        ]);
         return response()->json(['ok' => false, 'message' => $e->getMessage()], 500);
     }
 }
+
 
 }
