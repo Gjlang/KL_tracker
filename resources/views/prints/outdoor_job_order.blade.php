@@ -93,28 +93,43 @@
   </table>
 
   <!-- JOB TABLE -->
- <table style="margin-top:6px;" class="job-rows">
-    <tr>
-        <th class="w40">SITE / LOCATION</th>
-        <th class="w20">SIZE</th>
-        <th class="w20">DURATION</th>
-        <th class="w20">IN CHARGE DATE</th>
-    </tr>
-    @for ($i = 0; $i < 6; $i++)
-        <tr>
-            <td>{{ $i==0 ? ($file->location ?? '') : '' }}</td>
-            <td>{{ $i==0 ? ($file->size ?? '') : '' }}</td>
-            <td>{{ $i==0 ? ($file->duration ?? '') : '' }}</td>
-            <td>
-    @if ($i==0)
-        {{ $file->date ? \Carbon\Carbon::parse($file->date)->format('d/m/Y') : '' }}
-        {{ $file->date_finish ? ' - ' . \Carbon\Carbon::parse($file->date_finish)->format('d/m/Y') : '' }}
-    @endif
-</td>
+<table style="margin-top:6px;" class="job-rows">
+  <tr>
+    <th class="w40">SITE / LOCATION</th>
+    <th class="w20">SIZE</th>
+    <th class="w20">DURATION</th>
+    <th class="w20">IN CHARGE DATE</th>
+  </tr>
 
-        </tr>
-    @endfor
+ @php
+  $total = max(6, $items->count()); // keep the layout (6 rows min)
+@endphp
+
+@for ($i = 0; $i < $total; $i++)
+  @php $it = $items[$i] ?? null; @endphp
+  <tr>
+    <td>{{ $it->site ?? '' }}</td>
+    <td>{{ $it->size ?? '' }}</td>
+
+    {{-- Duration: only when there IS an item --}}
+    <td>
+      @if ($it)
+        {{ $file->month ?? $file->month ?? '' }}
+      @endif
+    </td>
+
+    {{-- In charge date: only when there IS an item --}}
+    <td>
+      @if ($it && $file->date)
+        {{ \Carbon\Carbon::parse($file->date)->format('d/m/Y') }}
+        {{ $file->date_finish ? ' - ' . \Carbon\Carbon::parse($file->date_finish)->format('d/m/Y') : '' }}
+      @endif
+    </td>
+  </tr>
+@endfor
+
 </table>
+
 
 
   <!-- REMARKS -->

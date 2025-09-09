@@ -662,7 +662,7 @@ public function getEligibleMasterFiles(Request $request)
 
 
 
-   public function export(Request $request)
+  public function export(Request $request)
 {
     // Log request parameters for debugging
     Log::info('EXPORT - Request params:', $request->all());
@@ -678,26 +678,6 @@ public function getEligibleMasterFiles(Request $request)
         'working'      => $working,
     ]);
 
-    // Define columns for each subcategory
-    $columnsBySubcat = $this->getColumnsBySubcat();
-
-    // Define field labels for headers
-    $labels = $this->getFieldLabels();
-
-    // Get fields for current subcategory
-    $fields = $columnsBySubcat[$key] ?? $columnsBySubcat['print'];
-
-    // Always include created_at at the end
-    if (!in_array('created_at', $fields, true)) {
-        $fields[] = 'created_at';
-    }
-
-    // Create header row (ID + humanized labels)
-    $headersRow = array_merge(['ID'], array_map(
-        fn ($f) => $labels[$f] ?? Str::headline($f),
-        $fields
-    ));
-
     // Build database query
     $query = $this->buildQuery($activeSubcat, $working);
 
@@ -709,34 +689,109 @@ public function getEligibleMasterFiles(Request $request)
         'bindings' => $query->getBindings(),
     ]);
 
-    // Generate filename
+    // Generate filename with .xls extension
     $filename = sprintf(
-        'kltg_%s_%s.csv',
+        'kltg_%s_%s.xls',  // ← Changed to .xls for HTML-Excel format
         strtolower($activeSubcat),
         now()->format('Ymd_His')
     );
 
-    // Set response headers
+    // Set response headers for Excel
     $headers = [
-        'Content-Type'        => 'text/csv; charset=UTF-8',
+        'Content-Type'        => 'application/vnd.ms-excel; charset=UTF-8',
         'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         'Cache-Control'       => 'no-store, no-cache',
     ];
 
-    // Titles for CSV
-    $tabTitle   = $this->subcatTitle($key);
-    $brandTitle = 'KLTG - COORDINATOR LIST';
-    $mainTitle  = $brandTitle . ' - ' . $tabTitle;
-    $monthLabel = $this->monthFilterLabel($request);
+    // Get fields for current subcategory (ordered columns)
+    $columnsBySubcat = $this->getColumnsBySubcat();
+    $fields = $columnsBySubcat[$key] ?? $columnsBySubcat['print'];
 
-    // Return streamed CSV response
+    // Get labels
+    $labels = $this->getFieldLabels();
+
+    // Generate titles
+    $mainTitle = 'KLTG - COORDINATOR LIST - ' . $this->subcatTitle($activeSubcat);
+    $monthLabel = request()->route() ? $this->monthFilterLabel(request()) : null;
+
+    // Return streamed HTML-Excel response
     return response()->stream(
-        function () use ($query, $fields, $headersRow, $activeSubcat, $mainTitle, $monthLabel, $working) {
-            $this->streamCsvOutput($query, $fields, $headersRow, $mainTitle, $monthLabel, $working);
+        function () use ($query, $fields, $labels, $mainTitle, $monthLabel, $working) {
+            $this->streamXlsHtmlOutput($query, $fields, $labels, $mainTitle, $monthLabel, $working);
         },
         200,
         $headers
     );
+}
+
+/**
+ * Stream HTML-XLS output to browser
+ * Excel can open HTML files with styling and treat them as .xls files
+ */
+private function streamXlsHtmlOutput($query, array $fields, array $labels, string $mainTitle, ?string $monthLabel, ?string $working): void
+{
+    // BOM for UTF-8
+    echo "\xEF\xBB\xBF";
+
+    $colCount = count($fields);
+
+    // ====== OPEN HTML + STYLE ======
+    echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+        table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; }
+        th, td { border: 1px solid #CCCCCC; padding: 6px; vertical-align: middle; }
+        thead th { background: #FFF7AE; font-weight: 700; text-align: center; }
+        .title { background: #FFF200; font-weight: 700; text-align: center; font-size: 16px; }
+        .meta { text-align: center; font-size: 12px; }
+        tbody td { font-size: 11px; }
+        .number { text-align: center; }
+    </style></head><body>';
+
+    // ====== TITLE ROWS (MERGED) ======
+    echo '<table>';
+    echo '<tr><td class="title" colspan="'.$colCount.'">'.htmlspecialchars($mainTitle, ENT_QUOTES, 'UTF-8').'</td></tr>';
+    echo '<tr><td class="meta" colspan="'.$colCount.'">Generated: '.htmlspecialchars(now()->format('Y-m-d H:i:s'), ENT_QUOTES, 'UTF-8').'</td></tr>';
+
+    if ($monthLabel) {
+        echo '<tr><td class="meta" colspan="'.$colCount.'">Month: '.htmlspecialchars($monthLabel, ENT_QUOTES, 'UTF-8').'</td></tr>';
+    }
+
+    if ($working === 'working') {
+        echo '<tr><td class="meta" colspan="'.$colCount.'">Status: Working</td></tr>';
+    } elseif ($working === 'completed') {
+        echo '<tr><td class="meta" colspan="'.$colCount.'">Status: Completed</td></tr>';
+    }
+
+    // Spacer row
+    echo '<tr><td colspan="'.$colCount.'">&nbsp;</td></tr>';
+
+    // ====== HEADER ROW ======
+    echo '<thead><tr>';
+    foreach ($fields as $field) {
+        $label = $labels[$field] ?? \Illuminate\Support\Str::headline($field);
+        echo '<th>'.htmlspecialchars($label, ENT_QUOTES, 'UTF-8').'</th>';
+    }
+    echo '</tr></thead>';
+
+    // ====== DATA ROWS ======
+    echo '<tbody>';
+    $seq = 0;
+    foreach ($query->orderByDesc('kltg_coordinator_lists.created_at')->cursor() as $row) {
+        $seq++;
+        echo '<tr>';
+        foreach ($fields as $field) {
+            if ($field === '__no') {
+                echo '<td class="number">'.htmlspecialchars($seq, ENT_QUOTES, 'UTF-8').'</td>';
+            } else {
+                $value = $this->valueForField($row, $field);
+                echo '<td>'.htmlspecialchars($value, ENT_QUOTES, 'UTF-8').'</td>';
+            }
+        }
+        echo '</tr>';
+    }
+    echo '</tbody></table>';
+
+    // ====== CLOSE HTML ======
+    echo '</body></html>';
 }
 
 /**
@@ -745,59 +800,84 @@ public function getEligibleMasterFiles(Request $request)
  */
 private function getColumnsBySubcat(): array
 {
+    // Special tokens:
+    // __no              -> running row number (1..N)
+    // __date_created    -> master_files.created_at
+    // __company         -> prefer company_snapshot; fallback to mf_company
+    // __pic             -> master_files.client as "Person In Charge"
+    // __clients_from_mf -> master_files.client as "Clients (from master_files)" (EM only)
+
     return [
-        'print' => [
-            'title_snapshot', 'company_snapshot', 'client_bp', 'x', 'edition', 'publication',
-            'artwork_bp_client', 'artwork_reminder', 'material_received_date', 'artwork_done',
-            'send_chop_sign', 'chop_sign_approval', 'park_in_file_server', 'remarks',
+        'print' => [ // KLTG / PRINT ARTWORK
+            '__no','__date_created','__company','__pic',
+            'title_snapshot','client_bp','x','edition','publication',
+            'artwork_bp_client',
+            'artwork_reminder_date','material_received_date','artwork_done_date',
+            'send_chop_sign_date','chop_sign_approval_date','park_in_file_server',
         ],
         'video' => [
-            'title_snapshot', 'company_snapshot', 'client_bp', 'x', 'remarks', 'material_reminder_text',
-            'video_done', 'pending_approval', 'video_approved',
-            'video_scheduled', 'video_posted', 'post_link',
+            '__no','__date_created','__company','__pic',
+            'title_snapshot','client_bp','x',
+            'material_reminder_text','material_record', // material received in DB is "material_record" per your map
+            'video_done','pending_approval','video_scheduled','video_posted','post_link',
         ],
         'article' => [
-            'title_snapshot', 'company_snapshot', 'client_bp', 'x', 'remarks', 'material_reminder_text',
-            'article_done', 'article_approved', 'article_scheduled', 'article_posted', 'post_link',
+            '__no','__date_created','__company','__pic',
+            'title_snapshot','client_bp','x',
+            'material_reminder_text','material_record',
+            'article_done','pending_approval','article_approved','article_scheduled','article_posted','post_link',
         ],
         'lb' => [
-            'title_snapshot', 'company_snapshot', 'client_bp', 'x', 'remarks', 'material_reminder_text',
-            'video_done', 'pending_approval', 'video_approved',
-            'video_scheduled', 'video_posted', 'post_link',
+            '__no','__date_created','__company','__pic',
+            'title_snapshot','client_bp','x',
+            'material_reminder_text','material_record',
+            'video_done','pending_approval','video_approved','video_scheduled','video_posted','post_link',
         ],
         'em' => [
-            'company_snapshot', 'client_bp', 'remarks',
-            'em_date_write', 'em_date_to_post', 'em_post_date', 'em_qty', 'blog_link',
+            '__no','__date_created','__company','__pic',
+            '__clients_from_mf',
+            'em_date_write','em_date_to_post','em_post_date','em_qty','blog_link',
         ],
     ];
 }
 
 /**
- * Define field labels for CSV headers
+ * Define field labels for Excel headers
  * (Keys must match fields above so header lookup works)
  */
 private function getFieldLabels(): array
 {
     return [
-        'title_snapshot'           => 'Title',
-        'company_snapshot'         => 'Company',
-        'client_bp'                => 'Client/BP',
-        'x'                        => 'X (text)',
-        'edition'                  => 'Edition',
-        'publication'              => 'Publication',
-        'artwork_bp_client'        => 'Artwork BP/Client',
+        // special tokens
+        '__no'               => 'No',
+        '__date_created'     => 'Date Created',
+        '__company'          => 'Company',
+        '__pic'              => 'Person In Charge',
+        '__clients_from_mf'  => 'Clients (from master_files)',
 
-        // Match the field keys in getColumnsBySubcat():
+        // common/front columns
+        'title_snapshot'     => 'Title',
+        'client_bp'          => 'Client/BP',
+        'x'                  => 'X (text)',
+        'edition'            => 'Edition',
+        'publication'        => 'Publication',
+
+        // print-specific labels (include *both* raw & _date keys to be safe)
+        'artwork_bp_client'        => 'Artwork (BP/Client)',
         'artwork_reminder'         => 'Artwork Reminder',
+        'artwork_reminder_date'    => 'Artwork Reminder',
         'material_received_date'   => 'Material Received',
+        'material_record'          => 'Material Received',
         'artwork_done'             => 'Artwork Done',
+        'artwork_done_date'        => 'Artwork Done',
         'send_chop_sign'           => 'Send Chop & Sign',
-        'chop_sign_approval'       => 'Chop & Sig Approval',
+        'send_chop_sign_date'      => 'Send Chop & Sign',
+        'chop_sign_approval'       => 'Chop & Sign Approval',
+        'chop_sign_approval_date'  => 'Chop & Sign Approval',
+        'park_in_file_server'      => 'Park in file server',
 
-        'park_in_file_server'      => 'Park in File Server',
-        'remarks'                  => 'Remarks',
-
-        'material_reminder_text'   => 'Material Reminder (Text)',
+        // video/article/lb
+        'material_reminder_text'   => 'Material Reminder',
         'video_done'               => 'Video Done',
         'pending_approval'         => 'Pending Approval',
         'video_approved'           => 'Video Approved',
@@ -810,245 +890,208 @@ private function getFieldLabels(): array
         'article_scheduled'        => 'Article Scheduled',
         'article_posted'           => 'Article Posted',
 
-        'em_date_write'            => 'EM Date Write',
-        'em_date_to_post'          => 'EM Date to Post',
-        'em_post_date'             => 'EM Post Date',
-        'em_qty'                   => 'EM Quantity',
+        // EM
+        'em_date_write'            => 'Date Write',
+        'em_date_to_post'          => 'Date to post',
+        'em_post_date'             => 'Post date',
+        'em_qty'                   => 'EM-qty',
         'blog_link'                => 'Blog Link',
-
-        // New label for created_at so header is explicit
-        'created_at'               => 'Created Date',
     ];
 }
 
+/**
+ * Build database query based on filters
+ */
+private function buildQuery(string $activeSubcat, ?string $working)
+{
+    $query = KltgCoordinatorList::query()
+        ->join('master_files', 'kltg_coordinator_lists.master_file_id', '=', 'master_files.id')
+        ->whereRaw('TRIM(UPPER(kltg_coordinator_lists.subcategory)) = ?', [strtoupper($activeSubcat)])
+        ->select('kltg_coordinator_lists.*')
+        ->addSelect([
+            DB::raw('master_files.created_at as mf_created_at'),
+            DB::raw('master_files.client as mf_client'),   // Person In Charge / Clients
+            DB::raw('master_files.company as mf_company'), // optional fallback for Company
+        ]);
 
-    /**
-     * Build database query based on filters
-     */
-    private function buildQuery(string $activeSubcat, ?string $working)
-    {
-        $query = KltgCoordinatorList::query()
-            ->join('master_files', 'kltg_coordinator_lists.master_file_id', '=', 'master_files.id')
-            ->whereRaw('TRIM(UPPER(kltg_coordinator_lists.subcategory)) = ?', [strtoupper($activeSubcat)])
-            ->select('kltg_coordinator_lists.*')
-            ->addSelect(DB::raw('master_files.created_at as mf_created_at')); // ✅ pull MF created_at
-
-
-        // Apply working/completed filter
-        if ($working === 'working') {
-            $query->where(fn($q) => $q->whereNull('kltg_coordinator_lists.park_in_file_server')
-                                      ->orWhere('kltg_coordinator_lists.park_in_file_server', ''));
-        } elseif ($working === 'completed') {
-            $query->whereNotNull('kltg_coordinator_lists.park_in_file_server')
-                  ->where('kltg_coordinator_lists.park_in_file_server', '!=', '');
-        }
-
-        return $query;
+    if ($working === 'working') {
+        $query->where(function ($q) {
+            $q->whereNull('kltg_coordinator_lists.park_in_file_server')
+              ->orWhere('kltg_coordinator_lists.park_in_file_server', '');
+        });
+    } elseif ($working === 'completed') {
+        $query->whereNotNull('kltg_coordinator_lists.park_in_file_server')
+              ->where('kltg_coordinator_lists.park_in_file_server', '!=', '');
     }
 
-    /**
-     * Stream CSV output to browser
-     */
-    private function streamCsvOutput($query, $fields, $headersRow, $mainTitle, $monthLabel, $working)
-    {
-        $out = fopen('php://output', 'w');
+    return $query;
+}
 
-        // Add BOM for Excel UTF-8 support
-        echo "\xEF\xBB\xBF";
+/**
+ * Get subcategory title for display
+ */
+private function subcatTitle(string $key): string
+{
+    $map = [
+        'print' => 'PRINT ARTWORK',
+        'video' => 'VIDEO',
+        'article' => 'ARTICLE',
+        'lb' => 'LB',
+        'em' => 'EM',
+    ];
 
-        // Write header information
-        fputcsv($out, [$mainTitle]);
-        fputcsv($out, ['Generated: ' . now()->format('Y-m-d H:i:s')]);
+    return $map[strtolower(trim($key))] ?? Str::upper($key);
+}
 
-        // Add optional context rows
-        if ($monthLabel) {
-            fputcsv($out, ['Month: ' . $monthLabel]);
-        }
+/**
+ * Generate month filter label for Excel
+ */
+private function monthFilterLabel(Request $request): ?string
+{
+    $rawMonth = $request->input('month');
+    $rawYear = $request->input('year');
 
-        if ($working === 'working') {
-            fputcsv($out, ['Status: Working']);
-        } elseif ($working === 'completed') {
-            fputcsv($out, ['Status: Completed']);
-        }
-
-        // Empty spacer row
-        fputcsv($out, []);
-
-        // Write column headers
-        fputcsv($out, $headersRow);
-
-        // Write data rows
-        foreach ($query->orderByDesc('kltg_coordinator_lists.created_at')->cursor() as $row) {
-            $values = [$row->id];
-            foreach ($fields as $field) {
-                $values[] = $this->valueForField($row, $field);
-            }
-            fputcsv($out, $values);
-        }
-
-        fclose($out);
-    }
-
-    /**
-     * Get subcategory title for display
-     */
-    private function subcatTitle(string $key): string
-    {
-        $map = [
-            'print' => 'PRINT ARTWORK',
-            'video' => 'VIDEO',
-            'article' => 'ARTICLE',
-            'lb' => 'LB',
-            'em' => 'EM',
-        ];
-
-        return $map[strtolower(trim($key))] ?? Str::upper($key);
-    }
-
-    /**
-     * Generate month filter label for CSV
-     */
-    private function monthFilterLabel(Request $request): ?string
-    {
-        $rawMonth = $request->input('month');
-        $rawYear = $request->input('year');
-
-        if ($rawMonth === null && $rawYear === null) {
-            return null;
-        }
-
-        // Normalize month
-        $month = null;
-        if ($rawMonth !== null && $rawMonth !== '') {
-            $m = strtolower(trim((string)$rawMonth));
-            $monthMap = [
-                'jan' => 1, 'january' => 1, 'feb' => 2, 'february' => 2,
-                'mar' => 3, 'march' => 3, 'apr' => 4, 'april' => 4,
-                'may' => 5, 'jun' => 6, 'june' => 6, 'jul' => 7, 'july' => 7,
-                'aug' => 8, 'august' => 8, 'sep' => 9, 'september' => 9,
-                'oct' => 10, 'october' => 10, 'nov' => 11, 'november' => 11,
-                'dec' => 12, 'december' => 12,
-            ];
-            $month = ctype_digit($m) ? max(1, min(12, (int)$m)) : ($monthMap[$m] ?? null);
-        }
-
-        // Normalize year
-        $year = null;
-        if ($rawYear !== null && $rawYear !== '') {
-            $year = (int) $rawYear;
-            if ($year < 1900 || $year > 9999) {
-                $year = null;
-            }
-        }
-
-        // Build label
-        try {
-            if ($month && $year) {
-                return Carbon::createFromDate($year, $month, 1)->format('F Y');
-            }
-            if ($month && !$year) {
-                return Carbon::createFromDate(now()->year, $month, 1)->format('F');
-            }
-            if (!$month && $year) {
-                return (string) $year;
-            }
-        } catch (\Throwable $e) {
-            // Return null if date creation fails
-        }
-
+    if ($rawMonth === null && $rawYear === null) {
         return null;
     }
 
-    /**
-     * Get formatted value for a specific field
-     */
-    protected function valueForField($row, $fieldKey)
-    {
-        // Field mapping from form keys to database columns
-        $fieldMapping = [
-            // Basic fields
-            'title_snapshot' => 'title_snapshot',
-            'company_snapshot' => 'company_snapshot',
-            'client_bp' => 'client_bp',
-            'x' => 'x',
-            'edition' => 'edition',
-            'publication' => 'publication',
-            'remarks' => 'remarks',
-
-            // Print specific fields
-            'artwork_bp_client' => 'artwork_bp_client',
-            'artwork_reminder_date' => 'artwork_reminder',
-            'material_received_date' => 'material_record',
-            'artwork_done_date' => 'artwork_done',
-            'send_chop_sign_date' => 'send_chop_sign',
-            'chop_sign_approval_date' => 'chop_sign_approval',
-            'park_in_file_server' => 'park_in_file_server',
-
-            // Video/Article/LB fields
-            'material_reminder_text' => 'material_reminder_text',
-            'video_done' => 'video_done',
-            'pending_approval' => 'pending_approval',
-            'video_approved' => 'video_approved',
-            'video_scheduled' => 'video_scheduled',
-            'video_posted' => 'video_posted',
-            'article_done' => 'article_done',
-            'article_approved' => 'article_approved',
-            'article_scheduled' => 'article_scheduled',
-            'article_posted' => 'article_posted',
-            'post_link' => 'post_link',
-
-            // EM fields
-            'em_date_write' => 'em_date_write',
-            'em_date_to_post' => 'em_date_to_post',
-            'em_post_date' => 'em_post_date',
-            'em_qty' => 'em_qty',
-            'blog_link' => 'blog_link',
-            'created_at' => 'mf_created_at',
+    // Normalize month
+    $month = null;
+    if ($rawMonth !== null && $rawMonth !== '') {
+        $m = strtolower(trim((string)$rawMonth));
+        $monthMap = [
+            'jan' => 1, 'january' => 1, 'feb' => 2, 'february' => 2,
+            'mar' => 3, 'march' => 3, 'apr' => 4, 'april' => 4,
+            'may' => 5, 'jun' => 6, 'june' => 6, 'jul' => 7, 'july' => 7,
+            'aug' => 8, 'august' => 8, 'sep' => 9, 'september' => 9,
+            'oct' => 10, 'october' => 10, 'nov' => 11, 'november' => 11,
+            'dec' => 12, 'december' => 12,
         ];
-
-        // Get database column name
-        $dbColumn = $fieldMapping[$fieldKey] ?? $fieldKey;
-        $value = $row->{$dbColumn} ?? '';
-
-        // Handle date field formatting
-        $dateFields = [
-            'artwork_reminder', 'material_record', 'artwork_done',
-            'send_chop_sign', 'chop_sign_approval',
-            'video_done', 'pending_approval', 'video_approved',
-            'video_scheduled', 'video_posted',
-            'article_done', 'article_approved', 'article_scheduled', 'article_posted',
-            'em_date_write', 'em_date_to_post', 'em_post_date','mf_created_at',
-        ];
-
-        if (in_array($dbColumn, $dateFields, true) || in_array($fieldKey, $dateFields, true)) {
-            if (empty($value)) {
-                return '';
-            }
-
-            // Handle Carbon/DateTime objects
-            if (is_object($value) && method_exists($value, 'format')) {
-                return $value->format('Y-m-d');
-            }
-
-            // Handle string dates
-            if (is_string($value)) {
-                try {
-                    return Carbon::parse($value)->format('Y-m-d');
-                } catch (\Throwable $e) {
-                    return $value;
-                }
-            }
-        }
-
-        return (string) $value;
+        $month = ctype_digit($m) ? max(1, min(12, (int)$m)) : ($monthMap[$m] ?? null);
     }
 
-    /**
-     * Additional helper methods would go here:
-     * - normalizeSubcat()
-     * - storedToTab()
-     * These would need to be implemented based on your specific logic
-     */
+    // Normalize year
+    $year = null;
+    if ($rawYear !== null && $rawYear !== '') {
+        $year = (int) $rawYear;
+        if ($year < 1900 || $year > 9999) {
+            $year = null;
+        }
+    }
+
+    // Build label
+    try {
+        if ($month && $year) {
+            return Carbon::createFromDate($year, $month, 1)->format('F Y');
+        }
+        if ($month && !$year) {
+            return Carbon::createFromDate(now()->year, $month, 1)->format('F');
+        }
+        if (!$month && $year) {
+            return (string) $year;
+        }
+    } catch (\Throwable $e) {
+        // Return null if date creation fails
+    }
+
+    return null;
+}
+
+/**
+ * Get formatted value for a specific field
+ */
+protected function valueForField($row, $fieldKey)
+{
+    // --- special tokens first ---
+    if ($fieldKey === '__date_created') {
+        $v = $row->mf_created_at ?? null;
+        if (empty($v)) return '';
+        try {
+            return \Carbon\Carbon::parse($v)->format('Y-m-d');
+        } catch (\Throwable $e) {
+            return (string)$v;
+        }
+    }
+
+    if ($fieldKey === '__company') {
+        // prefer snapshot; fallback to MF company if empty
+        $snap = $row->company_snapshot ?? null;
+        $mf   = $row->mf_company ?? null;
+        return (string)($snap !== null && $snap !== '' ? $snap : ($mf ?? ''));
+    }
+
+    if ($fieldKey === '__pic') { // Person In Charge
+        return (string)($row->mf_client ?? '');
+    }
+
+    if ($fieldKey === '__clients_from_mf') {
+        return (string)($row->mf_client ?? '');
+    }
+
+    // --- existing mapping follows ---
+    $fieldMapping = [
+        'title_snapshot' => 'title_snapshot',
+        'company_snapshot' => 'company_snapshot',
+        'client_bp' => 'client_bp',
+        'x' => 'x',
+        'edition' => 'edition',
+        'publication' => 'publication',
+        'remarks' => 'remarks',
+
+        'artwork_bp_client' => 'artwork_bp_client',
+        'artwork_reminder_date' => 'artwork_reminder',
+        'material_received_date' => 'material_record',
+        'artwork_done_date' => 'artwork_done',
+        'send_chop_sign_date' => 'send_chop_sign',
+        'chop_sign_approval_date' => 'chop_sign_approval',
+        'park_in_file_server' => 'park_in_file_server',
+
+        'material_reminder_text' => 'material_reminder_text',
+        'video_done' => 'video_done',
+        'pending_approval' => 'pending_approval',
+        'video_approved' => 'video_approved',
+        'video_scheduled' => 'video_scheduled',
+        'video_posted' => 'video_posted',
+        'post_link' => 'post_link',
+
+        'article_done' => 'article_done',
+        'article_approved' => 'article_approved',
+        'article_scheduled' => 'article_scheduled',
+        'article_posted' => 'article_posted',
+
+        'em_date_write' => 'em_date_write',
+        'em_date_to_post' => 'em_date_to_post',
+        'em_post_date' => 'em_post_date',
+        'em_qty' => 'em_qty',
+        'blog_link' => 'blog_link',
+        'created_at' => 'mf_created_at', // legacy support if still referenced anywhere
+    ];
+
+    $dbColumn = $fieldMapping[$fieldKey] ?? $fieldKey;
+    $value = $row->{$dbColumn} ?? '';
+
+    // Date formatting (include mf_created_at + both raw/_date keys)
+    $dateFields = [
+        'artwork_reminder','material_record','artwork_done',
+        'send_chop_sign','chop_sign_approval',
+        'video_done','pending_approval','video_approved','video_scheduled','video_posted',
+        'article_done','article_approved','article_scheduled','article_posted',
+        'em_date_write','em_date_to_post','em_post_date',
+        'mf_created_at',
+    ];
+    if (in_array($dbColumn, $dateFields, true) || in_array($fieldKey, $dateFields, true)) {
+        if (empty($value)) return '';
+        if (is_object($value) && method_exists($value, 'format')) {
+            return $value->format('Y-m-d');
+        }
+        if (is_string($value)) {
+            try { return \Carbon\Carbon::parse($value)->format('Y-m-d'); }
+            catch (\Throwable $e) { return $value; }
+        }
+    }
+
+    return (string)$value;
+}
 
 }
 

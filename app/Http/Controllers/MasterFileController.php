@@ -22,6 +22,8 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use App\Models\OutdoorItem;
+
 
 
 
@@ -255,7 +257,7 @@ public function outdoor(Request $request)
 
     // Map ke struktur rows associative sesuai key (agar _table.blade.php bisa render by key)
     $rows = $paginator->through(function ($r) use ($colKeys) {
-        $fmt = fn($v) => $v ? \Carbon\Carbon::parse($v)->format('M d, Y') : '—';
+        $fmt = fn($v) => $v ? Carbon::parse($v)->format('M d, Y') : '—';
         $out = [];
         foreach ($colKeys as $k) {
             $val = $r->{$k} ?? null;
@@ -318,6 +320,8 @@ private function applyMonthFilterForJoinedQuery($query, $rawMonth)
         }
     });
 }
+
+
 
     public function index(Request $request)
     {
@@ -600,7 +604,7 @@ private function applyMonthFilterForJoinedQuery($query, $rawMonth)
     DB::transaction(function() use ($request, $data) {
         // 2) SIMPAN HEADER
         /** @var \App\Models\MasterFile $masterFile */
-        $masterFile = \App\Models\MasterFile::create($data);
+        $masterFile = MasterFile::create($data);
 
         // 3) JIKA OUTDOOR & textarea diisi -> parse jadi banyak child
         $isOutdoor = ($data['product_category'] ?? '') === 'Outdoor';
@@ -700,6 +704,9 @@ private function applyMonthFilterForJoinedQuery($query, $rawMonth)
 
 public function printAuto(MasterFile $file)
 {
+    $type = request('type') ?: $this->guessProductType($file);
+
+    // common data
     $data = [
         'file'         => $file,
         'date'         => $file->date ? Carbon::parse($file->date)->format('d/m/Y') : '',
@@ -707,7 +714,15 @@ public function printAuto(MasterFile $file)
         'invoice_date' => $file->invoice_date ? Carbon::parse($file->invoice_date)->format('d/m/Y') : '',
     ];
 
-    $type = request('type') ?: $this->guessProductType($file); // fungsi helpermu
+    // 👇 add this block
+    if ($type === 'outdoor') {
+        $data['items'] = OutdoorItem::where('master_file_id', $file->id)
+            ->orderBy('id')
+            ->get(['site','size']); // add more fields if your view needs them
+    } else {
+        $data['items'] = collect(); // harmless default
+    }
+
     $views = [
         'kltg'    => 'prints.kltg_job_order',
         'outdoor' => 'prints.outdoor_job_order',
@@ -718,6 +733,7 @@ public function printAuto(MasterFile $file)
         ->setPaper('a4', 'portrait')
         ->download(strtoupper($type).'_JobOrder_'.($file->company ?? 'NA').'.pdf');
 }
+
 
 private function guessProductType(MasterFile $file): string
 {
@@ -887,7 +903,7 @@ public function exportXlsx(Request $request): StreamedResponse
         $fmtDate = function ($v) {
             if (!$v) return null;
             if ($v instanceof \DateTimeInterface) return $v->format('Y-m-d');
-            try { return \Carbon\Carbon::parse($v)->format('Y-m-d'); } catch (\Throwable $e) { return (string)$v; }
+            try { return Carbon::parse($v)->format('Y-m-d'); } catch (\Throwable $e) { return (string)$v; }
         };
 
         // Order matches $headings
