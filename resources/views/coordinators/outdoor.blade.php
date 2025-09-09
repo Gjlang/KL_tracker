@@ -219,6 +219,7 @@
                                                             value="{{ $val }}"
                                                             data-id="{{ $trackingId }}"
                                                             data-mf="{{ $row->master_file_id }}"
+                                                            data-oi="{{ $row->outdoor_item_id }}"
                                                             data-field="{{ $col }}" />
                                                     @else
                                                         <input type="text"
@@ -226,6 +227,7 @@
                                                             value="{{ $val }}"
                                                             data-id="{{ $trackingId }}"
                                                             data-mf="{{ $row->master_file_id }}"
+                                                            data-oi="{{ $row->outdoor_item_id }}"
                                                             data-field="{{ $col }}"
                                                             autocomplete="off" />
                                                     @endif
@@ -390,19 +392,28 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     async function saveField(element) {
-        const trackingId = element.dataset.id || null;
+        const tr = element.closest('tr');
+        let trackingId = tr?.dataset?.id || element.dataset.id || null;
         const fieldName = element.dataset.field;
         const fieldValue = element.value;
         const mfId = element.dataset.mf;
+        const oiId = element.dataset.oi;
 
         try {
             const year = parseInt(document.getElementById('filterYear')?.value ?? '{{ now()->year }}', 10);
             const month = parseInt(document.getElementById('filterMonth')?.value ?? '{{ now()->month }}', 10);
 
+            // Build payload: use ID if available, otherwise create new with master_file_id + year/month
             const payload = trackingId
                 ? { id: trackingId, field: fieldName, value: fieldValue }
-                : { master_file_id: parseInt(mfId, 10), year, month, field: fieldName, value: fieldValue };
-
+                : {
+                    master_file_id: parseInt(mfId, 10),
+                    outdoor_item_id: parseInt(oiId, 10),   // <<=== WAJIB
+                    year,
+                    month,
+                    field: fieldName,
+                    value: fieldValue
+                };
             showSaveIndicator(element, 'loading');
 
             const res = await fetch(`{{ route('coordinator.outdoor.upsert') }}`, {
@@ -430,9 +441,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Update ID jika row baru
+            // 🔥 CRITICAL FIX: Save the returned ID to prevent duplicate records
             if (!trackingId && data.id) {
-                element.dataset.id = data.id;
+                const newId = data.id;
+
+                // Set ID on the table row
+                if (tr) {
+                    tr.setAttribute('data-id', newId);
+                }
+
+                // Set ID on ALL inputs in this row so subsequent edits use UPDATE instead of CREATE
+                tr?.querySelectorAll('input.outdoor-field, select.outdoor-field, textarea.outdoor-field').forEach(inp => {
+                    inp.setAttribute('data-id', newId);
+                });
+
+                console.log(`New tracking record created with ID: ${newId}`);
             }
 
             showSaveIndicator(element, 'success');

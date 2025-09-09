@@ -12,8 +12,7 @@ use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\StreamedResponse; // add at top
 use Illuminate\Foundation\Configuration\Exceptions;
 use Throwable;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Arr;
+
 
 class OutdoorCoordinatorController extends Controller
 {
@@ -431,98 +430,123 @@ class OutdoorCoordinatorController extends Controller
                        ->with('info', 'No new outdoor master files found to create tracking records.');
     }
 
-    public function upsert(\Illuminate\Http\Request $req)
-    {
-        try {
-            // LOG supaya gampang debug
-            Log::info('OC upsert IN', $req->all());
+    public function upsert(Request $req)
+{
+    try {
+        // 1) Log masuk
+        Log::info('OC upsert IN', $req->all());
 
-            $id     = $req->integer('id'); // kalau update
-            $mfId   = $req->integer('master_file_id');
-            $year   = $req->integer('year');
-            $month  = $req->integer('month'); // boleh null kalau tidak dipakai
-            $field  = $req->string('field');
-            $value  = $req->input('value');
+        // 2) Ambil payload
+        $id    = $req->integer('id');                  // UPDATE path
+        $mfId  = $req->integer('master_file_id');
+        $oiId  = $req->integer('outdoor_item_id');       // CREATE path (wajib)
+        $year  = $req->integer('year');                // optional
+        $month = $req->integer('month');               // optional
+        $field = (string)$req->input('field');         // wajib
+        $value = $req->input('value');                 // wajib
 
-            // daftar kolom yang boleh diisi
-            $allowed = [
-                'client','product','site','payment','material','artwork','remarks','status',
-                'received_approval','sent_to_printer','collection_printer','installation','dismantle','next_follow_up',
-                'month_jan','month_feb','month_mar','month_apr','month_may','month_jun',
-                'month_jul','month_aug','month_sep','month_oct','month_nov','month_dec',
-            ];
-            if (!in_array($field, $allowed, true)) {
-                return response()->json(['ok'=>false,'message'=>"Field not allowed: $field"], 422);
-            }
+        // 3) Allowed fields → dari skema tabel (future-proof)
+        $cols      = Schema::getColumnListing('outdoor_coordinator_trackings');
+        $allowed   = array_values(array_diff($cols, ['id','created_at','updated_at']));
+        if (!in_array($field, $allowed, true)) {
+            return response()->json(['ok'=>false, 'message'=>"Field not allowed: {$field}", 'allowed'=>$allowed], 422);
+        }
 
-            // tipe tanggal?
-            $dateFields = ['received_approval','sent_to_printer','collection_printer','installation','dismantle','next_follow_up'];
-            if (in_array($field, $dateFields, true)) {
-                // normalisasi ke Y-m-d (biar sesuai cast)
-                $value = $value ? \Carbon\Carbon::parse($value)->format('Y-m-d') : null;
-            }
+        // 4) Normalisasi nilai
+        $dateFields = ['received_approval','sent_to_printer','collection_printer','installation','dismantle','next_follow_up'];
+        if (in_array($field, $dateFields, true)) {
+            $value = $value ? Carbon::parse($value)->format('Y-m-d') : null;
+        }
+        if (str_starts_with($field, 'month_')) {
+            $value = in_array($value, ['1',1,true,'true','on','yes','y'], true) ? 1 : 0;
+        }
+        if (is_string($value)) { $value = trim($value); }
 
-            // UPDATE by id jika ada
-            if ($id) {
-                $row = \App\Models\OutdoorCoordinatorTracking::find($id);
-                if (!$row) return response()->json(['ok'=>false,'message'=>'Row not found'], 404);
-                $row->{$field} = $value;
-                // auto-status ringan (optional)
-                if ($field === 'installation' && $value) $row->status = 'completed';
-                $row->save();
+        // 5) Dengarkan SQL biar ketahuan benar-benar nulis
+        DB::enableQueryLog();
 
-                Log::info('OC upsert OUT (update)', ['id'=>$row->id]);
-                return response()->json(['ok'=>true,'id'=>$row->id]);
-            }
+        // === UPDATE by ID ===
+        if ($id) {
+            $row = OutdoorCoordinatorTracking::find($id);
+            if (!$row) return response()->json(['ok'=>false,'message'=>'Row not found'], 404);
 
-            // CREATE baru → butuh master_file_id minimal
-            if (!$mfId) return response()->json(['ok'=>false,'message'=>'master_file_id required'], 422);
-
-            $row = new \App\Models\OutdoorCoordinatorTracking();
-            $row->master_file_id = $mfId;
-            if ($year)  $row->year  = $year;
-            if ($month) $row->month = $month;
-
-            // optional: tarik snapshot dari master_files (kalau ada)
-            $mf = DB::table('master_files')->where('id', $mfId)->first();
-            if ($mf) {
-                $row->client  = $mf->company ?? null;   // sesuaikan kalau kolommu 'client' ada di master_files
-                $row->product = $mf->product ?? null;
-                $row->masterfile_created_at = $mf->created_at ?? null;
-            }
-
-            // set field yang diedit
+            $before = $row->getAttributes();
             $row->{$field} = $value;
-
-            // default status
-            if (!$row->status) $row->status = 'pending';
-
+            if ($field === 'installation' && $value) $row->status = 'completed';
             $row->save();
 
-            Log::info('OC upsert OUT (create)', ['id'=>$row->id]);
-            return response()->json(['ok'=>true,'id'=>$row->id]);
-        } catch (\Throwable $e) {
-            Log::error('OC upsert ERR', ['ex'=>$e]);
-            return response()->json(['ok'=>false,'message'=>$e->getMessage()], 500);
+            Log::info('OC upsert OUT (update)', ['id'=>$row->id, 'dirty'=>$row->getChanges()]);
+            Log::info('OC SQL', DB::getQueryLog());
+            return response()->json(['ok'=>true,'id'=>$row->id], 200);
         }
-    }
 
+        // === CREATE / GET-OR-CREATE (kunci logis: mf + year + month) ===
+        if (!$mfId) return response()->json(['ok'=>false,'message'=>'master_file_id required'], 422);
+        if (!$oiId) return response()->json(['ok'=>false,'message'=>'outdoor_item_id required'], 422);
+
+        $key = ['master_file_id' => $mfId];
+        if ($year)  $key['year']  = $year;
+        if ($month) $key['month'] = $month;
+
+        // Snapshot dari master_files (aman kalau kolomnya ada)
+        $snapshot = [];
+        if (Schema::hasTable('master_files')) {
+            $mf = DB::table('master_files')->where('id', $mfId)->first();
+            if ($mf) {
+                if (in_array('client', $allowed, true))  $snapshot['client']  = $mf->company ?? null;
+                if (in_array('product',$allowed, true))  $snapshot['product'] = $mf->product ?? null;
+                if (in_array('masterfile_created_at',$allowed,true)) $snapshot['masterfile_created_at'] = $mf->created_at ?? null;
+            }
+        }
+
+        // Nilai yang akan diupdate saat sudah ada
+        $updates = array_merge($snapshot, [
+            $field => $value,
+        ]);
+        if ($field === 'installation' && $value) { $updates['status'] = 'completed'; }
+        if (!isset($updates['status']) && in_array('status',$allowed,true)) { $updates['status'] = 'pending'; }
+
+        // ⚡ PENTING: ini inti “tidak bisa gagal”
+        $row = OutdoorCoordinatorTracking::updateOrCreate($key, $updates);
+
+        Log::info('OC upsert OUT (updateOrCreate)', ['id'=>$row->id, 'key'=>$key, 'updates'=>$updates]);
+        Log::info('OC SQL', DB::getQueryLog());
+
+        return response()->json(['ok'=>true,'id'=>$row->id], 200);
+
+    } catch (\Throwable $e) {
+        Log::error('OC upsert ERR', ['msg'=>$e->getMessage(), 'trace'=>$e->getTraceAsString()]);
+        return response()->json(['ok'=>false,'message'=>$e->getMessage()], 500);
+    }
+}
     public function getAvailableMasterFiles()
-    {
-        $masterFiles = MasterFile::where(function($q) {
-            $q->where('product_category', 'Outdoor')
-              ->orWhere('product_category', 'LIKE', '%outdoor%');
+{
+    $masterFiles = MasterFile::query()
+        ->where(function ($q) {
+            // case-insensitive "Outdoor"
+            $q->whereRaw('LOWER(product_category) = ?', ['outdoor'])
+              ->orWhereRaw('LOWER(product_category) LIKE ?', ['%outdoor%']);
         })
-        ->whereNotExists(function($query) {
+        ->whereNotExists(function ($query) {
             $query->select(DB::raw(1))
                   ->from('outdoor_coordinator_trackings')
                   ->whereRaw('outdoor_coordinator_trackings.master_file_id = master_files.id');
         })
-        ->select('id','client','product','product_category','location')
+        // master_files has "company", not "client" → alias it for the UI
+        ->select([
+            'id',
+            DB::raw('company as client'),
+            'product',
+            'product_category',
+            // add more fields if they actually exist in master_files
+            // e.g. 'location' only if that column is present
+        ])
         ->orderBy('client')
         ->get();
-        return response()->json($masterFiles);
-    }
+
+    return response()->json($masterFiles);
+}
+
 
     public function export(Request $request): StreamedResponse
     {
