@@ -198,7 +198,7 @@
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[100px] whitespace-nowrap">Traffic</th>
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[120px] whitespace-nowrap">Invoice Date</th>
                           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[160px] whitespace-nowrap">Invoice Number</th>
-                          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[160px] whitespace-nowrap">Remarks</th>
+                          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300 min-w-[120px] whitespace-nowrap">Remarks</th>
 
                         </tr>
                       </thead>
@@ -234,6 +234,7 @@
                               <td class="px-6 py-4 text-sm text-gray-900">{{ $file->invoice_date ?? '-' }}</td>
                               <td class="px-6 py-4 text-sm text-gray-900">{{ $file->invoice_number ?? '-' }}</td>
                               <td class="px-6 py-4 text-sm text-gray-900">{{ $file->remarks ?? '-' }}</td>
+
                             </tr>
                           @endforeach
                         @else

@@ -188,6 +188,7 @@ public function outdoor(Request $request)
             DB::raw('oi.district_council as outdoor_district_council'),
             DB::raw('oi.coordinates as outdoor_coordinates'),
             DB::raw('oi.id as outdoor_item_id'),   // ★ needed for saving joined outdoor fields
+            'mf.remarks',               // ★ NEW: remarks pulled from master_files
         ])
         ->where(function ($w) {
             $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
@@ -223,6 +224,7 @@ public function outdoor(Request $request)
         ['key' => 'date_finish',              'label' => 'DATE FINISH'],
         ['key' => 'outdoor_size',             'label' => 'OUTDOOR SIZE'],
         ['key' => 'outdoor_coordinates',      'label' => 'OUTDOOR COORDINATES'],
+        ['key' => 'remarks',                  'label' => 'REMARKS'],   // ★ NEW column at the end
     ];
 
     return view('dashboard.master.outdoor', [
@@ -233,6 +235,7 @@ public function outdoor(Request $request)
         'paginator'     => $rows,
     ]);
 }
+
 
 
 // Special version for joined queries (outdoor method)
@@ -1131,6 +1134,7 @@ public function exportOutdoorXlsx(Request $request): StreamedResponse
             'mf.date_finish',
             DB::raw('oi.size as outdoor_size'),
             DB::raw('oi.coordinates as outdoor_coordinates'),
+            'mf.remarks', // ★ NEW
         ])
         ->where(function ($w) {
             $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
@@ -1152,18 +1156,20 @@ public function exportOutdoorXlsx(Request $request): StreamedResponse
 
     $rows = $q->orderByDesc('mf.created_at')->cursor();
 
+    // === Kolom & heading (remarks di paling ujung) ===
     $colKeys = [
         'created_at',
         'month',
         'company',
         'product',
         'location',
-        'outdoor_district_council', // ← move AREA here
+        'outdoor_district_council',
         'duration',
         'date',
         'date_finish',
         'outdoor_size',
         'outdoor_coordinates',
+        'remarks', // ★ NEW
     ];
 
     $labels = [
@@ -1172,14 +1178,14 @@ public function exportOutdoorXlsx(Request $request): StreamedResponse
         'company'                  => 'COMPANY',
         'product'                  => 'PRODUCT',
         'location'                 => 'LOCATION',
-        'outdoor_district_council' => 'AREA',                  // ← label shown in header
+        'outdoor_district_council' => 'AREA',
         'duration'                 => 'DURATION',
         'date'                     => 'DATE',
         'date_finish'              => 'DATE FINISH',
         'outdoor_size'             => 'OUTDOOR SIZE',
         'outdoor_coordinates'      => 'OUTDOOR COORDINATES',
+        'remarks'                  => 'REMARKS', // ★ NEW
     ];
-
 
     // === Spreadsheet ===
     $ss = new Spreadsheet();
@@ -1220,16 +1226,15 @@ public function exportOutdoorXlsx(Request $request): StreamedResponse
 
     // Data
     $fmt = function($v) {
-    if ($v === null || $v === '') return '';
-    if ($v instanceof \DateTimeInterface) return $v->format('n/j/y');
-    try { return Carbon::parse($v)->format('n/j/y'); }
-    catch (\Throwable $e) { return (string)$v; }
+        if ($v === null || $v === '') return '';
+        if ($v instanceof \DateTimeInterface) return $v->format('n/j/y');
+        try { return Carbon::parse($v)->format('n/j/y'); }
+        catch (\Throwable $e) { return (string)$v; }
     };
 
     $r = 3;
+    $dataStartRow = $r;
 
-
-    $dataStartRow = $r; // Track starting row for border application
     foreach ($rows as $row) {
         $data = [
             $fmt($row->created_at),
@@ -1237,12 +1242,13 @@ public function exportOutdoorXlsx(Request $request): StreamedResponse
             $row->company,
             $row->product,
             $row->location,
-            $row->outdoor_district_council, // AREA aligns with header now
+            $row->outdoor_district_council,
             $row->duration,
             $fmt($row->date),
             $fmt($row->date_finish),
             $row->outdoor_size,
             $row->outdoor_coordinates,
+            $row->remarks ?? '', // ★ NEW
         ];
 
         foreach ($data as $i => $val) {
@@ -1251,7 +1257,7 @@ public function exportOutdoorXlsx(Request $request): StreamedResponse
         $r++;
     }
 
-    // Apply borders to all data cells if there are data rows
+    // Borders
     if ($r > $dataStartRow) {
         $dataEndRow = $r - 1;
         $sheet->getStyle("A{$dataStartRow}:{$lastCol}{$dataEndRow}")->applyFromArray([
@@ -1264,10 +1270,14 @@ public function exportOutdoorXlsx(Request $request): StreamedResponse
         ]);
     }
 
-    // Autosize + freeze
+    // Autosize + freeze; wrap text for remarks
     for ($i=1; $i<=count($headings); $i++) {
-        $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($i))->setAutoSize(true);
+        $col = Coordinate::stringFromColumnIndex($i);
+        $sheet->getColumnDimension($col)->setAutoSize(true);
     }
+    // make remarks wrap (last column)
+    $sheet->getStyle($lastCol.'3:'.$lastCol.$r)->getAlignment()->setWrapText(true);
+
     $sheet->freezePane('A3');
 
     $writer = new Xlsx($ss);
