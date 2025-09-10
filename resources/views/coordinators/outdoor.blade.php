@@ -174,6 +174,10 @@
                             @if(isset($rows) && $rows->count() > 0)
                                 @foreach($rows as $i => $row)
                                     @php
+                                        // Determine scope based on whether month is selected
+                                        $isMonth = isset($month) && $month !== '' && (int)$month >= 1 && (int)$month <= 12;
+                                        $scope = $isMonth ? 'omd' : 'oct';
+
                                         // Use Query Builder aliases directly
                                         $trackingId = $row->tracking_id ?? null;
 
@@ -183,10 +187,13 @@
                                     @endphp
 
                                     <tr class="odd:bg-white even:bg-gray-50 hover:bg-blue-50/50 transition-colors"
-                                        data-id="{{ $trackingId }}"
+                                        data-scope="{{ $scope }}"
+                                        data-id="{{ $row->tracking_id ?? '' }}"
                                         data-mf="{{ $row->master_file_id }}"
-                                        data-oi="{{ $row->outdoor_item_id }}">
-
+                                        data-oi="{{ $row->outdoor_item_id }}"
+                                        data-year="{{ (int)($year ?? now()->year) }}"
+                                        data-month="{{ $isMonth ? (int)$month : '' }}"
+                                    >
                                         {{-- ID Column --}}
                                         <td class="sticky left-0 z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100 text-center font-medium text-gray-900">
                                             {{ $rows->firstItem() + $i }}
@@ -236,7 +243,8 @@
                                                             data-id="{{ $trackingId }}"
                                                             data-mf="{{ $row->master_file_id }}"
                                                             data-oi="{{ $row->outdoor_item_id }}"
-                                                            data-field="{{ $col }}" />
+                                                            data-field="{{ $col }}"
+                                                            data-scope="{{ $scope }}" />
                                                     @else
                                                         <input type="text"
                                                             class="w-44 border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outdoor-field"
@@ -245,6 +253,7 @@
                                                             data-mf="{{ $row->master_file_id }}"
                                                             data-oi="{{ $row->outdoor_item_id }}"
                                                             data-field="{{ $col }}"
+                                                            data-scope="{{ $scope }}"
                                                             autocomplete="off" />
                                                     @endif
 
@@ -303,40 +312,39 @@
 
 @push('scripts')
 <script>
-// ===== Export button (keep global) =====
-function exportOutdoorData() {
-  window.location.href = "{{ route('coordinator.outdoor.export') }}";
-}
-
 document.addEventListener('DOMContentLoaded', function () {
   const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
-  // ---------- Helpers ----------
   function getYM() {
-    // Prefer hidden ctx (rendered by controller); fall back to selects if present
     const y = document.getElementById('ctxYear')?.value ?? document.getElementById('filterYear')?.value ?? '';
     const m = document.getElementById('ctxMonth')?.value ?? document.getElementById('filterMonth')?.value ?? '';
     const year  = Number.parseInt(String(y), 10);
     const month = Number.parseInt(String(m), 10);
     return {
       year:  Number.isFinite(year)  ? year  : null,
-      month: Number.isFinite(month) ? month : null,  // null = All Months
+      month: Number.isFinite(month) ? month : null,
     };
   }
 
   function normalizeValue(el) {
     if (el.type === 'checkbox') return el.checked ? 1 : 0;
-    if (el.type === 'date' && el.value) return el.value.trim(); // yyyy-mm-dd
+    if (el.type === 'date' && el.value) return el.value.trim();
     return typeof el.value === 'string' ? el.value.trim() : el.value;
   }
 
   function findRowContext(el) {
     const tr = el.closest('tr');
-    // Try element-level first, then row-level
     const id  = el.dataset.id || tr?.dataset.id || null;
     const mf  = el.dataset.mf || tr?.dataset.mf || null;
     const oi  = el.dataset.oi || tr?.dataset.oi || null;
-    return { tr, id, mf: mf ? parseInt(mf,10) : null, oi: oi ? parseInt(oi,10) : null };
+    const scopeAttr = el.dataset.scope || tr?.dataset.scope || '';
+    return {
+      tr,
+      id,
+      scope: scopeAttr || (getYM().month ? 'omd' : 'oct'), // fallback if missing
+      mf: mf ? parseInt(mf,10) : null,
+      oi: oi ? parseInt(oi,10) : null
+    };
   }
 
   function showSaveIndicator(element, state) {
@@ -353,7 +361,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // Prevent duplicate concurrent saves per element
   const inflight = new Set();
 
   async function saveField(element) {
@@ -361,8 +368,8 @@ document.addEventListener('DOMContentLoaded', function () {
     if (inflight.has(element)) return;
     inflight.add(element);
 
-    const { tr, id: trackingId, mf: masterFileId, oi: outdoorItemId } = findRowContext(element);
-    const fieldName = element.dataset.field || element.name || '';
+    const { tr, id: trackingId, scope, mf: masterFileId, oi: outdoorItemId } = findRowContext(element);
+    const fieldName  = element.dataset.field || element.name || '';
     const fieldValue = normalizeValue(element);
     const { year, month } = getYM();
 
@@ -372,34 +379,48 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
 
-    // ====== CREATE rules ======
-    // 1) Need a master_file_id
-    // 2) Must have a concrete month/year (don't allow create for "All Months")
-    if (!trackingId) {
-      if (!masterFileId) {
-        console.error('Missing master_file_id (data-mf) for CREATE', { element });
+    // ---- Build payload by scope ----
+    let payload = null;
+
+    if (scope === 'omd') {
+      // Month mode: always upsert into OMD using (oi, year, month, field)
+      if (!outdoorItemId) {
+        console.error('Missing outdoor_item_id (data-oi) for month scope', { element });
         inflight.delete(element);
         return;
       }
       if (month === null || year === null) {
-        // Don't create rows without month/year; keep cells editable but warn in console
-        console.warn('Skipping CREATE because Month = All Months (no month/year).');
-        // Optionally show a small tooltip/badge here.
+        console.warn('Month scope without concrete month/year.');
         inflight.delete(element);
         return;
       }
-    }
-
-    // Build payload
-    const payload = trackingId
-      ? { id: trackingId, field: fieldName, value: fieldValue }
-      : {
+      payload = {
+        // id is NOT needed for OMD upsert
+        master_file_id: masterFileId,    // optional but nice to have
+        outdoor_item_id: outdoorItemId,
+        year, month,
+        field: fieldName,
+        value: fieldValue
+      };
+    } else {
+      // Baseline (All Months): write/read from OCT
+      if (trackingId) {
+        payload = { id: trackingId, field: fieldName, value: fieldValue };
+      } else {
+        if (!masterFileId) {
+          console.error('Missing master_file_id (data-mf) for baseline create', { element });
+          inflight.delete(element);
+          return;
+        }
+        // ALLOW create even when All Months (this makes data persist after refresh)
+        payload = {
           master_file_id: masterFileId,
           ...(outdoorItemId ? { outdoor_item_id: outdoorItemId } : {}),
-          year, month,
           field: fieldName,
           value: fieldValue
         };
+      }
+    }
 
     showSaveIndicator(element, 'loading');
 
@@ -424,11 +445,14 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
       }
 
-      // After CREATE, persist id to row + all inputs so next edits are UPDATE
-      if (!trackingId && data.id) {
-        tr?.setAttribute('data-id', data.id);
-        tr?.querySelectorAll('.outdoor-field').forEach(inp => inp.setAttribute('data-id', data.id));
-        console.log('Created tracking id:', data.id, 'for', { year, month });
+      // After CREATE: use returned tracking_id
+      const newId = data.tracking_id || data.id || null;
+      if (!trackingId && newId) {
+        tr?.setAttribute('data-id', newId);
+        tr?.querySelectorAll('.outdoor-field').forEach(inp => inp.setAttribute('data-id', newId));
+        // Ensure scope remains correct
+        if (!tr?.dataset.scope) tr?.setAttribute('data-scope', scope);
+        console.log('Created tracking id:', newId, 'scope:', scope);
       }
 
       showSaveIndicator(element, 'success');
@@ -440,11 +464,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // ---------- Event delegation ----------
   document.addEventListener('blur',   e => saveField(e.target), true);
   document.addEventListener('change', e => saveField(e.target));
 
-  // ---------- Keep "Active this month" disabled when Month = All ----------
+  // Disable "Active this month" when Month = All
   const selMonth = document.getElementById('filterMonth');
   const togActive = document.getElementById('toggleActive');
   function syncActiveToggle() {

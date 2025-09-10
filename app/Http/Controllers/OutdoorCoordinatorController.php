@@ -16,466 +16,6 @@ use Throwable;
 
 class OutdoorCoordinatorController extends Controller
 {
-//    public function index(Request $request)
-// {
-//     // 1) Read inputs (support both names) and normalize month
-//     $rawMonth = $request->input('month', $request->input('outdoor_month'));
-//     $rawYear  = $request->input('year',  $request->input('outdoor_year'));
-
-//     $normalize = function($raw): ?int {
-//         if ($raw === null || $raw === '') return null; // null => "All Months"
-//         $m = trim((string)$raw);
-//         if (ctype_digit($m)) {
-//             $n = (int)$m;
-//             return ($n >= 1 && $n <= 12) ? $n : null;
-//         }
-//         $map = [
-//             'jan'=>1,'january'=>1,'feb'=>2,'february'=>2,'mar'=>3,'march'=>3,
-//             'apr'=>4,'april'=>4,'may'=>5,'jun'=>6,'june'=>6,'jul'=>7,'july'=>7,
-//             'aug'=>8,'august'=>8,'sep'=>9,'sept'=>9,'september'=>9,'oct'=>10,'october'=>10,
-//             'nov'=>11,'november'=>11,'dec'=>12,'december'=>12
-//         ];
-//         $key = strtolower(preg_replace('/[^a-z]/i', '', $m));
-//         return $map[$key] ?? null;
-//     };
-
-//     $month = $normalize($rawMonth);                 // IMPORTANT: null means "All Months"
-//     $year  = (int) ($rawYear ?: now()->year);
-
-//     // 2) If a month is chosen, collect outdoor_item_ids that actually have data that month
-//     $selectedItemIds = collect();
-//     if ($month !== null) {
-//         $selectedItemIds = DB::table('outdoor_monthly_details')
-//             ->where('year', $year)
-//             ->where('month', $month)
-//             ->where(function ($q) {
-//                 $q->whereNotNull('value_date')
-//                   ->orWhere(function ($w) {
-//                       $w->whereNotNull('value_text')
-//                         ->whereRaw('TRIM(value_text) <> ""');
-//                   });
-//             })
-//             ->whereNotNull('outdoor_item_id')               // ← site-level
-//             ->distinct()
-//             ->pluck('outdoor_item_id')                      // ← pluck item IDs, not master IDs
-//             ->map(fn($v) => (int)$v)
-//             ->unique()
-//             ->values();
-//     }
-
-//     // 3) Base dataset (one row per site via outdoor_items)
-//     $base = DB::table('master_files as mf')
-//         ->join('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id') // fan out per site
-//         ->leftJoin('outdoor_coordinator_trackings as t', function ($j) {
-//             $j->on('t.master_file_id', '=', 'mf.id')
-//               ->on('t.outdoor_item_id', '=', 'oi.id'); // tie tracking row to exact site
-//         })
-//         ->where(function ($q) {
-//             $q->whereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%'])
-//               ->orWhereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
-//               ->orWhereIn('mf.product_category', [
-//                   'TB','BB','NEWSPAPER','BUNTING','FLYERS','STAR','SIGNAGES',
-//                   'TB - Tempboard','BB - Billboard','Newspaper','Bunting','Flyers','Star','Signages'
-//               ]);
-//         });
-
-//     // Apply the strict site-level month filter only when month is chosen
-//     if ($month !== null) {
-//         if ($selectedItemIds->isNotEmpty()) {
-//             $base->whereIn('oi.id', $selectedItemIds->all());   // ← gate by outdoor_item_id
-//         } else {
-//             $base->whereRaw('1=0'); // no sites in that month => empty table
-//         }
-//     }
-
-//     $records = $base->select([
-//             't.id as id',
-//             'mf.id as master_file_id',
-//             'oi.id as outdoor_item_id',                 // unique per site
-//             'mf.company','mf.client','mf.product','mf.product_category',
-//             DB::raw('oi.site as site'),                 // site from outdoor_items
-//             // Baseline tracking values (overlaid by monthly_details if month selected)
-//             't.payment','t.material','t.artwork',
-//             't.received_approval','t.sent_to_printer','t.collection_printer','t.installation',
-//             't.dismantle','t.remarks','t.next_follow_up','t.status',
-//             't.created_at as tracking_created_at',
-//             // Snapshots as fallback
-//             'mf.company as company_snapshot',
-//             'mf.product as product_snapshot',
-//         ])
-//         ->orderByRaw('LOWER(mf.company) asc')
-//         ->paginate(20)
-//         ->appends($request->query());
-
-//     // 4) Overlay month-specific values (site-level) ONLY if a month is chosen
-//     $textCols = ['payment','material','artwork','remarks','status'];
-//     $dateCols = ['received_approval','sent_to_printer','collection_printer','installation','dismantle','next_follow_up'];
-//     $validKeys = array_merge($textCols, $dateCols);
-
-//     if ($month !== null) {
-//         $pageItemIds = $records->getCollection()->pluck('outdoor_item_id')->unique()->all();
-
-//         $monthlyRows = DB::table('outdoor_monthly_details')
-//             ->select('outdoor_item_id','field_key','value_text','value_date')
-//             ->where('year', $year)
-//             ->where('month', $month)
-//             ->whereIn('outdoor_item_id', $pageItemIds)        // ← fetch per site
-//             ->get()
-//             ->groupBy('outdoor_item_id');                     // ← key by site
-
-//         $records->setCollection(
-//             $records->getCollection()->map(function ($row) use ($monthlyRows, $validKeys, $dateCols) {
-//                 // Provide masterFile object for Blade compatibility (location pulled from site)
-//                 $row->masterFile = (object)[
-//                     'id'               => $row->master_file_id,
-//                     'company'          => $row->company,
-//                     'client'           => $row->client,
-//                     'product'          => $row->product,
-//                     'product_category' => $row->product_category,
-//                     'location'         => $row->site, // from outdoor_items
-//                 ];
-
-//                 $oid = $row->outdoor_item_id;
-//                 if (!$monthlyRows->has($oid)) return $row;
-
-//                 foreach ($monthlyRows->get($oid) as $md) {
-//                     $key = strtolower((string)$md->field_key);
-//                     if (!in_array($key, $validKeys, true)) continue;
-
-//                     if (in_array($key, $dateCols, true)) {
-//                         if (!empty($md->value_date)) {
-//                             $row->{$key} = $md->value_date; // YYYY-MM-DD
-//                         }
-//                     } else {
-//                         $val = trim((string)($md->value_text ?? ''));
-//                         if ($val !== '') {
-//                             $row->{$key} = $val;
-//                         }
-//                     }
-//                 }
-//                 return $row;
-//             })
-//         );
-//     } else {
-//         // All Months view: still set masterFile for Blade; no overlay
-//         $records->setCollection(
-//             $records->getCollection()->map(function ($row) {
-//                 $row->masterFile = (object)[
-//                     'id'               => $row->master_file_id,
-//                     'company'          => $row->company,
-//                     'client'           => $row->client,
-//                     'product'          => $row->product,
-//                     'product_category' => $row->product_category,
-//                     'location'         => $row->site,
-//                 ];
-//                 return $row;
-//             })
-//         );
-//     }
-
-//     // 5) Month dropdown data
-//     $months = [];
-//     for ($i = 1; $i <= 12; $i++) {
-//         $months[] = ['value' => $i, 'label' => \Carbon\Carbon::create()->month($i)->format('F')];
-//     }
-
-//     return view('coordinators.outdoor', [
-//         'rows'          => $records,
-//         'months'        => $months,
-//         'month'         => $month,
-//         'year'          => $year,
-//         'selectedCount' => $selectedItemIds->count(),              // site count this month
-//         'hasSelection'  => ($month !== null) && $selectedItemIds->isNotEmpty(),
-//     ]);
-// }
-
-// public function index(Request $request)
-// {
-//     // --- Inputs ---
-//     $rawMonth = $request->input('month', $request->input('outdoor_month'));
-//     $rawYear  = $request->input('year',  $request->input('outdoor_year'));
-//     $filterActive = (bool) $request->boolean('active'); // ← NEW: toggle
-
-//     $normalize = function($raw): ?int {
-//         if ($raw === null || $raw === '') return null;
-//         $m = trim((string)$raw);
-//         if (ctype_digit($m)) { $n = (int)$m; return ($n>=1 && $n<=12) ? $n : null; }
-//         $map = [
-//             'jan'=>1,'january'=>1,'feb'=>2,'february'=>2,'mar'=>3,'march'=>3,
-//             'apr'=>4,'april'=>4,'may'=>5,'jun'=>6,'june'=>6,'jul'=>7,'july'=>7,
-//             'aug'=>8,'august'=>8,'sep'=>9,'sept'=>9,'september'=>9,'oct'=>10,'october'=>10,
-//             'nov'=>11,'november'=>11,'dec'=>12,'december'=>12
-//         ];
-//         $key = strtolower(preg_replace('/[^a-z]/i', '', $m));
-//         return $map[$key] ?? null;
-//     };
-
-//     $month = $normalize($rawMonth);                 // null => All Months
-//     $year  = (int) ($rawYear ?: now()->year);
-
-//     // --- Kumpulkan OUTDOOR ITEM IDs yang aktif DI BULAN itu (union 2 sumber) ---
-//     $activeItemIds = collect();
-
-//     if ($month !== null) {
-//         // a) Ada row di outdoor_coordinator_trackings untuk (year, month)
-//         $idsFromOCT = DB::table('outdoor_coordinator_trackings')
-//             ->where('year', $year)->where('month', $month)
-//             ->whereNotNull('outdoor_item_id')
-//             ->pluck('outdoor_item_id');
-
-//         // b) Ada entri non-kosong di outdoor_monthly_details untuk (year, month)
-//         $idsFromOMD = DB::table('outdoor_monthly_details')
-//             ->where('year', $year)->where('month', $month)
-//             ->whereNotNull('outdoor_item_id')
-//             ->where(function ($q) {
-//                 $q->whereNotNull('value_date')
-//                   ->orWhere(function ($w) {
-//                       $w->whereNotNull('value_text')
-//                         ->whereRaw('TRIM(value_text) <> ""');
-//                   });
-//             })
-//             ->pluck('outdoor_item_id');
-
-//         $activeItemIds = $idsFromOCT->merge($idsFromOMD)->map(fn($v)=>(int)$v)->unique()->values();
-//     }
-
-//     // --- Base dataset: satu baris per site melalui outdoor_items ---
-//     $base = DB::table('master_files as mf')
-//         ->join('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
-//         ->leftJoin('outdoor_coordinator_trackings as t', function ($j) use ($year, $month) {
-//             $j->on('t.master_file_id', '=', 'mf.id')
-//               ->on('t.outdoor_item_id', '=', 'oi.id');
-//             if ($month !== null) {
-//                 $j->where('t.year', '=', $year)
-//                   ->where('t.month', '=', $month);
-//             }
-//         })
-//         ->where(function ($q) {
-//             $q->whereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%'])
-//               ->orWhereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
-//               ->orWhereIn('mf.product_category', [
-//                   'TB','BB','NEWSPAPER','BUNTING','FLYERS','STAR','SIGNAGES',
-//                   'TB - Tempboard','BB - Billboard','Newspaper','Bunting','Flyers','Star','Signages'
-//               ]);
-//         });
-
-//     // --- Gating OPSIONAL: jika pilih bulan & active=1 → hanya item yang aktif ---
-//     if ($month !== null && $filterActive) {
-//         // jika tidak ada yang aktif, buat kosong sekalian (agar tidak tampil semua)
-//         if ($activeItemIds->isEmpty()) {
-//             $base->whereRaw('1=0');
-//         } else {
-//             $base->whereIn('oi.id', $activeItemIds->all());
-//         }
-//     }
-
-//     $records = $base->select([
-//             't.id as id',
-//             'mf.id as master_file_id',
-//             'oi.id as outdoor_item_id',
-//             'mf.company','mf.client','mf.product','mf.product_category',
-//             DB::raw('oi.site as site'),
-//             't.payment','t.material','t.artwork',
-//             't.received_approval','t.sent_to_printer','t.collection_printer','t.installation',
-//             't.dismantle','t.remarks','t.next_follow_up','t.status',
-//             't.created_at as tracking_created_at',
-//             'mf.company as company_snapshot',
-//             'mf.product as product_snapshot',
-//         ])
-//         ->orderByRaw('LOWER(mf.company) asc')
-//         ->paginate(20)
-//         ->appends($request->query());
-
-//     // --- Overlay dari monthly_details tetap sama seperti kodenya sekarang ---
-//     $textCols = ['payment','material','artwork','remarks','status'];
-//     $dateCols = ['received_approval','sent_to_printer','collection_printer','installation','dismantle','next_follow_up'];
-//     $validKeys = array_merge($textCols, $dateCols);
-
-//     if ($month !== null) {
-//         $pageItemIds = $records->getCollection()->pluck('outdoor_item_id')->unique()->all();
-
-//         $monthlyRows = DB::table('outdoor_monthly_details')
-//             ->select('outdoor_item_id','field_key','value_text','value_date')
-//             ->where('year', $year)->where('month', $month)
-//             ->whereIn('outdoor_item_id', $pageItemIds)
-//             ->get()->groupBy('outdoor_item_id');
-
-//         $records->setCollection(
-//             $records->getCollection()->map(function ($row) use ($monthlyRows, $validKeys, $dateCols) {
-//                 $row->masterFile = (object)[
-//                     'id'               => $row->master_file_id,
-//                     'company'          => $row->company,
-//                     'client'           => $row->client,
-//                     'product'          => $row->product,
-//                     'product_category' => $row->product_category,
-//                     'location'         => $row->site,
-//                 ];
-//                 $oid = $row->outdoor_item_id;
-//                 if (!$monthlyRows->has($oid)) return $row;
-//                 foreach ($monthlyRows->get($oid) as $md) {
-//                     $key = strtolower((string)$md->field_key);
-//                     if (!in_array($key, $validKeys, true)) continue;
-//                     if (in_array($key, $dateCols, true)) {
-//                         if (!empty($md->value_date)) $row->{$key} = $md->value_date;
-//                     } else {
-//                         $val = trim((string)($md->value_text ?? ''));
-//                         if ($val !== '') $row->{$key} = $val;
-//                     }
-//                 }
-//                 return $row;
-//             })
-//         );
-//     } else {
-//         $records->setCollection(
-//             $records->getCollection()->map(function ($row) {
-//                 $row->masterFile = (object)[
-//                     'id'               => $row->master_file_id,
-//                     'company'          => $row->company,
-//                     'client'           => $row->client,
-//                     'product'          => $row->product,
-//                     'product_category' => $row->product_category,
-//                     'location'         => $row->site,
-//                 ];
-//                 return $row;
-//             })
-//         );
-//     }
-
-//     // --- Month dropdown ---
-//     $months = [];
-//     for ($i=1;$i<=12;$i++) {
-//         $months[] = ['value'=>$i,'label'=>\Carbon\Carbon::create()->month($i)->format('F')];
-//     }
-
-//     return view('coordinators.outdoor', [
-//         'rows'          => $records,
-//         'months'        => $months,
-//         'month'         => $month,
-//         'year'          => $year,
-//         'selectedCount' => $activeItemIds->count(), // now = count aktif bulan tsb
-//         'hasSelection'  => ($month !== null) && $activeItemIds->isNotEmpty(),
-//         'active'        => $filterActive,          // ← NEW: pass to Blade
-//     ]);
-// }
-
-// public function index(Request $request)
-// {
-//     // --- Inputs ---
-//     $rawMonth = $request->input('month', $request->input('outdoor_month'));
-//     $rawYear  = $request->input('year',  $request->input('outdoor_year'));
-//     $filterActive = (bool) $request->boolean('active');
-
-//     $normalize = function($raw): ?int {
-//         if ($raw === null || $raw === '') return null;
-//         $m = trim((string)$raw);
-//         if (ctype_digit($m)) { $n = (int)$m; return ($n>=1 && $n<=12) ? $n : null; }
-//         $map = [
-//             'jan'=>1,'january'=>1,'feb'=>2,'february'=>2,'mar'=>3,'march'=>3,
-//             'apr'=>4,'april'=>4,'may'=>5,'jun'=>6,'june'=>6,'jul'=>7,'july'=>7,
-//             'aug'=>8,'august'=>8,'sep'=>9,'sept'=>9,'september'=>9,'oct'=>10,'october'=>10,
-//             'nov'=>11,'november'=>11,'dec'=>12,'december'=>12
-//         ];
-//         $key = strtolower(preg_replace('/[^a-z]/i', '', $m));
-//         return $map[$key] ?? null;
-//     };
-
-//     $month = $normalize($rawMonth);
-//     $year  = (int) ($rawYear ?: now()->year);
-
-//     // If month is "All Months", ignore the active-only filter
-//     if ($month === null) {
-//         $filterActive = false;
-//     }
-
-//     // --- Kumpulkan MASTER FILE IDs yang aktif (ganti dari outdoor_item_id ke master_file_id) ---
-//     $activeMasterIds = collect();
-
-//     if ($month !== null && $filterActive) {
-//         // Cari master_file_id yang punya tracking di bulan itu
-//         $activeMasterIds = DB::table('outdoor_coordinator_trackings')
-//             ->where('year', $year)->where('month', $month)
-//             ->whereNotNull('master_file_id')
-//             ->pluck('master_file_id')
-//             ->map(fn($v)=>(int)$v)->unique()->values();
-//     }
-
-//     // --- Base dataset: langsung dari master_files ---
-//     $base = DB::table('master_files as mf')
-//         ->leftJoin('outdoor_coordinator_trackings as t', function($j) use ($year, $month) {
-//             $j->on('t.master_file_id', '=', 'mf.id');
-//             // Jika ada month filter, tambahkan ke JOIN untuk ambil data bulan spesifik
-//             if ($month !== null) {
-//                 $j->where('t.year', '=', $year)
-//                   ->where('t.month', '=', $month);
-//             }
-//         })
-//         ->where(function ($q) {
-//             $q->whereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%'])
-//               ->orWhereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
-//               ->orWhereIn('mf.product_category', [
-//                   'TB','BB','NEWSPAPER','BUNTING','FLYERS','STAR','SIGNAGES',
-//                   'TB - Tempboard','BB - Billboard','Newspaper','Bunting','Flyers','Star','Signages'
-//               ]);
-//         });
-
-//     // Filter active berdasarkan master_file_id
-//     if ($month !== null && $filterActive) {
-//         if ($activeMasterIds->isEmpty()) {
-//             $base->whereRaw('1=0');
-//         } else {
-//             $base->whereIn('mf.id', $activeMasterIds->all());
-//         }
-//     }
-
-//     $records = $base->select([
-//         't.id as id',
-//         'mf.id as master_file_id',
-//         'null as outdoor_item_id',
-//         'mf.company','mf.client','mf.product','mf.product_category',
-//         'mf.location as site',
-//         't.payment','t.material','t.artwork',
-//         't.received_approval','t.sent_to_printer','t.collection_printer','t.installation',
-//         't.dismantle','t.remarks','t.next_follow_up','t.status',
-//         't.created_at as tracking_created_at',
-//         'mf.company as company_snapshot',
-//         'mf.product as product_snapshot',
-//     ])
-//     ->orderByRaw('LOWER(mf.company) asc')
-//     ->paginate(20)
-//     ->appends($request->query());
-
-//     // --- Skip monthly overlay karena outdoor_monthly_details juga pakai outdoor_item_id ---
-//     // Set masterFile object untuk Blade
-//     $records->setCollection(
-//         $records->getCollection()->map(function ($row) {
-//             $row->masterFile = (object)[
-//                 'id'               => $row->master_file_id,
-//                 'company'          => $row->company,
-//                 'client'           => $row->client,
-//                 'product'          => $row->product,
-//                 'product_category' => $row->product_category,
-//                 'location'         => $row->site,
-//             ];
-//             return $row;
-//         })
-//     );
-
-//     // --- Month dropdown ---
-//     $months = [];
-//     for ($i=1;$i<=12;$i++) {
-//         $months[] = ['value'=>$i,'label'=>\Carbon\Carbon::create()->month($i)->format('F')];
-//     }
-
-//     return view('coordinators.outdoor', [
-//         'rows'          => $records,
-//         'months'        => $months,
-//         'month'         => $month,
-//         'year'          => $year,
-//         'selectedCount' => $activeMasterIds->count(),
-//         'hasSelection'  => ($month !== null) && $activeMasterIds->isNotEmpty(),
-//         'active'        => $filterActive,
-//     ]);
-// }
 
 public function index(Request $request)
 {
@@ -865,89 +405,189 @@ public function index(Request $request)
     }
 
 
+// public function upsert(Request $request)
+// {
+//     try {
+//         $data = $request->validate([
+//             'id'             => 'nullable|integer|exists:outdoor_coordinator_trackings,id',
+//             'master_file_id' => 'required_without:id|integer|exists:master_files,id',
+//             'field'          => 'required|string',
+//             'value'          => 'nullable|string',
+//         ]);
+
+//         // Allowed fields
+//         $allowedFields = [
+//             'site','payment','material','artwork','received_approval',
+//             'sent_to_printer','collection_printer','installation',
+//             'dismantle','remarks','next_follow_up','status',
+//             // Add month fields if you want those inline-editable too:
+//             'month_jan','month_feb','month_mar','month_apr','month_may',
+//             'month_jun','month_jul','month_aug','month_sep','month_oct','month_nov','month_dec',
+//         ];
+//         if (!in_array($data['field'], $allowedFields, true)) {
+//             return response()->json(['error' => 'Field not allowed'], 400);
+//         }
+
+//         // Find or create the row
+//         if (!empty($data['id'])) {
+//             $job = OutdoorCoordinatorTracking::findOrFail($data['id']);
+//         } else {
+//             $job = OutdoorCoordinatorTracking::firstOrCreate([
+//                 'master_file_id' => $data['master_file_id'],
+//             ]);
+//         }
+
+//         // Normalize dates
+//         $dateFields = [
+//             'received_approval','sent_to_printer','collection_printer',
+//             'installation','dismantle','next_follow_up'
+//         ];
+//         $value = $data['value'];
+//         if (in_array($data['field'], $dateFields, true) && !empty($value)) {
+//             $value = date('Y-m-d', strtotime($value));
+//         }
+
+//         // Save
+//         $job->{$data['field']} = $value;
+//         $job->save();
+
+//         // Optional: auto status from progress (keep your existing logic if any)
+//         // if ($data['field'] !== 'status') { ... }
+
+//         return response()->json(['success' => true, 'id' => $job->id]);
+//     } catch (\Throwable $e) {
+//         Log::error('Outdoor upsert error: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+//         return response()->json(['error' => 'Server error'], 500);
+//     }
+// }
+
+
+//     public function getAvailableMasterFiles()
+// {
+//     $masterFiles = MasterFile::query()
+//         ->where(function ($q) {
+//             // case-insensitive "Outdoor"
+//             $q->whereRaw('LOWER(product_category) = ?', ['outdoor'])
+//               ->orWhereRaw('LOWER(product_category) LIKE ?', ['%outdoor%']);
+//         })
+//         ->whereNotExists(function ($query) {
+//             $query->select(DB::raw(1))
+//                   ->from('outdoor_coordinator_trackings')
+//                   ->whereRaw('outdoor_coordinator_trackings.master_file_id = master_files.id');
+//         })
+//         // master_files has "company", not "client" → alias it for the UI
+//         ->select([
+//             'id',
+//             DB::raw('company as client'),
+//             'product',
+//             'product_category',
+//             // add more fields if they actually exist in master_files
+//             // e.g. 'location' only if that column is present
+//         ])
+//         ->orderBy('client')
+//         ->get();
+
+//     return response()->json($masterFiles);
+// }
+
+
 public function upsert(Request $request)
 {
-    try {
-        $data = $request->validate([
-            'id'             => 'nullable|integer|exists:outdoor_coordinator_trackings,id',
-            'master_file_id' => 'required_without:id|integer|exists:master_files,id',
-            'field'          => 'required|string',
-            'value'          => 'nullable|string',
-        ]);
+    $data = $request->validate([
+        // For OCT (all-months) updates:
+        'id'             => 'nullable|integer', // DO NOT validate against OCT if scope is OMD
+        'master_file_id' => 'required_without:id|integer|exists:master_files,id',
 
-        // Allowed fields
-        $allowedFields = [
-            'site','payment','material','artwork','received_approval',
-            'sent_to_printer','collection_printer','installation',
-            'dismantle','remarks','next_follow_up','status',
-            // Add month fields if you want those inline-editable too:
-            'month_jan','month_feb','month_mar','month_apr','month_may',
-            'month_jun','month_jul','month_aug','month_sep','month_oct','month_nov','month_dec',
+        // For OMD (month-mode) updates:
+        'outdoor_item_id'=> 'nullable|integer|exists:outdoor_items,id',
+        'year'           => 'nullable|integer|min:2000|max:2100',
+        'month'          => 'nullable|integer|min:1|max:12',
+
+        // shared:
+        'field'          => 'required|string',
+        'value'          => 'nullable|string',
+    ]);
+
+    $field = $data['field'];
+    $value = $data['value'] ?? null;
+
+    // Decide scope by presence of year+month+outdoor_item_id
+    $isMonthScope = !empty($data['year']) && !empty($data['month']) && !empty($data['outdoor_item_id']);
+
+    if ($isMonthScope) {
+        // === OMD write ===
+        // Upsert into outdoor_monthly_details keyed by (outdoor_item_id, year, month, field_key)
+        // Map field to field_key + type
+        $dateFields = ['received_approval','sent_to_printer','collection_printer','installation','dismantle','next_follow_up'];
+        $type = in_array($field, $dateFields, true) ? 'date' : 'text';
+
+        $payload = [
+            'outdoor_item_id' => $data['outdoor_item_id'],
+            'year'            => (int)$data['year'],
+            'month'           => (int)$data['month'],
+            'field_key'       => $field,
+            'field_type'      => $type,
+            'value_text'      => $type === 'text' ? ($value ?? '') : null,
+            'value_date'      => $type === 'date' ? ($value ?: null) : null,
+            'updated_at'      => now(),
         ];
-        if (!in_array($data['field'], $allowedFields, true)) {
-            return response()->json(['error' => 'Field not allowed'], 400);
-        }
 
-        // Find or create the row
-        if (!empty($data['id'])) {
-            $job = OutdoorCoordinatorTracking::findOrFail($data['id']);
+        // Upsert
+        $existing = DB::table('outdoor_monthly_details')->where([
+            'outdoor_item_id' => $payload['outdoor_item_id'],
+            'year'            => $payload['year'],
+            'month'           => $payload['month'],
+            'field_key'       => $payload['field_key'],
+        ])->first();
+
+        if ($existing) {
+            DB::table('outdoor_monthly_details')->where('id', $existing->id)->update($payload);
+            $trackingId = $existing->id;
         } else {
-            $job = OutdoorCoordinatorTracking::firstOrCreate([
-                'master_file_id' => $data['master_file_id'],
-            ]);
+            $payload['created_at'] = now();
+            $trackingId = DB::table('outdoor_monthly_details')->insertGetId($payload);
         }
 
-        // Normalize dates
-        $dateFields = [
-            'received_approval','sent_to_printer','collection_printer',
-            'installation','dismantle','next_follow_up'
-        ];
-        $value = $data['value'];
-        if (in_array($data['field'], $dateFields, true) && !empty($value)) {
-            $value = date('Y-m-d', strtotime($value));
-        }
-
-        // Save
-        $job->{$data['field']} = $value;
-        $job->save();
-
-        // Optional: auto status from progress (keep your existing logic if any)
-        // if ($data['field'] !== 'status') { ... }
-
-        return response()->json(['success' => true, 'id' => $job->id]);
-    } catch (\Throwable $e) {
-        Log::error('Outdoor upsert error: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
-        return response()->json(['error' => 'Server error'], 500);
+        return response()->json(['ok' => true, 'scope' => 'omd', 'tracking_id' => $trackingId, 'field' => $field, 'value' => $value]);
     }
-}
 
+    // === OCT write (baseline) ===
+    // If id present, update that OCT row. Otherwise create/find one for master_file_id (and optionally per-site via outdoor_item_id)
+    $octId = $data['id'] ?? null;
+    $dateFields = ['received_approval','sent_to_printer','collection_printer','installation','dismantle','next_follow_up'];
 
-    public function getAvailableMasterFiles()
-{
-    $masterFiles = MasterFile::query()
-        ->where(function ($q) {
-            // case-insensitive "Outdoor"
-            $q->whereRaw('LOWER(product_category) = ?', ['outdoor'])
-              ->orWhereRaw('LOWER(product_category) LIKE ?', ['%outdoor%']);
-        })
-        ->whereNotExists(function ($query) {
-            $query->select(DB::raw(1))
-                  ->from('outdoor_coordinator_trackings')
-                  ->whereRaw('outdoor_coordinator_trackings.master_file_id = master_files.id');
-        })
-        // master_files has "company", not "client" → alias it for the UI
-        ->select([
-            'id',
-            DB::raw('company as client'),
-            'product',
-            'product_category',
-            // add more fields if they actually exist in master_files
-            // e.g. 'location' only if that column is present
-        ])
-        ->orderBy('client')
-        ->get();
-
-    return response()->json($masterFiles);
+    if ($octId) {
+        // OPTIONAL: validate it exists here to avoid mis-validating OMD ids
+        $oct = DB::table('outdoor_coordinator_trackings')->where('id', $octId)->first();
+        if (!$oct) {
+            return response()->json(['ok' => false, 'message' => 'Invalid OCT id for baseline mode'], 422);
+        }
+        $update = in_array($field, $dateFields, true) ? [$field => ($value ?: null)] : [$field => $value];
+        DB::table('outdoor_coordinator_trackings')->where('id', $octId)->update($update + ['updated_at' => now()]);
+        return response()->json(['ok' => true, 'scope' => 'oct', 'tracking_id' => $octId, 'field' => $field, 'value' => $value]);
+    } else {
+        // Create/find baseline row (per master_file_id, and optionally per outdoor_item_id if you want per-site baselines)
+        $query = DB::table('outdoor_coordinator_trackings')->where('master_file_id', $data['master_file_id']);
+        if (!empty($data['outdoor_item_id'])) {
+            $query->where('outdoor_item_id', $data['outdoor_item_id']);
+        }
+        $row = $query->first();
+        if ($row) {
+            $update = in_array($field, $dateFields, true) ? [$field => ($value ?: null)] : [$field => $value];
+            DB::table('outdoor_coordinator_trackings')->where('id', $row->id)->update($update + ['updated_at' => now()]);
+            return response()->json(['ok' => true, 'scope' => 'oct', 'tracking_id' => $row->id, 'field' => $field, 'value' => $value]);
+        } else {
+            $insert = [
+                'master_file_id' => $data['master_file_id'],
+                'outdoor_item_id'=> $data['outdoor_item_id'] ?? null,
+                $field           => in_array($field, $dateFields, true) ? ($value ?: null) : $value,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+            ];
+            $newId = DB::table('outdoor_coordinator_trackings')->insertGetId($insert);
+            return response()->json(['ok' => true, 'scope' => 'oct', 'tracking_id' => $newId, 'field' => $field, 'value' => $value]);
+        }
+    }
 }
 
 
