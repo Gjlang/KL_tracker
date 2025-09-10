@@ -291,3 +291,7 @@ Route::get('/monthly', function () {
 
 Route::post('/clientele/inline-update', [ClienteleController::class, 'inlineUpdate'])
     ->name('clientele.inline.update');
+
+Route::post('/clientele/batch-update', [ClienteleController::class, 'batchUpdate'])
+    ->name('clientele.batch.update');
+

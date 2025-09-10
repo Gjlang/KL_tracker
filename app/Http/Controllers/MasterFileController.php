@@ -82,43 +82,64 @@ private function applyMonthFilter($query, $rawMonth)
     });
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// KLTG
+// ─────────────────────────────────────────────────────────────────────────────
 public function kltg(Request $request)
 {
-    // SELECT must include id and use REAL column keys (no aliasing)
     $rows = MasterFile::query()
         ->select([
-            'master_files.id',       // ← required for inline edit
-            'created_at','month','company','date','date_finish','barter','product','product_category',
-            'kltg_industry','kltg_x','kltg_edition','kltg_material_cbp','kltg_print',
-            'kltg_article','kltg_video','kltg_leaderboard','kltg_qr_code','kltg_blog','kltg_em','kltg_remarks',
+            'master_files.id',   // required for row identity
+            'created_at',
+            'month',
+            'company',
+            'date',              // varchar
+            'date_finish',       // date
+            'barter',
+            'product',
+            'product_category',
+            'kltg_industry',
+            'kltg_x',
+            'kltg_edition',
+            'kltg_material_cbp',
+            'kltg_print',
+            'kltg_article',
+            'kltg_video',
+            'kltg_leaderboard',
+            'kltg_qr_code',
+            'kltg_blog',
+            'kltg_em',
+            'kltg_remarks',
         ])
+        // classify as KLTG by product OR category (lowercased compare)
         ->where(function ($q) {
-            $kltgSet = array_map('strtolower', ['kltg','kltg listing','kltg quarter page']);
-            $q->whereIn(DB::raw('LOWER(product)'), $kltgSet)
-              ->orWhereIn(DB::raw('LOWER(product_category)'), $kltgSet);
+            $kltgSet = ['kltg','kltg listing','kltg quarter page'];
+            $kltgSetLower = array_map('strtolower', $kltgSet);
+
+            $q->whereIn(DB::raw('LOWER(product)'), $kltgSetLower)
+              ->orWhereIn(DB::raw('LOWER(product_category)'), $kltgSetLower);
         })
         // filters
         ->when($request->filled('month'), fn($q) => $this->applyMonthFilter($q, $request->get('month')))
-        ->when($search = trim((string)$request->get('search','')), function ($q) use ($search) {
+        ->when(($search = trim((string) $request->get('search', ''))) !== '', function ($q) use ($search) {
             $q->where(function ($qq) use ($search) {
-                $qq->where('company','like',"%{$search}%")
-                   ->orWhere('product','like',"%{$search}%")
-                   ->orWhere('kltg_industry','like',"%{$search}%");
+                $qq->where('company', 'like', "%{$search}%")
+                   ->orWhere('product', 'like', "%{$search}%")
+                   ->orWhere('kltg_industry', 'like', "%{$search}%");
             });
         })
-        ->when($request->filled('date_from'), fn($q) => $q->whereDate('created_at','>=',$request->get('date_from')))
-        ->when($request->filled('date_to'),   fn($q) => $q->whereDate('created_at','<=',$request->get('date_to')))
+        ->when($request->filled('date_from'), fn($q) => $q->whereDate('created_at', '>=', $request->get('date_from')))
+        ->when($request->filled('date_to'),   fn($q) => $q->whereDate('created_at', '<=', $request->get('date_to')))
         ->latest('created_at')
         ->paginate(25)
         ->appends($request->query());
 
-    // Columns: use real keys, pretty labels
     $columns = [
         ['key' => 'created_at',        'label' => 'Date Created'],
         ['key' => 'month',             'label' => 'Month'],
         ['key' => 'company',           'label' => 'Company Name'],
-        ['key' => 'date',              'label' => 'Start Date'],   // real key: date
-        ['key' => 'date_finish',       'label' => 'End Date'],     // real key: date_finish
+        ['key' => 'date',              'label' => 'Start Date'],
+        ['key' => 'date_finish',       'label' => 'End Date'],
         ['key' => 'barter',            'label' => 'Barter'],
         ['key' => 'product',           'label' => 'Product'],
         ['key' => 'product_category',  'label' => 'Category'],
@@ -139,19 +160,22 @@ public function kltg(Request $request)
     return view('dashboard.master.kltg', [
         'rows'          => $rows,
         'columns'       => $columns,
-        'column_labels' => collect($columns)->pluck('label','key')->all(),
+        'column_labels' => collect($columns)->pluck('label', 'key')->all(),
         'active'        => 'kltg',
     ]);
 }
 
 
+// ─────────────────────────────────────────────────────────────────────────────
+// OUTDOOR
+// ─────────────────────────────────────────────────────────────────────────────
 public function outdoor(Request $request)
 {
     $q = MasterFile::query()
         ->from('master_files as mf')
         ->leftJoin('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
         ->select([
-            'mf.id',                   // ← required
+            'mf.id',                    // required for row identity (master_files)
             'mf.created_at',
             'mf.month',
             'mf.company',
@@ -163,21 +187,22 @@ public function outdoor(Request $request)
             DB::raw('oi.size as outdoor_size'),
             DB::raw('oi.district_council as outdoor_district_council'),
             DB::raw('oi.coordinates as outdoor_coordinates'),
+            DB::raw('oi.id as outdoor_item_id'),   // ★ needed for saving joined outdoor fields
         ])
         ->where(function ($w) {
             $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
               ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%'])
               ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%billboard%']);
         })
-        ->when($term = trim((string)$request->get('search','')), function ($w) use ($term) {
+        ->when(($term = trim((string) $request->get('search', ''))) !== '', function ($w) use ($term) {
             $w->where(function ($qq) use ($term) {
-                $qq->where('mf.company','like',"%{$term}%")
-                   ->orWhere('mf.product','like',"%{$term}%")
-                   ->orWhere('oi.site','like',"%{$term}%");
+                $qq->where('mf.company', 'like', "%{$term}%")
+                   ->orWhere('mf.product', 'like', "%{$term}%")
+                   ->orWhere('oi.site', 'like', "%{$term}%");
             });
         });
 
-    // month + date filters
+    // month + date filters (created_at on master_files)
     $q = $this->applyMonthFilterForJoinedQuery($q, $request->get('month'));
     if ($from = $request->get('date_from')) $q->whereDate('mf.created_at', '>=', $from);
     if ($to   = $request->get('date_to'))   $q->whereDate('mf.created_at', '<=', $to);
@@ -186,7 +211,6 @@ public function outdoor(Request $request)
               ->paginate(25)
               ->appends($request->query());
 
-    // Columns with real keys (location/outdoor_* are aliases—fine)
     $columns = [
         ['key' => 'created_at',               'label' => 'CREATED AT'],
         ['key' => 'month',                    'label' => 'MONTH'],
@@ -202,11 +226,11 @@ public function outdoor(Request $request)
     ];
 
     return view('dashboard.master.outdoor', [
-        'rows'        => $rows,  // ← pass paginator directly (keeps id)
-        'columns'     => $columns,
-        'column_labels' => collect($columns)->pluck('label','key')->all(),
-        'active'      => 'outdoor',
-        'paginator'   => $rows,
+        'rows'          => $rows, // paginator with outdoor_item_id available per row
+        'columns'       => $columns,
+        'column_labels' => collect($columns)->pluck('label', 'key')->all(),
+        'active'        => 'outdoor',
+        'paginator'     => $rows,
     ]);
 }
 

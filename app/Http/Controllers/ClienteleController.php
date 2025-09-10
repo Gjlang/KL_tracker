@@ -103,4 +103,94 @@ class ClienteleController extends Controller
 
         return response()->json(['ok' => true]);
     }
+
+    public function batchUpdate(Request $request)
+{
+    $data = $request->validate([
+        'scope'            => 'required|string|in:kltg,outdoor',
+        'changes'          => 'required|array|min:1',
+        'changes.*.id'     => 'required|integer|exists:master_files,id',
+        'changes.*.column' => 'required|string',
+        'changes.*.value'  => 'nullable',
+        // Outdoor (optional; only for oi.* columns)
+        'changes.*.outdoor_item_id' => 'nullable|integer|exists:outdoor_items,id',
+    ]);
+
+    // Lists reused from inlineUpdate
+    $boolCols   = []; // (none in your KLTG/outdoor set right now; add if you use tinyint flags)
+    $amountCols = ['amount'];
+    $ymdCols    = ['date_finish','invoice_date'];
+    $freeDateLike = ['date','invoice_number_date']; // 'date' is varchar in your schema
+
+    // Column routing rules for OUTDOOR scope
+    $outdoorMap = [
+        'location'                 => ['table' => 'outdoor_items', 'col' => 'site'],
+        'outdoor_size'             => ['table' => 'outdoor_items', 'col' => 'size'],
+        'outdoor_district_council' => ['table' => 'outdoor_items', 'col' => 'district_council'],
+        'outdoor_coordinates'      => ['table' => 'outdoor_items', 'col' => 'coordinates'],
+        // everything else -> master_files as-is
+    ];
+
+    $changes  = $data['changes'];
+    $scope    = $data['scope'];
+    $ok = 0; $failed = [];
+
+    DB::beginTransaction();
+    try {
+        foreach ($changes as $c) {
+            try {
+                $id    = (int)$c['id'];
+                $colIn = (string)$c['column'];
+                $val   = $c['value'] ?? null;
+
+                // Normalize value like inlineUpdate
+                if (in_array($colIn, $boolCols, true)) {
+                    $val = (in_array($val, [1,'1',true,'true','on','yes'], true)) ? 1 : 0;
+                }
+                if (in_array($colIn, $amountCols, true)) {
+                    $val = ($val === '' || $val === null) ? null : (float) str_replace([','], [''], (string)$val);
+                }
+                if (in_array($colIn, $ymdCols, true)) {
+                    $val = ($val === '' || $val === null) ? null : \Carbon\Carbon::parse($val)->format('Y-m-d');
+                }
+                if (in_array($colIn, $freeDateLike, true) && $val) {
+                    try { $val = \Carbon\Carbon::parse($val)->format('n/j/y'); } catch (\Throwable $e) { /* leave as is */ }
+                }
+
+                if ($scope === 'outdoor' && isset($outdoorMap[$colIn])) {
+                    // update outdoor_items
+                    $oiId = isset($c['outdoor_item_id']) ? (int)$c['outdoor_item_id'] : 0;
+                    if ($oiId <= 0) throw new \RuntimeException('Missing outdoor_item_id for column '.$colIn);
+
+                    $affected = DB::table('outdoor_items')
+                        ->where('id', $oiId)
+                        ->update([$outdoorMap[$colIn]['col'] => $val, 'updated_at' => now()]);
+                    if ($affected === 0) throw new \RuntimeException('No change for outdoor_items row');
+                } else {
+                    // update master_files
+                    $affected = DB::table('master_files')
+                        ->where('id', $id)
+                        ->update([$colIn => $val, 'updated_at' => now()]);
+                    if ($affected === 0) throw new \RuntimeException('No change for master_files row');
+                }
+
+                $ok++;
+            } catch (\Throwable $e) {
+                $failed[] = [
+                    'id' => $c['id'],
+                    'column' => $c['column'],
+                    'error' => $e->getMessage(),
+                ];
+            }
+        }
+
+        DB::commit();
+    } catch (\Throwable $e) {
+        DB::rollBack();
+        return response()->json(['ok' => false, 'message' => $e->getMessage()], 500);
+    }
+
+    return response()->json(['ok' => true, 'saved' => $ok, 'failed' => $failed]);
+}
+
 }
