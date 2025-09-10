@@ -165,7 +165,7 @@
 
 
         <div>
-            <label for="duration" class="text-gray-700 font-medium mb-1 block">Remarks</label>
+            <label for="duration" class="text-gray-700 font-medium mb-1 block">Duration</label>
             <input type="text" name="duration" id="duration" placeholder="e.g., 3 months" value="{{ old('duration') }}"
                    class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
         </div>
@@ -204,6 +204,12 @@
             <label for="job_number" class="block text-sm font-medium text-gray-700">Job Number</label>
             <input type="text" name="job_number" id="job_number" value="{{ old('job_number') }}"
                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" readonly>
+        </div>
+
+         <div>
+            <label for="remarks" class="text-gray-700 font-medium mb-1 block">Remarks</label>
+            <input type="text" name="remarks" id="remarks" placeholder="remarks" value="{{ old('remarks') }}"
+                   class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition duration-300 ease-in-out" required>
         </div>
     </div>
 
@@ -298,10 +304,12 @@
                 class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-emerald-500"
                 placeholder="Format: site | size | council | coords | remarks
             Example:
-            Wangsa Maju LRT | 10x20ft | DBKL | 3.154,101.74 | Near station
-            BB: Jalan Kuching KM3 | 60x20ft | DBKL | 3.182,101.68 | City inbound
-            TB: Setia Alam Exit | 12x24ft | MBSA | 3.090,101.48 | Toll plaza">{{ old('bulk_placements') }}</textarea>
+            Wangsa Maju LRT | 10x20ft | AREA | 3.154,101.74 | Near station
+            BB: Jalan Kuching KM3 | 60x20ft | AREA | 3.182,101.68 | City inbound
+            TB: Setia Alam Exit | 12x24ft | AREA | 3.090,101.48 | Toll plaza">{{ old('bulk_placements') }}</textarea>
             <p class="text-xs text-gray-500 mt-2">
+            Example:
+            Wangsa Maju LRT | 10x20ft | Area Name | 3.154,101.74 | Near station
             • Use <code>|</code> or a comma to separate columns.<br>
             • Optional prefix <code>BB:</code> / <code>TB:</code> before the <em>site</em> will override the sub-product for that line.<br>
             • Without a prefix → it will use the value from your <strong>Product</strong> dropdown (e.g., BB / TB).

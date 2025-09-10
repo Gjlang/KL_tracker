@@ -217,11 +217,11 @@ public function outdoor(Request $request)
         ['key' => 'company',                  'label' => 'COMPANY'],
         ['key' => 'product',                  'label' => 'PRODUCT'],
         ['key' => 'location',                 'label' => 'LOCATION'],
+        ['key' => 'outdoor_district_council', 'label' => 'AREA'],
         ['key' => 'duration',                 'label' => 'DURATION'],
         ['key' => 'date',                     'label' => 'DATE'],
         ['key' => 'date_finish',              'label' => 'DATE FINISH'],
         ['key' => 'outdoor_size',             'label' => 'OUTDOOR SIZE'],
-        ['key' => 'outdoor_district_council', 'label' => 'OUTDOOR DISTRICT COUNCIL'],
         ['key' => 'outdoor_coordinates',      'label' => 'OUTDOOR COORDINATES'],
     ];
 
@@ -1125,11 +1125,11 @@ public function exportOutdoorXlsx(Request $request): StreamedResponse
             'mf.company',
             'mf.product',
             DB::raw('oi.site as location'),
+            DB::raw('oi.district_council as outdoor_district_council'),
             'mf.duration',
             'mf.date',
             'mf.date_finish',
             DB::raw('oi.size as outdoor_size'),
-            DB::raw('oi.district_council as outdoor_district_council'),
             DB::raw('oi.coordinates as outdoor_coordinates'),
         ])
         ->where(function ($w) {
@@ -1152,24 +1152,34 @@ public function exportOutdoorXlsx(Request $request): StreamedResponse
 
     $rows = $q->orderByDesc('mf.created_at')->cursor();
 
-    // === Spec kolom & heading (SAMA dgn tabel) ===
     $colKeys = [
-        'created_at','month','company','product','location','duration','date','date_finish',
-        'outdoor_size','outdoor_district_council','outdoor_coordinates',
+        'created_at',
+        'month',
+        'company',
+        'product',
+        'location',
+        'outdoor_district_council', // ← move AREA here
+        'duration',
+        'date',
+        'date_finish',
+        'outdoor_size',
+        'outdoor_coordinates',
     ];
+
     $labels = [
-        'created_at'               => 'Created At',
-        'month'                    => 'Month',
-        'company'                  => 'Company',
-        'product'                  => 'Product',
-        'location'                 => 'Location',
-        'duration'                 => 'Duration',
-        'date'                     => 'Date',
-        'date_finish'              => 'Date Finish',
-        'outdoor_size'             => 'Outdoor Size',
-        'outdoor_district_council' => 'Outdoor District Council',
-        'outdoor_coordinates'      => 'Outdoor Coordinates',
+        'created_at'               => 'CREATED AT',
+        'month'                    => 'MONTH',
+        'company'                  => 'COMPANY',
+        'product'                  => 'PRODUCT',
+        'location'                 => 'LOCATION',
+        'outdoor_district_council' => 'AREA',                  // ← label shown in header
+        'duration'                 => 'DURATION',
+        'date'                     => 'DATE',
+        'date_finish'              => 'DATE FINISH',
+        'outdoor_size'             => 'OUTDOOR SIZE',
+        'outdoor_coordinates'      => 'OUTDOOR COORDINATES',
     ];
+
 
     // === Spreadsheet ===
     $ss = new Spreadsheet();
@@ -1227,13 +1237,14 @@ public function exportOutdoorXlsx(Request $request): StreamedResponse
             $row->company,
             $row->product,
             $row->location,
+            $row->outdoor_district_council, // AREA aligns with header now
             $row->duration,
             $fmt($row->date),
             $fmt($row->date_finish),
             $row->outdoor_size,
-            $row->outdoor_district_council,
             $row->outdoor_coordinates,
         ];
+
         foreach ($data as $i => $val) {
             $sheet->setCellValue(Coordinate::stringFromColumnIndex($i + 1).$r, $val);
         }

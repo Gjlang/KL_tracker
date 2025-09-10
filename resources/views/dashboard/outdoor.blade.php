@@ -24,6 +24,20 @@
         // text
         return $row->value_text ?? '';
     }
+
+    // New display formatter function
+    use Illuminate\Support\Carbon;
+
+    function df($v, $fmt = 'd/m/Y') {
+        if (empty($v)) return '';
+        try {
+            return ($v instanceof \DateTimeInterface)
+                ? $v->format($fmt)
+                : Carbon::parse($v)->format($fmt);
+        } catch (\Throwable $e) {
+            return ''; // or return (string)$v;
+        }
+    }
 @endphp
 
 
@@ -156,7 +170,7 @@
               <thead class="sticky top-0 z-10 bg-gradient-to-r from-gray-50 to-gray-100">
                 <tr>
                   <th class="px-4 py-4 text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200" style="min-width:110px;width:110px;">
-                    📅 Date
+                    📅 Date Created
                   </th>
                   <th class="px-4 py-4 text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200" style="min-width:220px;width:220px;">
                     🏢 Company
@@ -196,6 +210,10 @@
                       $start   = $row->start_date ?? $row->date ?? null;
                       $end     = $row->date_finish ?? $row->end_date ?? null;
 
+                      // Format dates for display (d/m/Y)
+                      $startDisp = df($start);  // d/m/Y for table
+                      $endDisp   = df($end);    // d/m/Y for table
+
                        $sites = [];
                         if (!empty($row->sites)) {
                             $sites = array_filter(
@@ -212,7 +230,7 @@
                   @endphp
                   <tr class="{{ $index % 2 === 0 ? 'bg-white' : 'bg-gray-50' }} hover:bg-blue-50/60 transition-colors duration-150">
                     <td class="px-4 py-3 align-top border-b border-gray-100 text-gray-600 font-medium">
-                      {{ optional($row->date ?? null)->format('Y-m-d') ?? \Illuminate\Support\Carbon::parse($row->created_at)->format('Y-m-d') }}
+                      {{ df($row->date) ?: df($row->created_at) }}
                     </td>
                     <td class="px-4 py-3 align-top border-b border-gray-100 font-semibold text-gray-900">
                       {{ $company }}
@@ -230,10 +248,10 @@
                       </span>
                     </td>
                     <td class="px-4 py-3 align-top border-b border-gray-100 text-gray-700 font-medium">
-                      {{ $start }}
+                      {{ $startDisp }}
                     </td>
                     <td class="px-4 py-3 align-top border-b border-gray-100 text-red-600 font-medium">
-                      {{ $end }}
+                      {{ $endDisp }}
                     </td>
 
                     {{-- Month cells (STATUS DROPDOWN + DATE) - Updated to use outdoor_item_id --}}
@@ -257,7 +275,7 @@
                             onchange="saveOutdoorCell(this); setDropdownColor(this);">
                               <option value=""></option>
                               <option value="Installation" {{ $savedStatus==='Installation' ? 'selected' : '' }}>🔧 Installation</option>
-                              <option value="Dismentel"   {{ $savedStatus==='Dismentel'   ? 'selected' : '' }}>🔨 Dismentel</option>
+                              <option value="Dismantle"   {{ $savedStatus==='Dismantle'   ? 'selected' : '' }}>🔨 Dismantle</option>
                               <option value="Artwork"     {{ $savedStatus==='Artwork'     ? 'selected' : '' }}>🎨 Artwork</option>
                               <option value="Payment"     {{ $savedStatus==='Payment'     ? 'selected' : '' }}>💳 Payment</option>
                               <option value="Ongoing"     {{ $savedStatus==='Ongoing'     ? 'selected' : '' }}>⚡ Ongoing</option>
@@ -384,7 +402,7 @@ async function saveOutdoorCell(el) {
 function setDropdownColor(selectEl) {
   const map = {
   'Installation': { bg:'#dc2626', color:'#fff', border:'#991b1b' }, // 🔴 red-600
-  'Dismentel':    { bg:'#dc2626', color:'#fff', border:'#991b1b' }, // 🔴 red
+  'Dismantle':    { bg:'#dc2626', color:'#fff', border:'#991b1b' }, // 🔴 red
   'Payment':      { bg:'#dc2626', color:'#fff', border:'#991b1b' }, // 🔴 red
   'Renewal':      { bg:'#dc2626', color:'#fff', border:'#991b1b' }, // 🔴 red
 

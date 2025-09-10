@@ -100,6 +100,9 @@
                                         data-col="{{ $colKey }}"
                                         data-url="{{ $updateUrl }}"
                                         data-extra='@json($updatePayloadExtra)'
+                                        @if(isset($row['outdoor_item_id']) || isset($row->outdoor_item_id))
+                                            data-outdoor-item-id="{{ is_array($row) ? ($row['outdoor_item_id'] ?? '') : ($row->outdoor_item_id ?? '') }}"
+                                        @endif
                                     />
                                 @elseif($type === 'number')
                                     <input
@@ -109,8 +112,10 @@
                                         value="{{ $raw($colKey, $cellValue) }}"
                                         data-id="{{ $rowId }}"
                                         data-col="{{ $colKey }}"
-                                        data-url="{{ $updateUrl }}"
                                         data-extra='@json($updatePayloadExtra)'
+                                        @if(isset($row['outdoor_item_id']) || isset($row->outdoor_item_id))
+                                            data-outdoor-item-id="{{ is_array($row) ? ($row['outdoor_item_id'] ?? '') : ($row->outdoor_item_id ?? '') }}"
+                                        @endif
                                     />
                                 @elseif($type === 'textarea')
                                     <textarea
@@ -118,8 +123,10 @@
                                         rows="3"
                                         data-id="{{ $rowId }}"
                                         data-col="{{ $colKey }}"
-                                        data-url="{{ $updateUrl }}"
                                         data-extra='@json($updatePayloadExtra)'
+                                        @if(isset($row['outdoor_item_id']) || isset($row->outdoor_item_id))
+                                            data-outdoor-item-id="{{ is_array($row) ? ($row['outdoor_item_id'] ?? '') : ($row->outdoor_item_id ?? '') }}"
+                                        @endif
                                     >{{ $raw($colKey, $cellValue) }}</textarea>
                                 @else
                                     {{-- ✅ Different width for different types of text inputs --}}
@@ -129,8 +136,10 @@
                                         value="{{ $raw($colKey, $cellValue) }}"
                                         data-id="{{ $rowId }}"
                                         data-col="{{ $colKey }}"
-                                        data-url="{{ $updateUrl }}"
                                         data-extra='@json($updatePayloadExtra)'
+                                        @if(isset($row['outdoor_item_id']) || isset($row->outdoor_item_id))
+                                            data-outdoor-item-id="{{ is_array($row) ? ($row['outdoor_item_id'] ?? '') : ($row->outdoor_item_id ?? '') }}"
+                                        @endif
                                     />
                                 @endif
                             @else
@@ -173,38 +182,54 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const save = async (el) => {
-        const url   = el.dataset.url;
-        const id    = el.dataset.id;
-        const col   = el.dataset.col;
-        const extra = (() => { try { return JSON.parse(el.dataset.extra || '{}'); } catch { return {}; }})();
-        const value = (el.type === 'checkbox') ? (el.checked ? 1 : 0) : el.value;
+    const url   = el.dataset.url;
+    const id    = el.dataset.id;
+    const col   = el.dataset.col;
+    const extra = (() => { try { return JSON.parse(el.dataset.extra || '{}'); } catch { return {}; }})();
+    const outdoorItemId = el.dataset.outdoorItemId ? parseInt(el.dataset.outdoorItemId, 10) : null;
+    const value = (el.type === 'checkbox') ? (el.checked ? 1 : 0) : el.value;
 
-        if (!url || !id || !col) return;
+    if (!url || !id || !col) return;
 
-        el.classList.remove('ring-2','ring-red-200','ring-green-200');
-        el.classList.add('opacity-60');
+    el.classList.remove('ring-2','ring-red-200','ring-green-200');
+    el.classList.add('opacity-60');
 
-        try {
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': token,
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify({ id, column: col, value, ...extra })
-            });
-            if (!res.ok) throw new Error(await res.text());
-            el.classList.add('ring-2','ring-green-200');
-        } catch (e) {
-            console.error(e);
-            el.classList.add('ring-2','ring-red-200');
-            alert('Save failed. Check console / server logs.');
-        } finally {
-            el.classList.remove('opacity-60');
-            setTimeout(() => { el.classList.remove('ring-2','ring-green-200','ring-red-200'); }, 900);
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': token,
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify(Object.assign(
+                {},
+                extra,
+                { id, column: col, value },
+                outdoorItemId ? { outdoor_item_id: outdoorItemId } : {}
+            ))
+        });
+
+        const json = await res.json().catch(() => ({}));
+
+        // Check if request failed or server returned error
+        if (!res.ok || json.ok === false) {
+            throw new Error(json.message || `Save failed (${res.status})`);
         }
-    };
+
+        el.classList.add('ring-2','ring-green-200');
+    } catch (e) {
+        console.error(e);
+        el.classList.add('ring-2','ring-red-200');
+
+        // Show more specific error message
+        const errorMsg = e.message || 'Save failed. Check console / server logs.';
+        alert(`Save failed: ${errorMsg}`);
+    } finally {
+        el.classList.remove('opacity-60');
+        setTimeout(() => { el.classList.remove('ring-2','ring-green-200','ring-red-200'); }, 900);
+    }
+};
 
     // change + debounced input (good UX for text fields)
     document.body.addEventListener('change', (e) => {

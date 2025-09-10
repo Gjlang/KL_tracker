@@ -110,7 +110,6 @@
 </body>
 </html> --}}
 
-
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
@@ -195,6 +194,10 @@
     </main>
 </div>
 
+{{-- Optional modal stack --}}
+@stack('modals')
+
+{{-- External Scripts --}}
 {{-- FullCalendar JS (optional; keep if used site-wide) --}}
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 
@@ -212,12 +215,19 @@
   });
 </script>
 
-{{-- Optional modal stack --}}
-@stack('modals')
+{{-- DEBUG: Check if scripts stack is working --}}
+<script>
+  console.log('[Layout] Base scripts loaded');
+</script>
 
 {{-- Page-specific scripts (both section & stack supported) --}}
 @yield('scripts')
 @stack('scripts')
+
+{{-- DEBUG: Confirm stack rendering --}}
+<script>
+  console.log('[Layout] Scripts stack rendered');
+</script>
 
 </body>
 </html>

@@ -11,7 +11,7 @@ class ClienteleController extends Controller
 {
     /**
      * Inline update for cells from master_files.
-     * Expected payload: { id, column, value, scope: 'outdoor'|'kltg' }
+     * Expected payload: { id, column, value, scope: 'outdoor'|'kltg', outdoor_item_id? }
      */
     public function inlineUpdate(Request $request)
     {
@@ -22,6 +22,7 @@ class ClienteleController extends Controller
                 'column' => 'required|string',
                 'value'  => 'nullable',                 // keep raw
                 'scope'  => 'nullable|in:outdoor,kltg',
+                'outdoor_item_id' => 'nullable|integer|min:1', // Add validation for outdoor_item_id
             ]);
 
             $raw = $request->all();
@@ -34,7 +35,8 @@ class ClienteleController extends Controller
                 'id' => $id,
                 'column' => $col,
                 'raw_value' => $raw['value'] ?? 'NOT_SET',
-                'scope' => $scope
+                'scope' => $scope,
+                'outdoor_item_id' => $raw['outdoor_item_id'] ?? 'NOT_SET'
             ]);
 
             // ---- WHITELISTS ----
@@ -153,50 +155,49 @@ class ClienteleController extends Controller
             ];
 
             if ($scope === 'outdoor' && array_key_exists($col, $outdoorMap)) {
-                // Update outdoor_items table
                 $outdoorColumn = $outdoorMap[$col];
 
-                // First, get the outdoor_item_id from master_files
-                $masterFile = DB::table('master_files')->where('id', $id)->first();
-                if (!$masterFile) {
-                    Log::warning('Master file not found', ['id' => $id]);
-                    return response()->json(['ok' => false, 'message' => 'Record not found.'], 404);
+                // New: require explicit outdoor_item_id for OUTDOOR edits
+                $oiId = isset($raw['outdoor_item_id']) ? (int)$raw['outdoor_item_id'] : 0;
+                if ($oiId <= 0) {
+                    Log::warning('Missing outdoor_item_id for OUTDOOR inline update', [
+                        'master_file_id' => $id, 'column' => $col,
+                    ]);
+                    return response()->json(['ok' => false, 'message' => 'Missing outdoor_item_id for OUTDOOR edit.'], 422);
                 }
 
-                // Check if there's an outdoor_items record linked to this master_files record
-                // Assuming you have a relationship field like outdoor_item_id in master_files
-                // or you need to find it by some other relationship
-
-                // Option 1: If master_files has outdoor_item_id field
-                if (isset($masterFile->outdoor_item_id) && $masterFile->outdoor_item_id) {
-                    $affected = DB::table('outdoor_items')
-                        ->where('id', $masterFile->outdoor_item_id)
-                        ->update([$outdoorColumn => $value, 'updated_at' => now()]);
-
-                    Log::info('Updated outdoor_items', [
-                        'outdoor_item_id' => $masterFile->outdoor_item_id,
-                        'column' => $outdoorColumn,
-                        'value' => $value,
-                        'affected_rows' => $affected
+                // Optional sanity check: ensure this outdoor item belongs to the same master_file (defense-in-depth)
+                $belongs = DB::table('outdoor_items')
+                    ->where('id', $oiId)
+                    ->where('master_file_id', $id)
+                    ->exists();
+                if (!$belongs) {
+                    Log::warning('outdoor_item_id does not belong to master_file_id', [
+                        'outdoor_item_id' => $oiId, 'master_file_id' => $id,
                     ]);
-                } else {
-                    // Option 2: If you need to find by master_file_id or some other relationship
-                    $affected = DB::table('outdoor_items')
-                        ->where('master_file_id', $id) // Adjust this based on your relationship
-                        ->update([$outdoorColumn => $value, 'updated_at' => now()]);
-
-                    Log::info('Updated outdoor_items by master_file_id', [
-                        'master_file_id' => $id,
-                        'column' => $outdoorColumn,
-                        'value' => $value,
-                        'affected_rows' => $affected
-                    ]);
+                    return response()->json(['ok' => false, 'message' => 'Outdoor item mismatch.'], 422);
                 }
+
+                $affected = DB::table('outdoor_items')
+                    ->where('id', $oiId)
+                    ->update([$outdoorColumn => $value, 'updated_at' => now()]);
+
+                Log::info('Updated outdoor_items by id (inline)', [
+                    'outdoor_item_id' => $oiId,
+                    'column' => $outdoorColumn,
+                    'value' => $value,
+                    'affected_rows' => $affected
+                ]);
 
                 if ($affected === 0) {
-                    Log::warning('No outdoor_items record updated', ['master_file_id' => $id, 'outdoor_column' => $outdoorColumn]);
-                    return response()->json(['ok' => false, 'message' => 'No outdoor item found to update.'], 404);
+                    return response()->json(['ok' => false, 'message' => 'No row changed.'], 200);
                 }
+
+                return response()->json([
+                    'ok' => true,
+                    'affected' => (int)$affected,
+                    'message' => 'Updated successfully'
+                ]);
             } else {
                 // Regular update to master_files table
                 $affected = DB::table('master_files')
