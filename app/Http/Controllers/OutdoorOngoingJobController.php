@@ -39,8 +39,10 @@ class OutdoorOngoingJobController extends Controller
    public function index(Request $request)
 {
     // -------- Inputs --------
-    $year = (string) $request->get('outdoor_year', now()->year);
+    $year   = (int) $request->integer('outdoor_year') ?: (int) now()->year;
+    $month  = (int) $request->integer('outdoor_month'); // 0 or 1..12
     $search = trim((string) $request->get('search', ''));
+
 
     // -------- Base query: Outdoor-only + sites joined --------
     $q = DB::table('master_files as mf')
@@ -153,6 +155,130 @@ $existing = $details->mapWithKeys(function ($r) {
 ]);
 
 }
+
+// public function index(Request $request)
+// {
+//     // -------- Inputs --------
+//     $year  = (int) ($request->input('outdoor_year') ?: now()->year);
+//     // Accept outdoor_month (preferred). If missing, fall back to 'month'. 0 = "All months".
+//     $month = (int) ($request->input('outdoor_month') ?: $request->input('month') ?: 0);
+//     if ($month < 0 || $month > 12) {
+//         $month = 0;
+//     }
+//     $search = trim((string) $request->get('search', ''));
+
+//     // -------- Base query: Outdoor-only + sites joined --------
+//     $q = DB::table('master_files as mf')
+//         ->leftJoin('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
+//         ->where(function ($w) {
+//             $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
+//               ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%']);
+//         });
+
+//     // -------- Search (company/product/site/coords/district) --------
+//     if ($search !== '') {
+//         $like = '%' . strtolower($search) . '%';
+//         $q->where(function ($w) use ($like) {
+//             $w->whereRaw('LOWER(mf.company) LIKE ?', [$like])
+//               ->orWhereRaw('LOWER(mf.product) LIKE ?', [$like])
+//               ->orWhereRaw('LOWER(oi.site) LIKE ?', [$like])
+//               ->orWhereRaw('LOWER(COALESCE(oi.coordinates,"")) LIKE ?', [$like])
+//               ->orWhereRaw('LOWER(COALESCE(oi.district_council,"")) LIKE ?', [$like]);
+//         });
+//     }
+
+//     // -------- Year filter (a row qualifies if any of these dates fall in the year) --------
+//     if ($request->filled('outdoor_year')) {
+//         $y = (int) $year;
+//         $q->where(function ($w) use ($y) {
+//             $w->whereYear('mf.date', $y)
+//               ->orWhereYear('mf.date_finish', $y)
+//               ->orWhereYear('mf.created_at', $y);
+//         });
+//     }
+
+//     // -------- PER-SITE selection (no GROUP_CONCAT) --------
+//     $rows = $q->select([
+//             'mf.id',                       // master_file_id
+//             'mf.company',
+//             'mf.product',
+//             'mf.product_category',
+//             'mf.date',
+//             'mf.date_finish',
+//             'mf.month',
+//             'mf.created_at',
+//             'oi.id  as outdoor_item_id',
+//             'oi.site',
+//             'oi.size',
+//             'oi.coordinates',
+//             'oi.district_council',
+//         ])
+//         ->orderBy('mf.company')
+//         ->orderBy('oi.site')
+//         ->get();
+
+//     // -------- Available years (union of date sources across outdoor data) --------
+//     $years = DB::query()
+//         ->fromSub(function ($sub) {
+//             $sub->from('master_files as mf')
+//                 ->leftJoin('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
+//                 ->where(function ($w) {
+//                     $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
+//                       ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%']);
+//                 })
+//                 ->selectRaw('YEAR(mf.date) as y')->whereNotNull('mf.date')
+//                 ->union(
+//                     DB::table('master_files as mf')
+//                         ->leftJoin('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
+//                         ->where(function ($w) {
+//                             $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
+//                               ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%']);
+//                         })
+//                         ->selectRaw('YEAR(mf.date_finish) as y')->whereNotNull('mf.date_finish')
+//                 )
+//                 ->union(
+//                     DB::table('master_files as mf')
+//                         ->leftJoin('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
+//                         ->where(function ($w) {
+//                             $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
+//                               ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%']);
+//                         })
+//                         ->selectRaw('YEAR(mf.created_at) as y')->whereNotNull('mf.created_at')
+//                 );
+//         }, 'years_union')
+//         ->select('y')
+//         ->whereNotNull('y')
+//         ->distinct()
+//         ->orderBy('y', 'desc')
+//         ->pluck('y');
+
+//     $availableYears = $years;
+
+//     // -------- Existing monthly detail map (filtered by year and optional month) --------
+//     $detailIds = $rows->pluck('outdoor_item_id')->filter()->unique()->values();
+
+//     $detailsQuery = DB::table('outdoor_monthly_details')
+//         ->where('year', $year)
+//         ->whereIn('outdoor_item_id', $detailIds);
+
+//     if ($month >= 1 && $month <= 12) {
+//         $detailsQuery->where('month', $month);
+//     }
+
+//     $details = $detailsQuery->get();
+
+//     $existing = $details->mapWithKeys(function ($r) {
+//         return [ $r->outdoor_item_id . ':' . $r->month . ':' . $r->field_key => $r ];
+//     });
+
+//     return view('dashboard.outdoor', [
+//         'rows'           => $rows,
+//         'availableYears' => $availableYears,
+//         'year'           => (int) $year,
+//         'month'          => (int) $month, // so your <select> can stay selected
+//         'existing'       => $existing,
+//     ]);
+// }
 
 
 

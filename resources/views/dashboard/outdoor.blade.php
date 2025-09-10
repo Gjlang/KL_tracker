@@ -85,11 +85,9 @@
         <div class="mb-8 p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200">
           <form method="GET" action="{{ route('dashboard') }}">
             <!-- Preserve existing filters -->
-            <input type="hidden" name="search" value="{{ request('search') }}">
+           <input type="hidden" name="search" value="{{ request('search') }}">
             <input type="hidden" name="status" value="{{ request('status') }}">
-            <input type="hidden" name="month" value="{{ request('month') }}">
             <input type="hidden" name="product_category" value="{{ request('product_category') }}">
-
             {{-- Outdoor page is hard-locked to Outdoor --}}
             <input type="hidden" id="category" name="category" value="Outdoor">
 
@@ -102,17 +100,44 @@
                 </span>
               </div>
 
-              <!-- Year Filter -->
-              <div class="space-y-2">
-                <label for="outdoor_year" class="block text-sm font-semibold text-gray-700">📅 Year</label>
-                <select name="outdoor_year" id="outdoor_year" class="w-full rounded-xl border border-gray-200 bg-gray-50 hover:bg-white px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200">
-                  <option value="">All Years</option>
-                  @foreach($availableYears->unique() as $y)
-                    <option value="{{ $y }}" {{ (string)request('outdoor_year', $year) === (string)$y ? 'selected' : '' }}>
+               <div class="space-y-2">
+                <label for="outdoor_year" class="block text-sm font-semibold text-gray-700">🗓️ Year</label>
+                <select id="outdoor_year" name="outdoor_year"
+                        class="w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-indigo-500">
+                  @php
+                    $currentYear = (int) (request('outdoor_year') ?? ($year ?? now()->year));
+                    // $years is provided by controller (distinct available years)
+                  @endphp
+                  @foreach(($years ?? [now()->year]) as $y)
+                    <option value="{{ $y }}" {{ (int)$y === $currentYear ? 'selected' : '' }}>
                       {{ $y }}
                     </option>
                   @endforeach
                 </select>
+              </div>
+
+              <!-- Month Filter -->
+              <div class="space-y-2">
+                <label for="outdoor_month" class="block text-sm font-semibold text-gray-700">📅 Month</label>
+                @php
+                  $mSel = (int) (request('outdoor_month') ?? 0);
+                  $monthNames = [1=>'Jan',2=>'Feb',3=>'Mar',4=>'Apr',5=>'May',6=>'Jun',7=>'Jul',8=>'Aug',9=>'Sep',10=>'Oct',11=>'Nov',12=>'Dec'];
+                @endphp
+                <select id="outdoor_month" name="outdoor_month"
+                        class="w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-indigo-500">
+                  <option value="0">All months</option>
+                  @foreach($monthNames as $mi => $mn)
+                    <option value="{{ $mi }}" {{ $mSel === $mi ? 'selected' : '' }}>{{ $mn }}</option>
+                  @endforeach
+                </select>
+              </div>
+
+              <!-- Apply Button -->
+              <div class="flex items-end">
+                <button type="submit"
+                        class="px-4 py-2 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 shadow-sm">
+                  Apply
+                </button>
               </div>
             </div>
 
@@ -154,15 +179,24 @@
             @endif
           </form>
 
-          <!-- Quick Action Button -->
-          <div class="mt-6 pt-4 border-t border-gray-100">
-            <a href="{{ route('coordinator.outdoor.index') }}"
-               class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-yellow-900 font-semibold rounded-xl hover:from-yellow-600 hover:to-yellow-700 shadow-sm hover:shadow-md transition-all duration-200 transform hover:-translate-y-0.5">
-              🏞️ Outdoor Coordinator List
-            </a>
-          </div>
-        </div>
+          <!-- Quick Action Buttons -->
+            <div class="mt-6 pt-6 border-t border-gray-200">
+            <div class="bg-gray-50 p-6 rounded-xl shadow-sm flex flex-wrap gap-4">
 
+                <!-- Outdoor Coordinator List -->
+                <a href="{{ route('coordinator.outdoor.index') }}"
+                class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-yellow-900 font-semibold rounded-xl shadow hover:from-yellow-600 hover:to-yellow-700 transition-all duration-200">
+                🏞️ Outdoor Coordinator List
+                </a>
+
+                <!-- Export CSV -->
+                <a href="{{ route('coordinator.outdoor.exportMatrix', ['year' => $year]) }}"
+                class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-black font-semibold rounded-xl shadow hover:from-blue-600 hover:to-blue-700 transition-all duration-200">
+                📤 Export CSV
+                </a>
+
+            </div>
+            </div>
         {{-- Main Data Table --}}
         <div class="rounded-2xl bg-white shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200 overflow-hidden">
           <div class="overflow-x-auto">
@@ -323,12 +357,6 @@
             </table>
           </div>
         </div>
-
-  <a
-  href="{{ route('coordinator.outdoor.exportMatrix', ['year' => $year]) }}"
-  class="btn btn-primary">
-  Export CSV
-</a>
 
       </div>
     </main>
