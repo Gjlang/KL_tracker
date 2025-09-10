@@ -55,8 +55,15 @@
                         $label = is_array($c)
                             ? ($c['label'] ?? Str::headline($key))
                             : ($column_labels[$c] ?? Str::headline($c));
+
+                        // ✅ Define wider columns for specific fields
+                        $isWideColumn = in_array($key, [
+                            'company_name', 'company', 'product', 'product_category',
+                            'kltg_industry', 'kltg_material_cbp', 'kltg_article', 'kltg_remarks',
+                            'outdoor_district_council', 'outdoor_coordinates', 'remarks'
+                        ]);
                     @endphp
-                    <th class="px-4 py-3 text-left font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                    <th class="px-4 py-3 text-left font-semibold text-gray-700 uppercase tracking-wider {{ $isWideColumn ? 'min-w-48' : 'whitespace-nowrap' }}">
                         {{ $label }}
                     </th>
                 @endforeach
@@ -73,14 +80,21 @@
                             $isEditable = array_key_exists($colKey, $editable);
                             $type = $isEditable ? ($editable[$colKey] ?? 'text') : null;
                             $rowId = data_get($row, 'id');
+
+                            // ✅ Check if this is a wide column that needs more space
+                            $isWideColumn = in_array($colKey, [
+                                'company_name', 'company', 'product', 'product_category',
+                                'kltg_industry', 'kltg_material_cbp', 'kltg_article', 'kltg_remarks',
+                                'outdoor_district_council', 'outdoor_coordinates', 'remarks'
+                            ]);
                         @endphp
 
-                        <td class="px-4 py-3 whitespace-nowrap text-gray-800">
+                        <td class="px-4 py-3 text-gray-800 {{ $isWideColumn ? 'min-w-48' : 'whitespace-nowrap' }}">
                             @if($isEditable && $rowId)
                                 @if($type === 'date')
                                     <input
                                         type="date"
-                                        class="mf-edit w-full rounded border border-gray-300 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                        class="mf-edit w-full min-w-32 rounded border border-gray-300 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
                                         value="{{ $raw($colKey, $cellValue) }}"
                                         data-id="{{ $rowId }}"
                                         data-col="{{ $colKey }}"
@@ -91,7 +105,7 @@
                                     <input
                                         type="number"
                                         step="any"
-                                        class="mf-edit w-full rounded border border-gray-300 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                        class="mf-edit w-full min-w-24 rounded border border-gray-300 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
                                         value="{{ $raw($colKey, $cellValue) }}"
                                         data-id="{{ $rowId }}"
                                         data-col="{{ $colKey }}"
@@ -100,17 +114,18 @@
                                     />
                                 @elseif($type === 'textarea')
                                     <textarea
-                                        class="mf-edit w-full rounded border border-gray-300 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                        rows="2"
+                                        class="mf-edit w-full min-w-48 rounded border border-gray-300 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                        rows="3"
                                         data-id="{{ $rowId }}"
                                         data-col="{{ $colKey }}"
                                         data-url="{{ $updateUrl }}"
                                         data-extra='@json($updatePayloadExtra)'
                                     >{{ $raw($colKey, $cellValue) }}</textarea>
                                 @else
+                                    {{-- ✅ Different width for different types of text inputs --}}
                                     <input
                                         type="text"
-                                        class="mf-edit w-full rounded border border-gray-300 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                        class="mf-edit w-full {{ $isWideColumn ? 'min-w-48' : 'min-w-24' }} rounded border border-gray-300 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
                                         value="{{ $raw($colKey, $cellValue) }}"
                                         data-id="{{ $rowId }}"
                                         data-col="{{ $colKey }}"
@@ -119,7 +134,9 @@
                                     />
                                 @endif
                             @else
-                                {{ $fmt($colKey, $cellValue) }}
+                                <div class="{{ $isWideColumn ? 'min-w-48 break-words' : '' }}">
+                                    {{ $fmt($colKey, $cellValue) }}
+                                </div>
                             @endif
                         </td>
                     @endforeach
@@ -148,21 +165,54 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
-  const debounce = (fn, ms=350) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms);} };
+    // small debounce for inputs
+    const debounce = (fn, ms=350) => {
+        let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+    };
 
-  const save = async (el) => { /* ... existing autosave code unchanged ... */ };
+    const save = async (el) => {
+        const url   = el.dataset.url;
+        const id    = el.dataset.id;
+        const col   = el.dataset.col;
+        const extra = (() => { try { return JSON.parse(el.dataset.extra || '{}'); } catch { return {}; }})();
+        const value = (el.type === 'checkbox') ? (el.checked ? 1 : 0) : el.value;
 
-  // Only bind autosave when NOT in batch mode
-  if (!window.mfBatchMode) {
+        if (!url || !id || !col) return;
+
+        el.classList.remove('ring-2','ring-red-200','ring-green-200');
+        el.classList.add('opacity-60');
+
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': token,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ id, column: col, value, ...extra })
+            });
+            if (!res.ok) throw new Error(await res.text());
+            el.classList.add('ring-2','ring-green-200');
+        } catch (e) {
+            console.error(e);
+            el.classList.add('ring-2','ring-red-200');
+            alert('Save failed. Check console / server logs.');
+        } finally {
+            el.classList.remove('opacity-60');
+            setTimeout(() => { el.classList.remove('ring-2','ring-green-200','ring-red-200'); }, 900);
+        }
+    };
+
+    // change + debounced input (good UX for text fields)
     document.body.addEventListener('change', (e) => {
-      if (e.target.classList.contains('mf-edit')) save(e.target);
+        if (e.target.classList.contains('mf-edit')) save(e.target);
     });
     document.body.addEventListener('input', debounce((e) => {
-      if (e.target.classList.contains('mf-edit')) save(e.target);
+        if (e.target.classList.contains('mf-edit')) save(e.target);
     }, 600));
-  }
 });
 </script>
 @endpush

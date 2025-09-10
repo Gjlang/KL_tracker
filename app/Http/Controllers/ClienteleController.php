@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class ClienteleController extends Controller
 {
@@ -13,184 +14,296 @@ class ClienteleController extends Controller
      * Expected payload: { id, column, value, scope: 'outdoor'|'kltg' }
      */
     public function inlineUpdate(Request $request)
-    {
+{
+    try {
+        // 1) Validate base payload
         $data = $request->validate([
-            'id'     => ['required','integer'],
-            'column' => ['required','string'],
-            'value'  => ['nullable'],
-            'scope'  => ['nullable','in:outdoor,kltg'], // optional; defaults to base
+            'id'     => 'required|integer|min:1',
+            'column' => 'required|string',
+            'value'  => 'nullable',                          // keep raw; we'll normalize
+            'scope'  => 'nullable|in:outdoor,kltg',
+            // only sent (and required) when editing outdoor_* columns
+            'outdoor_item_id' => 'nullable|integer|min:1',
         ]);
 
-        $scope = $data['scope'] ?? 'base';
+        $raw   = $request->all();
+        $col   = (string)$data['column'];
+        $id    = (int)$data['id'];
+        $scope = $data['scope'] ?? null;
 
-        // ---- WHITELISTS (edit only what makes sense) ----
+        Log::info('InlineUpdate Request', [
+            'id' => $id, 'column' => $col, 'raw_value' => $raw['value'] ?? 'NOT_SET', 'scope' => $scope
+        ]);
+
+        // 2) Editable columns
         $allowedBase = [
             'month','date','company','product','product_category','location','traffic','duration',
             'amount','status','remarks','client','sales_person','barter',
             'date_finish','job_number','artwork','invoice_date','invoice_number',
             'contact_number','email',
         ];
-
-        $allowedOutdoor = [
-            'outdoor_size','outdoor_district_council','outdoor_coordinates',
-
-        ];
-
-        $allowedKltg = [
+        $allowedOutdoor = ['outdoor_size','outdoor_district_council','outdoor_coordinates'];
+        $allowedKltg    = [
             'kltg_industry','kltg_x','kltg_edition','kltg_material_cbp','kltg_print',
             'kltg_article','kltg_video','kltg_leaderboard','kltg_qr_code','kltg_blog','kltg_em',
             'kltg_remarks',
-
         ];
 
         $allowed = $allowedBase;
         if ($scope === 'outdoor') $allowed = array_merge($allowed, $allowedOutdoor);
         if ($scope === 'kltg')    $allowed = array_merge($allowed, $allowedKltg);
 
-        // Guard: only allow known columns
-        if (! in_array($data['column'], $allowed, true)) {
+        if (!in_array($col, $allowed, true)) {
+            Log::warning('Column not allowed', ['column' => $col]);
             return response()->json(['ok' => false, 'message' => 'Column not editable.'], 422);
         }
 
-        // ---- NORMALIZERS ----
-        $dateCols   = ['date_finish','invoice_date']; // real DATE columns
-        $ymdCols    = $dateCols;                      // save as Y-m-d
-        $freeDateLike = ['date'];                     // stored as varchar; preserve input if parse fails
-        $amountCols = ['amount'];
+        // 3) Normalize value
+        $value = array_key_exists('value', $raw) ? $raw['value'] : null;
 
-        // KLTG boolean ticks (tinyint 0/1)
-        $boolCols = array_filter(array_merge($allowedKltg), fn($c) => str_starts_with($c, 'check_') && !in_array($c, [
-            // exclude string check_* (outdoor monthly strings) from bool set
-            'check_jan','check_feb','check_mar','check_apr','check_may','check_jun',
-            'check_jul','check_aug','check_sep','check_oct','check_nov','check_dec',
-        ]));
-
-        $col   = $data['column'];
-        $value = $data['value'];
-
-        // Normalize boolean flags for tinyint(1)
-        if (in_array($col, $boolCols, true)) {
-            $value = (in_array($value, [1, '1', true, 'true', 'on', 'yes'], true)) ? 1 : 0;
+        // NOT NULL safeguards
+        $notNullable = ['product','company','client'];
+        if (in_array($col, $notNullable, true) && ($value === null || trim((string)$value) === '')) {
+            return response()->json(['ok' => false, 'message' => ucfirst($col).' cannot be empty.'], 422);
+        }
+        // Allow blank strings for nullable columns (avoid ConvertEmptyStringsToNull)
+        if ($value === null && !in_array($col, $notNullable, true)) {
+            $value = '';
         }
 
-        // Normalize amount
+        // Type helpers
+        $amountCols   = ['amount'];
+        $ymdCols      = ['date_finish','invoice_date']; // DATE columns
+        $freeDateLike = ['date'];                       // VARCHAR date-ish
+
         if (in_array($col, $amountCols, true)) {
-            $value = ($value === '' || $value === null) ? null : (float) str_replace([','], [''], (string)$value);
-        }
-
-        // Normalize true DATE columns
-        if (in_array($col, $ymdCols, true)) {
-            $value = ($value === '' || $value === null) ? null : Carbon::parse($value)->format('Y-m-d');
-        }
-
-        // Keep 'date' (varchar) user-friendly: try parse, else store as-is
-        if (in_array($col, $freeDateLike, true) && $value) {
-            try {
-                $value = Carbon::parse($value)->format('n/j/y'); // match your display format
-            } catch (\Throwable $e) {
-                // leave raw string
+            if ($value === '' || $value === null) {
+                $value = null;
+            } else {
+                $clean = str_replace([',',' '], '', (string)$value);
+                if (!is_numeric($clean)) {
+                    return response()->json(['ok' => false, 'message' => 'Amount must be a valid number.'], 422);
+                }
+                $value = (float)$clean;
             }
         }
 
-        // ---- UPDATE DB ----
+        if (in_array($col, $ymdCols, true)) {
+            if ($value === '' || $value === null) {
+                $value = null;
+            } else {
+                try { $value = \Carbon\Carbon::parse($value)->format('Y-m-d'); }
+                catch (\Throwable $e) {
+                    return response()->json(['ok' => false, 'message' => 'Invalid date format for '.$col], 422);
+                }
+            }
+        }
+
+        if (in_array($col, $freeDateLike, true) && $value) {
+            try { $value = \Carbon\Carbon::parse($value)->format('n/j/y'); }
+            catch (\Throwable $e) { /* keep original */ }
+        }
+
+        // 4) Ensure master row exists
+        if (!DB::table('master_files')->where('id', $id)->exists()) {
+            return response()->json(['ok' => false, 'message' => 'Record not found.'], 404);
+        }
+
+        // 5) Routing for OUTDOOR-only columns — require outdoor_item_id
+        $outdoorMap = [
+            'outdoor_size'             => 'size',
+            'outdoor_district_council' => 'district_council',
+            'outdoor_coordinates'      => 'coordinates',
+        ];
+
+        if ($scope === 'outdoor' && array_key_exists($col, $outdoorMap)) {
+            $oiId = (int)($data['outdoor_item_id'] ?? 0);
+            if ($oiId <= 0) {
+                Log::warning('Missing outdoor_item_id for outdoor column', ['column' => $col]);
+                return response()->json(['ok' => false, 'message' => 'Missing outdoor_item_id for this field.'], 422);
+            }
+
+            $affected = DB::table('outdoor_items')
+                ->where('id', $oiId)               // ← update exactly one row
+                ->update([$outdoorMap[$col] => $value, 'updated_at' => now()]);
+
+            Log::info('Updated outdoor_items', ['id' => $oiId, 'col' => $outdoorMap[$col], 'affected' => $affected]);
+
+            return response()->json([
+                'ok' => true,
+                'affected' => (int)$affected,
+                'message' => $affected > 0 ? 'Updated successfully' : 'No change needed (same value)'
+            ]);
+        }
+
+        // 6) Default: update master_files
         $affected = DB::table('master_files')
-            ->where('id', $data['id'])
+            ->where('id', $id)
             ->update([$col => $value, 'updated_at' => now()]);
 
-        if ($affected === 0) {
-            return response()->json(['ok' => false, 'message' => 'Row not found or no change.'], 404);
-        }
+        Log::info('Updated master_files', ['id' => $id, 'col' => $col, 'affected' => $affected]);
 
-        return response()->json(['ok' => true]);
-    }
+        return response()->json([
+            'ok' => true,
+            'affected' => (int)$affected,
+            'message' => $affected > 0 ? 'Updated successfully' : 'No change needed (same value)'
+        ]);
 
-    public function batchUpdate(Request $request)
-{
-    $data = $request->validate([
-        'scope'            => 'required|string|in:kltg,outdoor',
-        'changes'          => 'required|array|min:1',
-        'changes.*.id'     => 'required|integer|exists:master_files,id',
-        'changes.*.column' => 'required|string',
-        'changes.*.value'  => 'nullable',
-        // Outdoor (optional; only for oi.* columns)
-        'changes.*.outdoor_item_id' => 'nullable|integer|exists:outdoor_items,id',
-    ]);
-
-    // Lists reused from inlineUpdate
-    $boolCols   = []; // (none in your KLTG/outdoor set right now; add if you use tinyint flags)
-    $amountCols = ['amount'];
-    $ymdCols    = ['date_finish','invoice_date'];
-    $freeDateLike = ['date','invoice_number_date']; // 'date' is varchar in your schema
-
-    // Column routing rules for OUTDOOR scope
-    $outdoorMap = [
-        'location'                 => ['table' => 'outdoor_items', 'col' => 'site'],
-        'outdoor_size'             => ['table' => 'outdoor_items', 'col' => 'size'],
-        'outdoor_district_council' => ['table' => 'outdoor_items', 'col' => 'district_council'],
-        'outdoor_coordinates'      => ['table' => 'outdoor_items', 'col' => 'coordinates'],
-        // everything else -> master_files as-is
-    ];
-
-    $changes  = $data['changes'];
-    $scope    = $data['scope'];
-    $ok = 0; $failed = [];
-
-    DB::beginTransaction();
-    try {
-        foreach ($changes as $c) {
-            try {
-                $id    = (int)$c['id'];
-                $colIn = (string)$c['column'];
-                $val   = $c['value'] ?? null;
-
-                // Normalize value like inlineUpdate
-                if (in_array($colIn, $boolCols, true)) {
-                    $val = (in_array($val, [1,'1',true,'true','on','yes'], true)) ? 1 : 0;
-                }
-                if (in_array($colIn, $amountCols, true)) {
-                    $val = ($val === '' || $val === null) ? null : (float) str_replace([','], [''], (string)$val);
-                }
-                if (in_array($colIn, $ymdCols, true)) {
-                    $val = ($val === '' || $val === null) ? null : \Carbon\Carbon::parse($val)->format('Y-m-d');
-                }
-                if (in_array($colIn, $freeDateLike, true) && $val) {
-                    try { $val = \Carbon\Carbon::parse($val)->format('n/j/y'); } catch (\Throwable $e) { /* leave as is */ }
-                }
-
-                if ($scope === 'outdoor' && isset($outdoorMap[$colIn])) {
-                    // update outdoor_items
-                    $oiId = isset($c['outdoor_item_id']) ? (int)$c['outdoor_item_id'] : 0;
-                    if ($oiId <= 0) throw new \RuntimeException('Missing outdoor_item_id for column '.$colIn);
-
-                    $affected = DB::table('outdoor_items')
-                        ->where('id', $oiId)
-                        ->update([$outdoorMap[$colIn]['col'] => $val, 'updated_at' => now()]);
-                    if ($affected === 0) throw new \RuntimeException('No change for outdoor_items row');
-                } else {
-                    // update master_files
-                    $affected = DB::table('master_files')
-                        ->where('id', $id)
-                        ->update([$colIn => $val, 'updated_at' => now()]);
-                    if ($affected === 0) throw new \RuntimeException('No change for master_files row');
-                }
-
-                $ok++;
-            } catch (\Throwable $e) {
-                $failed[] = [
-                    'id' => $c['id'],
-                    'column' => $c['column'],
-                    'error' => $e->getMessage(),
-                ];
-            }
-        }
-
-        DB::commit();
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        Log::error('Validation error', ['errors' => $e->errors()]);
+        return response()->json(['ok' => false, 'message' => 'Validation failed', 'errors' => $e->errors()], 422);
     } catch (\Throwable $e) {
-        DB::rollBack();
-        return response()->json(['ok' => false, 'message' => $e->getMessage()], 500);
+        Log::error('Unexpected error in inlineUpdate', [
+            'message' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine(),
+            'request' => $request->all()
+        ]);
+        return response()->json(['ok' => false, 'message' => 'Server error: '.$e->getMessage()], 500);
     }
-
-    return response()->json(['ok' => true, 'saved' => $ok, 'failed' => $failed]);
 }
 
+
+    public function batchUpdate(Request $request)
+    {
+        try {
+            $data = $request->validate([
+                'scope'            => 'required|string|in:kltg,outdoor',
+                'changes'          => 'required|array|min:1',
+                'changes.*.id'     => 'required|integer|exists:master_files,id',
+                'changes.*.column' => 'required|string',
+                'changes.*.value'  => 'nullable',
+                // Outdoor (optional; only for oi.* columns)
+                'changes.*.outdoor_item_id' => 'nullable|integer|exists:outdoor_items,id',
+            ]);
+
+            // Lists reused from inlineUpdate
+            $boolCols   = []; // (none in your KLTG/outdoor set right now; add if you use tinyint flags)
+            $amountCols = ['amount'];
+            $ymdCols    = ['date_finish','invoice_date'];
+            $freeDateLike = ['date','invoice_number_date']; // 'date' is varchar in your schema
+
+            // Define NOT NULL columns
+            $notNullable = ['product', 'company', 'client'];
+
+            // Column routing rules for OUTDOOR scope
+            $outdoorMap = [
+                'location'                 => ['table' => 'outdoor_items', 'col' => 'site'],
+                'outdoor_size'             => ['table' => 'outdoor_items', 'col' => 'size'],
+                'outdoor_district_council' => ['table' => 'outdoor_items', 'col' => 'district_council'],
+                'outdoor_coordinates'      => ['table' => 'outdoor_items', 'col' => 'coordinates'],
+                // everything else -> master_files as-is
+            ];
+
+            $changes  = $data['changes'];
+            $scope    = $data['scope'];
+            $ok = 0; $failed = [];
+
+            Log::info('BatchUpdate started', ['scope' => $scope, 'changes_count' => count($changes)]);
+
+            DB::beginTransaction();
+            try {
+                foreach ($changes as $index => $c) {
+                    try {
+                        $id    = (int)$c['id'];
+                        $colIn = (string)$c['column'];
+                        $val   = $c['value'] ?? null;
+
+                        Log::info("Processing change $index", ['id' => $id, 'column' => $colIn, 'value' => $val]);
+
+                        // Check NOT NULL constraints
+                        if (in_array($colIn, $notNullable, true) && ($val === null || trim((string)$val) === '')) {
+                            throw new \RuntimeException(ucfirst($colIn).' cannot be empty.');
+                        }
+
+                        // If null, convert to empty string for nullable columns
+                        if ($val === null && !in_array($colIn, $notNullable, true)) {
+                            $val = '';
+                        }
+
+                        // Normalize value like inlineUpdate
+                        if (in_array($colIn, $boolCols, true)) {
+                            $val = (in_array($val, [1,'1',true,'true','on','yes'], true)) ? 1 : 0;
+                        }
+
+                        if (in_array($colIn, $amountCols, true)) {
+                            if ($val === '' || $val === null) {
+                                $val = null;
+                            } else {
+                                $cleanValue = str_replace([',', ' '], '', (string)$val);
+                                if (is_numeric($cleanValue)) {
+                                    $val = (float)$cleanValue;
+                                } else {
+                                    throw new \RuntimeException('Amount must be a valid number.');
+                                }
+                            }
+                        }
+
+                        if (in_array($colIn, $ymdCols, true)) {
+                            if ($val === '' || $val === null) {
+                                $val = null;
+                            } else {
+                                $val = \Carbon\Carbon::parse($val)->format('Y-m-d');
+                            }
+                        }
+
+                        if (in_array($colIn, $freeDateLike, true) && $val) {
+                            try { $val = \Carbon\Carbon::parse($val)->format('n/j/y'); } catch (\Throwable $e) { /* leave as is */ }
+                        }
+
+                        if ($scope === 'outdoor' && isset($outdoorMap[$colIn])) {
+                            // update outdoor_items
+                            $oiId = isset($c['outdoor_item_id']) ? (int)$c['outdoor_item_id'] : 0;
+                            if ($oiId <= 0) throw new \RuntimeException('Missing outdoor_item_id for column '.$colIn);
+
+                            $affected = DB::table('outdoor_items')
+                                ->where('id', $oiId)
+                                ->update([$outdoorMap[$colIn]['col'] => $val, 'updated_at' => now()]);
+
+                            Log::info("Updated outdoor_items", ['id' => $oiId, 'affected' => $affected]);
+                        } else {
+                            // update master_files
+                            $affected = DB::table('master_files')
+                                ->where('id', $id)
+                                ->update([$colIn => $val, 'updated_at' => now()]);
+
+                            Log::info("Updated master_files", ['id' => $id, 'affected' => $affected]);
+                        }
+
+                        $ok++;
+                    } catch (\Throwable $e) {
+                        Log::error("Failed to process change $index", [
+                            'change' => $c,
+                            'error' => $e->getMessage()
+                        ]);
+
+                        $failed[] = [
+                            'id' => $c['id'],
+                            'column' => $c['column'],
+                            'error' => $e->getMessage(),
+                        ];
+                    }
+                }
+
+                DB::commit();
+                Log::info('BatchUpdate completed', ['successful' => $ok, 'failed' => count($failed)]);
+            } catch (\Throwable $e) {
+                DB::rollBack();
+                Log::error('BatchUpdate transaction failed', ['error' => $e->getMessage()]);
+                return response()->json(['ok' => false, 'message' => $e->getMessage()], 500);
+            }
+
+            return response()->json(['ok' => true, 'saved' => $ok, 'failed' => $failed]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('BatchUpdate validation error', ['errors' => $e->errors()]);
+            return response()->json(['ok' => false, 'message' => 'Validation failed', 'errors' => $e->errors()], 422);
+        } catch (\Throwable $e) {
+            Log::error('Unexpected error in batchUpdate', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'request' => $request->all()
+            ]);
+            return response()->json(['ok' => false, 'message' => 'Server error: ' . $e->getMessage()], 500);
+        }
+    }
 }
