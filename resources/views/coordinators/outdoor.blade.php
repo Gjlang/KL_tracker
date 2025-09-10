@@ -62,10 +62,10 @@
                 <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                     {{-- Filters --}}
                     <div class="flex-1">
-                        <form method="GET" action="{{ url()->current() }}" class="space-y-4 relative">
-                            {{-- Month Filter --}}
+                        <form method="GET" action="{{ route('coordinator.outdoor.index') }}" class="space-y-4 relative">
+                            {{-- Month --}}
                             <div class="relative z-10">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Month</label>
+                                <label for="filterMonth" class="block text-sm font-medium text-gray-700 mb-2">Month</label>
                                 <select name="month" id="filterMonth"
                                         class="w-full rounded-xl border border-gray-200 bg-gray-50 hover:bg-white px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors">
                                     <option value="">All Months</option>
@@ -77,19 +77,41 @@
                                 </select>
                             </div>
 
-                            {{-- Year Filter (hidden input for script reference) --}}
-                            <input type="hidden" id="filterYear" value="{{ now()->year }}">
+                            {{-- Year --}}
+                            <div>
+                                <label for="filterYear" class="block text-sm font-medium text-gray-700 mb-2">Year</label>
+                                <input type="number" id="filterYear" name="year"
+                                       value="{{ (int)($year ?? now()->year) }}"
+                                       min="2000" max="{{ now()->year + 1 }}"
+                                       class="w-full rounded-xl border border-gray-200 bg-gray-50 hover:bg-white px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors">
+                            </div>
 
-                            {{-- Apply Button --}}
-                            <div class="pt-2 z-0">
+                            {{-- Only active this month --}}
+                            <label class="inline-flex items-center gap-2">
+                                <input type="checkbox"
+                                       id="toggleActive"
+                                       name="active"
+                                       value="1"
+                                       @checked(request('active'))
+                                       @disabled(!request('month'))>
+                                <span>Show only active this month</span>
+                            </label>
+
+                            {{-- Actions --}}
+                            <div class="pt-2 z-0 flex gap-3">
                                 <button type="submit"
-                                        class="w-full inline-flex items-center justify-center rounded-xl bg-indigo-600 text-white py-3 text-sm font-medium hover:bg-indigo-700 transition">
+                                        class="flex-1 inline-flex items-center justify-center rounded-xl bg-indigo-600 text-white py-3 text-sm font-medium hover:bg-indigo-700 transition">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                               d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L15 12.414V19l-6-3v-3.586L3.293 6.707A1 1 0 013 6V4z" />
                                     </svg>
                                     Apply Filters
                                 </button>
+
+                                <a href="{{ route('coordinator.outdoor.index') }}"
+                                   class="inline-flex items-center justify-center rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                    Reset
+                                </a>
                             </div>
                         </form>
                     </div>
@@ -150,30 +172,19 @@
                             @if(isset($rows) && $rows->count() > 0)
                                 @foreach($rows as $i => $row)
                                     @php
-                                        $mf = $row->masterFile;
-                                        $trackingId = $row->id ?? null;
-
-                                        // Auto-create tracking record if needed
-                                        if (!$trackingId && isset($row->master_file_id)) {
-                                            $trackingRecord = \App\Models\OutdoorCoordinatorTracking::firstOrCreate(
-                                                [
-                                                    'master_file_id'  => $row->master_file_id,
-                                                    'outdoor_item_id' => $row->outdoor_item_id,
-                                                ],
-                                                [
-                                                    'status' => 'pending',
-                                                    'site'   => $row->site,
-                                                ]
-                                            );
-                                            $trackingId = $trackingRecord->id;
-                                        }
+                                        // Use Query Builder aliases directly
+                                        $trackingId = $row->tracking_id ?? null;
 
                                         // Define editable columns and date fields
                                         $editableCols = ['payment','material','artwork','received_approval','sent_to_printer','collection_printer','installation','dismantle'];
                                         $dateCols = ['received_approval','sent_to_printer','collection_printer','installation','dismantle'];
                                     @endphp
 
-                                    <tr class="odd:bg-white even:bg-gray-50 hover:bg-blue-50/50 transition-colors">
+                                    <tr class="odd:bg-white even:bg-gray-50 hover:bg-blue-50/50 transition-colors"
+                                        data-id="{{ $trackingId }}"
+                                        data-mf="{{ $row->master_file_id }}"
+                                        data-oi="{{ $row->outdoor_item_id }}">
+
                                         {{-- ID Column --}}
                                         <td class="sticky left-0 z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100 text-center font-medium text-gray-900">
                                             {{ $rows->firstItem() + $i }}
@@ -182,21 +193,22 @@
                                         {{-- Company (Read-only) --}}
                                         <td class="sticky left-[80px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100">
                                             <div class="font-medium text-gray-900 bg-gray-50 rounded-lg px-3 py-2">
-                                                {{ $mf?->company ?? $row->company_snapshot }}
+                                                {{ $row->company ?? '-' }}
                                             </div>
                                         </td>
 
-                                        {{-- Client (Read-only) --}}
+                                        {{-- Person In Charge (Read-only) - Use client field or other appropriate field --}}
                                         <td class="sticky left-[280px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100">
                                             <div class="text-gray-700 bg-gray-50 rounded-lg px-3 py-2">
-                                                {{ $mf?->client }}
+                                                {{-- Adjust this field name based on your actual data structure --}}
+                                                {{ $row->client ?? $row->client ?? '-' }}
                                             </div>
                                         </td>
 
                                         {{-- Product (Read-only) --}}
                                         <td class="sticky left-[480px] z-30 bg-inherit border-r px-4 py-4 align-middle border-b border-gray-100">
                                             <div class="text-gray-700 bg-gray-50 rounded-lg px-3 py-2">
-                                                {{ $mf?->product ?? $row->product_snapshot }}
+                                                {{ $row->product ?? '-' }}
                                             </div>
                                         </td>
 
@@ -257,90 +269,10 @@
                                     </tr>
                                 @endforeach
 
-                            @elseif(isset($outdoorJobs) && $outdoorJobs->count() > 0)
-                                {{-- Alternative data source --}}
-                                @foreach($outdoorJobs as $i => $row)
-                                    @php $mf = $row->masterFile; @endphp
-                                    <tr class="odd:bg-white even:bg-gray-50 hover:bg-blue-50/50 transition-colors duration-200">
-                                        <td class="sticky left-0 z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100 text-center font-medium text-gray-900">
-                                            {{ $i + 1 }}
-                                        </td>
-
-                                        {{-- Company (read-only) --}}
-                                        <td class="sticky left-[80px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100">
-                                            <div class="font-medium text-gray-900 bg-gray-50 rounded-lg px-3 py-2">
-                                                {{ $mf?->company ?? $row->company_snapshot ?? '-' }}
-                                            </div>
-                                        </td>
-
-                                        {{-- Client (read-only) --}}
-                                        <td class="sticky left-[280px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100">
-                                            <div class="text-gray-700 bg-gray-50 rounded-lg px-3 py-2">
-                                                {{ $mf?->client ?? '-' }}
-                                            </div>
-                                        </td>
-
-                                        {{-- Product (read-only) --}}
-                                        <td class="sticky left-[480px] z-30 bg-inherit border-r border-gray-200 px-4 py-4 align-middle border-b border-gray-100">
-                                            <div class="text-gray-700 bg-gray-50 rounded-lg px-3 py-2">
-                                                {{ $mf?->product ?? $row->product_snapshot ?? '-' }}
-                                            </div>
-                                        </td>
-
-                                        {{-- Editable fields --}}
-                                        @foreach (['site','payment','material','artwork','received_approval','sent_to_printer','collection_printer','installation','dismantle','status'] as $col)
-                                            <td class="px-4 py-4 align-middle border-b border-gray-100">
-                                                <div class="relative">
-                                                    <input type="text"
-                                                           class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 hover:border-gray-300"
-                                                           value="{{ $row->$col ?? '' }}"
-                                                           data-id="{{ $row->id }}"
-                                                           data-mf="{{ $row->master_file_id }}"
-                                                           data-field="{{ $col }}"
-                                                           onblur="saveFieldData(this.dataset.id || null, this.dataset.field, this.value, this.dataset.mf)">
-
-                                                    {{-- Save indicators --}}
-                                                    <div class="absolute right-2 top-1/2 transform -translate-y-1/2 hidden" data-save-indicator>
-                                                        <svg class="animate-spin h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24">
-                                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                        </svg>
-                                                    </div>
-                                                    <div class="absolute right-2 top-1/2 transform -translate-y-1/2 hidden" data-save-success>
-                                                        <svg class="h-4 w-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                                        </svg>
-                                                    </div>
-                                                    <div class="absolute right-2 top-1/2 transform -translate-y-1/2 hidden" data-save-error>
-                                                        <svg class="h-4 w-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                                        </svg>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                        @endforeach
-
-                                        {{-- Delete Action --}}
-                                        <td class="px-4 py-4 align-middle border-b border-gray-100">
-                                            <form method="post" action="{{ route('coordinator.outdoor.destroy',$row->id) }}"
-                                                  onsubmit="return confirm('Delete this row?')">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 hover:border-red-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200">
-                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                                    </svg>
-                                                    Delete
-                                                </button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                @endforeach
-
                             @else
                                 {{-- Empty State --}}
                                 <tr>
-                                    <td colspan="15" class="px-6 py-16 text-center text-gray-500">
+                                    <td colspan="13" class="px-6 py-16 text-center text-gray-500">
                                         <div class="flex flex-col items-center max-w-sm mx-auto">
                                             <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
                                                 <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -361,10 +293,6 @@
                     <div class="px-6 py-4 border-t border-gray-100">
                         {{ $rows->links() }}
                     </div>
-                @elseif(isset($outdoorJobs) && method_exists($outdoorJobs, 'links') && $outdoorJobs->hasPages())
-                    <div class="px-6 py-4 border-t border-gray-100">
-                        {{ $outdoorJobs->links() }}
-                    </div>
                 @endif
             </div>
         </div>
@@ -373,7 +301,7 @@
 
 @push('scripts')
 <script>
-// PINDAHKAN KE ATAS - DILUAR DOMContentLoaded
+// ===== Export button (keep global) =====
 function exportOutdoorData() {
   window.location.href = "{{ route('coordinator.outdoor.export') }}";
 }
@@ -381,74 +309,92 @@ function exportOutdoorData() {
 document.addEventListener('DOMContentLoaded', function () {
   const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
-  // Save on blur (textareas/inputs)…
-  document.addEventListener('blur', async (e) => {
-    const el = e.target;
-    if (!el.classList?.contains('outdoor-field')) return;
-    await saveField(el);
-  }, true);
-
-  // …and on any change (date, select, checkbox, etc.)
-  document.addEventListener('change', async (e) => {
-    const el = e.target;
-    if (!el.classList?.contains('outdoor-field')) return;
-    await saveField(el);
-  });
+  // ---------- Helpers ----------
+  function getYM() {
+    // Prefer hidden ctx (rendered by controller); fall back to selects if present
+    const y = document.getElementById('ctxYear')?.value ?? document.getElementById('filterYear')?.value ?? '';
+    const m = document.getElementById('ctxMonth')?.value ?? document.getElementById('filterMonth')?.value ?? '';
+    const year  = Number.parseInt(String(y), 10);
+    const month = Number.parseInt(String(m), 10);
+    return {
+      year:  Number.isFinite(year)  ? year  : null,
+      month: Number.isFinite(month) ? month : null,  // null = All Months
+    };
+  }
 
   function normalizeValue(el) {
-    if (el.type === 'checkbox') {
-      return el.checked ? 1 : 0;
-    }
-    if (el.type === 'date' && el.value) {
-      // Ensure YYYY-MM-DD (browser date inputs already do this)
-      return el.value.trim();
-    }
+    if (el.type === 'checkbox') return el.checked ? 1 : 0;
+    if (el.type === 'date' && el.value) return el.value.trim(); // yyyy-mm-dd
     return typeof el.value === 'string' ? el.value.trim() : el.value;
   }
 
-  let inflight = new Set();
+  function findRowContext(el) {
+    const tr = el.closest('tr');
+    // Try element-level first, then row-level
+    const id  = el.dataset.id || tr?.dataset.id || null;
+    const mf  = el.dataset.mf || tr?.dataset.mf || null;
+    const oi  = el.dataset.oi || tr?.dataset.oi || null;
+    return { tr, id, mf: mf ? parseInt(mf,10) : null, oi: oi ? parseInt(oi,10) : null };
+  }
+
+  function showSaveIndicator(element, state) {
+    const parent = element.parentElement;
+    const map = {
+      loading: parent?.querySelector('[data-save-indicator]'),
+      success: parent?.querySelector('[data-save-success]'),
+      error:   parent?.querySelector('[data-save-error]')
+    };
+    Object.values(map).forEach(n => n?.classList.add('hidden'));
+    if (map[state]) {
+      map[state].classList.remove('hidden');
+      if (state !== 'loading') setTimeout(() => map[state]?.classList.add('hidden'), 1800);
+    }
+  }
+
+  // Prevent duplicate concurrent saves per element
+  const inflight = new Set();
 
   async function saveField(element) {
-    // Prevent double-fire on the same element
+    if (!element.classList?.contains('outdoor-field')) return;
     if (inflight.has(element)) return;
     inflight.add(element);
 
-    const tr = element.closest('tr');
-    let trackingId = tr?.dataset?.id || element.dataset.id || null;
-
-    // FIX 1: Use name as fallback if data-field is not present
-    const fieldName = element.dataset.field || element.name;
-    const mfIdRaw   = element.dataset.mf;
-    const oiIdRaw   = element.dataset.oi;
+    const { tr, id: trackingId, mf: masterFileId, oi: outdoorItemId } = findRowContext(element);
+    const fieldName = element.dataset.field || element.name || '';
+    const fieldValue = normalizeValue(element);
+    const { year, month } = getYM();
 
     if (!fieldName) {
-      console.error('Missing field name on element', element);
+      console.error('Missing field name', element);
       inflight.delete(element);
       return;
     }
 
-    const mfId = mfIdRaw ? parseInt(mfIdRaw, 10) : null;
-    const oiId = oiIdRaw ? parseInt(oiIdRaw, 10) : null;
-
-    // FIX 2: Only require master_file_id for CREATE, outdoor_item_id is optional
-    if (!trackingId && !mfId) {
-      console.error('Missing data-mf for CREATE', { mfId, element });
-      inflight.delete(element);
-      return;
+    // ====== CREATE rules ======
+    // 1) Need a master_file_id
+    // 2) Must have a concrete month/year (don't allow create for "All Months")
+    if (!trackingId) {
+      if (!masterFileId) {
+        console.error('Missing master_file_id (data-mf) for CREATE', { element });
+        inflight.delete(element);
+        return;
+      }
+      if (month === null || year === null) {
+        // Don't create rows without month/year; keep cells editable but warn in console
+        console.warn('Skipping CREATE because Month = All Months (no month/year).');
+        // Optionally show a small tooltip/badge here.
+        inflight.delete(element);
+        return;
+      }
     }
 
-    const year  = parseInt(document.getElementById('filterYear')?.value ?? '{{ now()->year }}', 10);
-    const month = parseInt(document.getElementById('filterMonth')?.value ?? '{{ now()->month }}', 10);
-    const fieldValue = normalizeValue(element);
-
-    // Build payload - include outdoor_item_id only if present
+    // Build payload
     const payload = trackingId
       ? { id: trackingId, field: fieldName, value: fieldValue }
       : {
-          master_file_id: mfId,
-          ...(oiId ? { outdoor_item_id: oiId } : {}), // Only include if present
-          year: Number.isFinite(year) ? year : undefined,
-          month: Number.isFinite(month) ? month : undefined,
+          master_file_id: masterFileId,
+          ...(outdoorItemId ? { outdoor_item_id: outdoorItemId } : {}),
+          year, month,
           field: fieldName,
           value: fieldValue
         };
@@ -468,23 +414,19 @@ document.addEventListener('DOMContentLoaded', function () {
       });
 
       const text = await res.text();
-      let data;
-      try { data = JSON.parse(text); } catch { data = { ok: false, message: text }; }
+      let data; try { data = JSON.parse(text); } catch { data = { ok:false, message:text }; }
 
       if (!res.ok || data.ok === false) {
         console.error('Save failed', { status: res.status, data, payload });
         showSaveIndicator(element, 'error');
-        inflight.delete(element);
         return;
       }
 
-      // Persist the new id so next edits go through UPDATE path
+      // After CREATE, persist id to row + all inputs so next edits are UPDATE
       if (!trackingId && data.id) {
-        const newId = data.id;
-        if (tr) tr.setAttribute('data-id', newId);
-        tr?.querySelectorAll('input.outdoor-field, select.outdoor-field, textarea.outdoor-field')
-          .forEach(inp => inp.setAttribute('data-id', newId));
-        console.log('Created tracking id:', newId);
+        tr?.setAttribute('data-id', data.id);
+        tr?.querySelectorAll('.outdoor-field').forEach(inp => inp.setAttribute('data-id', data.id));
+        console.log('Created tracking id:', data.id, 'for', { year, month });
       }
 
       showSaveIndicator(element, 'success');
@@ -496,22 +438,23 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  function showSaveIndicator(element, state) {
-    const parent = element.parentElement;
-    const indicators = {
-      loading: parent?.querySelector('[data-save-indicator]'),
-      success: parent?.querySelector('[data-save-success]'),
-      error: parent?.querySelector('[data-save-error]')
-    };
+  // ---------- Event delegation ----------
+  document.addEventListener('blur',   e => saveField(e.target), true);
+  document.addEventListener('change', e => saveField(e.target));
 
-    Object.values(indicators).forEach(el => el?.classList.add('hidden'));
-    if (indicators[state]) {
-      indicators[state].classList.remove('hidden');
-      if (state !== 'loading') {
-        setTimeout(() => indicators[state]?.classList.add('hidden'), 2000);
-      }
+  // ---------- Keep "Active this month" disabled when Month = All ----------
+  const selMonth = document.getElementById('filterMonth');
+  const togActive = document.getElementById('toggleActive');
+  function syncActiveToggle() {
+    const m = selMonth ? selMonth.value : (document.getElementById('ctxMonth')?.value ?? '');
+    const hasMonth = m !== '';
+    if (togActive) {
+      togActive.disabled = !hasMonth;
+      if (!hasMonth) togActive.checked = false;
     }
   }
+  selMonth?.addEventListener('change', syncActiveToggle);
+  syncActiveToggle();
 });
 </script>
 @endpush
