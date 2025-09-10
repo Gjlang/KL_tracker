@@ -117,15 +117,17 @@
                     </div>
 
                     {{-- Actions --}}
-                    <div class="flex items-center gap-3">
-                        <button onclick="window.location.href='{{ route('coordinator.outdoor.export') }}'"
-                                class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl shadow-sm hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3"></path>
-                            </svg>
-                            Export CSV
-                        </button>
-                    </div>
+                   <a
+  href="{{ route('coordinator.outdoor.export', [
+      'month' => request('month'),
+      'year'  => request('year'),
+      // ikutkan filter lain kalau ada (search, status, dll)
+      'search' => request('search'),
+  ]) }}"
+  class="inline-flex items-center px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
+>
+  Export XLSX
+</a>
                 </div>
             </div>
 

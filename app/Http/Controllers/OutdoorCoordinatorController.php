@@ -486,10 +486,7 @@ public function index(Request $request)
     $normalizeMonth = function ($raw): ?int {
         if ($raw === null || $raw === '') return null; // All Months
         $m = strtolower(trim((string)$raw));
-        if (ctype_digit($m)) {
-            $n = (int)$m;
-            return ($n >= 1 && $n <= 12) ? $n : null;
-        }
+        if (ctype_digit($m)) { $n=(int)$m; return ($n>=1 && $n<=12) ? $n : null; }
         $map = [
             'jan'=>1,'january'=>1,'feb'=>2,'february'=>2,'mar'=>3,'march'=>3,
             'apr'=>4,'april'=>4,'may'=>5,'jun'=>6,'june'=>6,'jul'=>7,'july'=>7,
@@ -499,21 +496,20 @@ public function index(Request $request)
         return $map[$m] ?? null;
     };
 
-    $month  = $normalizeMonth($rawMonth);                 // 1..12 or null (All Months)
-    $year   = is_numeric($rawYear) ? (int)$rawYear : (int) now()->year;
-    $search = trim((string) $request->get('search', ''));
+    $month      = $normalizeMonth($rawMonth);                 // 1..12 or null (All Months)
+    $year       = is_numeric($rawYear) ? (int)$rawYear : (int) now()->year;
+    $search     = trim((string) $request->get('search', ''));
     $activeOnly = $month !== null && $request->boolean('active'); // ignore toggle when All Months
 
     // -------- Base set: all Outdoor sites (mf JOIN oi) --------
     $q = DB::table('master_files as mf')
         ->leftJoin('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
         ->where(function ($w) {
-            // robust matching for Outdoor/Billboard categories and products
             $w->whereRaw('LOWER(mf.product_category) REGEXP ?', ['(^|[^a-z])(outdoor|billboard)([^a-z]|$)'])
               ->orWhereRaw('LOWER(mf.product) REGEXP ?',          ['(^|[^a-z])(outdoor|billboard)([^a-z]|$)']);
         });
 
-    // -------- Search across common fields --------
+    // -------- Search --------
     if ($search !== '') {
         $like = '%' . strtolower($search) . '%';
         $q->where(function ($w) use ($like) {
@@ -525,30 +521,39 @@ public function index(Request $request)
         });
     }
 
-    // -------- Month-aware LEFT JOIN to tracking (keeps blanks when no row) --------
+    // -------- Month-aware LEFT JOIN to OMD (pivoted per item) --------
     if ($month !== null) {
-        $q->leftJoin('outdoor_coordinator_trackings as t', function ($j) use ($year, $month) {
-            $j->on('t.master_file_id', '=', 'mf.id')
-              ->on('t.outdoor_item_id', '=', 'oi.id')
-              ->where('t.year', '=', $year)
-              ->where('t.month', '=', $month);
-        });
+        // Subquery: pivot OMD ke kolom2 per item untuk year+month yang dipilih
+        $omd = DB::table('outdoor_monthly_details as md')
+            ->select([
+                'md.outdoor_item_id',
+                DB::raw("MAX(CASE WHEN md.field_key='status'        AND md.field_type='text' THEN md.value_text END)         AS status"),
+                DB::raw("MAX(CASE WHEN md.field_key='remarks'       AND md.field_type='text' THEN md.value_text END)         AS remarks"),
+                DB::raw("MAX(CASE WHEN md.field_key='payment'       AND md.field_type='text' THEN md.value_text END)         AS payment"),
+                DB::raw("MAX(CASE WHEN md.field_key='material'      AND md.field_type='text' THEN md.value_text END)         AS material"),
+                DB::raw("MAX(CASE WHEN md.field_key='artwork'       AND md.field_type='text' THEN md.value_text END)         AS artwork"),
+                DB::raw("MAX(CASE WHEN md.field_key='received_approval' AND md.field_type='date' THEN md.value_date END)     AS received_approval"),
+                DB::raw("MAX(CASE WHEN md.field_key='sent_to_printer'  AND md.field_type='date' THEN md.value_date END)      AS sent_to_printer"),
+                DB::raw("MAX(CASE WHEN md.field_key='collection_printer' AND md.field_type='date' THEN md.value_date END)    AS collection_printer"),
+                DB::raw("MAX(CASE WHEN md.field_key='installation'  AND md.field_type='date' THEN md.value_date END)         AS installation"),
+                DB::raw("MAX(CASE WHEN md.field_key='dismantle'     AND md.field_type='date' THEN md.value_date END)         AS dismantle"),
+                DB::raw("MAX(CASE WHEN md.field_key='next_follow_up'AND md.field_type='date' THEN md.value_date END)         AS next_follow_up"),
+                // simpan 1 id md sebagai penanda ada data (untuk Active/UPDATE path)
+                DB::raw("MAX(md.id) AS tracking_id")
+            ])
+            ->where('md.year', $year)
+            ->where('md.month', $month)
+            ->groupBy('md.outdoor_item_id');
+
+        $q->leftJoinSub($omd, 'md', 'md.outdoor_item_id', '=', 'oi.id');
+
+        // STRICT Active: hanya yang punya record OMD bulan tsb
+        if ($activeOnly) {
+            $q->whereNotNull('md.tracking_id');
+        }
     }
 
-    // -------- "Active this month" gating only when month is selected --------
-   // STRICT: Active = hanya yang punya row tracking pada (year, month)
-if ($activeOnly && $month !== null) {
-    $q->whereExists(function ($sq) use ($year, $month) {
-        $sq->select(DB::raw(1))
-          ->from('outdoor_coordinator_trackings as tx')
-          ->whereColumn('tx.master_file_id', 'mf.id')
-          ->whereColumn('tx.outdoor_item_id', 'oi.id')
-          ->where('tx.year', $year)
-          ->where('tx.month', $month);
-    });
-}
-
-    // -------- Selects (alias everything you use in Blade) --------
+    // -------- Selects --------
     $q->select([
         'mf.id as master_file_id',
         'mf.company as company',
@@ -560,19 +565,19 @@ if ($activeOnly && $month !== null) {
         DB::raw('oi.coordinates as coordinates'),
         DB::raw('oi.size as size'),
 
-        // month-slice columns (nullable when no record for that month)
-        DB::raw(($month !== null) ? 't.status'            : 'NULL as status'),
-        DB::raw(($month !== null) ? 't.remarks'           : 'NULL as remarks'),
-        DB::raw(($month !== null) ? 't.material'          : 'NULL as material'),
-        DB::raw(($month !== null) ? 't.received_approval' : 'NULL as received_approval'),
-        DB::raw(($month !== null) ? 't.sent_to_printer'   : 'NULL as sent_to_printer'),
-        DB::raw(($month !== null) ? 't.collection_printer': 'NULL as collection_printer'),
-        DB::raw(($month !== null) ? 't.installation'      : 'NULL as installation'),
-        DB::raw(($month !== null) ? 't.dismantle'         : 'NULL as dismantle'),
-        DB::raw(($month !== null) ? 't.next_follow_up'    : 'NULL as next_follow_up'),
-        DB::raw(($month !== null) ? 't.payment'           : 'NULL as payment'),
-        DB::raw(($month !== null) ? 't.artwork'           : 'NULL as artwork'),
-        DB::raw(($month !== null) ? 't.id'                : 'NULL as tracking_id'),
+        // kolom-kolom bulan (NULL kalau tidak ada OMD di bulan tsb)
+        DB::raw(($month !== null) ? 'md.status'              : 'NULL as status'),
+        DB::raw(($month !== null) ? 'md.remarks'             : 'NULL as remarks'),
+        DB::raw(($month !== null) ? 'md.payment'             : 'NULL as payment'),
+        DB::raw(($month !== null) ? 'md.material'            : 'NULL as material'),
+        DB::raw(($month !== null) ? 'md.artwork'             : 'NULL as artwork'),
+        DB::raw(($month !== null) ? 'md.received_approval'   : 'NULL as received_approval'),
+        DB::raw(($month !== null) ? 'md.sent_to_printer'     : 'NULL as sent_to_printer'),
+        DB::raw(($month !== null) ? 'md.collection_printer'  : 'NULL as collection_printer'),
+        DB::raw(($month !== null) ? 'md.installation'        : 'NULL as installation'),
+        DB::raw(($month !== null) ? 'md.dismantle'           : 'NULL as dismantle'),
+        DB::raw(($month !== null) ? 'md.next_follow_up'      : 'NULL as next_follow_up'),
+        DB::raw(($month !== null) ? 'md.tracking_id'         : 'NULL as tracking_id'),
     ]);
 
     $q->orderBy('mf.company')->orderBy('oi.site');
@@ -580,7 +585,6 @@ if ($activeOnly && $month !== null) {
     // -------- Paginate + page correction --------
     $rows = $q->paginate(50)->withQueryString();
     if ($rows->isEmpty() && $rows->currentPage() > 1) {
-        // go back to page 1 if filter shrank result
         return redirect()->to(url()->current() . '?' . http_build_query($request->except('page') + ['page' => 1]));
     }
 
@@ -592,10 +596,10 @@ if ($activeOnly && $month !== null) {
     return view('coordinators.outdoor', [
         'rows'   => $rows,
         'year'   => $year,
-        'month'  => $month,       // null means “All Months”
+        'month'  => $month,       // null = All Months
         'active' => $activeOnly,
         'search' => $search,
-        'months' => $months,      // for the Month dropdown
+        'months' => $months,
     ]);
 }
 
@@ -948,28 +952,75 @@ public function upsert(Request $request)
 
 
     public function export(Request $request): StreamedResponse
-    {
-        // ---- DEBUG: Log untuk melihat apa yang terjadi ----
-        Log::info('Export started', [
-            'month_requested' => $request->integer('month'),
-            'all_params' => $request->all()
+{
+    // ---- DEBUG: Log untuk melihat apa yang terjadi ----
+    Log::info('Export started', [
+        'month_requested' => $request->integer('month'),
+        'all_params' => $request->all()
+    ]);
+
+    // ---- 1) Get month filter ----
+    $month = $request->integer('month'); // 1-12
+
+    // ---- DEBUG: Cek total data di tabel ----
+    $totalRows = DB::table('outdoor_coordinator_trackings')->count();
+    Log::info("Total rows in outdoor_coordinator_trackings: {$totalRows}");
+
+    // ---- 2) Build query dengan JOIN ke master_files ----
+    $q = DB::table('outdoor_coordinator_trackings as oct')
+        ->join('master_files as mf', 'oct.master_file_id', '=', 'mf.id')
+        ->select([
+            'oct.id',
+            DB::raw('COALESCE(mf.company, mf.client) as company'),
+            'mf.client',
+            'mf.product',
+            'oct.site',
+            'oct.payment',
+            'oct.material',
+            'oct.artwork',
+            'oct.received_approval',
+            'oct.sent_to_printer',
+            'oct.collection_printer',
+            'oct.installation',
+            'oct.dismantle',
         ]);
 
-        // ---- 1) Get month filter ----
-        $month = $request->integer('month'); // 1-12
+    // ---- 3) Month filtering ----
+    if ($month) {
+        Log::info("Filtering by month: {$month}");
 
-        // ---- DEBUG: Cek total data di tabel ----
-        $totalRows = DB::table('outdoor_coordinator_trackings')->count();
-        Log::info("Total rows in outdoor_coordinator_trackings: {$totalRows}");
+        // Filter berdasarkan date fields yang ada di outdoor_coordinator_trackings
+        $q->where(function ($query) use ($month) {
+            $query->whereRaw("MONTH(oct.received_approval) = ?", [$month])
+                  ->orWhereRaw("MONTH(oct.sent_to_printer) = ?", [$month])
+                  ->orWhereRaw("MONTH(oct.collection_printer) = ?", [$month])
+                  ->orWhereRaw("MONTH(oct.installation) = ?", [$month])
+                  ->orWhereRaw("MONTH(oct.dismantle) = ?", [$month]);
+        });
 
-        // ---- 2) Build query dengan JOIN ke master_files ----
-        $q = DB::table('outdoor_coordinator_trackings as oct')
+        // DEBUG: Cek berapa yang match filter
+        $filteredCount = $q->count();
+        Log::info("Rows matching month filter: {$filteredCount}");
+    }
+
+    $rows = $q->orderBy('oct.id')->get();
+
+    // ---- DEBUG: Log hasil query ----
+    Log::info("Final query returned rows: " . count($rows));
+    if (count($rows) > 0) {
+        Log::info("Sample first row: ", (array) $rows[0]);
+    }
+
+    // ---- 4) Jika tidak ada data dengan filter, export semua data ----
+    if ($rows->isEmpty()) {
+        Log::info("No filtered data found, exporting ALL data");
+        $rows = DB::table('outdoor_coordinator_trackings as oct')
             ->join('master_files as mf', 'oct.master_file_id', '=', 'mf.id')
             ->select([
                 'oct.id',
-                'oct.master_file_id',
-                'mf.client',           // ✅ Ambil dari master_files
-                'mf.product',          // ✅ Ambil dari master_files
+                DB::raw('COALESCE(mf.company, mf.client) as company'),
+                'mf.client',
+                'mf.product',
                 'oct.site',
                 'oct.payment',
                 'oct.material',
@@ -979,91 +1030,49 @@ public function upsert(Request $request)
                 'oct.collection_printer',
                 'oct.installation',
                 'oct.dismantle',
-                'oct.remarks',
-                'oct.next_follow_up',
-                'oct.status',
-            ]);
+            ])
+            ->orderBy('oct.id')
+            ->get();
 
-        // ---- 3) Month filtering ----
-        if ($month) {
-            Log::info("Filtering by month: {$month}");
-
-            // Filter berdasarkan date fields yang ada di outdoor_coordinator_trackings
-            $q->where(function ($query) use ($month) {
-                $query->whereRaw("MONTH(oct.received_approval) = ?", [$month])
-                      ->orWhereRaw("MONTH(oct.sent_to_printer) = ?", [$month])
-                      ->orWhereRaw("MONTH(oct.collection_printer) = ?", [$month])
-                      ->orWhereRaw("MONTH(oct.installation) = ?", [$month])
-                      ->orWhereRaw("MONTH(oct.dismantle) = ?", [$month]);
-            });
-
-            // DEBUG: Cek berapa yang match filter
-            $filteredCount = $q->count();
-            Log::info("Rows matching month filter: {$filteredCount}");
-        }
-
-        $rows = $q->orderBy('oct.id')->get();
-
-        // ---- DEBUG: Log hasil query ----
-        Log::info("Final query returned rows: " . count($rows));
-        if (count($rows) > 0) {
-            Log::info("Sample first row: ", (array) $rows[0]);
-        }
-
-        // ---- 4) Jika tidak ada data dengan filter, export semua data ----
-        if ($rows->isEmpty()) {
-            Log::info("No filtered data found, exporting ALL data");
-            $rows = DB::table('outdoor_coordinator_trackings as oct')
-                ->join('master_files as mf', 'oct.master_file_id', '=', 'mf.id')
-                ->select([
-                    'oct.id', 'oct.master_file_id', 'mf.client', 'mf.product', 'oct.site',
-                    'oct.payment', 'oct.material', 'oct.artwork', 'oct.received_approval',
-                    'oct.sent_to_printer', 'oct.collection_printer', 'oct.installation',
-                    'oct.dismantle', 'oct.remarks', 'oct.next_follow_up', 'oct.status'
-                ])
-                ->orderBy('oct.id')
-                ->get();
-
-            Log::info("All data export returned rows: " . count($rows));
-        }
-
-        // ---- 5) Generate XLSX with enhanced header ----
-        $monthName = $month ? "month-{$month}" : 'all';
-        $filename = "outdoor-coordinator-{$monthName}.xlsx";
-
-        $csvHeaders = [
-            'ID', 'Master File ID', 'Client', 'Product', 'Site',
-            'Payment', 'Material', 'Artwork', 'Received Approval',
-            'Sent to Printer', 'Collection Printer', 'Installation',
-            'Dismantle', 'Remarks', 'Next Follow Up', 'Status'
-        ];
-
-        $dbColumns = [
-            'id', 'master_file_id', 'client', 'product', 'site',
-            'payment', 'material', 'artwork', 'received_approval',
-            'sent_to_printer', 'collection_printer', 'installation',
-            'dismantle', 'remarks', 'next_follow_up', 'status'
-        ];
-
-        // Generate month label for header
-        $monthLabel = null;
-        if ($month) {
-            try {
-                $monthLabel = Carbon::createFromDate(now()->year, $month, 1)->format('F Y');
-            } catch (\Throwable $e) {
-                $monthLabel = "Month {$month}";
-            }
-        }
-
-        return response()->streamDownload(function () use ($rows, $csvHeaders, $dbColumns, $monthLabel) {
-            $this->generateOutdoorCoordinatorXlsx($rows, $csvHeaders, $dbColumns, $monthLabel);
-        }, $filename, [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-            'Cache-Control' => 'no-cache, no-store, max-age=0',
-        ]);
+        Log::info("All data export returned rows: " . count($rows));
     }
 
+    // ---- 5) Generate XLSX with enhanced header ----
+    $monthName = $month ? "month-{$month}" : 'all';
+    $filename = "outdoor-coordinator-{$monthName}.xlsx";
+
+    // Headers in the exact order: ID | Company | Client | Product | Site | Payment | Material | Artwork | Approval | Sent | Collected | Install | Dismantle
+    $csvHeaders = [
+        'ID', 'Company', 'Client', 'Product', 'Site',
+        'Payment', 'Material', 'Artwork', 'Approval',
+        'Sent', 'Collected', 'Install', 'Dismantle'
+    ];
+
+    // Database columns matching the header order
+    $dbColumns = [
+        'id', 'company', 'client', 'product', 'site',
+        'payment', 'material', 'artwork', 'received_approval',
+        'sent_to_printer', 'collection_printer', 'installation', 'dismantle'
+    ];
+
+    // Generate month label for header
+    $monthLabel = null;
+    if ($month) {
+        try {
+            $monthLabel = Carbon::createFromDate(now()->year, $month, 1)->format('F Y');
+        } catch (\Throwable $e) {
+            $monthLabel = "Month {$month}";
+        }
+    }
+
+    return response()->streamDownload(function () use ($rows, $csvHeaders, $dbColumns, $monthLabel) {
+        $this->generateOutdoorCoordinatorXlsx($rows, $csvHeaders, $dbColumns, $monthLabel);
+    }, $filename, [
+        'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        'Cache-Control' => 'no-cache, no-store, max-age=0',
+    ]);
+}
     /**
      * Generate outdoor coordinator XLSX with proper formatting
      */
