@@ -14,153 +14,223 @@ class ClienteleController extends Controller
      * Expected payload: { id, column, value, scope: 'outdoor'|'kltg' }
      */
     public function inlineUpdate(Request $request)
-{
-    try {
-        // 1) Validate base payload
-        $data = $request->validate([
-            'id'     => 'required|integer|min:1',
-            'column' => 'required|string',
-            'value'  => 'nullable',                          // keep raw; we'll normalize
-            'scope'  => 'nullable|in:outdoor,kltg',
-            // only sent (and required) when editing outdoor_* columns
-            'outdoor_item_id' => 'nullable|integer|min:1',
-        ]);
+    {
+        try {
+            // 1) Validate + pull raw value (avoid ConvertEmptyStringsToNull surprise)
+            $data = $request->validate([
+                'id'     => 'required|integer|min:1',
+                'column' => 'required|string',
+                'value'  => 'nullable',                 // keep raw
+                'scope'  => 'nullable|in:outdoor,kltg',
+            ]);
 
-        $raw   = $request->all();
-        $col   = (string)$data['column'];
-        $id    = (int)$data['id'];
-        $scope = $data['scope'] ?? null;
+            $raw = $request->all();
+            $col = $data['column'];
+            $id  = (int)$data['id'];
+            $scope = $data['scope'] ?? null;
 
-        Log::info('InlineUpdate Request', [
-            'id' => $id, 'column' => $col, 'raw_value' => $raw['value'] ?? 'NOT_SET', 'scope' => $scope
-        ]);
+            // Log the incoming request for debugging
+            Log::info('InlineUpdate Request', [
+                'id' => $id,
+                'column' => $col,
+                'raw_value' => $raw['value'] ?? 'NOT_SET',
+                'scope' => $scope
+            ]);
 
-        // 2) Editable columns
-        $allowedBase = [
-            'month','date','company','product','product_category','location','traffic','duration',
-            'amount','status','remarks','client','sales_person','barter',
-            'date_finish','job_number','artwork','invoice_date','invoice_number',
-            'contact_number','email',
-        ];
-        $allowedOutdoor = ['outdoor_size','outdoor_district_council','outdoor_coordinates'];
-        $allowedKltg    = [
-            'kltg_industry','kltg_x','kltg_edition','kltg_material_cbp','kltg_print',
-            'kltg_article','kltg_video','kltg_leaderboard','kltg_qr_code','kltg_blog','kltg_em',
-            'kltg_remarks',
-        ];
+            // ---- WHITELISTS ----
+            $allowedBase = [
+                'month','date','company','product','product_category','location','traffic','duration',
+                'amount','status','remarks','client','sales_person','barter',
+                'date_finish','job_number','artwork','invoice_date','invoice_number',
+                'contact_number','email',
+            ];
+            $allowedOutdoor = ['outdoor_size','outdoor_district_council','outdoor_coordinates'];
+            $allowedKltg    = [
+                'kltg_industry','kltg_x','kltg_edition','kltg_material_cbp','kltg_print',
+                'kltg_article','kltg_video','kltg_leaderboard','kltg_qr_code','kltg_blog','kltg_em',
+                'kltg_remarks',
+            ];
 
-        $allowed = $allowedBase;
-        if ($scope === 'outdoor') $allowed = array_merge($allowed, $allowedOutdoor);
-        if ($scope === 'kltg')    $allowed = array_merge($allowed, $allowedKltg);
+            $allowed = $allowedBase;
+            if ($scope === 'outdoor') $allowed = array_merge($allowed, $allowedOutdoor);
+            if ($scope === 'kltg')    $allowed = array_merge($allowed, $allowedKltg);
 
-        if (!in_array($col, $allowed, true)) {
-            Log::warning('Column not allowed', ['column' => $col]);
-            return response()->json(['ok' => false, 'message' => 'Column not editable.'], 422);
-        }
+            if (!in_array($col, $allowed, true)) {
+                Log::warning('Column not allowed', ['column' => $col, 'allowed' => $allowed]);
+                return response()->json(['ok' => false, 'message' => 'Column not editable.'], 422);
+            }
 
-        // 3) Normalize value
-        $value = array_key_exists('value', $raw) ? $raw['value'] : null;
+            // 2) Normalize value carefully
+            $value = array_key_exists('value', $raw) ? $raw['value'] : null;
 
-        // NOT NULL safeguards
-        $notNullable = ['product','company','client'];
-        if (in_array($col, $notNullable, true) && ($value === null || trim((string)$value) === '')) {
-            return response()->json(['ok' => false, 'message' => ucfirst($col).' cannot be empty.'], 422);
-        }
-        // Allow blank strings for nullable columns (avoid ConvertEmptyStringsToNull)
-        if ($value === null && !in_array($col, $notNullable, true)) {
-            $value = '';
-        }
+            // block empty for NOT NULL columns (adjust list if needed)
+            $notNullable = ['product','company','client'];
+            if (in_array($col, $notNullable, true) && ($value === null || trim((string)$value) === '')) {
+                Log::warning('NOT NULL column cannot be empty', ['column' => $col, 'value' => $value]);
+                return response()->json(['ok' => false, 'message' => ucfirst($col).' cannot be empty.'], 422);
+            }
 
-        // Type helpers
-        $amountCols   = ['amount'];
-        $ymdCols      = ['date_finish','invoice_date']; // DATE columns
-        $freeDateLike = ['date'];                       // VARCHAR date-ish
+            // If value comes as null because of empty string, and the column allows blank, store ''
+            if ($value === null && !in_array($col, $notNullable, true)) {
+                $value = '';
+            }
 
-        if (in_array($col, $amountCols, true)) {
-            if ($value === '' || $value === null) {
-                $value = null;
-            } else {
-                $clean = str_replace([',',' '], '', (string)$value);
-                if (!is_numeric($clean)) {
-                    return response()->json(['ok' => false, 'message' => 'Amount must be a valid number.'], 422);
+            // Type helpers
+            $ymdCols      = ['date_finish','invoice_date']; // DATE columns
+            $freeDateLike = ['date'];                       // VARCHAR date-like
+            $amountCols   = ['amount'];
+
+            // Store original value for logging
+            $originalValue = $value;
+
+            // FIXED: Better amount handling
+            if (in_array($col, $amountCols, true)) {
+                if ($value === '' || $value === null) {
+                    $value = null; // Allow null for amount
+                } else {
+                    // Clean the value first (remove commas, spaces)
+                    $cleanValue = str_replace([',', ' '], '', (string)$value);
+                    if (is_numeric($cleanValue)) {
+                        $value = (float)$cleanValue;
+                    } else {
+                        Log::warning('Invalid amount value', ['column' => $col, 'value' => $value]);
+                        return response()->json(['ok' => false, 'message' => 'Amount must be a valid number.'], 422);
+                    }
                 }
-                $value = (float)$clean;
             }
-        }
 
-        if (in_array($col, $ymdCols, true)) {
-            if ($value === '' || $value === null) {
-                $value = null;
-            } else {
-                try { $value = \Carbon\Carbon::parse($value)->format('Y-m-d'); }
-                catch (\Throwable $e) {
-                    return response()->json(['ok' => false, 'message' => 'Invalid date format for '.$col], 422);
+            // FIXED: Better date handling with error catching
+            if (in_array($col, $ymdCols, true)) {
+                if ($value === '' || $value === null) {
+                    $value = null;
+                } else {
+                    try {
+                        $value = \Carbon\Carbon::parse($value)->format('Y-m-d');
+                    } catch (\Throwable $e) {
+                        Log::warning('Invalid date format', ['column' => $col, 'value' => $value, 'error' => $e->getMessage()]);
+                        return response()->json(['ok' => false, 'message' => 'Invalid date format for ' . $col], 422);
+                    }
                 }
             }
-        }
 
-        if (in_array($col, $freeDateLike, true) && $value) {
-            try { $value = \Carbon\Carbon::parse($value)->format('n/j/y'); }
-            catch (\Throwable $e) { /* keep original */ }
-        }
-
-        // 4) Ensure master row exists
-        if (!DB::table('master_files')->where('id', $id)->exists()) {
-            return response()->json(['ok' => false, 'message' => 'Record not found.'], 404);
-        }
-
-        // 5) Routing for OUTDOOR-only columns — require outdoor_item_id
-        $outdoorMap = [
-            'outdoor_size'             => 'size',
-            'outdoor_district_council' => 'district_council',
-            'outdoor_coordinates'      => 'coordinates',
-        ];
-
-        if ($scope === 'outdoor' && array_key_exists($col, $outdoorMap)) {
-            $oiId = (int)($data['outdoor_item_id'] ?? 0);
-            if ($oiId <= 0) {
-                Log::warning('Missing outdoor_item_id for outdoor column', ['column' => $col]);
-                return response()->json(['ok' => false, 'message' => 'Missing outdoor_item_id for this field.'], 422);
+            if (in_array($col, $freeDateLike, true) && $value) {
+                try {
+                    $value = \Carbon\Carbon::parse($value)->format('n/j/y');
+                } catch (\Throwable $e) {
+                    Log::warning('Could not parse free date', ['column' => $col, 'value' => $value]);
+                    // Keep original value if parsing fails for free date
+                }
             }
 
-            $affected = DB::table('outdoor_items')
-                ->where('id', $oiId)               // ← update exactly one row
-                ->update([$outdoorMap[$col] => $value, 'updated_at' => now()]);
+            Log::info('Value after normalization', [
+                'column' => $col,
+                'original' => $originalValue,
+                'normalized' => $value
+            ]);
 
-            Log::info('Updated outdoor_items', ['id' => $oiId, 'col' => $outdoorMap[$col], 'affected' => $affected]);
+            // Check if record exists first
+            $recordExists = DB::table('master_files')->where('id', $id)->exists();
+            if (!$recordExists) {
+                Log::warning('Record not found', ['id' => $id]);
+                return response()->json(['ok' => false, 'message' => 'Record not found.'], 404);
+            }
 
+            // Get current value to compare
+            $currentRecord = DB::table('master_files')->where('id', $id)->first([$col]);
+            $currentValue = $currentRecord ? $currentRecord->$col : null;
+
+            Log::info('Comparison', [
+                'current_value' => $currentValue,
+                'new_value' => $value,
+                'are_same' => $currentValue === $value
+            ]);
+
+            // 3) Route outdoor columns to outdoor_items table
+            $outdoorMap = [
+                'outdoor_size'             => 'size',
+                'outdoor_district_council' => 'district_council',
+                'outdoor_coordinates'      => 'coordinates',
+            ];
+
+            if ($scope === 'outdoor' && array_key_exists($col, $outdoorMap)) {
+                // Update outdoor_items table
+                $outdoorColumn = $outdoorMap[$col];
+
+                // First, get the outdoor_item_id from master_files
+                $masterFile = DB::table('master_files')->where('id', $id)->first();
+                if (!$masterFile) {
+                    Log::warning('Master file not found', ['id' => $id]);
+                    return response()->json(['ok' => false, 'message' => 'Record not found.'], 404);
+                }
+
+                // Check if there's an outdoor_items record linked to this master_files record
+                // Assuming you have a relationship field like outdoor_item_id in master_files
+                // or you need to find it by some other relationship
+
+                // Option 1: If master_files has outdoor_item_id field
+                if (isset($masterFile->outdoor_item_id) && $masterFile->outdoor_item_id) {
+                    $affected = DB::table('outdoor_items')
+                        ->where('id', $masterFile->outdoor_item_id)
+                        ->update([$outdoorColumn => $value, 'updated_at' => now()]);
+
+                    Log::info('Updated outdoor_items', [
+                        'outdoor_item_id' => $masterFile->outdoor_item_id,
+                        'column' => $outdoorColumn,
+                        'value' => $value,
+                        'affected_rows' => $affected
+                    ]);
+                } else {
+                    // Option 2: If you need to find by master_file_id or some other relationship
+                    $affected = DB::table('outdoor_items')
+                        ->where('master_file_id', $id) // Adjust this based on your relationship
+                        ->update([$outdoorColumn => $value, 'updated_at' => now()]);
+
+                    Log::info('Updated outdoor_items by master_file_id', [
+                        'master_file_id' => $id,
+                        'column' => $outdoorColumn,
+                        'value' => $value,
+                        'affected_rows' => $affected
+                    ]);
+                }
+
+                if ($affected === 0) {
+                    Log::warning('No outdoor_items record updated', ['master_file_id' => $id, 'outdoor_column' => $outdoorColumn]);
+                    return response()->json(['ok' => false, 'message' => 'No outdoor item found to update.'], 404);
+                }
+            } else {
+                // Regular update to master_files table
+                $affected = DB::table('master_files')
+                    ->where('id', $id)
+                    ->update([$col => $value, 'updated_at' => now()]);
+
+                Log::info('Updated master_files', [
+                    'id' => $id,
+                    'column' => $col,
+                    'value' => $value,
+                    'affected_rows' => $affected
+                ]);
+            }
+
+            // If same value → 0 rows affected; still OK
             return response()->json([
                 'ok' => true,
                 'affected' => (int)$affected,
                 'message' => $affected > 0 ? 'Updated successfully' : 'No change needed (same value)'
             ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Validation error', ['errors' => $e->errors()]);
+            return response()->json(['ok' => false, 'message' => 'Validation failed', 'errors' => $e->errors()], 422);
+        } catch (\Throwable $e) {
+            Log::error('Unexpected error in inlineUpdate', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'request' => $request->all()
+            ]);
+            return response()->json(['ok' => false, 'message' => 'Server error: ' . $e->getMessage()], 500);
         }
-
-        // 6) Default: update master_files
-        $affected = DB::table('master_files')
-            ->where('id', $id)
-            ->update([$col => $value, 'updated_at' => now()]);
-
-        Log::info('Updated master_files', ['id' => $id, 'col' => $col, 'affected' => $affected]);
-
-        return response()->json([
-            'ok' => true,
-            'affected' => (int)$affected,
-            'message' => $affected > 0 ? 'Updated successfully' : 'No change needed (same value)'
-        ]);
-
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        Log::error('Validation error', ['errors' => $e->errors()]);
-        return response()->json(['ok' => false, 'message' => 'Validation failed', 'errors' => $e->errors()], 422);
-    } catch (\Throwable $e) {
-        Log::error('Unexpected error in inlineUpdate', [
-            'message' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine(),
-            'request' => $request->all()
-        ]);
-        return response()->json(['ok' => false, 'message' => 'Server error: '.$e->getMessage()], 500);
     }
-}
-
 
     public function batchUpdate(Request $request)
     {
