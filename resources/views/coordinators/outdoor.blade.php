@@ -422,6 +422,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     }
 
+    console.log('Payload being sent:', JSON.stringify(payload, null, 2));
     showSaveIndicator(element, 'loading');
 
     try {
@@ -437,16 +438,18 @@ document.addEventListener('DOMContentLoaded', function () {
       });
 
       const text = await res.text();
-      let data; try { data = JSON.parse(text); } catch { data = { ok:false, message:text }; }
+      let data; try { data = JSON.parse(text); } catch { data = { success:false, error:text }; }
 
-      if (!res.ok || data.ok === false) {
-        console.error('Save failed', { status: res.status, data, payload });
+      if (!res.ok || data.success === false) {
+        let msg = res.status + ' ' + res.statusText;
+        if (data?.error) msg += ` – ${data.error}`;
+        console.error('Save failed:', msg, { payload });
         showSaveIndicator(element, 'error');
         return;
       }
 
       // After CREATE: use returned tracking_id
-      const newId = data.tracking_id || data.id || null;
+      const newId = data.data?.tracking_id || data.tracking_id || data.id || null;
       if (!trackingId && newId) {
         tr?.setAttribute('data-id', newId);
         tr?.querySelectorAll('.outdoor-field').forEach(inp => inp.setAttribute('data-id', newId));
