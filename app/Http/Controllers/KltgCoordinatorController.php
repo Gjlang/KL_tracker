@@ -63,6 +63,24 @@ class KltgCoordinatorController extends Controller
         };
     }
 
+    private function normalizeMonth($raw): ?int
+{
+    if ($raw === null || $raw === '') return null;
+    $m = strtolower(trim((string)$raw));
+    if (ctype_digit($m)) {
+        $n = (int)$m;
+        return ($n >= 1 && $n <= 12) ? $n : null;
+    }
+    $map = [
+        'jan'=>1,'january'=>1,'feb'=>2,'february'=>2,'mar'=>3,'march'=>3,
+        'apr'=>4,'april'=>4,'may'=>5,'jun'=>6,'june'=>6,'jul'=>7,'july'=>7,
+        'aug'=>8,'august'=>8,'sep'=>9,'september'=>9,'oct'=>10,'october'=>10,
+        'nov'=>11,'november'=>11,'dec'=>12,'december'=>12,
+    ];
+    return $map[$m] ?? null;
+}
+
+
 
 public function index(Request $request)
 {
@@ -171,90 +189,53 @@ public function index(Request $request)
 
     $monthlyTable = 'kltg_monthly_details';
 
-    // ========= Subquery: master_file_id aktif di bulan & kategori terpilih =========
-    // Abaikan header rows (month 0/''/null). Cocokkan bulan via md.month (int/string/bulan nama) ATAU md.value_date.
-    $activeIdsSub = DB::table("$monthlyTable as md")
-        ->select('md.master_file_id')
-        ->whereRaw('TRIM(UPPER(md.category)) = ?', [strtoupper($storedSub)])
-        ->where(function($q){
-            $q->whereNotNull('md.value_date')
-              ->orWhere(function($qq){
-                  $qq->whereNotNull('md.month')
-                     ->whereRaw("TRIM(md.month) <> ''")
-                     ->whereRaw("TRIM(md.month) <> '0'")
-                     ->whereRaw("TRIM(md.month) <> '00'");
-              });
-        })
-        ->when($scope === 'month_year', function($q) use ($month, $year) {
-            $monthName = strtolower(Carbon::create(null, $month, 1)->format('F'));
-            $q->where(function($w) use ($month, $year, $monthName) {
-                $w->where(function($yq) use ($year) {
-                      $yq->where('md.year', (int)$year)
-                         ->orWhereYear('md.value_date', (int)$year);
-                  })
-                  ->where(function($mq) use ($month, $monthName) {
-                      $mq->where('md.month', (int)$month)
-                         ->orWhereRaw('CAST(md.month AS UNSIGNED) = ?', [(int)$month])
-                         ->orWhereRaw('LOWER(md.month) = ?', [$monthName])
-                         ->orWhereMonth('md.value_date', (int)$month);
-                  });
-            });
-        })
-        ->when($scope === 'month_only', function($q) use ($month) {
-            $monthName = strtolower(Carbon::create(null, $month, 1)->format('F'));
-            $q->where(function($mq) use ($month, $monthName) {
-                $mq->where('md.month', (int)$month)
-                   ->orWhereRaw('CAST(md.month AS UNSIGNED) = ?', [(int)$month])
-                   ->orWhereRaw('LOWER(md.month) = ?', [$monthName])
-                   ->orWhereMonth('md.value_date', (int)$month);
-            });
-        })
-        ->when($scope === 'year_only', function($q) use ($year) {
-            $q->where(function($yq) use ($year) {
-                $yq->where('md.year', (int)$year)
-                   ->orWhereYear('md.value_date', (int)$year);
-            });
-        })
-        ->groupBy('md.master_file_id');
-
-    // ========= Subquery: FIRST-IN (tanggal aktivitas paling awal) =========
-    $firstInSub = DB::table("$monthlyTable as md")
-        ->selectRaw("
-            md.master_file_id,
-            MIN(
-              COALESCE(
-                md.value_date,
-                STR_TO_DATE(
-                  CONCAT(
+    // ========= Base rows: Get active companies from monthly details with month separation =========
+    $rows = DB::table('kltg_monthly_details as md')
+        ->join('master_files as mf', 'mf.id', '=', 'md.master_file_id')
+        ->select([
+            'mf.id as id',
+    'mf.id as master_file_id',
+    'mf.date',
+    'mf.company as company_name',
+    'mf.client',
+    DB::raw("COALESCE(NULLIF(mf.product,''), '') as mf_title"),
+    'mf.created_at', // ✅ tambahkan ini supaya $row->created_at ada
+    DB::raw("
+        COALESCE(
+            md.value_date,
+            STR_TO_DATE(
+                CONCAT(
                     COALESCE(NULLIF(md.year,0), YEAR(CURDATE())),
                     '-',
                     LPAD(
-                      CASE
-                        WHEN md.month REGEXP '^[0-9]+$' THEN md.month+0
-                        WHEN LOWER(md.month)='january'   THEN 1
-                        WHEN LOWER(md.month)='february'  THEN 2
-                        WHEN LOWER(md.month)='march'     THEN 3
-                        WHEN LOWER(md.month)='april'     THEN 4
-                        WHEN LOWER(md.month)='may'       THEN 5
-                        WHEN LOWER(md.month)='june'      THEN 6
-                        WHEN LOWER(md.month)='july'      THEN 7
-                        WHEN LOWER(md.month)='august'    THEN 8
-                        WHEN LOWER(md.month)='september' THEN 9
-                        WHEN LOWER(md.month)='october'   THEN 10
-                        WHEN LOWER(md.month)='november'  THEN 11
-                        WHEN LOWER(md.month)='december'  THEN 12
-                        ELSE NULL
-                      END
+                        CASE
+                            WHEN md.month REGEXP '^[0-9]+$' THEN md.month+0
+                            WHEN LOWER(md.month)='january'   THEN 1
+                            WHEN LOWER(md.month)='february'  THEN 2
+                            WHEN LOWER(md.month)='march'     THEN 3
+                            WHEN LOWER(md.month)='april'     THEN 4
+                            WHEN LOWER(md.month)='may'       THEN 5
+                            WHEN LOWER(md.month)='june'      THEN 6
+                            WHEN LOWER(md.month)='july'      THEN 7
+                            WHEN LOWER(md.month)='august'    THEN 8
+                            WHEN LOWER(md.month)='september' THEN 9
+                            WHEN LOWER(md.month)='october'   THEN 10
+                            WHEN LOWER(md.month)='november'  THEN 11
+                            WHEN LOWER(md.month)='december'  THEN 12
+                            ELSE NULL
+                        END
                     ,2,'0'),
                     '-01'
-                  ),
-                  '%Y-%m-%d'
-                )
-              )
-            ) AS first_in_at
-        ")
+                ),
+                '%Y-%m-%d'
+            )
+        ) AS activity_date
+    "),
+    DB::raw("YEAR(COALESCE(md.value_date, STR_TO_DATE(CONCAT(COALESCE(NULLIF(md.year,0), YEAR(CURDATE())), '-', LPAD(CASE WHEN md.month REGEXP '^[0-9]+$' THEN md.month+0 WHEN LOWER(md.month)='january' THEN 1 WHEN LOWER(md.month)='february' THEN 2 WHEN LOWER(md.month)='march' THEN 3 WHEN LOWER(md.month)='april' THEN 4 WHEN LOWER(md.month)='may' THEN 5 WHEN LOWER(md.month)='june' THEN 6 WHEN LOWER(md.month)='july' THEN 7 WHEN LOWER(md.month)='august' THEN 8 WHEN LOWER(md.month)='september' THEN 9 WHEN LOWER(md.month)='october' THEN 10 WHEN LOWER(md.month)='november' THEN 11 WHEN LOWER(md.month)='december' THEN 12 ELSE NULL END ,2,'0'), '-01'), '%Y-%m-%d'))) AS activity_year"),
+    DB::raw("MONTH(COALESCE(md.value_date, STR_TO_DATE(CONCAT(COALESCE(NULLIF(md.year,0), YEAR(CURDATE())), '-', LPAD(CASE WHEN md.month REGEXP '^[0-9]+$' THEN md.month+0 WHEN LOWER(md.month)='january' THEN 1 WHEN LOWER(md.month)='february' THEN 2 WHEN LOWER(md.month)='march' THEN 3 WHEN LOWER(md.month)='april' THEN 4 WHEN LOWER(md.month)='may' THEN 5 WHEN LOWER(md.month)='june' THEN 6 WHEN LOWER(md.month)='july' THEN 7 WHEN LOWER(md.month)='august' THEN 8 WHEN LOWER(md.month)='september' THEN 9 WHEN LOWER(md.month)='october' THEN 10 WHEN LOWER(md.month)='november' THEN 11 WHEN LOWER(md.month)='december' THEN 12 ELSE NULL END ,2,'0'), '-01'), '%Y-%m-%d'))) AS activity_month")
+])
+
         ->whereRaw('TRIM(UPPER(md.category)) = ?', [strtoupper($storedSub)])
-        // ignore header rows (Edition/Publication)
         ->where(function($q){
             $q->whereNotNull('md.value_date')
               ->orWhere(function($qq){
@@ -294,114 +275,22 @@ public function index(Request $request)
                    ->orWhereYear('md.value_date', (int)$year);
             });
         })
-        ->groupBy('md.master_file_id');
-
-    // ========= Base rows =========
-    $rowsQuery = MasterFile::query()
-        ->where(function ($q) use ($storedSub) {
-            $q->where(function ($qq) {
-                $qq->where('product_category', 'KLTG')
-                   ->orWhereRaw('LOWER(product_category) LIKE ?', ['%kltg%']);
-            })
-            ->orWhereExists(function ($q2) use ($storedSub) {
-                $q2->selectRaw('1')
-                   ->from('kltg_coordinator_lists as k')
-                   ->whereColumn('k.master_file_id', 'master_files.id')
-                   ->where('k.subcategory', $storedSub);
-            });
-        })
-        ->select([
-            'id',
-            'date',
-            'company as company_name',
-            'client',
-            DB::raw("COALESCE(NULLIF(product,''), '') as mf_title"),
-        ])
-        // join first_in_at ke master_files
-        ->leftJoinSub($firstInSub, 'fa', function($join){
-            $join->on('fa.master_file_id', '=', 'master_files.id');
-        })
-        ->addSelect(DB::raw('fa.first_in_at'));
-
-    // ========= Filter tampil: strict by month kalau month dipilih =========
-    if ($month) {
-        // STRICT: hanya tampil master_file dengan activity di bulan tsb untuk kategori tab ini
-        $rowsQuery->whereIn('master_files.id', $activeIdsSub);
-    } else {
-        // No month filter → keep logic inklusif sebelumnya
-        $rowsQuery->where(function ($qq) use ($monthlyTable, $storedSub, $scope, $month, $year) {
-            // (A) Ada activity monthly
-            $qq->whereExists(function ($q) use ($monthlyTable, $storedSub, $scope, $month, $year) {
-                $monthName = $month ? strtolower(Carbon::create(null, $month, 1)->format('F')) : null;
-
-                $q->selectRaw('1')
-                  ->from("$monthlyTable as md")
-                  ->whereColumn('md.master_file_id', 'master_files.id')
-                  ->whereRaw('TRIM(UPPER(md.category)) = ?', [strtoupper($storedSub)])
-                  ->where(function($v){
-                      $v->where('is_date', 1)
-                        ->orWhereNotNull('value_date')
-                        ->orWhereNotNull('month');
-                  })
-                  ->when($scope === 'month_year', function ($w) use ($month, $year, $monthName) {
-                      $w->where(function($x) use ($year, $month, $monthName) {
-                          $x->where(function($y) use ($year) {
-                                $y->where('md.year', (int)$year)
-                                  ->orWhereYear('md.value_date', (int)$year);
-                            })
-                            ->where(function($m) use ($month, $monthName) {
-                                $m->where('md.month', (int)$month)
-                                  ->orWhereRaw('CAST(md.month AS UNSIGNED) = ?', [(int)$month])
-                                  ->orWhereRaw('LOWER(md.month) = ?', [$monthName])
-                                  ->orWhereMonth('md.value_date', (int)$month);
-                            });
-                      });
-                  })
-                  ->when($scope === 'month_only', function ($w) use ($month, $monthName) {
-                      $w->where(function($m) use ($month, $monthName) {
-                          $m->where('md.month', (int)$month)
-                            ->orWhereRaw('CAST(md.month AS UNSIGNED) = ?', [(int)$month])
-                            ->orWhereRaw('LOWER(md.month) = ?', [$monthName])
-                            ->orWhereMonth('md.value_date', (int)$month);
-                      });
-                  })
-                  ->when($scope === 'year_only', function ($w) use ($year) {
-                      $w->where(function($y) use ($year) {
-                          $y->where('md.year', (int)$year)
-                            ->orWhereYear('md.value_date', (int)$year);
-                      })
-                      ->where(function($m){
-                          $m->whereNotNull('md.month')->orWhereNotNull('md.value_date');
-                      });
-                  });
-            });
-
-            // (B) OR ada coordinator row utk subcategory ini
-            $qq->orWhereExists(function ($q) use ($storedSub) {
-                $q->selectRaw('1')
-                  ->from('kltg_coordinator_lists as k')
-                  ->whereColumn('k.master_file_id', 'master_files.id')
-                  ->where('k.subcategory', $storedSub);
-            });
-        });
-    }
-
-    // ========= ORDER: First-in duluan, stabil =========
-    $rows = $rowsQuery
-        ->orderByRaw('COALESCE(fa.first_in_at, master_files.created_at) ASC')
-        ->orderBy('master_files.id', 'ASC') // tiebreaker stabil
+        ->groupBy('mf.id', 'mf.date', 'mf.company', 'mf.client', 'mf.product', 'md.year', 'md.month', 'md.value_date','mf.created_at')
+        ->orderBy('activity_date', 'ASC')
+        ->orderBy('mf.id', 'ASC')
         ->get();
 
-    // ========= Existing coordinator values =========
+    // ========= Existing coordinator values (filtered by month/year) =========
     $existing = collect();
-    if ($rows->isNotEmpty()) {
-        $ids = $rows->pluck('id')->all();
-        $existing = KltgCoordinatorList::query()
-            ->whereIn('master_file_id', $ids)
-            ->where('subcategory', $storedSub)
-            ->get()
-            ->keyBy('master_file_id');
-    }
+if ($rows->isNotEmpty()) {
+    $existing = KltgCoordinatorList::query()
+        ->whereIn('master_file_id', $rows->pluck('master_file_id')->unique()->all())
+        ->where('subcategory', $storedSub)
+        ->get()
+        ->keyBy(function($item) {
+            return $item->master_file_id;
+        });
+}
 
     // ========= Edition/Publication (header rows) =========
     $editionPub = DB::table('kltg_monthly_details as d')
@@ -424,9 +313,9 @@ public function index(Request $request)
 
     // Inject ke rows (display only)
     $rows->transform(function ($row) use ($editionPub) {
-        if (isset($editionPub[$row->id])) {
-            $row->edition     = $editionPub[$row->id]->edition ?? null;
-            $row->publication = $editionPub[$row->id]->publication ?? null;
+        if (isset($editionPub[$row->master_file_id])) {
+            $row->edition     = $editionPub[$row->master_file_id]->edition ?? null;
+            $row->publication = $editionPub[$row->master_file_id]->publication ?? null;
         } else {
             $row->edition     = null;
             $row->publication = null;
@@ -767,7 +656,7 @@ private function streamXlsHtmlOutput($query, array $fields, array $labels, strin
     // ====== HEADER ROW ======
     echo '<thead><tr>';
     foreach ($fields as $field) {
-        $label = $labels[$field] ?? \Illuminate\Support\Str::headline($field);
+        $label = $labels[$field] ?? Str::headline($field);
         echo '<th>'.htmlspecialchars($label, ENT_QUOTES, 'UTF-8').'</th>';
     }
     echo '</tr></thead>';
@@ -1007,7 +896,7 @@ protected function valueForField($row, $fieldKey)
         $v = $row->mf_created_at ?? null;
         if (empty($v)) return '';
         try {
-            return \Carbon\Carbon::parse($v)->format('Y-m-d');
+            return Carbon::parse($v)->format('Y-m-d');
         } catch (\Throwable $e) {
             return (string)$v;
         }
@@ -1085,7 +974,7 @@ protected function valueForField($row, $fieldKey)
             return $value->format('Y-m-d');
         }
         if (is_string($value)) {
-            try { return \Carbon\Carbon::parse($value)->format('Y-m-d'); }
+            try { return Carbon::parse($value)->format('Y-m-d'); }
             catch (\Throwable $e) { return $value; }
         }
     }

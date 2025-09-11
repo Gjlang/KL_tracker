@@ -253,7 +253,7 @@
                             onchange="saveCell(this); setDropdownColor(this);">
                                 <option value=""></option>
                                 <option value="Installation" style="color:red;" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Installation' ? 'selected' : '' }}>Installation</option>
-                                <option value="Dismentel" style="color:red;" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Dismentel' ? 'selected' : '' }}>Dismentel</option>
+                                <option value="Dismantle" style="color:red;" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Dismantle' ? 'selected' : '' }}>Dismantle</option>
                                 <option value="Artwork" style="color:orange;" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Artwork' ? 'selected' : '' }}>Artwork</option>
                                 <option value="Payment" style="color:red;" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Payment' ? 'selected' : '' }}>Payment</option>
                                 <option value="Ongoing" style="color:lightblue;" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Ongoing' ? 'selected' : '' }}>Ongoing</option>
@@ -543,7 +543,7 @@ function saveCell(el) {
 function setDropdownColor(selectEl) {
     const colors = {
         'Installation': 'red',
-        'Dismentel': 'red',
+        'Dismantle': 'red',
         'Artwork': 'yellow',
         'Payment': 'red',
         'Ongoing': 'lightblue',

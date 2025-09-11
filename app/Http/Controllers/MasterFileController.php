@@ -938,34 +938,55 @@ public function exportKltgXlsx(Request $request): StreamedResponse
     };
 
     // ===== Column spec (ONLY these columns, in this exact order) =====
-    $colKeys = [
-        'created_at','month','date','date_finish','barter','company','product','product_category',
-        'kltg_industry','kltg_x','kltg_edition','kltg_material_cbp','kltg_print','kltg_article',
-        'kltg_video','kltg_leaderboard','kltg_qr_code','kltg_blog','kltg_em','kltg_remarks',
-    ];
+    // ===== Column spec (ONLY these columns, in this exact order) =====
+$colKeys = [
+    // 1..20 (strict order)
+    'created_at',        // Date Created
+    'month',             // Month
+    'company',           // Company Name
+    'date',              // Start Date
+    'date_finish',       // End Date
+    'barter',            // Barter
+    'product',           // Product
+    'product_category',  // Category
+    'kltg_industry',     // Industry
+    'kltg_x',            // KLTG X
+    'kltg_edition',      // Edition
+    'kltg_material_cbp', // Material C/BP
+    'kltg_print',        // Print
+    'kltg_article',      // Article
+    'kltg_video',        // Video
+    'kltg_leaderboard',  // Leaderboard
+    'kltg_qr_code',      // QR Code
+    'kltg_blog',         // Blog
+    'kltg_em',           // EM
+    'kltg_remarks',      // Remarks
+];
 
-    $labels = [
-        'created_at'        => 'Created Date',
-        'month'             => 'Month',
-        'date'              => 'Start Date',
-        'date_finish'       => 'End Date',
-        'barter'            => 'Barter',
-        'company'           => 'Company',
-        'product'           => 'Product',
-        'product_category'  => 'Product Category',
-        'kltg_industry'     => 'KLTG Industry',
-        'kltg_x'            => 'KLTG X',
-        'kltg_edition'      => 'KLTG Edition',
-        'kltg_material_cbp' => 'KLTG Material C/BP',
-        'kltg_print'        => 'KLTG Print',
-        'kltg_article'      => 'KLTG Article',
-        'kltg_video'        => 'KLTG Video',
-        'kltg_leaderboard'  => 'KLTG Leaderboard',
-        'kltg_qr_code'      => 'KLTG QR Code',
-        'kltg_blog'         => 'KLTG Blog',
-        'kltg_em'           => 'KLTG EM',
-        'kltg_remarks'      => 'KLTG Remarks',
-    ];
+// ===== Headings shown in the sheet (must match your request exactly) =====
+$labels = [
+    'created_at'        => 'Date Created',
+    'month'             => 'Month',
+    'company'           => 'Company Name',
+    'date'              => 'Start Date',
+    'date_finish'       => 'End Date',
+    'barter'            => 'Barter',
+    'product'           => 'Product',
+    'product_category'  => 'Category',
+    'kltg_industry'     => 'Industry',
+    'kltg_x'            => 'KLTG X',
+    'kltg_edition'      => 'Edition',
+    'kltg_material_cbp' => 'Material C/BP',
+    'kltg_print'        => 'Print',
+    'kltg_article'      => 'Article',
+    'kltg_video'        => 'Video',
+    'kltg_leaderboard'  => 'Leaderboard',
+    'kltg_qr_code'      => 'QR Code',
+    'kltg_blog'         => 'Blog',
+    'kltg_em'           => 'EM',
+    'kltg_remarks'      => 'Remarks',
+];
+
 
     // ===== Build SELECT strictly for the chosen columns =====
     $select = [];
