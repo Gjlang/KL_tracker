@@ -8,11 +8,12 @@ class ClientFeedBacklog extends Model
 {
     protected $fillable = [
         'master_file_id','date','servicing','product','location',
-        'client','status','attended_by','reasons',
+        'client','status','attended_by','reasons','expected_finish_date','company',
     ];
 
     protected $casts = [
         'date' => 'date',
+        'expected_finish_date' => 'date',
     ];
 
     // Optional relation

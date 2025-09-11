@@ -1,441 +1,455 @@
-<x-app-layout>
-    <div class="min-h-screen bg-gray-50">
-        <!-- Main content -->
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <!-- Header with back button -->
-            <div class="mb-8">
-                <div class="flex items-center space-x-4">
-                    <a href="{{ route('dashboard') }}" class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-150">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                        </svg>
-                        Back to Dashboard
-                    </a>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Masterfile Show - Refactored</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        .hairline {
+            box-shadow: inset 0 0 0 1px #eaeaea;
+        }
+        .small-caps {
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
+        .tabular {
+            font-variant-numeric: tabular-nums;
+        }
+        .font-serif {
+            font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+        }
+        .font-sans {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+    </style>
+</head>
+<body class="font-sans">
 
+<x-app-layout>
+    <div class="w-screen min-h-screen bg-[#F7F7F9]"
+         x-data="{
+             edit: false,
+             saving: false,
+             originalFormData: null,
+
+             initForm() {
+                 this.originalFormData = new FormData(document.getElementById('mfForm'));
+             },
+
+             toggleEdit() {
+                 if (!this.edit) {
+                     this.initForm();
+                 }
+                 this.edit = !this.edit;
+             },
+
+             async saveForm() {
+                 this.saving = true;
+                 const form = document.getElementById('mfForm');
+                 try {
+                     const response = await fetch(form.action, {
+                         method: 'POST',
+                         body: new FormData(form),
+                         headers: {
+                             'X-Requested-With': 'XMLHttpRequest'
+                         }
+                     });
+                     if (response.ok) {
+                         this.edit = false;
+                         this.showToast('Changes saved successfully');
+                     } else {
+                         throw new Error('Save failed');
+                     }
+                 } catch (error) {
+                     this.showToast('Error saving changes', 'error');
+                 } finally {
+                     this.saving = false;
+                 }
+             },
+
+             cancelEdit() {
+                 if (this.edit) {
+                     document.getElementById('mfForm').reset();
+                     // Restore original values
+                     if (this.originalFormData) {
+                         for (let [key, value] of this.originalFormData.entries()) {
+                             const input = document.querySelector(`[name='${key}']`);
+                             if (input) input.value = value;
+                         }
+                     }
+                     this.edit = false;
+                 } else {
+                     history.back();
+                 }
+             },
+
+             showToast(message, type = 'success') {
+                 // Simple toast implementation
+                 const toast = document.createElement('div');
+                 toast.className = `fixed top-4 right-4 px-6 py-3 rounded-xl shadow-lg z-50 ${
+                     type === 'error' ? 'bg-[#d33831] text-white' : 'bg-[#22255b] text-white'
+                 }`;
+                 toast.textContent = message;
+                 document.body.appendChild(toast);
+                 setTimeout(() => toast.remove(), 3000);
+             }
+         }"
+         x-init="initForm()">
+
+        <!-- Sticky Toolbar -->
+        <div class="sticky top-0 z-40 bg-white/80 backdrop-blur-sm border-b border-neutral-200/70">
+            <div class="w-full max-w-none px-6 lg:px-10 xl:px-14 py-4">
+                <div class="flex items-center justify-between">
+                    <!-- Left: Back Button -->
+                    <div>
+                        <a href="{{ route('dashboard') }}"
+                           class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-neutral-600 bg-white rounded-xl border border-neutral-300 hover:bg-neutral-50 transition-colors duration-150"
+                           title="Back to Dashboard">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                            </svg>
+                            Back to Dashboard
+                        </a>
+                    </div>
+
+                    <!-- Center: Entity Title & Meta -->
+                    <div class="text-center">
+                        <h1 class="text-2xl font-serif text-[#1C1E26] font-semibold">
+                            {{ $file->company ?: '—' }}
+                        </h1>
+                        <p class="text-sm text-neutral-500 mt-1">
+                            ID: #{{ $file->id }} • Created: {{ $file->created_at ? $file->created_at->format('M d, Y') : '—' }}
+                        </p>
+                    </div>
+
+                    <!-- Right: Action Buttons -->
+                    <div class="flex items-center gap-3">
+                        <!-- TODO: Update route name if different -->
+                        <a href="{{ route('masterfile.print', ['file' => $file->id]) }}"
+                           class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-neutral-700 bg-white rounded-xl border border-neutral-300 hover:bg-neutral-50 transition-colors duration-150"
+                           title="Download Job Order">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            Download Job Order
+                        </a>
+
+                        <button type="button"
+                                @click="toggleEdit()"
+                                x-show="!edit"
+                                class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#22255b] bg-white rounded-xl border border-[#22255b] hover:bg-[#22255b] hover:text-white transition-colors duration-150"
+                                title="Edit">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                            </svg>
+                            Edit
+                        </button>
+
+                        <button type="button"
+                                @click="saveForm()"
+                                x-show="edit"
+                                x-style.display="edit ? 'flex' : 'none'"
+                                :disabled="saving"
+                                class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#22255b] rounded-xl hover:bg-[#1a1d4a] transition-colors duration-150 disabled:opacity-50"
+                                title="Save Changes">
+                            <svg x-show="!saving" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            <svg x-show="saving" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span x-text="saving ? 'Saving...' : 'Save'"></span>
+                        </button>
+
+                        <button type="button"
+                                @click="cancelEdit()"
+                                x-show="edit"
+                                x-style.display="edit ? 'flex' : 'none'"
+                                class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-neutral-700 bg-white rounded-xl border border-neutral-300 hover:bg-neutral-50 transition-colors duration-150"
+                                title="Cancel">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                            Cancel
+                        </button>
+                    </div>
                 </div>
             </div>
+        </div>
 
-            <form method="POST" action="{{ route('masterfile.update', $file->id) }}" id="mf-edit-form">
+        <!-- Main Content -->
+        <div class="w-full max-w-none px-6 lg:px-10 xl:px-14 py-8">
+
+            <form id="mfForm" method="POST" action="{{ route('masterfile.update', $file->id) }}">
                 @csrf
                 @method('PUT')
 
-                <!-- Company Header Card -->
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-8 overflow-hidden">
-                    <div class="px-8 py-6">
-                        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                            <div class="flex-1">
-                                <div class="mb-4">
-                                    <input name="company" class="text-3xl font-bold text-gray-900 bg-transparent border-0 p-0 w-full editable read-mode focus:ring-0" value="{{ old('company', $file->company) }}" disabled>
-                                </div>
-                                <div class="flex flex-wrap items-center gap-3">
-                                   <div class="flex items-center">
-                                        <span class="text-sm font-medium text-gray-500 mr-2">Status:</span>
+                <!-- Status Section -->
+                <div class="mb-8">
+                    <div class="bg-white rounded-2xl border border-neutral-200/70 shadow-sm p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h2 class="text-lg font-serif text-[#1C1E26] mb-2">Status & Product</h2>
+                                <div class="flex items-center gap-6">
+                                    <div class="flex items-center gap-2">
+                                        <label class="text-sm font-medium text-neutral-500">Status:</label>
                                         <select name="status"
-                                            class="px-3 py-1 text-sm font-medium rounded-full border border-gray-300 focus:ring focus:ring-blue-200">
+                                                :readonly="!edit"
+                                                :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'bg-transparent border-0 focus:ring-0'"
+                                                class="px-3 py-1 text-sm font-medium rounded-full">
                                             @foreach(['pending','ongoing','completed'] as $s)
                                                 <option value="{{ $s }}" @selected($file->status === $s)>
                                                     {{ ucfirst($s) }}
                                                 </option>
                                             @endforeach
                                         </select>
-
-                                        <button type="submit"
-                                            class="ml-3 px-3 py-1 text-sm bg-red-600 text-black rounded hover:bg-red-700">
-                                            Save
-                                        </button>
                                     </div>
-                                    <div class="flex items-center">
-                                        <span class="text-sm font-medium text-gray-500 mr-2">Product:</span>
-                                        <input name="product" class="editable read-mode bg-blue-50 text-blue-800 px-3 py-1 text-sm font-medium rounded-full border-0 focus:ring-0" value="{{ old('product',$file->product) }}" disabled>
+                                    <div class="flex items-center gap-2">
+                                        <label class="text-sm font-medium text-neutral-500">Product:</label>
+                                        <input name="product"
+                                               value="{{ old('product', $file->product) ?: '—' }}"
+                                               :readonly="!edit"
+                                               :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'bg-transparent border-0 focus:ring-0 text-[#4bbbed]'"
+                                               class="px-3 py-1 text-sm font-medium">
                                     </div>
-                                </div>
-                            </div>
-
-                            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 lg:gap-6">
-                                <div class="text-right text-sm text-gray-500">
-                                    <div class="font-medium text-gray-900">ID: #{{ $file->id }}</div>
-                                    <div>Created: {{ $file->created_at ? $file->created_at->format('M d, Y') : 'N/A' }}</div>
-                                </div>
-
-                                <!-- Action Buttons -->
-                                <div class="flex items-center gap-3">
-
-
-                                   <a href="{{ route('masterfile.print', ['file' => $file->id]) }}"
-                                        class="inline-flex items-center px-3 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">
-                                        Download Job Order
-                                    </a>
-
-
-                                    <button type="button" id="btnEdit" class="inline-flex items-center px-6 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-150">
-                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                        </svg>
-                                        Edit
-                                    </button>
-                                    <button type="submit" id="btnSave" class="hidden inline-flex items-center px-6 py-2.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-150">
-                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                        </svg>
-                                        Save
-                                    </button>
-                                    <button type="button" id="btnCancel" class="hidden inline-flex items-center px-6 py-2.5 bg-gray-200 text-gray-800 text-sm font-medium rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors duration-150">
-                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                        </svg>
-                                        Cancel
-                                    </button>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Details Cards Grid -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <!-- Project Information Card -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                        <div class="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
-                            <h3 class="text-lg font-semibold text-gray-900 flex items-center">
-                                <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
-                                Project Information
-                            </h3>
+                <!-- Three Information Columns -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
 
+                    <!-- Project Information -->
+                    <div class="bg-white rounded-2xl border border-neutral-200/70 shadow-sm overflow-hidden">
+                        <div class="px-6 py-4 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 border-b border-neutral-200/70">
+                            <h3 class="text-sm font-medium text-neutral-600 small-caps tracking-wide">Project Information</h3>
                         </div>
                         <div class="p-6 space-y-6">
-
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-500">Month</label>
-                                <input name="month" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="{{ old('month',$file->month) }}" disabled>
+                            <div>
+                                <label class="block text-sm font-medium text-neutral-500 mb-2">Month</label>
+                                <input name="month"
+                                       value="{{ old('month', $file->month) ?: '—' }}"
+                                       :readonly="!edit"
+                                       :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'hairline bg-neutral-50/50'"
+                                       class="w-full px-4 py-3 text-sm">
                             </div>
 
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-500">Traffic</label>
-                                <input name="traffic" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="{{ old('traffic',$file->traffic) }}" disabled>
+                            <div>
+                                <label class="block text-sm font-medium text-neutral-500 mb-2">Traffic</label>
+                                <input name="traffic"
+                                       value="{{ old('traffic', $file->traffic) ?: '—' }}"
+                                       :readonly="!edit"
+                                       :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'hairline bg-neutral-50/50'"
+                                       class="w-full px-4 py-3 text-sm">
                             </div>
 
-                             <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-500">Current Location</label>
-                                <input name="location" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500" value="{{ old('location',$file->location) }}" disabled>
+                            <div>
+                                <label class="block text-sm font-medium text-neutral-500 mb-2">Current Location</label>
+                                <input name="location"
+                                       value="{{ old('location', $file->location) ?: '—' }}"
+                                       :readonly="!edit"
+                                       :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'hairline bg-neutral-50/50'"
+                                       class="w-full px-4 py-3 text-sm">
                             </div>
 
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-500">Remarks</label>
-                                <input name="duration" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="{{ old('duration',$file->duration) }}" disabled>
+                            <div>
+                                <label class="block text-sm font-medium text-neutral-500 mb-2">Remarks</label>
+                                <input name="duration"
+                                       value="{{ old('duration', $file->duration) ?: '—' }}"
+                                       :readonly="!edit"
+                                       :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'hairline bg-neutral-50/50'"
+                                       class="w-full px-4 py-3 text-sm">
                             </div>
 
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-500">Artwork</label>
-                                <input name="artwork" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" value="{{ old('artwork',$file->artwork) }}" disabled>
-                            </div>
-
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-500">Sales Person</label>
-                                <input name="duration" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="{{ old('sales_person',$file->sales_person) }}" disabled>
+                            <div>
+                                <label class="block text-sm font-medium text-neutral-500 mb-2">Artwork</label>
+                                <input name="artwork"
+                                       value="{{ old('artwork', $file->artwork) ?: '—' }}"
+                                       :readonly="!edit"
+                                       :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'hairline bg-neutral-50/50'"
+                                       class="w-full px-4 py-3 text-sm">
                             </div>
                         </div>
                     </div>
 
-                    <!-- Client & Job Details Card -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                        <div class="px-6 py-4 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-200">
-                            <h3 class="text-lg font-semibold text-gray-900 flex items-center">
-                                <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                                </svg>
-                                Person In Charge & Job Details
-                            </h3>
+                    <!-- Person In Charge & Job Details -->
+                    <div class="bg-white rounded-2xl border border-neutral-200/70 shadow-sm overflow-hidden">
+                        <div class="px-6 py-4 bg-gradient-to-r from-green-50/50 to-emerald-50/50 border-b border-neutral-200/70">
+                            <h3 class="text-sm font-medium text-neutral-600 small-caps tracking-wide">Person In Charge & Job Details</h3>
                         </div>
                         <div class="p-6 space-y-6">
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-500">Client</label>
-                                <input name="client" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" value="{{ old('client',$file->client) }}" disabled>
-                            </div>
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-500">Sales Person</label>
-                                <input name="sales_person" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
-                                value="{{ old('sales_person',$file->sales_person) }}" disabled>
-                            </div>
-
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-500">Email</label>
-                                <input name="email" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" value="{{ old('email',$file->email) }}" disabled>
+                            <div>
+                                <label class="block text-sm font-medium text-neutral-500 mb-2">Client</label>
+                                <input name="client"
+                                       value="{{ old('client', $file->client) ?: '—' }}"
+                                       :readonly="!edit"
+                                       :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'hairline bg-neutral-50/50'"
+                                       class="w-full px-4 py-3 text-sm">
                             </div>
 
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-500">Contact Number</label>
-                                <input name="contact_number" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" value="{{ old('contact_number',$file->contact_number) }}" disabled>
+                            <div>
+                                <label class="block text-sm font-medium text-neutral-500 mb-2">Sales Person</label>
+                                <input name="sales_person"
+                                       value="{{ old('sales_person', $file->sales_person) ?: '—' }}"
+                                       :readonly="!edit"
+                                       :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'hairline bg-neutral-50/50'"
+                                       class="w-full px-4 py-3 text-sm">
                             </div>
 
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-500">Job Number</label>
-                                <input name="job_number" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" value="{{ old('job_number',$file->job_number) }}" disabled>
+                            <div>
+                                <label class="block text-sm font-medium text-neutral-500 mb-2">Email</label>
+                                <input name="email"
+                                       type="email"
+                                       value="{{ old('email', $file->email) ?: '—' }}"
+                                       :readonly="!edit"
+                                       :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'hairline bg-neutral-50/50'"
+                                       class="w-full px-4 py-3 text-sm">
                             </div>
 
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-500">Start Date</label>
-                                <input type="date" name="date" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="{{ old('date', \Illuminate\Support\Str::of($file->date)->substr(0,10)) }}" disabled>
+                            <div>
+                                <label class="block text-sm font-medium text-neutral-500 mb-2">Contact Number</label>
+                                <input name="contact_number"
+                                       value="{{ old('contact_number', $file->contact_number) ?: '—' }}"
+                                       :readonly="!edit"
+                                       :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'hairline bg-neutral-50/50'"
+                                       class="w-full px-4 py-3 text-sm">
                             </div>
 
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-500">Date Finish</label>
-                                <input type="date" name="date_finish" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" value="{{ old('date_finish', \Illuminate\Support\Str::of($file->date_finish)->substr(0,10)) }}" disabled>
+                            <div>
+                                <label class="block text-sm font-medium text-neutral-500 mb-2">Job Number</label>
+                                <input name="job_number"
+                                       value="{{ old('job_number', $file->job_number) ?: '—' }}"
+                                       :readonly="!edit"
+                                       :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'hairline bg-neutral-50/50'"
+                                       class="w-full px-4 py-3 text-sm">
                             </div>
 
+                            <div>
+                                <label class="block text-sm font-medium text-neutral-500 mb-2">Start Date</label>
+                                <input name="date"
+                                       type="date"
+                                       value="{{ old('date', $file->date ? \Illuminate\Support\Str::of($file->date)->substr(0,10) : '') }}"
+                                       :readonly="!edit"
+                                       :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'hairline bg-neutral-50/50'"
+                                       class="w-full px-4 py-3 text-sm">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-neutral-500 mb-2">Date Finish</label>
+                                <input name="date_finish"
+                                       type="date"
+                                       value="{{ old('date_finish', $file->date_finish ? \Illuminate\Support\Str::of($file->date_finish)->substr(0,10) : '') }}"
+                                       :readonly="!edit"
+                                       :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'hairline bg-neutral-50/50'"
+                                       class="w-full px-4 py-3 text-sm">
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Invoice Information Card -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                        <div class="px-6 py-4 bg-gradient-to-r from-purple-50 to-pink-50 border-b border-gray-200">
-                            <h3 class="text-lg font-semibold text-gray-900 flex items-center">
-                                <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
-                                Invoice Information
-                            </h3>
+                    <!-- Invoice Information -->
+                    <div class="bg-white rounded-2xl border border-neutral-200/70 shadow-sm overflow-hidden">
+                        <div class="px-6 py-4 bg-gradient-to-r from-purple-50/50 to-pink-50/50 border-b border-neutral-200/70">
+                            <h3 class="text-sm font-medium text-neutral-600 small-caps tracking-wide">Invoice Information</h3>
                         </div>
                         <div class="p-6 space-y-6">
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-500">Invoice Date</label>
-                                <input type="date" name="invoice_date" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500" value="{{ old('invoice_date', \Illuminate\Support\Str::of($file->invoice_date)->substr(0,10)) }}" disabled>
+                            <div>
+                                <label class="block text-sm font-medium text-neutral-500 mb-2">Invoice Date</label>
+                                <input name="invoice_date"
+                                       type="date"
+                                       value="{{ old('invoice_date', $file->invoice_date ? \Illuminate\Support\Str::of($file->invoice_date)->substr(0,10) : '') }}"
+                                       :readonly="!edit"
+                                       :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'hairline bg-neutral-50/50'"
+                                       class="w-full px-4 py-3 text-sm">
                             </div>
 
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-500">Invoice Number</label>
-                                <input name="invoice_number" class="editable read-mode w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500" value="{{ old('invoice_number',$file->invoice_number) }}" disabled>
+                            <div>
+                                <label class="block text-sm font-medium text-neutral-500 mb-2">Invoice Number</label>
+                                <input name="invoice_number"
+                                       value="{{ old('invoice_number', $file->invoice_number) ?: '—' }}"
+                                       :readonly="!edit"
+                                       :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'hairline bg-neutral-50/50'"
+                                       class="w-full px-4 py-3 text-sm">
                             </div>
-
                         </div>
                     </div>
                 </div>
             </form>
 
-            @if($file->product_category === 'Outdoor')
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden lg:col-span-3">
-                <div class="px-6 py-4 bg-gradient-to-r from-emerald-50 to-green-50 border-b border-gray-200">
-                <h3 class="text-lg font-semibold text-gray-900 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M3 7l9-4 9 4-9 4-9-4zm0 10l9 4 9-4m-9-4l9 4M3 17l9-4"></path>
-                    </svg>
-                    Outdoor Placements
-                </h3>
-                </div>
-
-                <div class="p-6 space-y-4">
-                {{-- Optional: header-level fields --}}
-                <div class="grid sm:grid-cols-3 gap-4 text-sm">
-                    @if($file->outdoor_size)
-                    <div><span class="text-gray-500">Size (header):</span> {{ $file->outdoor_size }}</div>
-                    @endif
-                    @if($file->outdoor_district_council)
-                    <div><span class="text-gray-500">Area (header):</span> {{ $file->outdoor_district_council }}</div>
-                    @endif
-                    @if($file->outdoor_coordinates)
-                    <div>
-                        <span class="text-gray-500">Coords (header):</span>
-                        <a class="text-indigo-600 hover:underline" target="_blank"
-                        href="https://www.google.com/maps/search/?api=1&query={{ urlencode($file->outdoor_coordinates) }}">
-                        {{ $file->outdoor_coordinates }}
-                        </a>
+            <!-- Outdoor Placements Table -->
+            @if($file->product_category === 'Outdoor' || $file->outdoorItems->count() > 0)
+            <div class="bg-white rounded-2xl border border-neutral-200/70 shadow-sm overflow-hidden">
+                <div class="px-6 py-4 bg-gradient-to-r from-emerald-50/50 to-green-50/50 border-b border-neutral-200/70">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-medium text-neutral-600 small-caps tracking-wide">Outdoor Placements</h3>
+                        <span class="text-sm text-neutral-500">
+                            Total locations: <span class="font-semibold tabular">{{ $file->outdoorItems->count() }}</span>
+                            @php $totalQty = $file->outdoorItems->sum('qty'); @endphp
+                            @if($totalQty !== $file->outdoorItems->count())
+                                • Total qty: <span class="font-semibold tabular">{{ $totalQty }}</span>
+                            @endif
+                        </span>
                     </div>
-                    @endif
                 </div>
 
-                {{-- Summary --}}
-                <div class="text-sm text-gray-600">
-                    Total locations:
-                    <span class="font-semibold">{{ $file->outdoorItems->count() }}</span>
-                    @php $totalQty = $file->outdoorItems->sum('qty'); @endphp
-                    @if($totalQty !== $file->outdoorItems->count())
-                    • Total qty: <span class="font-semibold">{{ $totalQty }}</span>
+                <div class="overflow-x-auto">
+                    @if($file->outdoorItems->isEmpty())
+                        <div class="p-8 text-center text-neutral-500">
+                            <svg class="w-12 h-12 mx-auto mb-4 text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <p>No outdoor placements added yet.</p>
+                        </div>
+                    @else
+                        <table class="w-full text-sm">
+                            <thead class="bg-emerald-50/50">
+                                <tr class="text-left border-b border-neutral-200">
+                                    <th class="px-4 py-3 font-medium text-neutral-600">#</th>
+                                    <th class="px-4 py-3 font-medium text-neutral-600">Sub Product</th>
+                                    <th class="px-4 py-3 font-medium text-neutral-600">Site / Location</th>
+                                    <th class="px-4 py-3 font-medium text-neutral-600">Size</th>
+                                    <th class="px-4 py-3 font-medium text-neutral-600">Area</th>
+                                    <th class="px-4 py-3 font-medium text-neutral-600">Coordinates</th>
+                                    <th class="px-4 py-3 font-medium text-neutral-600 text-right">Qty</th>
+                                    <th class="px-4 py-3 font-medium text-neutral-600">Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-neutral-100">
+                                @foreach($file->outdoorItems as $i => $item)
+                                    <tr class="hover:bg-neutral-50/50 transition-colors duration-150">
+                                        <td class="px-4 py-3 text-neutral-600 tabular">{{ $i + 1 }}</td>
+                                        <td class="px-4 py-3 text-neutral-900">{{ $item->sub_product ?: '—' }}</td>
+                                        <td class="px-4 py-3 text-neutral-900">{{ $item->site ?: '—' }}</td>
+                                        <td class="px-4 py-3 text-neutral-900">{{ $item->size ?: '—' }}</td>
+                                        <td class="px-4 py-3 text-neutral-900">{{ $item->district_council ?: '—' }}</td>
+                                        <td class="px-4 py-3">
+                                            @if($item->coordinates)
+                                                <a href="https://maps.google.com/?q={{ urlencode($item->coordinates) }}"
+                                                   target="_blank"
+                                                   class="text-[#4bbbed] hover:underline focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:ring-opacity-50 rounded">
+                                                    {{ $item->coordinates }}
+                                                </a>
+                                            @else
+                                                <span class="text-neutral-400">—</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-4 py-3 text-right tabular text-neutral-900">{{ $item->qty ?? 1 }}</td>
+                                        <td class="px-4 py-3 text-neutral-900">{{ $item->remarks ?: '—' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
                     @endif
-                </div>
-
-                {{-- Table --}}
-                @if($file->outdoorItems->isEmpty())
-                    <div class="text-sm text-gray-500">No locations added.</div>
-                @else
-                    <div class="overflow-x-auto">
-                    <table class="min-w-full text-sm border">
-                        <thead class="bg-emerald-50">
-                        <tr class="text-left">
-                            <th class="p-2 border">#</th>
-                            <th class="p-2 border">Sub Product</th>
-                            <th class="p-2 border">Site / Location</th>
-                            <th class="p-2 border">Size</th>
-                            <th class="p-2 border">Area</th>
-                            <th class="p-2 border">Coordinates</th>
-                            <th class="p-2 border text-right">Qty</th>
-                            <th class="p-2 border">Remarks</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        @foreach($file->outdoorItems as $i => $item)
-                            <tr class="odd:bg-white even:bg-gray-50">
-                            <td class="p-2 border">{{ $i + 1 }}</td>
-                            <td class="p-2 border">{{ $item->sub_product }}</td>
-                            <td class="p-2 border">{{ $item->site }}</td>
-                            <td class="p-2 border">{{ $item->size }}</td>
-                            <td class="p-2 border">{{ $item->district_council }}</td>
-                            <td class="p-2 border">
-                                @if($item->coordinates)
-                                <a class="text-indigo-600 hover:underline" target="_blank"
-                                    href="https://www.google.com/maps/search/?api=1&query={{ urlencode($item->coordinates) }}">
-                                    {{ $item->coordinates }}
-                                </a>
-                                @endif
-                            </td>
-                            <td class="p-2 border text-right">{{ $item->qty ?? 1 }}</td>
-                            <td class="p-2 border">{{ $item->remarks }}</td>
-                            </tr>
-                        @endforeach
-                        </tbody>
-                    </table>
-                    </div>
-                @endif
                 </div>
             </div>
             @endif
         </div>
     </div>
-
-    <!-- Enhanced JavaScript -->
-    <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const btnEdit = document.getElementById('btnEdit');
-        const btnSave = document.getElementById('btnSave');
-        const btnCancel = document.getElementById('btnCancel');
-        const editables = document.querySelectorAll('.editable');
-        const statusSelect = document.querySelector('select[name="status"]');
-
-        function updateStatusBadge() {
-            const status = statusSelect.value;
-            statusSelect.className = statusSelect.className.replace(/bg-\w+-\d+/g, '').replace(/text-\w+-\d+/g, '');
-
-            if (statusSelect.disabled) {
-                // Read mode - styled as badge
-                statusSelect.classList.add('status-badge');
-                if (status === 'completed') {
-                    statusSelect.classList.add('bg-green-100', 'text-green-800');
-                } else if (status === 'ongoing') {
-                    statusSelect.classList.add('bg-yellow-100', 'text-yellow-800');
-                } else {
-                    statusSelect.classList.add('bg-red-100', 'text-red-800');
-                }
-            } else {
-                // Edit mode - normal select styling
-                statusSelect.classList.remove('status-badge');
-                statusSelect.classList.add('border-gray-200', 'bg-white');
-            }
-        }
-
-        const setDisabled = (disabled) => {
-            editables.forEach(el => {
-                el.disabled = disabled;
-
-                if (disabled) {
-                    // Read mode styling
-                    el.classList.add('read-mode');
-                    if (el.name === 'company') {
-                        el.classList.add('bg-transparent', 'border-0');
-                    } else if (el.name === 'product') {
-                        el.classList.add('bg-blue-50', 'text-blue-800', 'border-0');
-                    } else {
-                        el.classList.add('bg-gray-50', 'border-gray-100', 'text-gray-700');
-                    }
-                } else {
-                    // Edit mode styling
-                    el.classList.remove('read-mode');
-                    if (el.name === 'company') {
-                        el.classList.remove('bg-transparent', 'border-0');
-                        el.classList.add('border-gray-200', 'bg-white');
-                    } else if (el.name === 'product') {
-                        el.classList.remove('bg-blue-50', 'text-blue-800', 'border-0');
-                        el.classList.add('border-gray-200', 'bg-white', 'text-gray-900');
-                    } else {
-                        el.classList.remove('bg-gray-50', 'border-gray-100', 'text-gray-700');
-                        el.classList.add('bg-white', 'border-gray-200', 'text-gray-900');
-                    }
-                }
-            });
-
-            updateStatusBadge();
-        };
-
-        btnEdit.addEventListener('click', () => {
-            setDisabled(false);
-            btnEdit.classList.add('hidden');
-            btnSave.classList.remove('hidden');
-            btnCancel.classList.remove('hidden');
-        });
-
-        btnCancel.addEventListener('click', () => {
-            window.location.reload();
-        });
-
-        statusSelect.addEventListener('change', updateStatusBadge);
-
-        // Initialize read mode
-        setDisabled(true);
-    });
-    </script>
-
-    <!-- Enhanced Styling -->
-    <style>
-    .read-mode {
-        cursor: default !important;
-        pointer-events: none;
-    }
-
-    .read-mode:focus {
-        outline: none !important;
-        ring: 0 !important;
-        border-color: inherit !important;
-        box-shadow: none !important;
-    }
-
-    .status-badge {
-        appearance: none;
-        cursor: default;
-        pointer-events: none;
-    }
-
-    .status-badge:focus {
-        outline: none;
-        box-shadow: none;
-    }
-
-    /* Smooth transitions */
-    .editable {
-        transition: all 0.2s ease-in-out;
-    }
-
-    /* Mobile responsiveness */
-    @media (max-width: 640px) {
-        .grid {
-            grid-template-columns: 1fr;
-        }
-
-        .flex-col.sm\\:flex-row {
-            flex-direction: column;
-        }
-
-        .text-3xl {
-            font-size: 1.875rem;
-        }
-    }
-
-    /* Card hover effects */
-    .bg-white {
-        transition: box-shadow 0.2s ease-in-out;
-    }
-
-    .bg-white:hover {
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    }
-    </style>
 </x-app-layout>
+
+</body>
+</html>
