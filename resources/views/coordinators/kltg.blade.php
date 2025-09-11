@@ -133,36 +133,54 @@
     return $map[$k] ?? $k;
   }
 
-  function cellVal($existing, $id, $key, $type){
-      $row = $existing->get($id);
-      if (!$row) return '';
-      $col = _dbcol($key);
-      $v   = $row->{$col} ?? '';
+  function cellVal($existing, $row, $key, $type, $activeTab){
+    // Build composite key: master_file_id_subcategory_year_month
+    $masterId = $row->master_file_id ?? $row->id;
+    $year = $row->activity_year;
+    $month = $row->activity_month;
 
-      // Normalize date values for HTML <input type="date">
-      if ($type === 'date') {
-          // If it's a Carbon/DateTime object, format it
-          if (is_object($v) && method_exists($v, 'format')) {
-              return $v->format('Y-m-d');
-          }
-          // If it's a string, trim time or parse
-          if (is_string($v) && $v !== '') {
-              // Common case: "YYYY-MM-DD HH:MM:SS" -> "YYYY-MM-DD"
-              if (preg_match('/^\d{4}-\d{2}-\d{2}/', $v, $m)) {
-                  return $m[0];
-              }
-              try {
-                  return \Carbon\Carbon::parse($v)->format('Y-m-d');
-              } catch (\Throwable $e) {
-                  return '';
-              }
-          }
-          return '';
-      }
+    // Map activeTab to stored subcategory (same as your tabToStored logic)
+    $subcategoryMap = [
+        'print' => 'KLTG',
+        'video' => 'Video',
+        'article' => 'Article',
+        'lb' => 'LB',
+        'em' => 'EM'
+    ];
+    $subcategory = $subcategoryMap[$activeTab] ?? strtoupper($activeTab);
 
-      // Non-date: return as-is (string/number/bool)
-      return $v ?? '';
-  }
+    $compositeKey = $masterId . '_' . $subcategory . '_' . $year . '_' . $month;
+    $record = $existing->get($compositeKey);
+
+    if (!$record) return '';
+
+    $col = _dbcol($key);
+    $v = $record->{$col} ?? '';
+
+    // Normalize date values for HTML <input type="date">
+    if ($type === 'date') {
+        // If it's a Carbon/DateTime object, format it
+        if (is_object($v) && method_exists($v, 'format')) {
+            return $v->format('Y-m-d');
+        }
+        // If it's a string, trim time or parse
+        if (is_string($v) && $v !== '') {
+            // Common case: "YYYY-MM-DD HH:MM:SS" -> "YYYY-MM-DD"
+            if (preg_match('/^\d{4}-\d{2}-\d{2}/', $v, $m)) {
+                return $m[0];
+            }
+            try {
+                return \Carbon\Carbon::parse($v)->format('Y-m-d');
+            } catch (\Throwable $e) {
+                return '';
+            }
+        }
+        return '';
+    }
+
+    // Non-date: return as-is (string/number/bool)
+    return $v ?? '';
+}
 @endphp
 
 <x-app-layout>
@@ -285,7 +303,7 @@
                     <span class="kltg-badge">{{ $r->publication ?? '—' }}</span>
                   </td>
                 @else
-                  @php $val = cellVal($existing, $r->id, $key, $type); @endphp
+                 @php $val = cellVal($existing, $r, $key, $type, $activeTab); @endphp
                   <td class="px-3 py-3">
                     @if($type==='date')
                       <input type="date"
