@@ -104,7 +104,148 @@ class KltgMonthlyController extends Controller
         return $detailMap;
     }
 
-    public function index(Request $request)
+//     public function index(Request $request)
+// {
+//     $activeYear = (int) ($request->input('year')
+//         ?? session('kltg.activeYear')
+//         ?? now()->year);
+//     session(['kltg.activeYear' => $activeYear]);
+
+//     // 1) Base rows (KLTG only)
+//     $baseRows = MasterFile::query()
+//         ->select([
+//             'id',
+//             'company',
+//             'product',
+//             DB::raw('COALESCE(product_category, "") as product_category'),
+//             'month as month_name',
+//             'date as start_date',
+//             'date_finish as end_date',
+//             DB::raw('CASE WHEN date IS NOT NULL AND date_finish IS NOT NULL
+//                       THEN DATEDIFF(date_finish, date) + 1 ELSE 0 END as duration_days'),
+//             'created_at',
+//         ])
+//         ->whereRaw("UPPER(TRIM(COALESCE(product_category, ''))) = 'KLTG'")
+//         ->latest('created_at')
+//         ->orderByDesc('id')
+//         ->get();
+
+//     $masterIds = $baseRows->pluck('id')->all();
+
+//     // 2) Pull details for those rows/year
+//     $details = KltgMonthlyDetail::whereIn('master_file_id', $masterIds)
+//         ->where('year', $activeYear)
+//         ->get([
+//             'id','master_file_id','year','month','category','type',
+//             'field_type','value','value_text','value_date'
+//         ]);
+
+//     // 3) Build map: $map[mf][year][month][CATEGORY][TYPE] = ['text'=>..,'date'=>..,'value'=>..]
+//     $map = [];
+//     foreach ($details as $d) {
+//         $mf  = (int) $d->master_file_id;
+//         $yr  = (int) $d->year;
+//         $mo  = (int) $d->month;
+//         $cat = strtoupper((string) $d->category);
+//         $typ = strtoupper((string) $d->type);
+
+//         // ---- Normalise TYPE when missing/legacy ----
+//         if ($d->field_type === 'date' && ($typ === '' || $typ === '0' || $typ === null)) {
+//             $typ = 'DATE';   // generic date (fallback to display in START)
+//         }
+//         if ($d->field_type === 'text' &&
+//             ($typ === '' || $typ === '0' || $typ === null || in_array($typ, ['KLTG','VIDEO','ARTICLE','LB','EM'], true))) {
+//             $typ = 'STATUS'; // generic status label
+//         }
+
+//         if (!isset($map[$mf][$yr][$mo][$cat][$typ])) {
+//             $map[$mf][$yr][$mo][$cat][$typ] = ['value'=>null,'text'=>null,'date'=>null];
+//         }
+
+//         if (!empty($d->value)) {
+//             $map[$mf][$yr][$mo][$cat][$typ]['value'] = $d->value;
+//         }
+//         if (!empty($d->value_text)) {
+//             $map[$mf][$yr][$mo][$cat][$typ]['text'] = $d->value_text;
+//         }
+//         if (!empty($d->value_date)) {
+//             // KEEP DB FORMAT for <input type="date">
+//             $map[$mf][$yr][$mo][$cat][$typ]['date'] = $d->value_date; // YYYY-MM-DD
+//         }
+//     }
+
+//     $categories = ['KLTG','VIDEO','ARTICLE','LB','EM'];
+
+//     // 4) Shape rows for Blade
+//     $rows = $baseRows->map(function ($mf) use ($map, $categories, $activeYear) {
+//         // Publication & Edition live at month=0 under KLTG
+//         $pub  = $map[$mf->id][$activeYear][0]['KLTG']['PUBLICATION']['text']
+//             ?? $map[$mf->id][$activeYear][0]['KLTG']['PUBLICATION']['value']
+//             ?? '';
+//         $edit = $map[$mf->id][$activeYear][0]['KLTG']['EDITION']['text']
+//             ?? $map[$mf->id][$activeYear][0]['KLTG']['EDITION']['value']
+//             ?? '';
+
+//         $grid = [];
+//         for ($m = 1; $m <= 12; $m++) {
+//             foreach ($categories as $cat) {
+//                 $gridKey = sprintf('%02d_%s', $m, $cat);
+
+//                 $status = $map[$mf->id][$activeYear][$m][$cat]['STATUS']['text']
+//                        ?? $map[$mf->id][$activeYear][$m][$cat]['STATUS']['value']
+//                        ?? '';
+
+//                 // START uses explicit START, else fallback to generic DATE
+//                 $start  = $map[$mf->id][$activeYear][$m][$cat]['START']['date']
+//                        ?? $map[$mf->id][$activeYear][$m][$cat]['DATE']['date']
+//                        ?? '';
+
+//                 $end    = $map[$mf->id][$activeYear][$m][$cat]['END']['date']
+//                        ?? '';
+
+//                 $grid[$gridKey] = [
+//                     'status' => $status,
+//                     'start'  => $start,  // YYYY-MM-DD → renders in <input type="date">
+//                     'end'    => $end,    // YYYY-MM-DD
+//                 ];
+//             }
+//         }
+
+//         return [
+//             'id'          => $mf->id,
+//             'month_name'  => $mf->month_name ?? '',
+//             'created_at'  => optional($mf->created_at)->format('d/m/y'),
+//             'company'     => $mf->company,
+//             'product'     => $mf->product,
+//             'status'      => 'Pending',
+//             'start'       => $mf->start_date ? Carbon::parse($mf->start_date)->format('d/m') : null,
+//             'end'         => $mf->end_date   ? Carbon::parse($mf->end_date)->format('d/m')   : null,
+//             'duration'    => $mf->duration_days,
+//             'publication' => $pub,
+//             'edition'     => $edit,
+//             'grid'        => $grid,
+//         ];
+//     })->values();
+
+//     // 5) Filters + view
+//     $companies = MasterFile::whereNotNull('company')->distinct()->orderBy('company')->pluck('company');
+//     $products  = MasterFile::whereNotNull('product')->distinct()->orderBy('product')->pluck('product');
+//     $statuses  = collect(['Pending','Ongoing','Completed']);
+
+//     return view('dashboard.kltg', [
+//         'year'        => $activeYear,
+//         'activeYear'  => $activeYear,
+//         'rows'        => $rows,
+//         'categories'  => $categories,
+//         'companies'   => $companies,
+//         'products'    => $products,
+//         'statuses'    => $statuses,
+//         'selected'    => ['status' => '', 'company' => '', 'product' => ''],
+//         'detailsMap'  => $map,
+//     ]);
+// }
+
+public function index(Request $request)
 {
     $activeYear = (int) ($request->input('year')
         ?? session('kltg.activeYear')
@@ -149,13 +290,21 @@ class KltgMonthlyController extends Controller
         $cat = strtoupper((string) $d->category);
         $typ = strtoupper((string) $d->type);
 
-        // ---- Normalise TYPE when missing/legacy ----
-        if ($d->field_type === 'date' && ($typ === '' || $typ === '0' || $typ === null)) {
-            $typ = 'DATE';   // generic date (fallback to display in START)
+        // ---- FIXED: More specific TYPE normalization ----
+        // Only normalize EMPTY/NULL types, preserve explicit types like START/END
+        if ($d->field_type === 'date') {
+            if ($typ === '' || $typ === '0' || $typ === null || $typ === 'NULL') {
+                $typ = 'DATE';   // generic date (fallback)
+            }
+            // Keep explicit START/END as is
         }
-        if ($d->field_type === 'text' &&
-            ($typ === '' || $typ === '0' || $typ === null || in_array($typ, ['KLTG','VIDEO','ARTICLE','LB','EM'], true))) {
-            $typ = 'STATUS'; // generic status label
+
+        if ($d->field_type === 'text') {
+            if ($typ === '' || $typ === '0' || $typ === null ||
+                in_array($typ, ['KLTG','VIDEO','ARTICLE','LB','EM'], true)) {
+                $typ = 'STATUS'; // generic status label
+            }
+            // Keep explicit PUBLICATION/EDITION as is
         }
 
         if (!isset($map[$mf][$yr][$mo][$cat][$typ])) {
@@ -169,8 +318,12 @@ class KltgMonthlyController extends Controller
             $map[$mf][$yr][$mo][$cat][$typ]['text'] = $d->value_text;
         }
         if (!empty($d->value_date)) {
-            // KEEP DB FORMAT for <input type="date">
-            $map[$mf][$yr][$mo][$cat][$typ]['date'] = $d->value_date; // YYYY-MM-DD
+            // STRIP TIMESTAMP - only keep YYYY-MM-DD for <input type="date">
+            $dateValue = $d->value_date;
+            if (strlen($dateValue) > 10) {
+                $dateValue = substr($dateValue, 0, 10); // Get only YYYY-MM-DD part
+            }
+            $map[$mf][$yr][$mo][$cat][$typ]['date'] = $dateValue;
         }
     }
 
@@ -195,13 +348,18 @@ class KltgMonthlyController extends Controller
                        ?? $map[$mf->id][$activeYear][$m][$cat]['STATUS']['value']
                        ?? '';
 
-                // START uses explicit START, else fallback to generic DATE
-                $start  = $map[$mf->id][$activeYear][$m][$cat]['START']['date']
-                       ?? $map[$mf->id][$activeYear][$m][$cat]['DATE']['date']
-                       ?? '';
+                // FIXED: Check START first, then DATE fallback, with better error handling
+                $start = '';
+                if (isset($map[$mf->id][$activeYear][$m][$cat]['START']['date'])) {
+                    $start = $map[$mf->id][$activeYear][$m][$cat]['START']['date'];
+                } elseif (isset($map[$mf->id][$activeYear][$m][$cat]['DATE']['date'])) {
+                    $start = $map[$mf->id][$activeYear][$m][$cat]['DATE']['date'];
+                }
 
-                $end    = $map[$mf->id][$activeYear][$m][$cat]['END']['date']
-                       ?? '';
+                $end = '';
+                if (isset($map[$mf->id][$activeYear][$m][$cat]['END']['date'])) {
+                    $end = $map[$mf->id][$activeYear][$m][$cat]['END']['date'];
+                }
 
                 $grid[$gridKey] = [
                     'status' => $status,

@@ -232,7 +232,7 @@
                     <div><span class="text-gray-500">Size (header):</span> {{ $file->outdoor_size }}</div>
                     @endif
                     @if($file->outdoor_district_council)
-                    <div><span class="text-gray-500">Council (header):</span> {{ $file->outdoor_district_council }}</div>
+                    <div><span class="text-gray-500">Area (header):</span> {{ $file->outdoor_district_council }}</div>
                     @endif
                     @if($file->outdoor_coordinates)
                     <div>
@@ -267,7 +267,7 @@
                             <th class="p-2 border">Sub Product</th>
                             <th class="p-2 border">Site / Location</th>
                             <th class="p-2 border">Size</th>
-                            <th class="p-2 border">Council</th>
+                            <th class="p-2 border">Area</th>
                             <th class="p-2 border">Coordinates</th>
                             <th class="p-2 border text-right">Qty</th>
                             <th class="p-2 border">Remarks</th>
