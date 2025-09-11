@@ -314,105 +314,145 @@
   </div>
 
   {{-- KLTG Configuration (MUST come before autosave script) --}}
-  <script>
-
-    function syncExportForm() {
-  const monthSelect = document.querySelector('select[name="month"]');
-  const yearSelect = document.querySelector('select[name="year"]');
-
-  document.getElementById('exportMonth').value = monthSelect.value;
-  document.getElementById('exportYear').value = yearSelect.value;
-}
-
-// Auto-sync when dropdowns change
-document.addEventListener('DOMContentLoaded', function() {
-  const monthSelect = document.querySelector('select[name="month"]');
-  const yearSelect = document.querySelector('select[name="year"]');
-
-  monthSelect.addEventListener('change', () => {
-    document.getElementById('exportMonth').value = monthSelect.value;
+<script>
+  // --- Export form sync (biarkan seperti punyamu, aku pertahankan) ---
+  function syncExportForm() {
+    const mSel = document.querySelector('select[name="month"]');
+    const ySel = document.querySelector('select[name="year"]');
+    document.getElementById('exportMonth').value = mSel?.value ?? '';
+    document.getElementById('exportYear').value  = ySel?.value ?? '';
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    const mSel = document.querySelector('select[name="month"]');
+    const ySel = document.querySelector('select[name="year"]');
+    mSel?.addEventListener('change', () => { document.getElementById('exportMonth').value = mSel.value; });
+    ySel?.addEventListener('change', () => { document.getElementById('exportYear').value  = ySel.value; });
+    syncExportForm();
   });
 
-  yearSelect.addEventListener('change', () => {
-    document.getElementById('exportYear').value = yearSelect.value;
-  });
+  window.KLTG = {
+    upsertUrl: @json(route('coordinator.kltg.upsert')),
+    csrf: @json(csrf_token())
+  };
+</script>
 
-  // Initialize with current values
-  syncExportForm();
-});
-    window.KLTG = {
-      upsertUrl: @json(route('coordinator.kltg.upsert')),
-      csrf: @json(csrf_token())
+<!-- ===== Improved Autosave: month-aware & year normalized ===== -->
+<script>
+(async function () {
+  const upsertUrl = window.KLTG?.upsertUrl;
+  const csrf      = window.KLTG?.csrf;
+
+  if (!upsertUrl || !csrf) {
+    console.error('[KLTG] Missing upsertUrl or CSRF');
+    return;
+  }
+
+  // ----- Helpers -----
+  function getYearMonth() {
+    // 1) Prefer dropdowns
+    const ySel = document.querySelector('select[name="year"]');
+    const mSel = document.querySelector('select[name="month"]');
+    let year  = ySel?.value ?? '';
+    let month = mSel?.value ?? '';
+
+    // 2) Fallback hidden ctx (optional if you have them)
+    if (!year)  year  = document.getElementById('ctxYear')?.value  ?? '';
+    if (!month) month = document.getElementById('ctxMonth')?.value ?? '';
+
+    // Normalize: remove non-digits from year (avoid "2,025")
+    year = String(year ?? '').replace(/[^0-9]/g, '');
+    const yNum = Number(year || 0);
+    const mNum = Number(month || 0);
+
+    return { year: yNum, month: mNum, rawMonth: month };
+  }
+
+  // Warn when trying to edit without a concrete month
+  function requireConcreteMonth() {
+    const { year, month } = getYearMonth();
+    if (!month || month < 1 || month > 12) {
+      alert('Pilih bulan dulu (bukan "All Months") sebelum mengedit.');
+      return null;
+    }
+    if (!year || year < 1900) {
+      alert('Tahun tidak valid. Pilih tahun yang benar.');
+      return null;
+    }
+    return { year, month };
+  }
+
+  function buildPayload(el) {
+    const masterId    = Number(el.dataset.masterFileId);
+    const subcategory = el.dataset.subcategory;
+    const field       = el.dataset.field;   // nama kolom di DB yang akan diubah
+
+    if (!masterId || !subcategory || !field) return null;
+
+    const value = (el.type === 'checkbox')
+      ? (el.checked ? 1 : 0)
+      : (el.value ?? '');
+
+    // Include year/month (W-A-J-I-B)
+    const ym = requireConcreteMonth();
+    if (!ym) return null;
+
+    const payload = {
+      master_file_id: masterId,
+      subcategory: subcategory,
+      year: ym.year,          // number
+      month: ym.month,        // number 1..12
+      field: field,           // kompatibel dgn controller kamu sekarang
+      column: field,          // safety kalau backend expect 'column'
+      value: value
     };
-  </script>
 
-  {{-- Improved Autosave Script (unchanged logic) --}}
-  <script>
-  (async function () {
-    const upsertUrl = window.KLTG?.upsertUrl;
-    const csrf = window.KLTG?.csrf;
+    return payload;
+  }
 
-    if (!upsertUrl || !csrf) {
-      console.error('[KLTG] Missing upsertUrl or CSRF meta');
-      return;
-    }
+  // ----- Attach listeners -----
+  const inputs = document.querySelectorAll('[data-master-file-id][data-field]');
+  console.log(`[KLTG] ✅ Autosave listener attached: ${inputs.length} inputs found`);
 
-    // NOTE: We don't render inputs for edition/publication, so they won't be selected/saved.
-    const inputs = document.querySelectorAll('[data-master-file-id][data-field]');
-    console.log(`[KLTG] ✅ Autosave listener attached: ${inputs.length} inputs found`);
+  inputs.forEach(el => {
+    el.addEventListener('change', () => save(el));
+    el.addEventListener('blur',   () => save(el));
+  });
 
-    inputs.forEach(el => {
-      el.addEventListener('change', () => save(el));
-      el.addEventListener('blur',   () => save(el));
-    });
+  async function save(el) {
+    const payload = buildPayload(el);
+    if (!payload) return;
 
-    function buildPayload(el) {
-      const masterId    = Number(el.dataset.masterFileId);
-      const subcategory = el.dataset.subcategory;
-      const field       = el.dataset.field;
+    // UI state
+    el.classList.remove('bg-red-50','border-red-300','bg-green-50','border-green-300');
+    el.classList.add('bg-yellow-50','border-yellow-300');
 
-      if (!masterId || !subcategory || !field) return null;
+    try {
+      const resp = await fetch(upsertUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': csrf,
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify(payload)
+      });
 
-      const value = (el.type === 'checkbox')
-        ? (el.checked ? 1 : 0)
-        : (el.value ?? '');
-
-      return { master_file_id: masterId, subcategory, field, value };
-    }
-
-    async function save(el) {
-      const payload = buildPayload(el);
-      if (!payload) return;
-
-      el.classList.remove('bg-red-50','border-red-300','bg-green-50','border-green-300');
-      el.classList.add('bg-yellow-50','border-yellow-300');
-
-      try {
-        const resp = await fetch(upsertUrl, {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': csrf,
-            'X-Requested-With': 'XMLHttpRequest'
-          },
-          body: JSON.stringify(payload)
-        });
-
-        if (!resp.ok) {
-          const text = await resp.text().catch(() => '');
-          console.error('[KLTG] ❌ SAVE ERR', resp.status, text);
-          throw new Error(`HTTP ${resp.status}`);
-        }
-
-        el.classList.remove('bg-yellow-50','border-yellow-300');
-        el.classList.add('bg-green-50','border-green-300');
-
-      } catch (e) {
-        el.classList.remove('bg-yellow-50','border-yellow-300');
-        el.classList.add('bg-red-50','border-red-300');
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => '');
+        console.error('[KLTG] ❌ SAVE ERR', resp.status, text);
+        throw new Error(`HTTP ${resp.status}`);
       }
+
+      el.classList.remove('bg-yellow-50','border-yellow-300');
+      el.classList.add('bg-green-50','border-green-300');
+
+    } catch (e) {
+      el.classList.remove('bg-yellow-50','border-yellow-300');
+      el.classList.add('bg-red-50','border-red-300');
     }
-  })();
-  </script>
+  }
+})();
+</script>
+
 </x-app-layout>
