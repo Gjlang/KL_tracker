@@ -108,212 +108,212 @@
       </div>
 
       <!-- Data Table Card -->
-      <div class="bg-white rounded-2xl border border-neutral-200/70 shadow-sm overflow-hidden">
-        <!-- Table Container -->
-        <div class="overflow-x-auto" style="max-height: 75vh;">
-          <table class="min-w-[5500px] w-full text-sm border-collapse">
-            <!-- Sticky Header -->
-            <thead class="sticky top-0 z-20 bg-white">
-              <tr class="bg-neutral-50/80">
-                <th class="sticky left-0 z-30 bg-neutral-50/80 hairline px-4 py-3 text-left header-label whitespace-nowrap">No</th>
-                <th class="sticky left-[60px] z-30 bg-neutral-50/80 hairline px-4 py-3 text-left header-label whitespace-nowrap">Month</th>
-                <th class="sticky left-[140px] z-30 bg-neutral-50/80 hairline px-4 py-3 text-left header-label whitespace-nowrap">Created At</th>
-                <th class="sticky left-[280px] z-30 bg-neutral-50/80 hairline px-4 py-3 text-left header-label whitespace-nowrap">Company</th>
-                <th class="sticky left-[430px] z-30 bg-neutral-50/80 hairline px-4 py-3 text-left header-label whitespace-nowrap">Product</th>
-                <th class="sticky left-[530px] z-30 bg-neutral-50/80 hairline px-4 py-3 text-left header-label whitespace-nowrap">Publication</th>
-                <th class="sticky left-[680px] z-30 bg-neutral-50/80 hairline px-4 py-3 text-left header-label whitespace-nowrap">Edition</th>
-                <th class="sticky left-[830px] z-30 bg-neutral-50/80 hairline px-4 py-3 text-left header-label whitespace-nowrap">Status</th>
-                <th class="hairline px-4 py-3 text-left header-label whitespace-nowrap">Start</th>
-                <th class="hairline px-4 py-3 text-left header-label whitespace-nowrap">End</th>
+<div class="bg-white rounded-2xl border border-neutral-200/70 shadow-sm overflow-hidden">
+  <!-- Table Container -->
+  <div class="overflow-x-auto" style="max-height: 75vh;">
+    <table class="min-w-[5500px] w-full text-sm border-collapse">
+      <!-- Sticky Header (atas saja) -->
+      <thead class="sticky top-0 z-20 bg-white">
+        <tr class="bg-neutral-50/80">
+          <th class="hairline px-4 py-3 text-left header-label whitespace-nowrap">No</th>
+          <th class="hairline px-4 py-3 text-left header-label whitespace-nowrap">Month</th>
+          <th class="hairline px-4 py-3 text-left header-label whitespace-nowrap">Created At</th>
+          <th class="hairline px-4 py-3 text-left header-label whitespace-nowrap">Company</th>
+          <th class="hairline px-4 py-3 text-left header-label whitespace-nowrap">Product</th>
+          <th class="hairline px-4 py-3 text-left header-label whitespace-nowrap">Publication</th>
+          <th class="hairline px-4 py-3 text-left header-label whitespace-nowrap">Edition</th>
+          <th class="hairline px-4 py-3 text-left header-label whitespace-nowrap">Status</th>
+          <th class="hairline px-4 py-3 text-left header-label whitespace-nowrap">Start</th>
+          <th class="hairline px-4 py-3 text-left header-label whitespace-nowrap">End</th>
 
-                @for ($m=1; $m<=12; $m++)
-                  <th class="px-4 py-3 text-center hairline bg-neutral-50/60 header-label min-w-[900px]">
-                    {{ \Carbon\Carbon::create()->startOfYear()->month($m)->format('F') }}
-                  </th>
-                @endfor
-              </tr>
-            </thead>
+          @for ($m=1; $m<=12; $m++)
+            <th class="px-4 py-3 text-center hairline bg-neutral-50/60 header-label min-w-[900px]">
+              {{ \Carbon\Carbon::create()->startOfYear()->month($m)->format('F') }}
+            </th>
+          @endfor
+        </tr>
+      </thead>
 
-            <tbody>
-              @if(isset($rows) && count($rows) > 0)
-                @foreach ($rows as $i => $r)
-                  <tr class="table-row transition-all duration-150 hover:bg-neutral-50 hover:shadow-[inset_0_0_0_1px_rgba(0,0,0,0.03)]"
-                    data-master="{{ $r['id'] ?? '' }}"
-                    data-status="{{ strtolower($r['status'] ?? '') }}"
-                    data-company="{{ strtolower($r['company'] ?? '') }}"
-                    data-product="{{ strtolower($r['product'] ?? '') }}"
-                    data-year="{{ $year ?? date('Y') }}"
-                    data-month="{{ $r['month_name'] ?? '' }}"
-                    data-created-date="{{ $r['created_at'] ?? '' }}">
+      <tbody>
+        @if(isset($rows) && count($rows) > 0)
+          @foreach ($rows as $i => $r)
+            <tr class="table-row transition-all duration-150 hover:bg-neutral-50 hover:shadow-[inset_0_0_0_1px_rgba(0,0,0,0.03)]"
+                data-master="{{ $r['id'] ?? '' }}"
+                data-status="{{ strtolower($r['status'] ?? '') }}"
+                data-company="{{ strtolower($r['company'] ?? '') }}"
+                data-product="{{ strtolower($r['product'] ?? '') }}"
+                data-year="{{ $year ?? date('Y') }}"
+                data-month="{{ $r['month_name'] ?? '' }}"
+                data-created-date="{{ $r['created_at'] ?? '' }}">
 
-                    <!-- Fixed Columns -->
-                    <td class="sticky left-0 z-10 bg-inherit hairline px-4 py-3 align-top ink tabular-nums">{{ $i+1 }}</td>
+              <!-- Kolom awal (tidak sticky) -->
+              <td class="hairline px-4 py-3 align-top ink tabular-nums">{{ $i+1 }}</td>
+              <td class="hairline px-4 py-3 align-top ink">{{ $r['month_name'] ?? '' }}</td>
+              <td class="hairline px-4 py-3 align-top ink tabular-nums">{{ $r['created_at'] ?? '' }}</td>
 
-                    <td class="sticky left-[60px] z-10 bg-inherit hairline px-4 py-3 align-top ink">{{ $r['month_name'] ?? '' }}</td>
+              <td class="hairline px-4 py-3 align-top ink" style="max-width:150px;">
+                <div class="truncate pr-1" title="{{ $r['company'] ?? '' }}">{{ $r['company'] ?? 'N/A' }}</div>
+              </td>
 
-                    <td class="sticky left-[140px] z-10 bg-inherit hairline px-4 py-3 align-top ink tabular-nums">{{ $r['created_at'] ?? '' }}</td>
+              <td class="hairline px-4 py-3 align-top">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
+                  {{ $r['product'] ?? 'N/A' }}
+                </span>
+              </td>
 
-                    <td class="sticky left-[280px] z-10 bg-inherit hairline px-4 py-3 align-top ink" style="max-width:150px;">
-                      <div class="truncate pr-1" title="{{ $r['company'] ?? '' }}">{{ $r['company'] ?? 'N/A' }}</div>
-                    </td>
+              <!-- Publication Input -->
+              <td class="hairline px-4 py-3 align-top">
+                <input
+                  class="form-input auto-save-input w-32"
+                  value="{{ $r['publication'] ?? '' }}"
+                  data-master="{{ $r['id'] ?? '' }}"
+                  data-year="{{ $year ?? date('Y') }}"
+                  data-category="KLTG"
+                  data-type="PUBLICATION"
+                  data-field="publication"
+                  oninput="debouncedSave(this)"
+                  placeholder="Type name…">
+              </td>
 
-                    <td class="sticky left-[430px] z-10 bg-inherit hairline px-4 py-3 align-top">
-                      <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
-                        {{ $r['product'] ?? 'N/A' }}
-                      </span>
-                    </td>
+              <!-- Edition Input -->
+              <td class="hairline px-4 py-3 align-top">
+                <input
+                  class="form-input auto-save-input w-32"
+                  value="{{ $r['edition'] ?? '' }}"
+                  data-master="{{ $r['id'] ?? '' }}"
+                  data-year="{{ $year ?? date('Y') }}"
+                  data-category="KLTG"
+                  data-type="EDITION"
+                  data-field="edition"
+                  oninput="debouncedSave(this)"
+                  placeholder="Type name…">
+              </td>
 
-                    <!-- Publication Input -->
-                    <td class="sticky left-[530px] z-10 bg-inherit hairline px-4 py-3 align-top">
-                      <input
-                        class="form-input auto-save-input w-32"
-                        value="{{ $r['publication'] ?? '' }}"
-                        data-master="{{ $r['id'] ?? '' }}"
-                        data-year="{{ $year ?? date('Y') }}"
-                        data-category="KLTG"
-                        data-type="PUBLICATION"
-                        data-field="publication"
-                        oninput="debouncedSave(this)"
-                        placeholder="Type name…">
-                    </td>
+              <!-- Status Badge -->
+              <td class="hairline px-4 py-3 align-top">
+                <span class="badge-{{ strtolower($r['status'] ?? 'pending') }}">
+                  {{ $r['status'] ?? 'Pending' }}
+                </span>
+              </td>
 
-                    <!-- Edition Input -->
-                    <td class="sticky left-[680px] z-10 bg-inherit hairline px-4 py-3 align-top">
-                      <input
-                        class="form-input auto-save-input w-32"
-                        value="{{ $r['edition'] ?? '' }}"
-                        data-master="{{ $r['id'] ?? '' }}"
-                        data-year="{{ $year ?? date('Y') }}"
-                        data-category="KLTG"
-                        data-type="EDITION"
-                        data-field="edition"
-                        oninput="debouncedSave(this)"
-                        placeholder="Type name…">
-                    </td>
+              <td class="hairline px-4 py-3 align-top ink tabular-nums">{{ $r['start'] ?? '' }}</td>
+              <td class="hairline px-4 py-3 align-top ink tabular-nums">{{ $r['end'] ?? '' }}</td>
 
-                    <!-- Status Badge -->
-                    <td class="sticky left-[830px] z-10 bg-inherit hairline px-4 py-3 align-top">
-                      <span class="badge-{{ strtolower($r['status'] ?? 'pending') }}">
-                        {{ $r['status'] ?? 'Pending' }}
-                      </span>
-                    </td>
+              <!-- Monthly Category Input Cells -->
+              @for ($m=1; $m<=12; $m++)
+                @php
+                  $cats = [
+                    ['code' => 'KLTG',   'label' => 'KLTG'],
+                    ['code' => 'VIDEO',  'label' => 'Video'],
+                    ['code' => 'ARTICLE','label' => 'Article'],
+                    ['code' => 'LB',     'label' => 'LB'],
+                    ['code' => 'EM',     'label' => 'EM'],
+                  ];
+                @endphp
 
-                    <td class="hairline px-4 py-3 align-top ink tabular-nums">{{ $r['start'] ?? '' }}</td>
-                    <td class="hairline px-4 py-3 align-top ink tabular-nums">{{ $r['end'] ?? '' }}</td>
+                <td class="px-2 py-2 align-top hairline month-cell" data-month="{{ $m }}">
+                  <div class="min-w-[900px] border border-neutral-200 rounded-xl bg-white shadow-sm">
+                    <!-- Month Header -->
+                    <div class="text-center py-2 border-b border-neutral-200 bg-neutral-50/50">
+                      <h4 class="font-serif font-medium text-sm ink">
+                        {{ \Carbon\Carbon::create()->startOfYear()->month($m)->format('F') }}
+                      </h4>
+                    </div>
 
-                    <!-- Monthly Category Input Cells -->
-                    @for ($m=1; $m<=12; $m++)
-                      @php
-                        $cats = [
-                          ['code' => 'KLTG',   'label' => 'KLTG'],
-                          ['code' => 'VIDEO',  'label' => 'Video'],
-                          ['code' => 'ARTICLE','label' => 'Article'],
-                          ['code' => 'LB',     'label' => 'LB'],
-                          ['code' => 'EM',     'label' => 'EM'],
-                        ];
-                      @endphp
-
-                      <td class="px-2 py-2 align-top hairline month-cell" data-month="{{ $m }}">
-                        <div class="min-w-[900px] border border-neutral-200 rounded-xl bg-white shadow-sm">
-                          <!-- Month Header -->
-                          <div class="text-center py-2 border-b border-neutral-200 bg-neutral-50/50">
-                            <h4 class="font-serif font-medium text-sm ink">{{ \Carbon\Carbon::create()->startOfYear()->month($m)->format('F') }}</h4>
+                    <div class="flex h-full">
+                      @foreach($cats as $index => $c)
+                        <div class="flex-1 flex flex-col {{ $index < count($cats) - 1 ? 'border-r border-neutral-200' : '' }}">
+                          <!-- Category Header -->
+                          <div class="text-center py-2 bg-neutral-50/30 border-b border-neutral-200 flex-shrink-0">
+                            <div class="header-label text-neutral-700">{{ $c['label'] }}</div>
                           </div>
 
-                          <!-- Categories Grid -->
-                          <div class="flex h-full">
-                            @foreach($cats as $index => $c)
-                              <div class="flex-1 flex flex-col {{ $index < count($cats) - 1 ? 'border-r border-neutral-200' : '' }}">
-                                <!-- Category Header -->
-                                <div class="text-center py-2 bg-neutral-50/30 border-b border-neutral-200 flex-shrink-0">
-                                  <div class="header-label text-neutral-700">{{ $c['label'] }}</div>
-                                </div>
+                          <!-- Input Container -->
+                          <div class="flex flex-col flex-1 p-3 space-y-2">
+                            @php
+                              $gridKey = sprintf('%02d_%s', $m, $c['code']);
+                            @endphp
 
-                                <!-- Input Container -->
-                                <div class="flex flex-col flex-1 p-3 space-y-2">
-                                  @php
-                                    $gridKey = sprintf('%02d_%s', $m, $c['code']);
-                                  @endphp
+                            <!-- Status Select -->
+                            <select
+                              class="form-input text-xs status-select"
+                              data-input="text"
+                              data-master="{{ $r['id'] ?? '' }}"
+                              data-year="{{ $year ?? date('Y') }}"
+                              data-month="{{ $m }}"
+                              data-category="{{ $c['code'] }}"
+                              data-type="STATUS"
+                              onchange="saveCell(this); setDropdownColor(this);">
+                                <option value=""></option>
+                                <option value="Installation" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Installation' ? 'selected' : '' }}>Installation</option>
+                                <option value="Dismantle" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Dismantle' ? 'selected' : '' }}>Dismantle</option>
+                                <option value="Artwork" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Artwork' ? 'selected' : '' }}>Artwork</option>
+                                <option value="Payment" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Payment' ? 'selected' : '' }}>Payment</option>
+                                <option value="Ongoing" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Ongoing' ? 'selected' : '' }}>Ongoing</option>
+                                <option value="Renewal" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Renewal' ? 'selected' : '' }}>Renewal</option>
+                                <option value="Completed" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Completed' ? 'selected' : '' }}>Completed</option>
+                                <option value="Material" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Material' ? 'selected' : '' }}>Material</option>
+                                <option value="Whatsapp" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Whatsapp' ? 'selected' : '' }}>Whatsapp</option>
+                                <option value="Posted" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Posted' ? 'selected' : '' }}>Posted</option>
+                            </select>
 
-                                  <!-- Status Select -->
-                                  <select
-                                    class="form-input text-xs status-select"
-                                    data-input="text"
-                                    data-master="{{ $r['id'] ?? '' }}"
-                                    data-year="{{ $year ?? date('Y') }}"
-                                    data-month="{{ $m }}"
-                                    data-category="{{ $c['code'] }}"
-                                    data-type="STATUS"
-                                    onchange="saveCell(this); setDropdownColor(this);">
-                                      <option value=""></option>
-                                      <option value="Installation" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Installation' ? 'selected' : '' }}>Installation</option>
-                                      <option value="Dismantle" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Dismantle' ? 'selected' : '' }}>Dismantle</option>
-                                      <option value="Artwork" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Artwork' ? 'selected' : '' }}>Artwork</option>
-                                      <option value="Payment" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Payment' ? 'selected' : '' }}>Payment</option>
-                                      <option value="Ongoing" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Ongoing' ? 'selected' : '' }}>Ongoing</option>
-                                      <option value="Renewal" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Renewal' ? 'selected' : '' }}>Renewal</option>
-                                      <option value="Completed" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Completed' ? 'selected' : '' }}>Completed</option>
-                                      <option value="Material" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Material' ? 'selected' : '' }}>Material</option>
-                                      <option value="Whatsapp" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Whatsapp' ? 'selected' : '' }}>Whatsapp</option>
-                                      <option value="Posted" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Posted' ? 'selected' : '' }}>Posted</option>
-                                  </select>
+                            @php
+                              $inputIdStart = "date-start-y{$year}-m{$m}-{$c['code']}-{$r['id']}-" . uniqid();
+                            @endphp
 
-                                  <!-- Start Date Input -->
-                                  @php
-                                    $inputIdStart = "date-start-y{$year}-m{$m}-{$c['code']}-{$r['id']}-" . uniqid();
-                                  @endphp
-
-                                  <div class="flex items-center gap-2">
-                                    <input
-                                      id="{{ $inputIdStart }}"
-                                      type="date"
-                                      class="form-input text-xs flex-1"
-                                      value="{{ $r['grid'][$gridKey]['start'] ?? '' }}"
-                                      data-input="date"
-                                      data-master="{{ $r['id'] ?? '' }}"
-                                      data-year="{{ $year }}"
-                                      data-month="{{ $m }}"
-                                      data-category="{{ $c['code'] }}"
-                                      data-type="START"
-                                      onchange="saveCell(this)">
-                                    <button type="button"
-                                      class="p-2 text-neutral-500 hover:text-neutral-700 transition-colors"
-                                      onclick="document.getElementById('{{ $inputIdStart }}').showPicker()"
-                                      title="Start date">
-                                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                      </svg>
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            @endforeach
+                            <div class="flex items-center gap-2">
+                              <input
+                                id="{{ $inputIdStart }}"
+                                type="date"
+                                class="form-input text-xs flex-1"
+                                value="{{ $r['grid'][$gridKey]['start'] ?? '' }}"
+                                data-input="date"
+                                data-master="{{ $r['id'] ?? '' }}"
+                                data-year="{{ $year }}"
+                                data-month="{{ $m }}"
+                                data-category="{{ $c['code'] }}"
+                                data-type="START"
+                                onchange="saveCell(this)">
+                              <button type="button"
+                                class="p-2 text-neutral-500 hover:text-neutral-700 transition-colors"
+                                onclick="document.getElementById('{{ $inputIdStart }}').showPicker()"
+                                title="Start date">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </td>
-                    @endfor
-                  </tr>
-                @endforeach
-              @else
-                <!-- Empty State -->
-                <tr>
-                  <td colspan="22" class="hairline px-6 py-16 text-center">
-                    <div class="flex flex-col items-center">
-                      <svg class="w-12 h-12 text-neutral-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                      </svg>
-                      <h3 class="font-serif text-lg ink mb-2">No ongoing jobs found</h3>
-                      <p class="text-neutral-600 mb-4">Try adjusting your filters or add new entries.</p>
-                      <a href="{{ route('coordinator.kltg.index') }}" class="btn-secondary">
-                        Open KLTG Coordinator
-                      </a>
+                      @endforeach
                     </div>
-                  </td>
-                </tr>
-              @endif
-            </tbody>
-          </table>
-        </div>
+                  </div>
+                </td>
+              @endfor
+            </tr>
+          @endforeach
+        @else
+          <!-- Empty State -->
+          <tr>
+            <td colspan="22" class="hairline px-6 py-16 text-center">
+              <div class="flex flex-col items-center">
+                <svg class="w-12 h-12 text-neutral-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <h3 class="font-serif text-lg ink mb-2">No ongoing jobs found</h3>
+                <p class="text-neutral-600 mb-4">Try adjusting your filters or add new entries.</p>
+                <a href="{{ route('coordinator.kltg.index') }}" class="btn-secondary">
+                  Open KLTG Coordinator
+                </a>
+              </div>
+            </td>
+          </tr>
+        @endif
+      </tbody>
+    </table>
+  </div>
+</div>
+
       </div>
     </div>
   </div>

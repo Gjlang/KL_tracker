@@ -2,72 +2,75 @@
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 
   <style>
     /* Typography & Base Styles */
-    .serif { font-family: 'EB Garamond', serif; }
-    .sans { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+    .font-serif { font-family: 'EB Garamond', Georgia, serif; }
+    .font-sans { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
     .ink { color: #1C1E26; }
     .muted { color: #6B7280; }
     .tabular-nums { font-variant-numeric: tabular-nums; }
+    .small-caps { font-variant: small-caps; letter-spacing: 0.06em; }
 
     /* Layout Components */
     .page-bg { background-color: #F7F7F9; min-height: 100vh; }
     .card {
       @apply bg-white rounded-2xl border border-neutral-200/70 shadow-sm;
     }
-    .hairline { @apply border border-neutral-200; }
+    .hairline { border-color: #EAEAEA; }
 
-    /* Button Styles */
+    /* Button System */
     .btn-primary {
-      @apply bg-[#22255b] text-white hover:opacity-90 focus:ring-2 focus:ring-[#4bbbed] rounded-full px-6 py-2.5 transition-all duration-200 font-medium sans;
+      @apply bg-[#22255b] text-white hover:opacity-90 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent rounded-full px-6 py-2.5 font-medium transition-all duration-150 inline-flex items-center justify-center;
+    }
+    .btn-secondary {
+      @apply border border-neutral-300 text-neutral-800 hover:bg-neutral-50 hover:border-neutral-400 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent rounded-full px-5 py-2 font-medium transition-all duration-150 inline-flex items-center justify-center;
     }
     .btn-ghost {
-      @apply border border-neutral-300 text-neutral-700 hover:bg-neutral-50 hover:border-neutral-400 rounded-full px-5 py-2 transition-all duration-200 font-medium sans;
+      @apply text-neutral-700 hover:bg-neutral-50 focus:ring-2 focus:ring-[#4bbbed] rounded-full px-4 py-2 font-medium transition-all duration-150 inline-flex items-center justify-center;
     }
     .btn-export {
-      @apply bg-emerald-700 text-white hover:bg-emerald-800 focus:ring-2 focus:ring-emerald-300 rounded-full px-5 py-2 transition-all duration-200 font-medium sans;
+      @apply bg-emerald-700 text-white hover:bg-emerald-800 focus:ring-2 focus:ring-emerald-300 focus:border-transparent rounded-full px-5 py-2 font-medium transition-all duration-150 inline-flex items-center justify-center;
     }
 
-    /* Tab Styles */
+    /* Tab System */
     .tab-strip {
-      @apply card p-1 flex gap-1 overflow-x-auto;
+      @apply border-b hairline overflow-x-auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
     }
+    .tab-strip::-webkit-scrollbar { display: none; }
     .tab {
-      @apply px-4 py-2.5 rounded-xl transition-all duration-200 font-medium text-sm tracking-wide sans whitespace-nowrap;
-      font-variant: small-caps;
+      @apply px-6 py-4 text-sm font-medium transition-all duration-150 border-b-2 border-transparent whitespace-nowrap;
     }
     .tab.active {
-      @apply bg-[#22255b] text-white shadow-sm;
+      @apply ink border-[#22255b];
     }
     .tab:not(.active) {
-      @apply text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100;
+      @apply text-neutral-600 hover:text-neutral-800 hover:bg-[#4bbbed]/5;
     }
 
-    /* Form Styles */
-    .form-input {
-      @apply h-11 w-full border-neutral-200 rounded-xl px-4 text-sm sans focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-all duration-200;
+    /* Form Controls */
+    .form-control {
+      @apply h-11 w-full border border-neutral-300 rounded-xl px-4 text-sm font-sans focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent transition-all duration-150;
     }
     .form-label {
-      @apply text-xs font-semibold text-neutral-600 tracking-wide sans mb-2 block;
-      font-variant: small-caps;
+      @apply block text-xs font-semibold text-neutral-600 mb-2 small-caps;
     }
 
-    /* Table Styles */
+    /* Data Table */
     .data-table {
-      @apply min-w-full text-sm sans;
+      @apply w-full text-sm;
     }
     .data-table thead th {
-      @apply px-4 py-4 text-left font-semibold text-neutral-600 bg-neutral-50 border-b border-neutral-200;
-      font-variant: small-caps;
-      letter-spacing: 0.05em;
+      @apply px-6 py-4 text-left font-semibold text-neutral-600 bg-neutral-50 border-b hairline small-caps;
       position: sticky;
       top: 0;
       z-index: 10;
     }
     .data-table tbody td {
-      @apply px-4 py-3 border-b border-neutral-100;
+      @apply px-6 py-4 border-b hairline;
     }
     .data-table tbody tr {
       @apply transition-all duration-150;
@@ -80,11 +83,11 @@
     }
 
     /* Input Styles for Table */
-    .kltg-input {
-      @apply w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm sans transition-all duration-200 tabular-nums;
+    .table-input {
+      @apply w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm transition-all duration-150 tabular-nums;
       min-width: 120px;
     }
-    .kltg-input:focus {
+    .table-input:focus {
       @apply border-[#4bbbed] ring-2 ring-[#4bbbed]/20 outline-none;
     }
 
@@ -98,24 +101,25 @@
 
     /* Badge Styles */
     .badge {
-      @apply inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-700 border border-neutral-200;
+      @apply inline-flex items-center justify-center px-3 py-1.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-700 border border-neutral-200;
       min-width: 80px;
-      justify-content: center;
     }
 
     /* Empty State */
     .empty-state {
-      @apply card p-12 text-center;
+      @apply text-center py-16 px-6;
     }
 
     /* Responsive adjustments */
     @media (max-width: 1024px) {
-      .kltg-input { min-width: 100px; }
+      .table-input { min-width: 100px; }
+      .data-table thead th,
+      .data-table tbody td { @apply px-4; }
     }
     @media (max-width: 768px) {
-      .kltg-input { min-width: 80px; }
+      .table-input { min-width: 80px; }
       .data-table thead th,
-      .data-table tbody td { @apply px-2 py-2; }
+      .data-table tbody td { @apply px-3 py-3; }
     }
   </style>
 @endpush
@@ -214,17 +218,17 @@
 
     // Non-date: return as-is (string/number/bool)
     return $v ?? '';
-}
+  }
 @endphp
 
 <x-app-layout>
   <div class="page-bg">
-    <div class="max-w-full px-4 md:px-6 py-6">
+    <div class="w-full px-4 md:px-10 py-8">
 
       <!-- Header Bar -->
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <div class="flex items-center gap-6">
-          <a href="{{ route('dashboard.kltg') }}" class="btn-ghost inline-flex items-center">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
+        <div class="flex items-center gap-8">
+          <a href="{{ route('dashboard.kltg') }}" class="btn-ghost">
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
             </svg>
@@ -232,18 +236,18 @@
           </a>
 
           <div>
-            <h1 class="serif text-3xl md:text-4xl font-semibold ink">{{ $periodLabel }}</h1>
-            <p class="muted text-sm mt-1 tracking-wide sans" style="font-variant: small-caps;">Monthly KLTG Overview</p>
+            <h1 class="font-serif text-4xl lg:text-5xl font-semibold ink">{{ $periodLabel }}</h1>
+            <p class="muted text-sm mt-2 small-caps font-medium">Monthly KLTG Overview</p>
           </div>
         </div>
 
-        <form method="GET" action="{{ route('coordinator.kltg.export') }}" class="inline" id="exportForm">
+        <form method="GET" action="{{ route('coordinator.kltg.export') }}" class="inline-flex" id="exportForm">
           <input type="hidden" name="subcategory" value="{{ $activeTab }}">
           <input type="hidden" name="month" id="exportMonth">
           <input type="hidden" name="year" id="exportYear">
           <input type="hidden" name="working" value="{{ request('working') }}">
           <button type="submit" class="btn-export" onclick="syncExportForm()">
-            <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
             </svg>
             Export
@@ -253,22 +257,24 @@
 
       <!-- Tab Strip -->
       @php $tabs = ['print'=>'KLTG','video'=>'Video','article'=>'Article','lb'=>'LB','em'=>'EM']; @endphp
-      <div class="tab-strip mb-6">
-        @foreach ($tabs as $key => $label)
-          <a href="{{ route('coordinator.kltg.index', array_filter(['tab'=>$key,'month'=>$month,'year'=>$year])) }}"
-             class="tab {{ $activeTab===$key ? 'active' : '' }}">
-            {{ $label }}
-          </a>
-        @endforeach
+      <div class="tab-strip mb-8">
+        <div class="flex">
+          @foreach ($tabs as $key => $label)
+            <a href="{{ route('coordinator.kltg.index', array_filter(['tab'=>$key,'month'=>$month,'year'=>$year])) }}"
+               class="tab {{ $activeTab===$key ? 'active' : '' }}">
+              {{ $label }}
+            </a>
+          @endforeach
+        </div>
       </div>
 
       <!-- Filter Panel -->
-      <form method="get" class="card p-6 mb-6">
+      <form method="get" class="card p-8 mb-8">
         <input type="hidden" name="tab" value="{{ $activeTab }}">
-        <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <div>
             <label class="form-label">Month</label>
-            <select name="month" class="form-input">
+            <select name="month" class="form-control">
               <option value="">All Months</option>
               @for($m=1;$m<=12;$m++)
                 <option value="{{ $m }}" @selected($month==$m)>{{ date('F', mktime(0,0,0,$m,1)) }}</option>
@@ -278,7 +284,7 @@
 
           <div>
             <label class="form-label">Year</label>
-            <select name="year" class="form-input">
+            <select name="year" class="form-control">
               <option value="">All Years</option>
               @for($y=now()->year+1;$y>=now()->year-4;$y--)
                 <option value="{{ $y }}" @selected($year==$y)>{{ $y }}</option>
@@ -286,42 +292,46 @@
             </select>
           </div>
 
-          <div class="sm:col-span-1 lg:col-span-2 flex items-end">
-            <button class="btn-primary w-full sm:w-auto px-8">Apply Filters</button>
+          <div class="sm:col-span-2 lg:col-span-2 flex items-end">
+            <button type="submit" class="btn-primary w-full lg:w-auto px-10">
+              Apply Filters
+            </button>
           </div>
         </div>
       </form>
 
       <!-- Data Table -->
       @if($rows->isEmpty())
-        <div class="empty-state">
-          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-neutral-100 flex items-center justify-center">
-            <svg class="w-8 h-8 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-            </svg>
+        <div class="card">
+          <div class="empty-state">
+            <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-neutral-100 flex items-center justify-center">
+              <svg class="w-10 h-10 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+            </div>
+            <h3 class="font-serif text-xl font-medium ink mb-3">No Entries Found</h3>
+            <p class="muted text-sm">No coordinator items found for {{ $periodLabel }}.</p>
           </div>
-          <h3 class="serif text-lg font-medium ink mb-2">No Entries Found</h3>
-          <p class="muted text-sm">No coordinator items found for {{ $periodLabel }}.</p>
         </div>
       @else
-        <div class="card overflow-hidden">
+        <div class="card">
           <div class="overflow-x-auto">
             <table class="data-table">
               <thead>
                 <tr>
                   <th class="w-16">No</th>
-                  <th class="min-w-[120px]">Date Created</th>
-                  <th class="min-w-[160px]">Company</th>
-                  <th class="min-w-[140px]">Person In Charge</th>
+                  <th class="min-w-[140px]">Date Created</th>
+                  <th class="min-w-[180px]">Company</th>
+                  <th class="min-w-[160px]">Person In Charge</th>
                   @foreach ($columns[$activeTab] as $col)
-                    <th class="min-w-[140px]">{{ $col['label'] }}</th>
+                    <th class="min-w-[160px]">{{ $col['label'] }}</th>
                   @endforeach
                 </tr>
               </thead>
               <tbody>
                 @foreach ($rows as $i => $r)
                   <tr>
-                    <td class="text-neutral-500 font-medium tabular-nums">{{ $i+1 }}</td>
+                    <td class="text-neutral-500 font-medium tabular-nums text-right">{{ $i+1 }}</td>
                     <td class="ink tabular-nums font-medium">
                       {{ optional($r->date ?? null)->format('Y-m-d') ?? optional($r->created_at)->format('Y-m-d') }}
                     </td>
@@ -348,14 +358,14 @@
                         <td>
                           @if($type==='date')
                             <input type="date"
-                              class="kltg-input"
+                              class="table-input"
                               value="{{ $val }}"
                               data-master-file-id="{{ $r->id }}"
                               data-subcategory="{{ $activeTab }}"
                               data-field="{{ $key }}" />
                           @else
                             <input type="text"
-                              class="kltg-input"
+                              class="table-input"
                               value="{{ $val }}"
                               placeholder="—"
                               data-master-file-id="{{ $r->id }}"

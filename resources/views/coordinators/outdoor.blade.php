@@ -192,33 +192,23 @@
       <div class="overflow-x-auto">
         <table class="min-w-full">
           {{-- Table Headers --}}
-          <thead class="bg-neutral-50 sticky top-0 z-20">
+          <thead class="bg-neutral-50 /* hapus 'sticky top-0' kalau header juga jangan nempel */">
             <tr class="hairline border-b">
-              <th class="sticky left-0 z-30 bg-neutral-50 hairline border-r px-4 py-4 table-header text-center min-w-[80px] w-[80px]">
-                ID
-              </th>
-              <th class="sticky left-[80px] z-30 bg-neutral-50 hairline border-r px-4 py-4 table-header min-w-[200px]">
-                Company
-              </th>
-              <th class="sticky left-[280px] z-30 bg-neutral-50 hairline border-r px-4 py-4 table-header min-w-[200px]">
-                Person In Charge
-              </th>
-              <th class="sticky left-[480px] z-30 bg-neutral-50 hairline border-r px-4 py-4 table-header min-w-[180px]">
-                Product
-              </th>
-              <th class="sticky left-[660px] z-30 bg-neutral-50 hairline border-r px-4 py-4 table-header min-w-[180px]">
-                Site
-              </th>
-              <th class="px-4 py-4 table-header min-w-[160px]">Payment</th>
-              <th class="px-4 py-4 table-header min-w-[160px]">Material</th>
-              <th class="px-4 py-4 table-header min-w-[160px]">Artwork</th>
-              <th class="px-4 py-4 table-header min-w-[160px]">Approval</th>
-              <th class="px-4 py-4 table-header min-w-[160px]">Sent</th>
-              <th class="px-4 py-4 table-header min-w-[160px]">Collected</th>
-              <th class="px-4 py-4 table-header min-w-[160px]">Install</th>
-              <th class="px-4 py-4 table-header min-w-[160px]">Dismantle</th>
+                <th class="px-4 py-4 table-header text-center min-w-[80px] w-[80px]">ID</th>
+                <th class="px-4 py-4 table-header min-w-[200px] w-[200px]">Company</th>
+                <th class="px-4 py-4 table-header min-w-[200px] w-[200px]">Person In Charge</th>
+                <th class="px-4 py-4 table-header min-w-[180px] w-[180px]">Product</th>
+                <th class="px-4 py-4 table-header min-w-[180px] w-[180px]">Site</th>
+                <th class="px-4 py-4 table-header min-w-[160px]">Payment</th>
+                <th class="px-4 py-4 table-header min-w-[160px]">Material</th>
+                <th class="px-4 py-4 table-header min-w-[160px]">Artwork</th>
+                <th class="px-4 py-4 table-header min-w-[160px]">Approval</th>
+                <th class="px-4 py-4 table-header min-w-[160px]">Sent</th>
+                <th class="px-4 py-4 table-header min-w-[160px]">Collected</th>
+                <th class="px-4 py-4 table-header min-w-[160px]">Install</th>
+                <th class="px-4 py-4 table-header min-w-[160px]">Dismantle</th>
             </tr>
-          </thead>
+            </thead>
 
           {{-- Table Body --}}
           <tbody class="bg-white divide-y divide-neutral-200">
@@ -237,46 +227,46 @@
                   $dateCols = ['received_approval','sent_to_printer','collection_printer','installation','dismantle'];
                 @endphp
 
-                <tr class="hover:bg-neutral-50 hover-lift transition-all duration-150"
-                    data-scope="{{ $scope }}"
-                    data-id="{{ $row->tracking_id ?? '' }}"
-                    data-mf="{{ $row->master_file_id }}"
-                    data-oi="{{ $row->outdoor_item_id }}"
-                    data-year="{{ (int)($year ?? now()->year) }}"
-                    data-month="{{ $isMonth ? (int)$month : '' }}">
+               <tr class="hover:bg-neutral-50 hover-lift transition-all duration-150"
+                data-scope="{{ $scope }}"
+                data-id="{{ $row->tracking_id ?? '' }}"
+                data-mf="{{ $row->master_file_id }}"
+                data-oi="{{ $row->outdoor_item_id }}"
+                data-year="{{ (int)($year ?? now()->year) }}"
+                data-month="{{ $isMonth ? (int)$month : '' }}">
 
-                  {{-- ID Column --}}
-                  <td class="sticky left-0 z-30 bg-white hairline border-r px-4 py-4 text-center ink font-medium tabular-nums">
+                {{-- ID --}}
+                <td class="bg-white hairline border-r px-4 py-4 text-center ink font-medium tabular-nums min-w-[80px] w-[80px]">
                     {{ $rows->firstItem() + $i }}
-                  </td>
+                </td>
 
-                  {{-- Company (Read-only) --}}
-                  <td class="sticky left-[80px] z-30 bg-white hairline border-r px-4 py-4">
-                    <div class="field-readonly font-medium">
-                      {{ $row->company ?? '—' }}
+                {{-- Company --}}
+                <td class="bg-white hairline border-r px-4 py-4 min-w-[200px] w-[200px]">
+                    <div class="field-readonly font-medium truncate">
+                    {{ $row->company ?? '—' }}
                     </div>
-                  </td>
+                </td>
 
-                  {{-- Person In Charge (Read-only) --}}
-                  <td class="sticky left-[280px] z-30 bg-white hairline border-r px-4 py-4">
-                    <div class="field-readonly">
-                      {{ $row->client ?? $row->client ?? '—' }}
+                {{-- Person In Charge --}}
+                <td class="bg-white hairline border-r px-4 py-4 min-w-[200px] w-[200px]">
+                    <div class="field-readonly truncate">
+                    {{ $row->client ?? '—' }}
                     </div>
-                  </td>
+                </td>
 
-                  {{-- Product (Read-only) --}}
-                  <td class="sticky left-[480px] z-30 bg-white hairline border-r px-4 py-4">
-                    <div class="field-readonly">
-                      {{ $row->product ?? '—' }}
+                {{-- Product --}}
+                <td class="bg-white hairline border-r px-4 py-4 min-w-[180px] w-[180px]">
+                    <div class="field-readonly truncate">
+                    {{ $row->product ?? '—' }}
                     </div>
-                  </td>
+                </td>
 
-                  {{-- Site (Read-only) --}}
-                  <td class="sticky left-[660px] z-30 bg-white hairline border-r px-4 py-4">
-                    <div class="field-readonly">
-                      {{ $row->site ?? '—' }}
+                {{-- Site --}}
+                <td class="bg-white hairline border-r px-4 py-4 min-w-[180px] w-[180px]">
+                    <div class="field-readonly truncate">
+                    {{ $row->site ?? '—' }}
                     </div>
-                  </td>
+                </td>
 
                   {{-- Editable Fields --}}
                   @foreach ($editableCols as $col)
