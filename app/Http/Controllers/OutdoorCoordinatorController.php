@@ -149,6 +149,172 @@ public function index(Request $request)
     ]);
 }
 
+// public function upsert(Request $request)
+// {
+//     // Always JSON for fetch() clients
+//     $request->headers->set('Accept', 'application/json');
+
+//     $data = $request->validate([
+//         // Two modes:
+//         // A) OCT direct-by-id
+//         'id'              => 'nullable|integer',
+
+//         // B) Month-scope (OMD + OCT ensure)
+//         'master_file_id'  => 'required_without:id|integer|exists:master_files,id',
+//         'outdoor_item_id' => 'nullable|integer|exists:outdoor_items,id',
+//         'year'            => 'nullable|integer|min:2000|max:2100',
+//         'month'           => 'nullable|integer|min:1|max:12',
+
+//         // Shared
+//         'field'           => 'required|string',
+//         'value'           => 'nullable',
+//     ]);
+
+//     $field = $data['field'];
+//     $value = $data['value'] ?? null;
+
+//     // Allowed fields (extend if needed)
+//     $allowed = [
+//         'site','payment','material','artwork',
+//         'received_approval','sent_to_printer','collection_printer',
+//         'installation','dismantle','remarks','next_follow_up','status'
+//     ];
+//     if (!in_array($field, $allowed, true)) {
+//         return response()->json(['success' => false, 'error' => 'Invalid field'], 422);
+//     }
+
+//     // Date normalization when needed
+//     $dateFields = ['received_approval','sent_to_printer','collection_printer','installation','dismantle','next_follow_up'];
+//     if (in_array($field, $dateFields, true) && $value !== null && $value !== '') {
+//         $d = \DateTime::createFromFormat('Y-m-d', (string)$value);
+//         if (!$d || $d->format('Y-m-d') !== (string)$value) {
+//             return response()->json(['success' => false, 'error' => 'Invalid date format (Y-m-d expected)'], 422);
+//         }
+//     }
+
+//     // Decide scope: month-scope requires all three
+//     $isMonthScope = !empty($data['year']) && !empty($data['month']) && !empty($data['outdoor_item_id']);
+
+//     try {
+//         if ($isMonthScope) {
+//             // ---------- MONTH-SCOPE PATH (OMD + ensure OCT) ----------
+
+//             $mfId = (int)($data['master_file_id'] ?? 0);
+//             $oiId = (int)$data['outdoor_item_id'];
+//             $year = (int)$data['year'];
+//             $month = (int)$data['month'];
+
+//             // Derive/verify master_file_id vs outdoor_item_id relationship
+//             if ($mfId <= 0) {
+//                 // Derive from outdoor_items if not provided (should be provided in your payload)
+//                 $mfId = (int) DB::table('outdoor_items')->where('id', $oiId)->value('master_file_id');
+//             }
+//             if (!$mfId) {
+//                 return response()->json(['success'=>false,'error'=>'master_file_id could not be derived'], 422);
+//             }
+//             $oiMf = (int) DB::table('outdoor_items')->where('id', $oiId)->value('master_file_id');
+//             if ($oiMf !== $mfId) {
+//                 return response()->json(['success'=>false,'error'=>'outdoor_item_id does not belong to master_file_id'], 422);
+//             }
+
+//             $isDate = in_array($field, $dateFields, true);
+
+//             // 1) Upsert to outdoor_monthly_details (SOURCE OF TRUTH) — include master_file_id!
+//             $omdKey = [
+//                 'master_file_id'  => $mfId,
+//                 'outdoor_item_id' => $oiId,
+//                 'year'            => $year,
+//                 'month'           => $month,
+//                 'field_key'       => $field,
+//             ];
+//             $omdVals = [
+//                 'field_type' => $isDate ? 'date' : 'text',
+//                 'value_text' => $isDate ? null : (string)($value ?? ''),
+//                 'value_date' => $isDate ? ($value ?: null) : null,
+//                 'updated_at' => now(),
+//                 'created_at' => now(),
+//             ];
+//             DB::table('outdoor_monthly_details')->updateOrInsert($omdKey, $omdVals);
+
+//             // 2) Ensure an OCT row exists for (outdoor_item_id, year, month)
+//             $octKey = [
+//                 'outdoor_item_id' => $oiId,
+//                 'year'            => $year,
+//                 'month'           => $month,
+//             ];
+//             $octId = DB::table('outdoor_coordinator_trackings')->where($octKey)->value('id');
+//             if (!$octId) {
+//                 $octId = DB::table('outdoor_coordinator_trackings')->insertGetId($octKey + [
+//                     'master_file_id'        => $mfId,
+//                     'status'                => 'pending',
+//                     'masterfile_created_at' => now(),
+//                     'created_at'            => now(),
+//                     'updated_at'            => now(),
+//                 ]);
+//             }
+
+//             // 3) Apply the same field change to the OCT row (so the list reflects it)
+//             $update = in_array($field, $dateFields, true) ? [$field => ($value ?: null)] : [$field => $value];
+//             DB::table('outdoor_coordinator_trackings')
+//                 ->where('id', $octId)
+//                 ->update($update + ['updated_at' => now()]);
+
+//             return response()->json([
+//                 'success' => true,
+//                 'data'    => ['tracking_id' => $octId, 'field' => $field, 'value' => $value],
+//             ]);
+//         }
+
+//         // ---------- OCT BASELINE PATH (by id OR by master_file_id[/outdoor_item_id]) ----------
+//         $octId = $data['id'] ?? null;
+
+//         if ($octId) {
+//             $exists = DB::table('outdoor_coordinator_trackings')->where('id', $octId)->exists();
+//             if (!$exists) {
+//                 return response()->json(['success' => false, 'error' => 'Invalid OCT id for baseline mode'], 422);
+//             }
+//             $update = in_array($field, $dateFields, true) ? [$field => ($value ?: null)] : [$field => $value];
+//             DB::table('outdoor_coordinator_trackings')->where('id', $octId)->update($update + ['updated_at' => now()]);
+//             return response()->json(['success' => true, 'data' => ['tracking_id' => $octId, 'field' => $field, 'value' => $value]]);
+//         }
+
+//         // Create/find baseline row for master_file_id (optionally per-site)
+//         $mfId = (int)$data['master_file_id'];
+//         $query = DB::table('outdoor_coordinator_trackings')->where('master_file_id', $mfId);
+//         if (!empty($data['outdoor_item_id'])) {
+//             $query->where('outdoor_item_id', (int)$data['outdoor_item_id']);
+//         }
+//         $row = $query->first();
+
+//         if ($row) {
+//             $update = in_array($field, $dateFields, true) ? [$field => ($value ?: null)] : [$field => $value];
+//             DB::table('outdoor_coordinator_trackings')->where('id', $row->id)->update($update + ['updated_at' => now()]);
+//             return response()->json(['success' => true, 'data' => ['tracking_id' => $row->id, 'field' => $field, 'value' => $value]]);
+//         } else {
+//             $insert = [
+//                 'master_file_id' => $mfId,
+//                 'outdoor_item_id'=> $data['outdoor_item_id'] ?? null,
+//                 $field           => in_array($field, $dateFields, true) ? ($value ?: null) : $value,
+//                 'status'         => 'pending',
+//                 'created_at'     => now(),
+//                 'updated_at'     => now(),
+//             ];
+//             $newId = DB::table('outdoor_coordinator_trackings')->insertGetId($insert);
+//             return response()->json(['success' => true, 'data' => ['tracking_id' => $newId, 'field' => $field, 'value' => $value]]);
+//         }
+//     } catch (Throwable $e) {
+//         Log::error('Outdoor upsert failed', [
+//             'payload' => $data,
+//             'error'   => $e->getMessage(),
+//             'file'    => $e->getFile(),
+//             'line'    => $e->getLine(),
+//         ]);
+//         return response()->json([
+//             'success' => false,
+//             'error'   => 'Server error: '.$e->getMessage(),
+//         ], 500);
+//     }
+// }
 public function upsert(Request $request)
 {
     // Always JSON for fetch() clients
@@ -232,32 +398,39 @@ public function upsert(Request $request)
                 'value_text' => $isDate ? null : (string)($value ?? ''),
                 'value_date' => $isDate ? ($value ?: null) : null,
                 'updated_at' => now(),
-                'created_at' => now(),
             ];
-            DB::table('outdoor_monthly_details')->updateOrInsert($omdKey, $omdVals);
+            DB::table('outdoor_monthly_details')->updateOrInsert($omdKey, $omdVals + ['created_at' => now()]);
 
-            // 2) Ensure an OCT row exists for (outdoor_item_id, year, month)
+            // 2) Find existing OCT record by the unique constraint (master_file_id, outdoor_item_id)
+            // 2) Ensure the OCT record exists for THIS (mf, oi, year, month)
             $octKey = [
+                'master_file_id'  => $mfId,
                 'outdoor_item_id' => $oiId,
                 'year'            => $year,
                 'month'           => $month,
             ];
+
+            // Safe defaults on first create:
+            $octVals = [
+                'status'                => 'pending',
+                'masterfile_created_at' => DB::raw("COALESCE(masterfile_created_at, NOW())"),
+                'created_at'            => DB::raw("COALESCE(created_at, NOW())"),
+                'updated_at'            => now(),
+            ];
+
+            // Make it idempotent and race-safe:
+            DB::table('outdoor_coordinator_trackings')->updateOrInsert($octKey, $octVals);
+
+            // Get the id for later field update:
             $octId = DB::table('outdoor_coordinator_trackings')->where($octKey)->value('id');
-            if (!$octId) {
-                $octId = DB::table('outdoor_coordinator_trackings')->insertGetId($octKey + [
-                    'master_file_id'        => $mfId,
-                    'status'                => 'pending',
-                    'masterfile_created_at' => now(),
-                    'created_at'            => now(),
-                    'updated_at'            => now(),
-                ]);
-            }
 
             // 3) Apply the same field change to the OCT row (so the list reflects it)
-            $update = in_array($field, $dateFields, true) ? [$field => ($value ?: null)] : [$field => $value];
-            DB::table('outdoor_coordinator_trackings')
-                ->where('id', $octId)
-                ->update($update + ['updated_at' => now()]);
+            if ($octId) {
+                $update = in_array($field, $dateFields, true) ? [$field => ($value ?: null)] : [$field => $value];
+                DB::table('outdoor_coordinator_trackings')
+                    ->where('id', $octId)
+                    ->update($update + ['updated_at' => now()]);
+            }
 
             return response()->json([
                 'success' => true,
@@ -302,7 +475,7 @@ public function upsert(Request $request)
             $newId = DB::table('outdoor_coordinator_trackings')->insertGetId($insert);
             return response()->json(['success' => true, 'data' => ['tracking_id' => $newId, 'field' => $field, 'value' => $value]]);
         }
-    } catch (\Throwable $e) {
+    } catch (Throwable $e) {
         Log::error('Outdoor upsert failed', [
             'payload' => $data,
             'error'   => $e->getMessage(),
@@ -579,93 +752,6 @@ public function upsert(Request $request)
     }
 
 
-// public function upsert(Request $request)
-// {
-//     try {
-//         $data = $request->validate([
-//             'id'             => 'nullable|integer|exists:outdoor_coordinator_trackings,id',
-//             'master_file_id' => 'required_without:id|integer|exists:master_files,id',
-//             'field'          => 'required|string',
-//             'value'          => 'nullable|string',
-//         ]);
-
-//         // Allowed fields
-//         $allowedFields = [
-//             'site','payment','material','artwork','received_approval',
-//             'sent_to_printer','collection_printer','installation',
-//             'dismantle','remarks','next_follow_up','status',
-//             // Add month fields if you want those inline-editable too:
-//             'month_jan','month_feb','month_mar','month_apr','month_may',
-//             'month_jun','month_jul','month_aug','month_sep','month_oct','month_nov','month_dec',
-//         ];
-//         if (!in_array($data['field'], $allowedFields, true)) {
-//             return response()->json(['error' => 'Field not allowed'], 400);
-//         }
-
-//         // Find or create the row
-//         if (!empty($data['id'])) {
-//             $job = OutdoorCoordinatorTracking::findOrFail($data['id']);
-//         } else {
-//             $job = OutdoorCoordinatorTracking::firstOrCreate([
-//                 'master_file_id' => $data['master_file_id'],
-//             ]);
-//         }
-
-//         // Normalize dates
-//         $dateFields = [
-//             'received_approval','sent_to_printer','collection_printer',
-//             'installation','dismantle','next_follow_up'
-//         ];
-//         $value = $data['value'];
-//         if (in_array($data['field'], $dateFields, true) && !empty($value)) {
-//             $value = date('Y-m-d', strtotime($value));
-//         }
-
-//         // Save
-//         $job->{$data['field']} = $value;
-//         $job->save();
-
-//         // Optional: auto status from progress (keep your existing logic if any)
-//         // if ($data['field'] !== 'status') { ... }
-
-//         return response()->json(['success' => true, 'id' => $job->id]);
-//     } catch (\Throwable $e) {
-//         Log::error('Outdoor upsert error: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
-//         return response()->json(['error' => 'Server error'], 500);
-//     }
-// }
-
-
-//     public function getAvailableMasterFiles()
-// {
-//     $masterFiles = MasterFile::query()
-//         ->where(function ($q) {
-//             // case-insensitive "Outdoor"
-//             $q->whereRaw('LOWER(product_category) = ?', ['outdoor'])
-//               ->orWhereRaw('LOWER(product_category) LIKE ?', ['%outdoor%']);
-//         })
-//         ->whereNotExists(function ($query) {
-//             $query->select(DB::raw(1))
-//                   ->from('outdoor_coordinator_trackings')
-//                   ->whereRaw('outdoor_coordinator_trackings.master_file_id = master_files.id');
-//         })
-//         // master_files has "company", not "client" → alias it for the UI
-//         ->select([
-//             'id',
-//             DB::raw('company as client'),
-//             'product',
-//             'product_category',
-//             // add more fields if they actually exist in master_files
-//             // e.g. 'location' only if that column is present
-//         ])
-//         ->orderBy('client')
-//         ->get();
-
-//     return response()->json($masterFiles);
-// }
-
-
-
     public function export(Request $request): StreamedResponse
 {
     // ---- DEBUG: Log untuk melihat apa yang terjadi ----
@@ -775,7 +861,7 @@ public function upsert(Request $request)
     if ($month) {
         try {
             $monthLabel = Carbon::createFromDate(now()->year, $month, 1)->format('F Y');
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $monthLabel = "Month {$month}";
         }
     }

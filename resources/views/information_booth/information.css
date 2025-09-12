@@ -1,0 +1,155 @@
+/* ============================================
+   Information Booth - Classic Elegant Styles
+   ============================================ */
+
+/* Typography & Brand Colors */
+.ink {
+    color: #1c1e26;
+}
+
+/* Button Styles */
+.btn-primary {
+    @apply bg-[#22255b] text-white hover:opacity-90 rounded-full px-4 py-2 font-medium transition-opacity duration-150;
+}
+
+.btn-secondary {
+    @apply border border-neutral-300 text-neutral-700 hover:bg-neutral-50 rounded-full px-4 py-2 font-medium transition-colors duration-150;
+}
+
+.btn-ghost {
+    @apply text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 rounded-full px-3 py-2 font-medium transition-colors duration-150;
+}
+
+/* Card & Layout Styles */
+.card {
+    @apply bg-white rounded-2xl border border-neutral-200/70 shadow-sm;
+}
+
+.hairline {
+    @apply border border-neutral-200;
+}
+
+/* Typography Utilities */
+.tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+}
+
+/* Enhanced Table Hover Effects */
+tbody tr {
+    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+tbody tr:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+/* Pagination Styling */
+.pagination-wrapper .pagination {
+    @apply flex items-center gap-1;
+}
+
+.pagination-wrapper .pagination .page-link {
+    @apply px-3 py-2 text-sm text-neutral-600 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50 transition-colors duration-150;
+}
+
+.pagination-wrapper .pagination .page-item.active .page-link {
+    @apply bg-[#22255b] text-white border-[#22255b];
+}
+
+.pagination-wrapper .pagination .page-item.disabled .page-link {
+    @apply text-neutral-400 bg-neutral-50 cursor-not-allowed;
+}
+
+/* Focus States for Accessibility */
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible,
+.btn-ghost:focus-visible {
+    @apply outline-2 outline-offset-2 outline-[#4bbbed];
+}
+
+/* Table Focus States */
+table a:focus-visible,
+table button:focus-visible {
+    @apply outline-2 outline-offset-1 outline-[#4bbbed] rounded;
+}
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 1023px) {
+    .btn-primary,
+    .btn-secondary,
+    .btn-ghost {
+        @apply text-xs px-3 py-2;
+    }
+
+    .card {
+        @apply rounded-xl;
+    }
+}
+
+/* Smooth Scrolling for Table */
+.overflow-x-auto {
+    scrollbar-width: thin;
+    scrollbar-color: #d1d5db #f9fafb;
+}
+
+.overflow-x-auto::-webkit-scrollbar {
+    height: 6px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-track {
+    background: #f9fafb;
+    border-radius: 3px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 3px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+/* Status Badge Improvements */
+.status-badge {
+    @apply inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium;
+    font-variant: small-caps;
+    letter-spacing: 0.025em;
+}
+
+/* Loading States */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Empty State Styling */
+.empty-state td {
+    @apply bg-neutral-50/30;
+}
+
+/* Tooltip Enhancement */
+[title] {
+    cursor: help;
+}
+
+/* Print Styles */
+@media print {
+    .btn-primary,
+    .btn-secondary,
+    .btn-ghost,
+    [onclick] {
+        display: none !important;
+    }
+
+    .card {
+        @apply shadow-none border-neutral-400;
+    }
+
+    tbody tr:hover {
+        transform: none;
+        box-shadow: none;
+    }
+}

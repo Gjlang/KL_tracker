@@ -1,88 +1,122 @@
 @push('head')
   <meta name="csrf-token" content="{{ csrf_token() }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
   <style>
-    /* --- light-touch cosmetics without changing logic --- */
-    /* Make all coordinator inputs same visual width (incl. date) */
-    .kltg-input { width: 16rem; }
-    @media (max-width: 1280px) { .kltg-input { width: 14rem; } }
-    @media (max-width: 1024px) { .kltg-input { width: 12rem; } }
+    /* Typography & Base Styles */
+    .serif { font-family: 'EB Garamond', serif; }
+    .sans { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+    .ink { color: #1C1E26; }
+    .muted { color: #6B7280; }
+    .tabular-nums { font-variant-numeric: tabular-nums; }
 
-   /* Tidy table visuals with borders */
-.kltg-table {
-  border-collapse: collapse;
-  width: 100%;
-}
+    /* Layout Components */
+    .page-bg { background-color: #F7F7F9; min-height: 100vh; }
+    .card {
+      @apply bg-white rounded-2xl border border-neutral-200/70 shadow-sm;
+    }
+    .hairline { @apply border border-neutral-200; }
 
-.kltg-table th, .kltg-table td {
-  vertical-align: middle;
-  border: 1px solid #E5E7EB; /* gray-200 border for all cells */
-  padding: 0.75rem; /* Better padding */
-}
+    /* Button Styles */
+    .btn-primary {
+      @apply bg-[#22255b] text-white hover:opacity-90 focus:ring-2 focus:ring-[#4bbbed] rounded-full px-6 py-2.5 transition-all duration-200 font-medium sans;
+    }
+    .btn-ghost {
+      @apply border border-neutral-300 text-neutral-700 hover:bg-neutral-50 hover:border-neutral-400 rounded-full px-5 py-2 transition-all duration-200 font-medium sans;
+    }
+    .btn-export {
+      @apply bg-emerald-700 text-white hover:bg-emerald-800 focus:ring-2 focus:ring-emerald-300 rounded-full px-5 py-2 transition-all duration-200 font-medium sans;
+    }
 
-.kltg-table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: #F9FAFB; /* gray-50 */
-  border-bottom: 2px solid #D1D5DB; /* Thicker bottom border for header */
-  box-shadow: inset 0 -1px 0 0 rgba(0,0,0,.06);
-  font-weight: 600;
-}
+    /* Tab Styles */
+    .tab-strip {
+      @apply card p-1 flex gap-1 overflow-x-auto;
+    }
+    .tab {
+      @apply px-4 py-2.5 rounded-xl transition-all duration-200 font-medium text-sm tracking-wide sans whitespace-nowrap;
+      font-variant: small-caps;
+    }
+    .tab.active {
+      @apply bg-[#22255b] text-white shadow-sm;
+    }
+    .tab:not(.active) {
+      @apply text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100;
+    }
 
-/* Row striping for better readability */
-.kltg-table tbody tr:nth-child(even) {
-  background-color: #F8FAFC; /* Very light gray for alternating rows */
-}
+    /* Form Styles */
+    .form-input {
+      @apply h-11 w-full border-neutral-200 rounded-xl px-4 text-sm sans focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-all duration-200;
+    }
+    .form-label {
+      @apply text-xs font-semibold text-neutral-600 tracking-wide sans mb-2 block;
+      font-variant: small-caps;
+    }
 
-/* Enhanced hover effect */
-.kltg-row:hover td {
-  background: #F1F5F9 !important; /* More visible hover - blue-gray-100 */
-}
+    /* Table Styles */
+    .data-table {
+      @apply min-w-full text-sm sans;
+    }
+    .data-table thead th {
+      @apply px-4 py-4 text-left font-semibold text-neutral-600 bg-neutral-50 border-b border-neutral-200;
+      font-variant: small-caps;
+      letter-spacing: 0.05em;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .data-table tbody td {
+      @apply px-4 py-3 border-b border-neutral-100;
+    }
+    .data-table tbody tr {
+      @apply transition-all duration-150;
+    }
+    .data-table tbody tr:hover {
+      @apply bg-neutral-50 shadow-sm;
+    }
+    .data-table tbody tr:last-child td {
+      @apply border-b-0;
+    }
 
-/* Compact, consistent input chrome */
-.kltg-input {
-  border-radius: .5rem; /* rounded-lg */
-  padding: .375rem .5rem; /* ~py-1.5 px-2 */
-  border: 1px solid #E5E7EB; /* gray-200 */
-  background: #fff;
-  outline: none;
-  transition: box-shadow .12s ease, border-color .12s ease, background-color .12s ease;
-  width: 100%;
-  min-width: 120px;
-}
+    /* Input Styles for Table */
+    .kltg-input {
+      @apply w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm sans transition-all duration-200 tabular-nums;
+      min-width: 120px;
+    }
+    .kltg-input:focus {
+      @apply border-[#4bbbed] ring-2 ring-[#4bbbed]/20 outline-none;
+    }
 
-.kltg-input:focus {
-  border-color: #6366F1; /* indigo-500 */
-  box-shadow: 0 0 0 3px rgba(99,102,241,.15);
-}
+    /* Status Indicators */
+    .bg-yellow-50 { background-color: #FFFBEB !important; }
+    .border-yellow-300 { border-color: #FCD34D !important; }
+    .bg-green-50 { background-color: #F0FDF4 !important; }
+    .border-green-300 { border-color: #86EFAC !important; }
+    .bg-red-50 { background-color: #FEF2F2 !important; }
+    .border-red-300 { border-color: #FCA5A5 !important; }
 
-/* Inline status colors from autosave */
-.bg-yellow-50 { background-color: #FFFBEB !important; }
-.border-yellow-300 { border-color: #FCD34D !important; }
-.bg-green-50 { background-color: #F0FDF4 !important; }
-.border-green-300 { border-color: #86EFAC !important; }
-.bg-red-50 { background-color: #FEF2F2 !important; }
-.border-red-300 { border-color: #FCA5A5 !important; }
+    /* Badge Styles */
+    .badge {
+      @apply inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-700 border border-neutral-200;
+      min-width: 80px;
+      justify-content: center;
+    }
 
-/* Read-only badge look for Edition/Publication */
-.kltg-badge {
-  display: inline-block;
-  padding: .25rem .5rem;
-  border-radius: .5rem;
-  background: #F3F4F6; /* gray-100 */
-  color: #111827;      /* gray-900 */
-  min-width: 8rem;
-  text-align: center;
-  border: 1px solid #D1D5DB; /* Add subtle border to badge */
-}
+    /* Empty State */
+    .empty-state {
+      @apply card p-12 text-center;
+    }
 
-/* Table container enhancement */
-.table-wrapper {
-  border: 1px solid #D1D5DB; /* gray-300 */
-  border-radius: 0.75rem;
-  overflow: hidden;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-}
+    /* Responsive adjustments */
+    @media (max-width: 1024px) {
+      .kltg-input { min-width: 100px; }
+    }
+    @media (max-width: 768px) {
+      .kltg-input { min-width: 80px; }
+      .data-table thead th,
+      .data-table tbody td { @apply px-2 py-2; }
+    }
   </style>
 @endpush
 
@@ -184,150 +218,161 @@
 @endphp
 
 <x-app-layout>
-  <div class="p-4 md:p-6">
-    <h3 class="mb-4 text-lg md:text-xl font-semibold text-gray-800">{{ $periodLabel }}</h3>
+  <div class="page-bg">
+    <div class="max-w-full px-4 md:px-6 py-6">
 
-    <!-- Top bar: Back + Tabs + Filters -->
-    <div class="flex flex-col gap-4">
+      <!-- Header Bar -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div class="flex items-center gap-6">
+          <a href="{{ route('dashboard.kltg') }}" class="btn-ghost inline-flex items-center">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            Back
+          </a>
 
-    <a href="{{ route('dashboard.kltg') }}"
-            class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 transition">
-        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-        </svg>
-        Monthly KLTG
-    </a>
-
-    <form method="GET" action="{{ route('coordinator.kltg.export') }}" class="inline" id="exportForm">
-  <input type="hidden" name="subcategory" value="{{ $activeTab }}">
-  <input type="hidden" name="month" id="exportMonth">
-  <input type="hidden" name="year" id="exportYear">
-  <input type="hidden" name="working" value="{{ request('working') }}">
-  <button type="submit" class="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700" onclick="syncExportForm()">
-    Export
-  </button>
-</form>
-
-
-      @php $tabs = ['print'=>'KLTG','video'=>'Video','article'=>'Article','lb'=>'LB','em'=>'EM']; @endphp
-      <div class="flex flex-wrap gap-2">
-        @foreach ($tabs as $key => $label)
-            <a href="{{ route('coordinator.kltg.index', array_filter(['tab'=>$key,'month'=>$month,'year'=>$year])) }}"
-               class="px-3 py-2 rounded-lg text-sm font-medium border transition
-               {{ $activeTab===$key
-                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                  : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:bg-gray-50' }}">
-              {{ $label }}
-            </a>
-          @endforeach
+          <div>
+            <h1 class="serif text-3xl md:text-4xl font-semibold ink">{{ $periodLabel }}</h1>
+            <p class="muted text-sm mt-1 tracking-wide sans" style="font-variant: small-caps;">Monthly KLTG Overview</p>
+          </div>
         </div>
+
+        <form method="GET" action="{{ route('coordinator.kltg.export') }}" class="inline" id="exportForm">
+          <input type="hidden" name="subcategory" value="{{ $activeTab }}">
+          <input type="hidden" name="month" id="exportMonth">
+          <input type="hidden" name="year" id="exportYear">
+          <input type="hidden" name="working" value="{{ request('working') }}">
+          <button type="submit" class="btn-export" onclick="syncExportForm()">
+            <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            Export
+          </button>
+        </form>
       </div>
 
-      <!-- Filters -->
-      <form method="get"
-            class="rounded-xl border border-gray-200 bg-white p-3 md:p-4 shadow-sm">
+      <!-- Tab Strip -->
+      @php $tabs = ['print'=>'KLTG','video'=>'Video','article'=>'Article','lb'=>'LB','em'=>'EM']; @endphp
+      <div class="tab-strip mb-6">
+        @foreach ($tabs as $key => $label)
+          <a href="{{ route('coordinator.kltg.index', array_filter(['tab'=>$key,'month'=>$month,'year'=>$year])) }}"
+             class="tab {{ $activeTab===$key ? 'active' : '' }}">
+            {{ $label }}
+          </a>
+        @endforeach
+      </div>
+
+      <!-- Filter Panel -->
+      <form method="get" class="card p-6 mb-6">
         <input type="hidden" name="tab" value="{{ $activeTab }}">
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           <div>
-            <label class="text-xs font-semibold text-gray-600">Month</label>
-            <select name="month" class="mt-1 w-full border-gray-300 rounded-lg px-2 py-2 text-sm focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500">
-              <option value="">All</option>
+            <label class="form-label">Month</label>
+            <select name="month" class="form-input">
+              <option value="">All Months</option>
               @for($m=1;$m<=12;$m++)
                 <option value="{{ $m }}" @selected($month==$m)>{{ date('F', mktime(0,0,0,$m,1)) }}</option>
               @endfor
             </select>
           </div>
+
           <div>
-            <label class="text-xs font-semibold text-gray-600">Year</label>
-            <select name="year" class="mt-1 w-full border-gray-300 rounded-lg px-2 py-2 text-sm focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500">
-              <option value="">All</option>
+            <label class="form-label">Year</label>
+            <select name="year" class="form-input">
+              <option value="">All Years</option>
               @for($y=now()->year+1;$y>=now()->year-4;$y--)
                 <option value="{{ $y }}" @selected($year==$y)>{{ $y }}</option>
               @endfor
             </select>
           </div>
-          <div class="flex items-end">
-            <button class="h-10 w-full sm:w-auto px-4 bg-indigo-600 text-white rounded-lg font-medium shadow-sm hover:bg-indigo-700 active:bg-indigo-800 transition">
-              Apply
-            </button>
+
+          <div class="sm:col-span-1 lg:col-span-2 flex items-end">
+            <button class="btn-primary w-full sm:w-auto px-8">Apply Filters</button>
           </div>
         </div>
       </form>
 
+      <!-- Data Table -->
       @if($rows->isEmpty())
-        <div class="rounded-lg border border-amber-300 bg-amber-50 text-amber-900 px-3 py-2 text-sm">
-          No coordinator items found for {{ $periodLabel }}.
+        <div class="empty-state">
+          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-neutral-100 flex items-center justify-center">
+            <svg class="w-8 h-8 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+          </div>
+          <h3 class="serif text-lg font-medium ink mb-2">No Entries Found</h3>
+          <p class="muted text-sm">No coordinator items found for {{ $periodLabel }}.</p>
+        </div>
+      @else
+        <div class="card overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th class="w-16">No</th>
+                  <th class="min-w-[120px]">Date Created</th>
+                  <th class="min-w-[160px]">Company</th>
+                  <th class="min-w-[140px]">Person In Charge</th>
+                  @foreach ($columns[$activeTab] as $col)
+                    <th class="min-w-[140px]">{{ $col['label'] }}</th>
+                  @endforeach
+                </tr>
+              </thead>
+              <tbody>
+                @foreach ($rows as $i => $r)
+                  <tr>
+                    <td class="text-neutral-500 font-medium tabular-nums">{{ $i+1 }}</td>
+                    <td class="ink tabular-nums font-medium">
+                      {{ optional($r->date ?? null)->format('Y-m-d') ?? optional($r->created_at)->format('Y-m-d') }}
+                    </td>
+                    <td class="ink font-medium">{{ $r->company_name }}</td>
+                    <td class="ink">{{ $r->client }}</td>
+
+                    @foreach ($columns[$activeTab] as $col)
+                      @php
+                        $key = $col['key'];
+                        $type = $col['type'];
+                      @endphp
+
+                      {{-- Edition & Publication are read-only from kltg_monthly_details (controller-injected) --}}
+                      @if ($key === 'edition')
+                        <td>
+                          <span class="badge">{{ $r->edition ?? '—' }}</span>
+                        </td>
+                      @elseif ($key === 'publication')
+                        <td>
+                          <span class="badge">{{ $r->publication ?? '—' }}</span>
+                        </td>
+                      @else
+                       @php $val = cellVal($existing, $r, $key, $type, $activeTab); @endphp
+                        <td>
+                          @if($type==='date')
+                            <input type="date"
+                              class="kltg-input"
+                              value="{{ $val }}"
+                              data-master-file-id="{{ $r->id }}"
+                              data-subcategory="{{ $activeTab }}"
+                              data-field="{{ $key }}" />
+                          @else
+                            <input type="text"
+                              class="kltg-input"
+                              value="{{ $val }}"
+                              placeholder="—"
+                              data-master-file-id="{{ $r->id }}"
+                              data-subcategory="{{ $activeTab }}"
+                              data-field="{{ $key }}" />
+                          @endif
+                        </td>
+                      @endif
+                    @endforeach
+                  </tr>
+                @endforeach
+              </tbody>
+            </table>
+          </div>
         </div>
       @endif
-    </div>
 
-    <!-- Table -->
-    <div class="mt-4 overflow-x-auto table-wrapper">
-
-
-      <table class="kltg-table min-w-full text-sm">
-        <thead>
-          <tr>
-            <th class="px-3 py-3 text-left font-semibold text-gray-700">No</th>
-            <th class="px-3 py-3 text-left font-semibold text-gray-700">Date Created</th>
-            <th class="px-3 py-3 text-left font-semibold text-gray-700">Company</th>
-            <th class="px-3 py-3 text-left font-semibold text-gray-700">Person In Charge</th>
-            @foreach ($columns[$activeTab] as $col)
-              <th class="px-3 py-3 text-left font-semibold text-gray-700">{{ $col['label'] }}</th>
-            @endforeach
-          </tr>
-        </thead>
-        <tbody>
-          @foreach ($rows as $i => $r)
-            <tr class="kltg-row border-t">
-              <td class="px-3 py-3 text-gray-800">{{ $i+1 }}</td>
-              <td class="px-3 py-3 text-gray-800">
-                {{ optional($r->date ?? null)->format('Y-m-d') ?? optional($r->created_at)->format('Y-m-d') }}
-              </td>
-              <td class="px-3 py-3 text-gray-800">{{ $r->company_name }}</td>
-              <td class="px-3 py-3 text-gray-800">{{ $r->client }}</td>
-
-              @foreach ($columns[$activeTab] as $col)
-                @php
-                  $key = $col['key'];
-                  $type = $col['type'];
-                @endphp
-
-                {{-- Edition & Publication are read-only from kltg_monthly_details (controller-injected) --}}
-                @if ($key === 'edition')
-                  <td class="px-3 py-3">
-                    <span class="kltg-badge">{{ $r->edition ?? '—' }}</span>
-                  </td>
-                @elseif ($key === 'publication')
-                  <td class="px-3 py-3">
-                    <span class="kltg-badge">{{ $r->publication ?? '—' }}</span>
-                  </td>
-                @else
-                 @php $val = cellVal($existing, $r, $key, $type, $activeTab); @endphp
-                  <td class="px-3 py-3">
-                    @if($type==='date')
-                      <input type="date"
-                        class="kltg-input"
-                        value="{{ $val }}"
-                        data-master-file-id="{{ $r->id }}"
-                        data-subcategory="{{ $activeTab }}"
-                        data-field="{{ $key }}" />
-                    @else
-                      <input type="text"
-                        class="kltg-input"
-                        value="{{ $val }}"
-                        placeholder=""
-                        data-master-file-id="{{ $r->id }}"
-                        data-subcategory="{{ $activeTab }}"
-                        data-field="{{ $key }}" />
-                    @endif
-                  </td>
-                @endif
-              @endforeach
-            </tr>
-          @endforeach
-        </tbody>
-      </table>
     </div>
   </div>
 

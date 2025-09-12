@@ -388,10 +388,20 @@ document.addEventListener('DOMContentLoaded', function () {
     const mf  = el.dataset.mf || tr?.dataset.mf || null;
     const oi  = el.dataset.oi || tr?.dataset.oi || null;
     const scopeAttr = el.dataset.scope || tr?.dataset.scope || '';
+
+    // FIXED: More conservative scope detection
+    // Only use 'omd' if explicitly set AND we have valid month/year/outdoor_item_id
+    const { year, month } = getYM();
+    let actualScope = 'oct'; // Default to baseline mode
+
+    if (scopeAttr === 'omd' && month && year && oi) {
+      actualScope = 'omd';
+    }
+
     return {
       tr,
       id,
-      scope: scopeAttr || (getYM().month ? 'omd' : 'oct'), // fallback if missing
+      scope: actualScope,
       mf: mf ? parseInt(mf,10) : null,
       oi: oi ? parseInt(oi,10) : null
     };
@@ -431,6 +441,8 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
 
+    console.log('Save attempt:', { scope, trackingId, masterFileId, outdoorItemId, fieldName, fieldValue });
+
     // Add subtle visual feedback
     element.classList.add('ring-1', 'ring-[#4bbbed]/20');
 
@@ -445,17 +457,31 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
       }
       if (month === null || year === null) {
-        console.warn('Month scope without concrete month/year.');
-        inflight.delete(element);
-        return;
+        console.warn('Month scope without concrete month/year, falling back to baseline');
+        // Fall back to baseline mode
+        if (trackingId) {
+          payload = { id: trackingId, field: fieldName, value: fieldValue };
+        } else if (masterFileId) {
+          payload = {
+            master_file_id: masterFileId,
+            ...(outdoorItemId ? { outdoor_item_id: outdoorItemId } : {}),
+            field: fieldName,
+            value: fieldValue
+          };
+        } else {
+          console.error('Cannot create baseline record without master_file_id');
+          inflight.delete(element);
+          return;
+        }
+      } else {
+        payload = {
+          master_file_id: masterFileId,
+          outdoor_item_id: outdoorItemId,
+          year, month,
+          field: fieldName,
+          value: fieldValue
+        };
       }
-      payload = {
-        master_file_id: masterFileId,
-        outdoor_item_id: outdoorItemId,
-        year, month,
-        field: fieldName,
-        value: fieldValue
-      };
     } else {
       // Baseline (All Months): write/read from OCT
       if (trackingId) {
