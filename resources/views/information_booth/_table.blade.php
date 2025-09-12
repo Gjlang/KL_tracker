@@ -3,58 +3,58 @@
 @endphp
 
 {{-- Desktop Table View --}}
-<div class="hidden lg:block overflow-x-auto">
-  <table class="min-w-full text-sm border-collapse">
+<div class="hidden lg:block w-full overflow-x-hidden">
+  <table class="w-full table-fixed text-sm border-collapse">
     <thead class="bg-neutral-50/50">
       <tr class="border-b hairline border-neutral-200">
-        <th class="px-6 py-4 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider font-sans">Date</th>
-        <th class="px-6 py-4 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider font-sans">Expected Finish</th>
-        <th class="px-6 py-4 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider font-sans">Company</th>
-        <th class="px-6 py-4 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider font-sans">Client</th>
-        <th class="px-6 py-4 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider font-sans">Product</th>
-        <th class="px-6 py-4 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider font-sans">Servicing</th>
-        <th class="px-6 py-4 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider font-sans">Location</th>
-        <th class="px-6 py-4 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider font-sans">Status</th>
-        <th class="px-6 py-4 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider font-sans">Attended By</th>
-        <th class="px-6 py-4 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider font-sans">Reasons</th>
-        <th class="px-6 py-4 text-right text-xs font-medium text-neutral-600 uppercase tracking-wider font-sans">Actions</th>
+        <th class="w-[8%] px-3 py-4 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider font-sans">Date</th>
+        <th class="w-[8%] px-3 py-4 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider font-sans">Expected Finish</th>
+        <th class="w-[12%] px-3 py-4 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider font-sans">Company</th>
+        <th class="w-[10%] px-3 py-4 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider font-sans">Client</th>
+        <th class="w-[10%] px-3 py-4 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider font-sans">Product</th>
+        <th class="w-[8%] px-3 py-4 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider font-sans">Servicing</th>
+        <th class="w-[10%] px-3 py-4 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider font-sans">Location</th>
+        <th class="w-[8%] px-3 py-4 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider font-sans">Status</th>
+        <th class="w-[10%] px-3 py-4 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider font-sans">Attended By</th>
+        <th class="w-[12%] px-3 py-4 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider font-sans">Reasons</th>
+        <th class="w-[6%] px-3 py-4 text-right text-xs font-medium text-neutral-600 uppercase tracking-wider font-sans">Actions</th>
       </tr>
     </thead>
     <tbody id="ib-rows" class="bg-white divide-y hairline divide-neutral-200">
       @forelse($rows as $r)
         <tr class="transition-all duration-200 hover:bg-neutral-50 hover:shadow-sm group">
-          <td class="px-6 py-4 whitespace-nowrap tabular-nums ink text-[#1C1E26]">
+          <td class="px-3 py-4 whitespace-nowrap tabular-nums ink text-[#1C1E26]">
             {{ optional($r->date)->format('d/m/Y') ?? '—' }}
           </td>
-          <td class="px-6 py-4 whitespace-nowrap tabular-nums text-neutral-700">
+          <td class="px-3 py-4 whitespace-nowrap tabular-nums text-neutral-700">
             {{ optional($r->expected_finish_date)->format('d/m/Y') ?? '—' }}
           </td>
-          <td class="px-6 py-4 text-neutral-800 font-medium">
-            <div class="max-w-[120px] truncate" title="{{ $r->company ?? 'N/A' }}">
+          <td class="px-3 py-4 text-neutral-800 font-medium">
+            <div class="truncate w-full" title="{{ $r->company ?? 'N/A' }}">
               {{ $r->company ?? '—' }}
             </div>
           </td>
-          <td class="px-6 py-4 text-neutral-700">
-            <div class="max-w-[100px] truncate" title="{{ $r->client ?? 'N/A' }}">
+          <td class="px-3 py-4 text-neutral-700">
+            <div class="truncate w-full" title="{{ $r->client ?? 'N/A' }}">
               {{ $r->client ?? '—' }}
             </div>
           </td>
-          <td class="px-6 py-4 text-neutral-700">
-            <div class="max-w-[100px] truncate" title="{{ $r->product ?? 'N/A' }}">
+          <td class="px-3 py-4 text-neutral-700">
+            <div class="truncate w-full" title="{{ $r->product ?? 'N/A' }}">
               {{ $r->product ?? '—' }}
             </div>
           </td>
-          <td class="px-6 py-4 text-neutral-700">
-            <div class="max-w-[80px] truncate" title="{{ $r->servicing ?? 'N/A' }}">
+          <td class="px-3 py-4 text-neutral-700">
+            <div class="truncate w-full" title="{{ $r->servicing ?? 'N/A' }}">
               {{ $r->servicing ?? '—' }}
             </div>
           </td>
-          <td class="px-6 py-4 text-neutral-700">
-            <div class="max-w-[100px] truncate" title="{{ $r->location ?? 'N/A' }}">
+          <td class="px-3 py-4 text-neutral-700">
+            <div class="truncate w-full" title="{{ $r->location ?? 'N/A' }}">
               {{ $r->location ?? '—' }}
             </div>
           </td>
-          <td class="px-6 py-4 whitespace-nowrap">
+          <td class="px-3 py-4 whitespace-nowrap">
             @php
               $statusMap = [
                 'pending'     => 'bg-amber-100 text-amber-800 border-amber-200',
@@ -64,22 +64,22 @@
               ];
               $statusClass = $statusMap[$r->status] ?? 'bg-neutral-100 text-neutral-700 border-neutral-200';
             @endphp
-            <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium {{ $statusClass }}">
+            <span class="inline-flex items-center rounded-full border px-2 py-1 text-xs font-medium {{ $statusClass }}">
               {{ ucfirst(str_replace('-', ' ', $r->status)) }}
             </span>
           </td>
-          <td class="px-6 py-4 text-neutral-700">
-            <div class="max-w-[100px] truncate" title="{{ $r->attended_by ?? 'N/A' }}">
+          <td class="px-3 py-4 text-neutral-700">
+            <div class="truncate w-full" title="{{ $r->attended_by ?? 'N/A' }}">
               {{ $r->attended_by ?? '—' }}
             </div>
           </td>
-          <td class="px-6 py-4 text-neutral-600 text-xs">
-            <div class="max-w-[120px] truncate" title="{{ $r->reasons ?? 'N/A' }}">
+          <td class="px-3 py-4 text-neutral-600 text-xs">
+            <div class="truncate w-full" title="{{ $r->reasons ?? 'N/A' }}">
               {{ $r->reasons ?? '—' }}
             </div>
           </td>
-          <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
-            <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+          <td class="px-3 py-4 whitespace-nowrap text-right text-sm">
+            <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
               @if(isset($r->id))
                 <a href="{{ route('information.booth.edit', $r->id) }}"
                    class="text-[#4bbbed] hover:text-[#22255b] transition-colors duration-150"
@@ -133,11 +133,11 @@
   @forelse($rows as $r)
     <div class="bg-white border hairline border-neutral-200 rounded-xl p-4 shadow-sm">
       <div class="flex items-start justify-between mb-3">
-        <div>
-          <p class="font-medium text-[#1C1E26] ink">{{ $r->company ?? 'Unknown Company' }}</p>
-          <p class="text-sm text-neutral-600">{{ $r->client ?? 'No client specified' }}</p>
+        <div class="flex-1 min-w-0 mr-3">
+          <p class="font-medium text-[#1C1E26] ink truncate">{{ $r->company ?? 'Unknown Company' }}</p>
+          <p class="text-sm text-neutral-600 truncate">{{ $r->client ?? 'No client specified' }}</p>
         </div>
-        <div class="text-right">
+        <div class="flex-shrink-0">
           @php
             $statusMap = [
               'pending'     => 'bg-amber-100 text-amber-800 border-amber-200',
@@ -165,13 +165,13 @@
         @if($r->product)
         <div>
           <p class="text-xs text-neutral-500 uppercase tracking-wide">Product</p>
-          <p class="text-neutral-700">{{ $r->product }}</p>
+          <p class="text-neutral-700 truncate">{{ $r->product }}</p>
         </div>
         @endif
         @if($r->location)
         <div>
           <p class="text-xs text-neutral-500 uppercase tracking-wide">Location</p>
-          <p class="text-neutral-700">{{ $r->location }}</p>
+          <p class="text-neutral-700 truncate">{{ $r->location }}</p>
         </div>
         @endif
       </div>
@@ -239,47 +239,58 @@
 
 {{-- Auto-Rotation Script --}}
 @push('scripts')
-<script>
-(function() {
-  // ====== CONFIG ======
-  const PAGE_SIZE = 7;          // tampil 7 baris per halaman
-  const INTERVAL_MS = 10000;    // ganti setiap 10 detik
-  const FADE_MS = 250;          // durasi fade
+<style>
+  /* Prevent horizontal scroll */
+  html, body {
+    overflow-x: hidden;
+  }
 
-  // Cari tbody
-  const tbody = document.getElementById('ib-rows') ||
-                document.querySelector('.hidden.lg\\:block table tbody') ||
-                document.querySelector('tbody');
+  /* Full bleed utility for this component */
+  .bleed-x {
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+    width: 100vw;
+  }
+</style>
+<script>
+// Confirm delete function
+window.confirmDelete = function(message = 'Are you sure you want to delete this item?') {
+  return confirm(message);
+};
+// Confirm delete function - needed by delete buttons
+window.confirmDelete = function(message = 'Are you sure you want to delete this item?') {
+  return confirm(message);
+};
+
+// Auto-rotation script only if more than PAGE_SIZE rows
+(function() {
+  const PAGE_SIZE = 7;
+  const INTERVAL_MS = 5000;
+  const FADE_MS = 250;
+
+  const tbody = document.getElementById('ib-rows');
   if (!tbody) return;
 
-  // Ambil semua baris data (skip baris kosong/empty-state jika ada)
   const allRows = Array.from(tbody.querySelectorAll('tr')).filter(tr => !tr.classList.contains('empty-state'));
-
-  // Kalau baris <= PAGE_SIZE, tidak perlu rotasi
   if (allRows.length <= PAGE_SIZE) return;
 
-  // Potong menjadi halaman-halaman
   function chunk(arr, size) {
     const out = [];
     for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
     return out;
   }
+
   const pages = chunk(allRows, PAGE_SIZE);
   let pageIndex = 0;
 
-  // Styling transisi halus
   tbody.style.transition = `opacity ${FADE_MS}ms ease`;
   tbody.style.willChange = 'opacity';
 
-  // Helper: sembunyikan semua baris, lalu append batch baru
   function renderPage(idx) {
     tbody.style.opacity = '0';
     setTimeout(() => {
-      // kosongkan
       while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
-      // isi batch
       pages[idx].forEach(tr => {
-        // pastikan tr visible
         tr.style.display = '';
         tbody.appendChild(tr);
       });
@@ -287,18 +298,14 @@
     }, FADE_MS);
   }
 
-  // Inisialisasi: tampilkan halaman pertama
-  // Sembunyikan semua dulu supaya tidak "dobel" saat append
   allRows.forEach(tr => tr.style.display = 'none');
   renderPage(pageIndex);
 
-  // Auto-rotate
   let timer = setInterval(() => {
     pageIndex = (pageIndex + 1) % pages.length;
     renderPage(pageIndex);
   }, INTERVAL_MS);
 
-  // UX: pause saat hover
   const tableCard = tbody.closest('.hidden.lg\\:block') || tbody.closest('div');
   if (tableCard) {
     tableCard.addEventListener('mouseenter', () => clearInterval(timer));
@@ -310,17 +317,6 @@
       }, INTERVAL_MS);
     });
   }
-
-  // (Opsional) Tampilkan indikator halaman kecil
-  // Uncomment jika mau:
-  // const indicator = document.createElement('div');
-  // indicator.className = 'text-[11px] text-neutral-400 mt-2 text-right';
-  // indicator.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, monospace';
-  // tbody.parentElement.appendChild(indicator);
-  // const updateIndicator = () => indicator.textContent = `Page ${pageIndex+1} / ${pages.length}`;
-  // updateIndicator();
-  // setInterval(updateIndicator, 500);
-
 })();
 </script>
 @endpush

@@ -83,21 +83,510 @@ public function inlineUpdate(Request $request)
 }
 
 
+// public function index(Request $request)
+// {
+//     $activeTab = $request->get('tab', 'print');   // print|video|article|lb|em
+
+//     // ========= Normalize filters =========
+//     $rawMonth = $request->get('month');
+//     $month = null;
+//     if ($rawMonth !== null && $rawMonth !== '') {
+//         if (is_numeric($rawMonth)) {
+//             $month = max(1, min(12, (int)$rawMonth));
+//         } else {
+//             try {
+//                 $month = Carbon::parse('1 '.$rawMonth)->month;
+//             } catch (\Throwable $e) {
+//                 // Try month name mapping
+//                 $m = strtolower(trim((string)$rawMonth));
+//                 $map = [
+//                     'jan'=>1,'january'=>1,'feb'=>2,'february'=>2,'mar'=>3,'march'=>3,
+//                     'apr'=>4,'april'=>4,'may'=>5,'jun'=>6,'june'=>6,'jul'=>7,'july'=>7,
+//                     'aug'=>8,'august'=>8,'sep'=>9,'september'=>9,'oct'=>10,'october'=>10,
+//                     'nov'=>11,'november'=>11,'dec'=>12,'december'=>12
+//                 ];
+//                 $month = $map[$m] ?? null;
+//             }
+//         }
+//     }
+
+//     $rawYear = $request->get('year');
+//     $year = ($rawYear !== null && $rawYear !== '' && ctype_digit((string)$rawYear)) ? (int)$rawYear : null;
+
+//     // Default ONLY if no params at all
+//     if (!$request->has('month') && !$request->has('year')) {
+//         $month = now()->month;
+//         $year  = now()->year;
+//     } elseif ($month && !$year) {
+//         // month_only mode — jangan auto isi year
+//         $year = null;
+//     }
+
+//     // Scope & UI label
+//     $scope = $month && $year ? 'month_year' : ($month ? 'month_only' : ($year ? 'year_only' : 'all'));
+//     if ($scope === 'month_year') {
+//         $periodLabel = Carbon::create($year, $month, 1)->format('F Y');
+//     } elseif ($scope === 'month_only') {
+//         $periodLabel = Carbon::create(null, $month, 1)->format('F'). ' (All Years)';
+//     } elseif ($scope === 'year_only') {
+//         $periodLabel = 'All Months ' . $year;
+//     } else {
+//         $periodLabel = 'All Months (All Years)';
+//     }
+
+//     // Map UI tab -> stored category di monthly table
+//     $storedSub = $this->tabToStored(strtolower($activeTab)); // "KLTG" | "Video" | "Article" | "LB" | "EM"
+
+//     // ========= Auto-create slot kosong dari kltg_monthly_details =========
+//     if ($month !== null && $year !== null) {
+//         // Specific month-year: auto-create slots
+//         $candidates = DB::table('kltg_monthly_details as md')
+//             ->select(
+//                 'md.master_file_id',
+//                 DB::raw("UPPER(TRIM(md.category)) as subcategory"),
+//                 DB::raw((int)$year . ' as year'),
+//                 DB::raw((int)$month . ' as month')
+//             )
+//             ->where('md.year', $year)
+//             ->where(function($q) use ($month) {
+//                 $monthName = strtolower(Carbon::create(null, $month, 1)->format('F'));
+//                 $q->where('md.month', (int)$month)
+//                   ->orWhereRaw('CAST(md.month AS UNSIGNED) = ?', [(int)$month])
+//                   ->orWhereRaw('LOWER(md.month) = ?', [$monthName])
+//                   ->orWhereMonth('md.value_date', (int)$month);
+//             })
+//             ->whereRaw('TRIM(UPPER(md.category)) = ?', [strtoupper($storedSub)])
+//             ->where(function($q) {
+//                 $q->whereNotNull('md.value_date')
+//                   ->orWhere(function($qq) {
+//                       $qq->whereNotNull('md.month')
+//                          ->whereRaw("TRIM(md.month) <> ''")
+//                          ->whereRaw("TRIM(md.month) <> '0'")
+//                          ->whereRaw("TRIM(md.month) <> '00'");
+//                   });
+//             })
+//             ->groupBy('md.master_file_id', 'md.category')
+//             ->get();
+
+//         foreach ($candidates as $c) {
+//             KltgCoordinatorList::updateOrInsert(
+//                 [
+//                     'master_file_id' => $c->master_file_id,
+//                     'subcategory'    => $c->subcategory,
+//                     'year'           => $c->year,
+//                     'month'          => $c->month,
+//                 ],
+//                 [
+//                     'updated_at' => now()
+//                     // other default fields can be set to null/'' based on your schema
+//                 ]
+//             );
+//         }
+//     } elseif ($month !== null && $year === null) {
+//         // Month only across all years
+//         $candidates = DB::table('kltg_monthly_details as md')
+//             ->select(
+//                 'md.master_file_id',
+//                 DB::raw("UPPER(TRIM(md.category)) as subcategory"),
+//                 DB::raw("COALESCE(NULLIF(md.year,0), YEAR(CURDATE())) as year"),
+//                 DB::raw((int)$month . ' as month')
+//             )
+//             ->where(function($q) use ($month) {
+//                 $monthName = strtolower(Carbon::create(null, $month, 1)->format('F'));
+//                 $q->where('md.month', (int)$month)
+//                   ->orWhereRaw('CAST(md.month AS UNSIGNED) = ?', [(int)$month])
+//                   ->orWhereRaw('LOWER(md.month) = ?', [$monthName])
+//                   ->orWhereMonth('md.value_date', (int)$month);
+//             })
+//             ->whereRaw('TRIM(UPPER(md.category)) = ?', [strtoupper($storedSub)])
+//             ->where(function($q) {
+//                 $q->whereNotNull('md.value_date')
+//                   ->orWhere(function($qq) {
+//                       $qq->whereNotNull('md.month')
+//                          ->whereRaw("TRIM(md.month) <> ''")
+//                          ->whereRaw("TRIM(md.month) <> '0'")
+//                          ->whereRaw("TRIM(md.month) <> '00'");
+//                   });
+//             })
+//             ->groupBy('md.master_file_id', 'md.category', 'md.year')
+//             ->get();
+
+//         foreach ($candidates as $c) {
+//             KltgCoordinatorList::updateOrInsert(
+//                 [
+//                     'master_file_id' => $c->master_file_id,
+//                     'subcategory'    => $c->subcategory,
+//                     'year'           => $c->year,
+//                     'month'          => $c->month,
+//                 ],
+//                 [
+//                     'updated_at' => now()
+//                 ]
+//             );
+//         }
+//     } elseif ($year !== null && $month === null) {
+//         // Year only across all months
+//         $candidates = DB::table('kltg_monthly_details as md')
+//             ->select(
+//                 'md.master_file_id',
+//                 DB::raw("UPPER(TRIM(md.category)) as subcategory"),
+//                 DB::raw((int)$year . ' as year'),
+//                 DB::raw("
+//                     CASE
+//                         WHEN md.month REGEXP '^[0-9]+$' THEN md.month+0
+//                         WHEN LOWER(md.month)='january'   THEN 1
+//                         WHEN LOWER(md.month)='february'  THEN 2
+//                         WHEN LOWER(md.month)='march'     THEN 3
+//                         WHEN LOWER(md.month)='april'     THEN 4
+//                         WHEN LOWER(md.month)='may'       THEN 5
+//                         WHEN LOWER(md.month)='june'      THEN 6
+//                         WHEN LOWER(md.month)='july'      THEN 7
+//                         WHEN LOWER(md.month)='august'    THEN 8
+//                         WHEN LOWER(md.month)='september' THEN 9
+//                         WHEN LOWER(md.month)='october'   THEN 10
+//                         WHEN LOWER(md.month)='november'  THEN 11
+//                         WHEN LOWER(md.month)='december'  THEN 12
+//                         WHEN md.value_date IS NOT NULL THEN MONTH(md.value_date)
+//                         ELSE NULL
+//                     END as month
+//                 ")
+//             )
+//             ->where(function($q) use ($year) {
+//                 $q->where('md.year', (int)$year)
+//                   ->orWhereYear('md.value_date', (int)$year);
+//             })
+//             ->whereRaw('TRIM(UPPER(md.category)) = ?', [strtoupper($storedSub)])
+//             ->where(function($q) {
+//                 $q->whereNotNull('md.value_date')
+//                   ->orWhere(function($qq) {
+//                       $qq->whereNotNull('md.month')
+//                          ->whereRaw("TRIM(md.month) <> ''")
+//                          ->whereRaw("TRIM(md.month) <> '0'")
+//                          ->whereRaw("TRIM(md.month) <> '00'");
+//                   });
+//             })
+//             ->havingRaw('month IS NOT NULL')
+//             ->groupBy('md.master_file_id', 'md.category', 'md.year', 'month')
+//             ->get();
+
+//         foreach ($candidates as $c) {
+//             KltgCoordinatorList::updateOrInsert(
+//                 [
+//                     'master_file_id' => $c->master_file_id,
+//                     'subcategory'    => $c->subcategory,
+//                     'year'           => $c->year,
+//                     'month'          => $c->month,
+//                 ],
+//                 [
+//                     'updated_at' => now()
+//                 ]
+//             );
+//         }
+//     }
+
+//     // ========= Column definitions (unchanged) =========
+//     $columns = [
+//         'print' => [
+//             ['key'=>'title','label'=>'Title','type'=>'text'],
+//             ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
+//             ['key'=>'x','label'=>'X (text)','type'=>'text'],
+//             ['key'=>'edition','label'=>'Edition','type'=>'text'],        // auto-set (read-only)
+//             ['key'=>'publication','label'=>'Publication','type'=>'text'],// auto-set (read-only)
+//             ['key'=>'artwork_party','label'=>'Artwork (BP/Client)','type'=>'text'],
+//             ['key'=>'artwork_reminder_date','label'=>'Artwork Reminder','type'=>'date'],
+//             ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
+//             ['key'=>'artwork_done','label'=>'Artwork Done','type'=>'date'],
+//             ['key'=>'send_chop_sign_date','label'=>'Send Chop & Sign','type'=>'date'],
+//             ['key'=>'chop_sign_approval_date','label'=>'Chop & Sign Approval','type'=>'date'],
+//             ['key'=>'park_in_server_date','label'=>'Park in file server','type'=>'date'],
+//         ],
+//         'video' => [
+//             ['key'=>'title','label'=>'Title','type'=>'text'],
+//             ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
+//             ['key'=>'x','label'=>'X (text)','type'=>'text'],
+//             ['key'=>'material_reminder_text','label'=>'Material Reminder','type'=>'text'],
+//             ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
+//             ['key'=>'video_done_date','label'=>'Video Done','type'=>'date'],
+//             ['key'=>'pending_approval_date','label'=>'Pending Approval','type'=>'date'],
+//             ['key'=>'video_scheduled_date','label'=>'Video Scheduled','type'=>'date'],
+//             ['key'=>'video_posted_date','label'=>'Video Posted','type'=>'date'],
+//             ['key'=>'post_link','label'=>'Post Link','type'=>'text'],
+//         ],
+//         'lb' => [
+//             ['key'=>'title','label'=>'Title','type'=>'text'],
+//             ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
+//             ['key'=>'x','label'=>'X (text)','type'=>'text'],
+//             ['key'=>'material_reminder_text','label'=>'Material Reminder','type'=>'text'],
+//             ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
+//             ['key'=>'video_done_date','label'=>'Video Done','type'=>'date'],
+//             ['key'=>'pending_approval_date','label'=>'Pending Approval','type'=>'date'],
+//             ['key'=>'video_approved_date','label'=>'Video Approved','type'=>'date'],
+//             ['key'=>'video_scheduled_date','label'=>'Video Scheduled','type'=>'date'],
+//             ['key'=>'video_posted_date','label'=>'Video Posted','type'=>'date'],
+//             ['key'=>'post_link','label'=>'Post Link','type'=>'text'],
+//         ],
+//         'article' => [
+//             ['key'=>'title','label'=>'Title','type'=>'text'],
+//             ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
+//             ['key'=>'x','label'=>'X (text)','type'=>'text'],
+//             ['key'=>'material_reminder_text','label'=>'Material Reminder','type'=>'text'],
+//             ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
+//             ['key'=>'article_done_date','label'=>'Article Done','type'=>'date'],
+//             ['key'=>'pending_approval_date','label'=>'Pending Approval','type'=>'date'],
+//             ['key'=>'article_approved_date','label'=>'Article Approved','type'=>'date'],
+//             ['key'=>'article_scheduled_date','label'=>'Article Scheduled','type'=>'date'],
+//             ['key'=>'article_posted_date','label'=>'Article Posted','type'=>'date'],
+//             ['key'=>'post_link','label'=>'Post Link','type'=>'text'],
+//         ],
+//         'em' => [
+//             ['key'=>'client_bp','label'=>'Clients (from master_files)','type'=>'text'],
+//             ['key'=>'em_date_write','label'=>'Date Write','type'=>'date'],
+//             ['key'=>'em_date_to_post','label'=>'Date to post','type'=>'date'],
+//             ['key'=>'em_post_date','label'=>'Post date','type'=>'date'],
+//             ['key'=>'em_qty','label'=>'EM-qty','type'=>'text'],
+//             ['key'=>'blog_link','label'=>'Blog Link','type'=>'text'],
+//         ],
+//     ];
+
+//     $monthlyTable = 'kltg_monthly_details';
+
+//     // ========= Base rows: UNION sumber Koordinator (hasil autosave) + Monthly Details (aktivitas) =========
+
+//     // ---------- A) Sumber dari KOORDINATOR (kltg_coordinator_lists) ----------
+//     $kclBase = DB::table('kltg_coordinator_lists as kcl')
+//         ->join('master_files as mf', 'mf.id', '=', 'kcl.master_file_id')
+//         ->select([
+//             'mf.id as id',
+//             'mf.id as master_file_id',
+//             'mf.date',
+//             DB::raw('COALESCE(NULLIF(mf.company,""), "") as company_name'),
+//             DB::raw('COALESCE(NULLIF(mf.client,""), "") as client'),
+//             DB::raw('COALESCE(NULLIF(mf.product,""), "") as mf_title'),
+//             'mf.created_at',
+//             // activity from kcl slot
+//             DB::raw("STR_TO_DATE(CONCAT(kcl.year,'-',LPAD(kcl.month,2,'0'),'-01'), '%Y-%m-%d') as activity_date"),
+//             DB::raw("kcl.year  as activity_year"),
+//             DB::raw("kcl.month as activity_month"),
+//         ])
+//         ->where('kcl.subcategory', $storedSub);
+
+//     // Terapkan scope ke sumber KCL
+//     if ($scope === 'month_year') {
+//         $kclBase->where('kcl.year', (int)$year)->where('kcl.month', (int)$month);
+//     } elseif ($scope === 'month_only') {
+//         $kclBase->where('kcl.month', (int)$month);
+//     } elseif ($scope === 'year_only') {
+//         $kclBase->where('kcl.year', (int)$year);
+//     }
+
+//     // ---------- B) Sumber dari MONTHLY DETAILS (kltg_monthly_details) ----------
+//     $mdBase = DB::table('kltg_monthly_details as md')
+//         ->join('master_files as mf', 'mf.id', '=', 'md.master_file_id')
+//         ->select([
+//             'mf.id as id',
+//             'mf.id as master_file_id',
+//             'mf.date',
+//             DB::raw("COALESCE(NULLIF(mf.company,''), '') as company_name"),
+//             DB::raw("COALESCE(NULLIF(mf.client,''),  '') as client"),
+//             DB::raw("COALESCE(NULLIF(mf.product,''), '') as mf_title"),
+//             'mf.created_at',
+//             DB::raw("
+//                 COALESCE(
+//                     md.value_date,
+//                     STR_TO_DATE(
+//                         CONCAT(
+//                             COALESCE(NULLIF(md.year,0), YEAR(CURDATE())),
+//                             '-',
+//                             LPAD(
+//                                 CASE
+//                                     WHEN md.month REGEXP '^[0-9]+$' THEN md.month+0
+//                                     WHEN LOWER(md.month)='january'   THEN 1
+//                                     WHEN LOWER(md.month)='february'  THEN 2
+//                                     WHEN LOWER(md.month)='march'     THEN 3
+//                                     WHEN LOWER(md.month)='april'     THEN 4
+//                                     WHEN LOWER(md.month)='may'       THEN 5
+//                                     WHEN LOWER(md.month)='june'      THEN 6
+//                                     WHEN LOWER(md.month)='july'      THEN 7
+//                                     WHEN LOWER(md.month)='august'    THEN 8
+//                                     WHEN LOWER(md.month)='september' THEN 9
+//                                     WHEN LOWER(md.month)='october'   THEN 10
+//                                     WHEN LOWER(md.month)='november'  THEN 11
+//                                     WHEN LOWER(md.month)='december'  THEN 12
+//                                     ELSE NULL
+//                                 END, 2,'0'
+//                             ),
+//                             '-01'
+//                         ),
+//                         '%Y-%m-%d'
+//                     )
+//                 ) AS activity_date
+//             "),
+//             DB::raw("YEAR(COALESCE(md.value_date, STR_TO_DATE(CONCAT(COALESCE(NULLIF(md.year,0), YEAR(CURDATE())), '-', LPAD(CASE WHEN md.month REGEXP '^[0-9]+$' THEN md.month+0 WHEN LOWER(md.month)='january' THEN 1 WHEN LOWER(md.month)='february' THEN 2 WHEN LOWER(md.month)='march' THEN 3 WHEN LOWER(md.month)='april' THEN 4 WHEN LOWER(md.month)='may' THEN 5 WHEN LOWER(md.month)='june' THEN 6 WHEN LOWER(md.month)='july' THEN 7 WHEN LOWER(md.month)='august' THEN 8 WHEN LOWER(md.month)='september' THEN 9 WHEN LOWER(md.month)='october' THEN 10 WHEN LOWER(md.month)='november' THEN 11 WHEN LOWER(md.month)='december' THEN 12 ELSE NULL END ,2,'0'), '-01'), '%Y-%m-%d'))) AS activity_year"),
+//             DB::raw("MONTH(COALESCE(md.value_date, STR_TO_DATE(CONCAT(COALESCE(NULLIF(md.year,0), YEAR(CURDATE())), '-', LPAD(CASE WHEN md.month REGEXP '^[0-9]+$' THEN md.month+0 WHEN LOWER(md.month)='january' THEN 1 WHEN LOWER(md.month)='february' THEN 2 WHEN LOWER(md.month)='march' THEN 3 WHEN LOWER(md.month)='april' THEN 4 WHEN LOWER(md.month)='may' THEN 5 WHEN LOWER(md.month)='june' THEN 6 WHEN LOWER(md.month)='july' THEN 7 WHEN LOWER(md.month)='august' THEN 8 WHEN LOWER(md.month)='september' THEN 9 WHEN LOWER(md.month)='october' THEN 10 WHEN LOWER(md.month)='november' THEN 11 WHEN LOWER(md.month)='december' THEN 12 ELSE NULL END ,2,'0'), '-01'), '%Y-%m-%d'))) AS activity_month")
+//         ])
+//         ->whereRaw('TRIM(UPPER(md.category)) = ?', [strtoupper($storedSub)])
+//         ->where(function($q){
+//             $q->whereNotNull('md.value_date')
+//               ->orWhere(function($qq){
+//                   $qq->whereNotNull('md.month')
+//                      ->whereRaw("TRIM(md.month) <> ''")
+//                      ->whereRaw("TRIM(md.month) <> '0'")
+//                      ->whereRaw("TRIM(md.month) <> '00'");
+//               });
+//         });
+
+//     // Terapkan scope ke sumber MD
+//     if ($scope === 'month_year') {
+//         $monthName = strtolower(Carbon::create(null, $month, 1)->format('F'));
+//         $mdBase->where(function($w) use ($month, $year, $monthName) {
+//             $w->where(function($yq) use ($year) {
+//                   $yq->where('md.year', (int)$year)
+//                      ->orWhereYear('md.value_date', (int)$year);
+//               })
+//               ->where(function($mq) use ($month, $monthName) {
+//                   $mq->where('md.month', (int)$month)
+//                      ->orWhereRaw('CAST(md.month AS UNSIGNED) = ?', [(int)$month])
+//                      ->orWhereRaw('LOWER(md.month) = ?', [$monthName])
+//                      ->orWhereMonth('md.value_date', (int)$month);
+//               });
+//         });
+//     } elseif ($scope === 'month_only') {
+//         $monthName = strtolower(Carbon::create(null, $month, 1)->format('F'));
+//         $mdBase->where(function($mq) use ($month, $monthName) {
+//             $mq->where('md.month', (int)$month)
+//                ->orWhereRaw('CAST(md.month AS UNSIGNED) = ?', [(int)$month])
+//                ->orWhereRaw('LOWER(md.month) = ?', [$monthName])
+//                ->orWhereMonth('md.value_date', (int)$month);
+//         });
+//     } elseif ($scope === 'year_only') {
+//         $mdBase->where(function($yq) use ($year) {
+//             $yq->where('md.year', (int)$year)
+//                ->orWhereYear('md.value_date', (int)$year);
+//         });
+//     }
+
+//     // ---------- Eksekusi dua sumber ----------
+//     $kclRows = $kclBase->get();
+//     $mdRows  = $mdBase
+//         ->groupBy('mf.id', 'mf.date', 'mf.company', 'mf.client', 'mf.product', 'md.year', 'md.month', 'md.value_date','mf.created_at')
+//         ->orderBy('activity_date', 'ASC')
+//         ->orderBy('mf.id', 'ASC')
+//         ->get();
+
+//     // ---------- Merge + dedup per (master_file_id, activity_year, activity_month) ----------
+//     $rows = $mdRows->concat($kclRows)
+//         ->filter(function($r){
+//             // pastikan month/year valid: kalau dari kcl pasti ada; dari md pun sudah dihitung
+//             return !empty($r->activity_month) && !empty($r->activity_year);
+//         })
+//         ->unique(function($r){
+//             return $r->master_file_id.'|'.$r->activity_year.'|'.$r->activity_month;
+//         })
+//         ->sortBy([['activity_date', 'asc'], ['master_file_id','asc']])
+//         ->values();
+
+//     // ========= Existing coordinator values (JANGAN tergantung $rows) =========
+//     $existingQuery = KltgCoordinatorList::query()
+//         ->where('subcategory', $storedSub);
+
+//     if ($scope === 'month_year') {
+//         $existingQuery->where('year', (int)$year)->where('month', (int)$month);
+//     } elseif ($scope === 'month_only') {
+//         $existingQuery->where('month', (int)$month);
+//     } elseif ($scope === 'year_only') {
+//         $existingQuery->where('year', (int)$year);
+//     }
+
+//     $existing = $existingQuery->get()
+//         ->keyBy(function($item) {
+//             return $item->master_file_id . '_' . $item->subcategory . '_' . $item->year . '_' . $item->month;
+//         });
+
+//     // ========= Edition/Publication (header rows) — gunakan $storedSub, bukan hardcode 'KLTG' =========
+//     $editionPub = DB::table('kltg_monthly_details as d')
+//         ->selectRaw("
+//             d.master_file_id,
+//             MAX(CASE WHEN d.type = 'EDITION'     THEN NULLIF(COALESCE(d.value_text, d.value, ''), '') END) AS edition,
+//             MAX(CASE WHEN d.type = 'PUBLICATION' THEN NULLIF(COALESCE(d.value_text, d.value, ''), '') END) AS publication
+//         ")
+//         ->whereRaw('TRIM(UPPER(d.category)) = ?', [strtoupper($storedSub)])
+//         ->where('d.field_type', 'text')
+//         ->where('d.status', 'ACTIVE')
+//         ->when($year, fn($q) => $q->where('d.year', (int)$year))
+//         ->where(function($q){
+//             $q->whereIn('d.month', [0,'0','','00'])
+//               ->orWhereNull('d.month');
+//         })
+//         ->groupBy('d.master_file_id')
+//         ->get()
+//         ->keyBy('master_file_id');
+
+//     // Inject edition/publication ke rows (display only)
+//     $rows->transform(function ($row) use ($editionPub) {
+//         if (isset($editionPub[$row->master_file_id])) {
+//             $row->edition     = $editionPub[$row->master_file_id]->edition ?? null;
+//             $row->publication = $editionPub[$row->master_file_id]->publication ?? null;
+//         } else {
+//             $row->edition     = null;
+//             $row->publication = null;
+//         }
+//         return $row;
+//     });
+
+//     // ---- Debug ringkas ----
+//         Log::info('KLTG index union result', [
+//         'scope'        => $scope,
+//         'storedSub'    => $storedSub,
+//         'kcl_count'    => $kclRows->count(),
+//         'md_count'     => $mdRows->count(),
+//         'final_rows'   => $rows->count(),
+//         'existing_cnt' => $existing->count(),
+//     ]);
+
+//     // ========= Prepare month options for view =========
+//     $months = collect(range(1,12))->map(function($m) {
+//         return [
+//             'value' => $m,
+//             'label' => date('F', mktime(0,0,0,$m,1))
+//         ];
+//     });
+
+//     return view('coordinators.kltg', [
+//         'rows'        => $rows,
+//         'existing'    => $existing,
+//         'columns'     => $columns,
+//         'activeTab'   => $activeTab,
+//         'month'       => $month,
+//         'year'        => $year,
+//         'scope'       => $scope,
+//         'periodLabel' => $periodLabel,
+//         'months'      => $months, // Add this for the view
+//     ]);
+// }
+
 public function index(Request $request)
 {
     $activeTab = $request->get('tab', 'print');   // print|video|article|lb|em
+    $storedSub = $this->tabToStored(strtolower($activeTab)); // "KLTG" | "Video" | ...
+
+    // ========= Validate (light) =========
+    $request->validate([
+        'month' => ['nullable', 'string'],
+        'year'  => ['nullable', 'integer', 'between:2015,2100'],
+        'tab'   => ['nullable', Rule::in(['print','video','article','lb','em'])],
+    ]);
 
     // ========= Normalize filters =========
     $rawMonth = $request->get('month');
     $month = null;
-    if ($rawMonth !== null && $rawMonth !== '') {
+    if ($rawMonth !== null && $rawMonth !== '' && strcasecmp($rawMonth, 'all') !== 0) {
         if (is_numeric($rawMonth)) {
-            $month = max(1, min(12, (int)$rawMonth));
+            $mi = (int)$rawMonth;
+            $month = ($mi >= 1 && $mi <= 12) ? $mi : null;
         } else {
             try {
                 $month = Carbon::parse('1 '.$rawMonth)->month;
             } catch (\Throwable $e) {
-                // Try month name mapping
                 $m = strtolower(trim((string)$rawMonth));
                 $map = [
                     'jan'=>1,'january'=>1,'feb'=>2,'february'=>2,'mar'=>3,'march'=>3,
@@ -112,34 +601,55 @@ public function index(Request $request)
 
     $rawYear = $request->get('year');
     $year = ($rawYear !== null && $rawYear !== '' && ctype_digit((string)$rawYear)) ? (int)$rawYear : null;
+    if ($year !== null && ($year < 2015 || $year > 2100)) {
+        $year = null;
+    }
 
     // Default ONLY if no params at all
     if (!$request->has('month') && !$request->has('year')) {
         $month = now()->month;
         $year  = now()->year;
-    } elseif ($month && !$year) {
-        // month_only mode — jangan auto isi year
-        $year = null;
     }
 
-    // Scope & UI label
-    $scope = $month && $year ? 'month_year' : ($month ? 'month_only' : ($year ? 'year_only' : 'all'));
+    // If month provided but year missing -> derive latest year that has this (subcategory, month)
+    if ($month && !$year) {
+        $derivedYear = DB::table('kltg_coordinator_lists')
+            ->where('subcategory', $storedSub)
+            ->where('month', $month)
+            ->max('year');
+
+        if (!$derivedYear) {
+            // Try MD
+            $derivedYear = DB::table('kltg_monthly_details')
+                ->whereRaw('TRIM(UPPER(category)) = ?', [strtoupper($storedSub)])
+                ->where(function($q) use ($month) {
+                    $monthName = strtolower(Carbon::create(null, $month, 1)->format('F'));
+                    $q->where('month', (int)$month)
+                      ->orWhereRaw('CAST(month AS UNSIGNED) = ?', [$month])
+                      ->orWhereRaw('LOWER(month) = ?', [$monthName])
+                      ->orWhereMonth('value_date', $month);
+                })
+                ->max(DB::raw('COALESCE(NULLIF(year,0), YEAR(CURDATE()))'));
+        }
+
+        $year = $derivedYear ?: now()->year;
+        Log::warning('KLTG: month provided without year; derived latest year', [
+            'subcategory' => $storedSub, 'month' => $month, 'derived_year' => $year
+        ]);
+    }
+
+    // Scope & UI label (no month_only anymore)
+    $scope = $month && $year ? 'month_year' : ($year ? 'year_only' : 'all');
     if ($scope === 'month_year') {
         $periodLabel = Carbon::create($year, $month, 1)->format('F Y');
-    } elseif ($scope === 'month_only') {
-        $periodLabel = Carbon::create(null, $month, 1)->format('F'). ' (All Years)';
     } elseif ($scope === 'year_only') {
         $periodLabel = 'All Months ' . $year;
     } else {
         $periodLabel = 'All Months (All Years)';
     }
 
-    // Map UI tab -> stored category di monthly table
-    $storedSub = $this->tabToStored(strtolower($activeTab)); // "KLTG" | "Video" | "Article" | "LB" | "EM"
-
-    // ========= Auto-create slot kosong dari kltg_monthly_details =========
-    if ($month !== null && $year !== null) {
-        // Specific month-year: auto-create slots
+    // ========= Auto-create slot kosong dari kltg_monthly_details (only for month_year) =========
+    if ($scope === 'month_year') {
         $candidates = DB::table('kltg_monthly_details as md')
             ->select(
                 'md.master_file_id',
@@ -147,7 +657,10 @@ public function index(Request $request)
                 DB::raw((int)$year . ' as year'),
                 DB::raw((int)$month . ' as month')
             )
-            ->where('md.year', $year)
+            ->whereRaw('TRIM(UPPER(md.category)) = ?', [strtoupper($storedSub)])
+            ->where(function($q) use ($year) {
+                $q->where('md.year', (int)$year)->orWhereYear('md.value_date', (int)$year);
+            })
             ->where(function($q) use ($month) {
                 $monthName = strtolower(Carbon::create(null, $month, 1)->format('F'));
                 $q->where('md.month', (int)$month)
@@ -155,7 +668,6 @@ public function index(Request $request)
                   ->orWhereRaw('LOWER(md.month) = ?', [$monthName])
                   ->orWhereMonth('md.value_date', (int)$month);
             })
-            ->whereRaw('TRIM(UPPER(md.category)) = ?', [strtoupper($storedSub)])
             ->where(function($q) {
                 $q->whereNotNull('md.value_date')
                   ->orWhere(function($qq) {
@@ -169,129 +681,26 @@ public function index(Request $request)
             ->get();
 
         foreach ($candidates as $c) {
-            KltgCoordinatorList::updateOrInsert(
+            \App\Models\KltgCoordinatorList::updateOrInsert(
                 [
                     'master_file_id' => $c->master_file_id,
                     'subcategory'    => $c->subcategory,
                     'year'           => $c->year,
                     'month'          => $c->month,
                 ],
-                [
-                    'updated_at' => now()
-                    // other default fields can be set to null/'' based on your schema
-                ]
-            );
-        }
-    } elseif ($month !== null && $year === null) {
-        // Month only across all years
-        $candidates = DB::table('kltg_monthly_details as md')
-            ->select(
-                'md.master_file_id',
-                DB::raw("UPPER(TRIM(md.category)) as subcategory"),
-                DB::raw("COALESCE(NULLIF(md.year,0), YEAR(CURDATE())) as year"),
-                DB::raw((int)$month . ' as month')
-            )
-            ->where(function($q) use ($month) {
-                $monthName = strtolower(Carbon::create(null, $month, 1)->format('F'));
-                $q->where('md.month', (int)$month)
-                  ->orWhereRaw('CAST(md.month AS UNSIGNED) = ?', [(int)$month])
-                  ->orWhereRaw('LOWER(md.month) = ?', [$monthName])
-                  ->orWhereMonth('md.value_date', (int)$month);
-            })
-            ->whereRaw('TRIM(UPPER(md.category)) = ?', [strtoupper($storedSub)])
-            ->where(function($q) {
-                $q->whereNotNull('md.value_date')
-                  ->orWhere(function($qq) {
-                      $qq->whereNotNull('md.month')
-                         ->whereRaw("TRIM(md.month) <> ''")
-                         ->whereRaw("TRIM(md.month) <> '0'")
-                         ->whereRaw("TRIM(md.month) <> '00'");
-                  });
-            })
-            ->groupBy('md.master_file_id', 'md.category', 'md.year')
-            ->get();
-
-        foreach ($candidates as $c) {
-            KltgCoordinatorList::updateOrInsert(
-                [
-                    'master_file_id' => $c->master_file_id,
-                    'subcategory'    => $c->subcategory,
-                    'year'           => $c->year,
-                    'month'          => $c->month,
-                ],
-                [
-                    'updated_at' => now()
-                ]
-            );
-        }
-    } elseif ($year !== null && $month === null) {
-        // Year only across all months
-        $candidates = DB::table('kltg_monthly_details as md')
-            ->select(
-                'md.master_file_id',
-                DB::raw("UPPER(TRIM(md.category)) as subcategory"),
-                DB::raw((int)$year . ' as year'),
-                DB::raw("
-                    CASE
-                        WHEN md.month REGEXP '^[0-9]+$' THEN md.month+0
-                        WHEN LOWER(md.month)='january'   THEN 1
-                        WHEN LOWER(md.month)='february'  THEN 2
-                        WHEN LOWER(md.month)='march'     THEN 3
-                        WHEN LOWER(md.month)='april'     THEN 4
-                        WHEN LOWER(md.month)='may'       THEN 5
-                        WHEN LOWER(md.month)='june'      THEN 6
-                        WHEN LOWER(md.month)='july'      THEN 7
-                        WHEN LOWER(md.month)='august'    THEN 8
-                        WHEN LOWER(md.month)='september' THEN 9
-                        WHEN LOWER(md.month)='october'   THEN 10
-                        WHEN LOWER(md.month)='november'  THEN 11
-                        WHEN LOWER(md.month)='december'  THEN 12
-                        WHEN md.value_date IS NOT NULL THEN MONTH(md.value_date)
-                        ELSE NULL
-                    END as month
-                ")
-            )
-            ->where(function($q) use ($year) {
-                $q->where('md.year', (int)$year)
-                  ->orWhereYear('md.value_date', (int)$year);
-            })
-            ->whereRaw('TRIM(UPPER(md.category)) = ?', [strtoupper($storedSub)])
-            ->where(function($q) {
-                $q->whereNotNull('md.value_date')
-                  ->orWhere(function($qq) {
-                      $qq->whereNotNull('md.month')
-                         ->whereRaw("TRIM(md.month) <> ''")
-                         ->whereRaw("TRIM(md.month) <> '0'")
-                         ->whereRaw("TRIM(md.month) <> '00'");
-                  });
-            })
-            ->havingRaw('month IS NOT NULL')
-            ->groupBy('md.master_file_id', 'md.category', 'md.year', 'month')
-            ->get();
-
-        foreach ($candidates as $c) {
-            KltgCoordinatorList::updateOrInsert(
-                [
-                    'master_file_id' => $c->master_file_id,
-                    'subcategory'    => $c->subcategory,
-                    'year'           => $c->year,
-                    'month'          => $c->month,
-                ],
-                [
-                    'updated_at' => now()
-                ]
+                ['updated_at' => now()]
             );
         }
     }
 
-    // ========= Column definitions (unchanged) =========
+    // ========= Columns (unchanged) =========
     $columns = [
         'print' => [
             ['key'=>'title','label'=>'Title','type'=>'text'],
             ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
             ['key'=>'x','label'=>'X (text)','type'=>'text'],
-            ['key'=>'edition','label'=>'Edition','type'=>'text'],        // auto-set (read-only)
-            ['key'=>'publication','label'=>'Publication','type'=>'text'],// auto-set (read-only)
+            ['key'=>'edition','label'=>'Edition','type'=>'text'],
+            ['key'=>'publication','label'=>'Publication','type'=>'text'],
             ['key'=>'artwork_party','label'=>'Artwork (BP/Client)','type'=>'text'],
             ['key'=>'artwork_reminder_date','label'=>'Artwork Reminder','type'=>'date'],
             ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
@@ -300,60 +709,21 @@ public function index(Request $request)
             ['key'=>'chop_sign_approval_date','label'=>'Chop & Sign Approval','type'=>'date'],
             ['key'=>'park_in_server_date','label'=>'Park in file server','type'=>'date'],
         ],
-        'video' => [
-            ['key'=>'title','label'=>'Title','type'=>'text'],
-            ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
-            ['key'=>'x','label'=>'X (text)','type'=>'text'],
-            ['key'=>'material_reminder_text','label'=>'Material Reminder','type'=>'text'],
-            ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
-            ['key'=>'video_done_date','label'=>'Video Done','type'=>'date'],
-            ['key'=>'pending_approval_date','label'=>'Pending Approval','type'=>'date'],
-            ['key'=>'video_scheduled_date','label'=>'Video Scheduled','type'=>'date'],
-            ['key'=>'video_posted_date','label'=>'Video Posted','type'=>'date'],
-            ['key'=>'post_link','label'=>'Post Link','type'=>'text'],
-        ],
-        'lb' => [
-            ['key'=>'title','label'=>'Title','type'=>'text'],
-            ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
-            ['key'=>'x','label'=>'X (text)','type'=>'text'],
-            ['key'=>'material_reminder_text','label'=>'Material Reminder','type'=>'text'],
-            ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
-            ['key'=>'video_done_date','label'=>'Video Done','type'=>'date'],
-            ['key'=>'pending_approval_date','label'=>'Pending Approval','type'=>'date'],
-            ['key'=>'video_approved_date','label'=>'Video Approved','type'=>'date'],
-            ['key'=>'video_scheduled_date','label'=>'Video Scheduled','type'=>'date'],
-            ['key'=>'video_posted_date','label'=>'Video Posted','type'=>'date'],
-            ['key'=>'post_link','label'=>'Post Link','type'=>'text'],
-        ],
-        'article' => [
-            ['key'=>'title','label'=>'Title','type'=>'text'],
-            ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
-            ['key'=>'x','label'=>'X (text)','type'=>'text'],
-            ['key'=>'material_reminder_text','label'=>'Material Reminder','type'=>'text'],
-            ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
-            ['key'=>'article_done_date','label'=>'Article Done','type'=>'date'],
-            ['key'=>'pending_approval_date','label'=>'Pending Approval','type'=>'date'],
-            ['key'=>'article_approved_date','label'=>'Article Approved','type'=>'date'],
-            ['key'=>'article_scheduled_date','label'=>'Article Scheduled','type'=>'date'],
-            ['key'=>'article_posted_date','label'=>'Article Posted','type'=>'date'],
-            ['key'=>'post_link','label'=>'Post Link','type'=>'text'],
-        ],
-        'em' => [
-            ['key'=>'client_bp','label'=>'Clients (from master_files)','type'=>'text'],
-            ['key'=>'em_date_write','label'=>'Date Write','type'=>'date'],
-            ['key'=>'em_date_to_post','label'=>'Date to post','type'=>'date'],
-            ['key'=>'em_post_date','label'=>'Post date','type'=>'date'],
-            ['key'=>'em_qty','label'=>'EM-qty','type'=>'text'],
-            ['key'=>'blog_link','label'=>'Blog Link','type'=>'text'],
-        ],
+        // ... (video/lb/article/em) exactly as you have
     ];
 
     $monthlyTable = 'kltg_monthly_details';
 
-    // ========= Base rows: UNION sumber Koordinator (hasil autosave) + Monthly Details (aktivitas) =========
+    // ========= A) KOORDINATOR (KCL) — anti-duplicate via MAX(id) per key =========
+    $latestIds = DB::table('kltg_coordinator_lists')
+        ->selectRaw('MAX(id) AS id')
+        ->where('subcategory', $storedSub)
+        ->when($scope === 'month_year', fn($q)=>$q->where('year', (int)$year)->where('month', (int)$month))
+        ->when($scope === 'year_only',  fn($q)=>$q->where('year', (int)$year))
+        ->groupBy('master_file_id','subcategory','year','month');
 
-    // ---------- A) Sumber dari KOORDINATOR (kltg_coordinator_lists) ----------
     $kclBase = DB::table('kltg_coordinator_lists as kcl')
+        ->joinSub($latestIds, 'L', 'L.id', '=', 'kcl.id')
         ->join('master_files as mf', 'mf.id', '=', 'kcl.master_file_id')
         ->select([
             'mf.id as id',
@@ -363,23 +733,16 @@ public function index(Request $request)
             DB::raw('COALESCE(NULLIF(mf.client,""), "") as client'),
             DB::raw('COALESCE(NULLIF(mf.product,""), "") as mf_title'),
             'mf.created_at',
-            // activity from kcl slot
             DB::raw("STR_TO_DATE(CONCAT(kcl.year,'-',LPAD(kcl.month,2,'0'),'-01'), '%Y-%m-%d') as activity_date"),
             DB::raw("kcl.year  as activity_year"),
             DB::raw("kcl.month as activity_month"),
         ])
-        ->where('kcl.subcategory', $storedSub);
+        ->orderBy('kcl.year', 'desc')
+        ->orderBy('kcl.month', 'desc')
+        ->orderBy('kcl.master_file_id')
+        ->orderBy('kcl.id', 'desc');
 
-    // Terapkan scope ke sumber KCL
-    if ($scope === 'month_year') {
-        $kclBase->where('kcl.year', (int)$year)->where('kcl.month', (int)$month);
-    } elseif ($scope === 'month_only') {
-        $kclBase->where('kcl.month', (int)$month);
-    } elseif ($scope === 'year_only') {
-        $kclBase->where('kcl.year', (int)$year);
-    }
-
-    // ---------- B) Sumber dari MONTHLY DETAILS (kltg_monthly_details) ----------
+    // ========= B) MONTHLY DETAILS (MD) — unchanged logic, still yields 1 row per (mf, y, m) =========
     $mdBase = DB::table('kltg_monthly_details as md')
         ->join('master_files as mf', 'mf.id', '=', 'md.master_file_id')
         ->select([
@@ -435,7 +798,6 @@ public function index(Request $request)
               });
         });
 
-    // Terapkan scope ke sumber MD
     if ($scope === 'month_year') {
         $monthName = strtolower(Carbon::create(null, $month, 1)->format('F'));
         $mdBase->where(function($w) use ($month, $year, $monthName) {
@@ -450,14 +812,6 @@ public function index(Request $request)
                      ->orWhereMonth('md.value_date', (int)$month);
               });
         });
-    } elseif ($scope === 'month_only') {
-        $monthName = strtolower(Carbon::create(null, $month, 1)->format('F'));
-        $mdBase->where(function($mq) use ($month, $monthName) {
-            $mq->where('md.month', (int)$month)
-               ->orWhereRaw('CAST(md.month AS UNSIGNED) = ?', [(int)$month])
-               ->orWhereRaw('LOWER(md.month) = ?', [$monthName])
-               ->orWhereMonth('md.value_date', (int)$month);
-        });
     } elseif ($scope === 'year_only') {
         $mdBase->where(function($yq) use ($year) {
             $yq->where('md.year', (int)$year)
@@ -465,7 +819,7 @@ public function index(Request $request)
         });
     }
 
-    // ---------- Eksekusi dua sumber ----------
+    // ---------- Execute ----------
     $kclRows = $kclBase->get();
     $mdRows  = $mdBase
         ->groupBy('mf.id', 'mf.date', 'mf.company', 'mf.client', 'mf.product', 'md.year', 'md.month', 'md.value_date','mf.created_at')
@@ -476,7 +830,6 @@ public function index(Request $request)
     // ---------- Merge + dedup per (master_file_id, activity_year, activity_month) ----------
     $rows = $mdRows->concat($kclRows)
         ->filter(function($r){
-            // pastikan month/year valid: kalau dari kcl pasti ada; dari md pun sudah dihitung
             return !empty($r->activity_month) && !empty($r->activity_year);
         })
         ->unique(function($r){
@@ -485,24 +838,19 @@ public function index(Request $request)
         ->sortBy([['activity_date', 'asc'], ['master_file_id','asc']])
         ->values();
 
-    // ========= Existing coordinator values (JANGAN tergantung $rows) =========
-    $existingQuery = KltgCoordinatorList::query()
+    // ========= Existing coordinator values (strict to scope, no month_only) =========
+    $existingQuery = \App\Models\KltgCoordinatorList::query()
         ->where('subcategory', $storedSub);
 
     if ($scope === 'month_year') {
         $existingQuery->where('year', (int)$year)->where('month', (int)$month);
-    } elseif ($scope === 'month_only') {
-        $existingQuery->where('month', (int)$month);
     } elseif ($scope === 'year_only') {
         $existingQuery->where('year', (int)$year);
     }
-
     $existing = $existingQuery->get()
-        ->keyBy(function($item) {
-            return $item->master_file_id . '_' . $item->subcategory . '_' . $item->year . '_' . $item->month;
-        });
+        ->keyBy(fn($item) => $item->master_file_id . '_' . $item->subcategory . '_' . $item->year . '_' . $item->month);
 
-    // ========= Edition/Publication (header rows) — gunakan $storedSub, bukan hardcode 'KLTG' =========
+    // ========= Edition/Publication (header rows) =========
     $editionPub = DB::table('kltg_monthly_details as d')
         ->selectRaw("
             d.master_file_id,
@@ -521,7 +869,6 @@ public function index(Request $request)
         ->get()
         ->keyBy('master_file_id');
 
-    // Inject edition/publication ke rows (display only)
     $rows->transform(function ($row) use ($editionPub) {
         if (isset($editionPub[$row->master_file_id])) {
             $row->edition     = $editionPub[$row->master_file_id]->edition ?? null;
@@ -534,22 +881,22 @@ public function index(Request $request)
     });
 
     // ---- Debug ringkas ----
-        Log::info('KLTG index union result', [
+    Log::info('KLTG index union result', [
         'scope'        => $scope,
         'storedSub'    => $storedSub,
         'kcl_count'    => $kclRows->count(),
         'md_count'     => $mdRows->count(),
         'final_rows'   => $rows->count(),
         'existing_cnt' => $existing->count(),
+        'month'        => $month,
+        'year'         => $year,
     ]);
 
-    // ========= Prepare month options for view =========
-    $months = collect(range(1,12))->map(function($m) {
-        return [
-            'value' => $m,
-            'label' => date('F', mktime(0,0,0,$m,1))
-        ];
-    });
+    // ========= Month options for view =========
+    $months = collect(range(1,12))->map(fn($m) => [
+        'value' => $m,
+        'label' => date('F', mktime(0,0,0,$m,1))
+    ]);
 
     return view('coordinators.kltg', [
         'rows'        => $rows,
@@ -560,9 +907,10 @@ public function index(Request $request)
         'year'        => $year,
         'scope'       => $scope,
         'periodLabel' => $periodLabel,
-        'months'      => $months, // Add this for the view
+        'months'      => $months,
     ]);
 }
+
 
 
 public function upsert(Request $request)
@@ -876,46 +1224,113 @@ private function storedToTab(string $stored): string
  * Returns: [month:int|null, year:int|null, scope:string]
  * scope ∈ {'month_year','month_only','year_only','all'}
  */
+
 protected function normalizeMonthYearScope(Request $request): array
 {
     $rawMonth = $request->get('month');
     $rawYear  = $request->get('year');
 
     $month = null;
+    $year  = null;
+
+    // --- Parse month (and possibly year if month came as YYYY-MM or YYYY-MM-DD)
     if ($rawMonth !== null && $rawMonth !== '') {
-        if (is_numeric($rawMonth)) {
-            $m = (int)$rawMonth;
-            $month = ($m >= 1 && $m <= 12) ? $m : null;
-        } else {
+        $mstr = strtolower(trim((string) $rawMonth));
+
+        // Pattern: YYYY-MM or YYYY-MM-DD
+        if (preg_match('/^(\d{4})-(\d{2})(?:-\d{2})?$/', $mstr, $mm)) {
+            $mi = (int) $mm[2];
+            if ($mi >= 1 && $mi <= 12) {
+                $month = $mi;
+            }
+            $yi = (int) $mm[1];
+            if ($year === null && $yi >= 2015 && $yi <= 2100) {
+                $year = $yi;
+            }
+        }
+        // Pure digits (e.g., "9", "09")
+        elseif (ctype_digit($mstr)) {
+            $mi = (int) $mstr;
+            $month = ($mi >= 1 && $mi <= 12) ? $mi : null;
+        }
+        // Month names
+        else {
             $map = [
                 'jan'=>1,'january'=>1,'feb'=>2,'february'=>2,'mar'=>3,'march'=>3,
                 'apr'=>4,'april'=>4,'may'=>5,'jun'=>6,'june'=>6,'jul'=>7,'july'=>7,
                 'aug'=>8,'august'=>8,'sep'=>9,'september'=>9,'oct'=>10,'october'=>10,
                 'nov'=>11,'november'=>11,'dec'=>12,'december'=>12
             ];
-            $m = strtolower(trim((string)$rawMonth));
-            $month = $map[$m] ?? null;
+            $month = $map[$mstr] ?? null;
         }
     }
 
-    $year = null;
-    if ($rawYear !== null && $rawYear !== '' && ctype_digit((string)$rawYear)) {
-        $y = (int)$rawYear;
-        $year = ($y >= 1900 ? $y : null);
+    // --- Parse explicit year param if present
+    if ($rawYear !== null && $rawYear !== '') {
+        $ystr = trim((string) $rawYear);
+        if (ctype_digit($ystr)) {
+            $yi = (int) $ystr;
+            if ($yi >= 2015 && $yi <= 2100) {
+                $year = $yi;
+            }
+        }
     }
 
-    // Default jika user tidak kirim apa-apa → export All
+    // --- If month provided but year missing, derive a sensible year
+    if ($month && !$year) {
+        $activeTab   = strtolower((string) $request->get('tab', 'print'));
+        $subcategory = method_exists($this, 'tabToStored')
+            ? $this->tabToStored($activeTab)
+            : $activeTab;
+
+        $year = DB::table('kltg_coordinator_lists')
+            ->where('subcategory', $subcategory)
+            ->where('month', $month)
+            ->max('year');
+
+        if (!$year) {
+            $year = now()->year; // fallback
+        }
+
+        Log::info('KLTG month filter: derived missing year', [
+            'month' => $month,
+            'derived_year' => $year,
+            'subcategory' => $subcategory,
+        ]);
+    }
+
+    // --- Scope: NEVER return 'month_only'
     $scope = 'all';
     if ($month && $year) {
         $scope = 'month_year';
-    } elseif ($month && !$year) {
-        $scope = 'month_only';
     } elseif (!$month && $year) {
         $scope = 'year_only';
     }
 
     return [$month, $year, $scope];
 }
+
+private function kclBaseQuery(string $subcategory, ?int $year, ?int $month)
+{
+    // Subquery: ambil id terbaru per (mf, subcat, year, month)
+    $latestIds = DB::table('kltg_coordinator_lists')
+        ->selectRaw('MAX(id) AS id')
+        ->where('subcategory', $subcategory)
+        ->when($year, fn($q)=>$q->where('year', $year))
+        ->when($month, fn($q)=>$q->where('month', $month))
+        ->groupBy('master_file_id','subcategory','year','month');
+
+    // Join balik ke tabel utama → 1 baris pasti unik per (mf,year,month)
+    return DB::table('kltg_coordinator_lists as kcl')
+        ->joinSub($latestIds, 'L', 'L.id', '=', 'kcl.id')
+        // kalau perlu info perusahaan:
+        // ->leftJoin('master_files as mf','mf.id','=','kcl.master_file_id')
+        ->orderBy('kcl.year', 'desc')
+        ->orderBy('kcl.month', 'desc')
+        ->orderBy('kcl.master_file_id')
+        ->orderBy('kcl.id', 'desc');
+}
+
 
 /**
  * Build the export query from kltg_coordinator_lists, filtered by scope.

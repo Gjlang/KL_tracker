@@ -292,3 +292,10 @@ Route::prefix('information-booth')
     Route::put('/{feed}',       [InformationBoothController::class, 'update'])->name('update');
     Route::delete('/{feed}',    [InformationBoothController::class, 'destroy'])->name('destroy');
 });
+
+
+Route::post('/clientele/inline-update', [ClienteleController::class, 'inlineUpdate'])
+    ->name('clientele.inline.update');
+
+Route::post('/clientele/bulk-inline-update', [ClienteleController::class, 'bulkInlineUpdate'])
+    ->name('clientele.bulk.inline.update');

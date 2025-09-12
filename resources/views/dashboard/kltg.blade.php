@@ -1,10 +1,12 @@
 <x-app-layout>
+
   @push('head')
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
   @endpush
 
   <!-- Page Container -->
+
   <div class="min-h-screen bg-[#F7F7F9]">
 
     <!-- Sticky Top Bar -->
@@ -115,16 +117,16 @@
       <!-- Sticky Header (atas saja) -->
       <thead class="sticky top-0 z-20 bg-white">
         <tr class="bg-neutral-50/80">
-          <th class="hairline px-4 py-3 text-left header-label whitespace-nowrap">No</th>
-          <th class="hairline px-4 py-3 text-left header-label whitespace-nowrap">Month</th>
-          <th class="hairline px-4 py-3 text-left header-label whitespace-nowrap">Created At</th>
-          <th class="hairline px-4 py-3 text-left header-label whitespace-nowrap">Company</th>
-          <th class="hairline px-4 py-3 text-left header-label whitespace-nowrap">Product</th>
-          <th class="hairline px-4 py-3 text-left header-label whitespace-nowrap">Publication</th>
-          <th class="hairline px-4 py-3 text-left header-label whitespace-nowrap">Edition</th>
-          <th class="hairline px-4 py-3 text-left header-label whitespace-nowrap">Status</th>
-          <th class="hairline px-4 py-3 text-left header-label whitespace-nowrap">Start</th>
-          <th class="hairline px-4 py-3 text-left header-label whitespace-nowrap">End</th>
+          <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">No</th>
+            <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">Month</th>
+            <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">Created At</th>
+            <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">Company</th>
+            <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">Product</th>
+            <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">Publication</th>
+            <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">Edition</th>
+            <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">Status</th>
+            <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">Start</th>
+            <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">End</th>
 
           @for ($m=1; $m<=12; $m++)
             <th class="px-4 py-3 text-center hairline bg-neutral-50/60 header-label min-w-[900px]">
@@ -213,12 +215,7 @@
 
                 <td class="px-2 py-2 align-top hairline month-cell" data-month="{{ $m }}">
                   <div class="min-w-[900px] border border-neutral-200 rounded-xl bg-white shadow-sm">
-                    <!-- Month Header -->
-                    <div class="text-center py-2 border-b border-neutral-200 bg-neutral-50/50">
-                      <h4 class="font-serif font-medium text-sm ink">
-                        {{ \Carbon\Carbon::create()->startOfYear()->month($m)->format('F') }}
-                      </h4>
-                    </div>
+
 
                     <div class="flex h-full">
                       @foreach($cats as $index => $c)
