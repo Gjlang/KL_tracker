@@ -24,7 +24,7 @@
     {{-- Header Bar --}}
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 px-6">
       <div>
-        <h1 class="text-3xl font-serif text-[#1C1E26] tracking-tight">Information Booth</h1>
+        <h1 class="text-3xl font-serif text-[#1C1E26] tracking-tight">Information Hub</h1>
       </div>
       <div class="flex flex-wrap items-center gap-3">
         <a href="{{ route('information.booth.create') }}"
@@ -55,9 +55,29 @@
 
       {{-- Table Section (flat, no borders) --}}
       <section class="bg-white">
-        <div class="px-6 py-4">
-          <h2 class="text-lg font-serif text-[#1C1E26] tracking-tight">Client Records</h2>
-          <p class="text-xs text-neutral-500 mt-1 uppercase tracking-wider">Active Entries & Status Overview</p>
+        <div class="px-6 pt-6">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h2 class="text-lg font-serif text-[#1C1E26] tracking-tight">Client Records</h2>
+              <p class="text-xs text-neutral-500 mt-1 uppercase tracking-wider">Active Entries & Status Overview</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button id="ib-completed-main"
+                      type="button"
+                      class="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 active:scale-[.99]">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="currentColor">
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                </svg>
+                completed
+              </button>
+              <button id="ib-open-all"
+                      type="button"
+                      class="inline-flex items-center gap-1 rounded-lg border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 active:scale-[.99]">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="currentColor"><path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z"/></svg>
+                See all
+              </button>
+            </div>
+          </div>
         </div>
         <div>
           @include('information_booth._table', ['feeds' => $feeds])
@@ -90,10 +110,98 @@
 
     </div>
 
+    {{-- All Records Modal --}}
+    <div id="ib-modal"
+         class="fixed inset-0 z-[70] hidden"
+         aria-hidden="true">
+      <!-- Backdrop -->
+      <div id="ib-backdrop" class="absolute inset-0 bg-black/40"></div>
+
+      <!-- Panel -->
+      <div class="absolute inset-x-0 top-10 mx-auto w-[min(1100px,92vw)] rounded-2xl bg-white shadow-2xl border border-neutral-200/70">
+        <div class="flex items-center justify-between gap-3 px-5 py-4 border-b hairline">
+          <div>
+            <h3 class="text-base font-serif font-semibold text-[#1C1E26]">All Records — Quick Find</h3>
+            <p class="text-xs text-neutral-500 mt-0.5 uppercase tracking-wider">Type to filter by Company, Client, Product, Location, Status</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <input id="ib-search" type="text" placeholder="Search all…"
+                   class="w-72 rounded-xl border-neutral-300 focus:border-[#4bbbed] focus:ring-[#4bbbed] text-sm">
+            <span id="ib-count" class="text-xs text-neutral-500">0 matches</span>
+            <button id="ib-completed-modal" type="button"
+                    class="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-xs text-emerald-700 hover:bg-emerald-100 active:scale-[.99]">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-3 h-3" fill="currentColor">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+              </svg>
+              Completed only
+            </button>
+            <button id="ib-close" type="button"
+                    class="inline-flex items-center rounded-lg px-2 py-1.5 text-xs text-neutral-600 hover:bg-neutral-100">
+              Close ✕
+            </button>
+          </div>
+        </div>
+
+        <div class="max-h-[68vh] overflow-auto">
+          <table id="ib-all-table" class="w-full text-sm border-collapse">
+            <thead class="bg-neutral-50/60 sticky top-0 z-10">
+              <tr class="border-b hairline border-neutral-200">
+                <th class="px-3 py-3 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider w-[10%]">Date</th>
+                <th class="px-3 py-3 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider w-[14%]">Company</th>
+                <th class="px-3 py-3 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider w-[14%]">Client</th>
+                <th class="px-3 py-3 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider w-[18%]">Product</th>
+                <th class="px-3 py-3 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider w-[14%]">Location</th>
+                <th class="px-3 py-3 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider w-[12%]">Status</th>
+                <th class="px-3 py-3 text-right text-xs font-medium text-neutral-600 uppercase tracking-wider w-[8%]">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @php
+                $statusMap = [
+                  'pending'     => 'bg-amber-100 text-amber-800 border-amber-200',
+                  'in-progress' => 'bg-[#4bbbed]/10 text-[#22255b] border-[#4bbbed]/20',
+                  'completed'        => 'bg-emerald-100 text-emerald-800 border-emerald-200',
+                  'cancelled'   => 'bg-red-100 text-[#d33831] border-red-200',
+                ];
+              @endphp
+              @foreach($feeds as $r)
+                @php
+                  $hay = strtolower(implode(' ', array_filter([
+                    optional($r->date)->format('Y-m-d'),
+                    $r->company, $r->client, $r->product, $r->location, $r->status, $r->servicing
+                  ])));
+                @endphp
+                <tr data-haystack="{{ $hay }}" data-status="{{ $r->status }}" class="border-b hairline border-neutral-200 hover:bg-neutral-50">
+                  <td class="px-3 py-3 tabular-nums">{{ optional($r->date)->format('d/m/Y') ?? '—' }}</td>
+                  <td class="px-3 py-3"><div class="truncate" title="{{ $r->company ?? '—' }}">{{ $r->company ?? '—' }}</div></td>
+                  <td class="px-3 py-3"><div class="truncate" title="{{ $r->client ?? '—' }}">{{ $r->client ?? '—' }}</div></td>
+                  <td class="px-3 py-3"><div class="truncate" title="{{ $r->product ?? '—' }}">{{ $r->product ?? '—' }}</div></td>
+                  <td class="px-3 py-3"><div class="truncate" title="{{ $r->location ?? '—' }}">{{ $r->location ?? '—' }}</div></td>
+                  <td class="px-3 py-3">
+                    @php $statusClass = $statusMap[$r->status] ?? 'bg-neutral-100 text-neutral-700 border-neutral-200'; @endphp
+                    <span class="inline-flex items-center rounded-full border px-2 py-1 text-xs font-medium {{ $statusClass }}">
+                      {{ ucfirst(str_replace('-', ' ', $r->status ?? '—')) }}
+                    </span>
+                  </td>
+                  <td class="px-3 py-3 text-right">
+                    <a href="{{ route('information.booth.edit', $r->id) }}" class="text-[#4bbbed] hover:text-[#22255b] text-xs font-medium">Edit</a>
+                  </td>
+                </tr>
+              @endforeach
+              @if(!count($feeds))
+                <tr><td colspan="7" class="px-6 py-10 text-center text-neutral-500">No records</td></tr>
+              @endif
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {{-- /All Records Modal --}}
+
   </div>
 </div>
 
-@push('scripts')
+@push('head')
 <style>
   /* Full-bleed: no horizontal scroll */
   html, body { overflow-x: hidden; }
@@ -123,5 +231,121 @@
     background: transparent;
   }
 </style>
+@endpush
+
+@push('scripts')
+<script>
+(function() {
+  // Modal elements
+  const openBtn = document.getElementById('ib-open-all');
+  const modal   = document.getElementById('ib-modal');
+  const backdrop= document.getElementById('ib-backdrop');
+  const closeBtn= document.getElementById('ib-close');
+  const input   = document.getElementById('ib-search');
+  const tbody   = document.querySelector('#ib-all-table tbody');
+  const rows    = tbody ? Array.from(tbody.querySelectorAll('tr[data-haystack]')) : [];
+  const countEl = document.getElementById('ib-count');
+
+  // Filter buttons
+  const completedMainBtn = document.getElementById('ib-completed-main');
+  const completedModalBtn = document.getElementById('ib-completed-modal');
+
+  // Filter state
+  let mainCompletedMode = false;
+  let modalCompletedMode = false;
+
+  // Modal functions
+  function openModal() {
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    setTimeout(() => { input && input.focus(); }, 50);
+    // Reset modal filters when opening
+    modalCompletedMode = false;
+    updateCompletedButtonState(completedModalBtn, modalCompletedMode);
+    input && (input.value = '');
+    filterModalRows('', modalCompletedMode);
+    document.dispatchEvent(new CustomEvent('ib:pause-rotator', { detail: true }));
+  }
+
+  function closeModal() {
+    if (!modal) return;
+    modal.classList.add('hidden');
+    input && (input.value = '');
+    filterModalRows('', false);
+    document.dispatchEvent(new CustomEvent('ib:pause-rotator', { detail: false }));
+  }
+
+  function filterModalRows(q, completedOnly = false) {
+    let shown = 0;
+    const v = (q || '').trim().toLowerCase();
+    rows.forEach(tr => {
+      const hay = tr.getAttribute('data-haystack') || '';
+      const status = tr.getAttribute('data-status') || '';
+      const matchesSearch = !v || hay.includes(v);
+      const matchesStatus = !completedOnly || status === 'completed';
+      const ok = matchesSearch && matchesStatus;
+      tr.style.display = ok ? '' : 'none';
+      if (ok) shown++;
+    });
+    if (countEl) countEl.textContent = shown + ' matches';
+  }
+
+  function updateCompletedButtonState(btn, isActive) {
+    if (!btn) return;
+    if (isActive) {
+      btn.classList.add('bg-emerald-100', 'border-emerald-300');
+      btn.classList.remove('bg-emerald-50', 'border-emerald-200');
+    } else {
+      btn.classList.add('bg-emerald-50', 'border-emerald-200');
+      btn.classList.remove('bg-emerald-100', 'border-emerald-300');
+    }
+  }
+
+  function filterMainTable(completedOnly = false) {
+    // This function would work with your main table
+    // You'll need to add data-status attributes to your main table rows too
+    const mainTableRows = document.querySelectorAll('.main-table tr[data-status]'); // Adjust selector
+    mainTableRows.forEach(tr => {
+      const status = tr.getAttribute('data-status') || '';
+      const ok = !completedOnly || status === 'completed';
+      tr.style.display = ok ? '' : 'none';
+    });
+  }
+
+  // Event listeners
+  openBtn && openBtn.addEventListener('click', openModal);
+  closeBtn && closeBtn.addEventListener('click', closeModal);
+  backdrop && backdrop.addEventListener('click', closeModal);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+  input && input.addEventListener('input', (e) => filterModalRows(e.target.value, modalCompletedMode));
+
+  // Main table Completed filter
+  if (completedMainBtn) {
+    completedMainBtn.addEventListener('click', () => {
+      mainCompletedMode = !mainCompletedMode;
+      updateCompletedButtonState(completedMainBtn, mainCompletedMode);
+      filterMainTable(mainCompletedMode);
+
+      // Broadcast event for main table component
+      document.dispatchEvent(new CustomEvent('ib:main-filter', {
+        detail: { completedOnly: mainCompletedMode }
+      }));
+    });
+  }
+
+  // Modal Completed filter
+  if (completedModalBtn) {
+    completedModalBtn.addEventListener('click', () => {
+      modalCompletedMode = !modalCompletedMode;
+      updateCompletedButtonState(completedModalBtn, modalCompletedMode);
+      filterModalRows(input ? input.value : '', modalCompletedMode);
+    });
+  }
+
+  // Initialize
+  filterModalRows('', modalCompletedMode);
+})();
+</script>
 @endpush
 @endsection

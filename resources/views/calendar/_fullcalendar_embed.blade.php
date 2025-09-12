@@ -1,117 +1,146 @@
-@push('styles')
-  {{-- FullCalendar v5 (global build) --}}
-  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
+{{-- resources/views/calendar/_fullcalendar_embed.blade.php --}}
+<div id="ib-calendar" class="w-full"></div>
+
+@push('head')
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
+<style>
+  .ib-badge { display:inline-flex; align-items:center; gap:.375rem; font-size:.65rem; font-weight:600; padding:.15rem .4rem; border-radius:.5rem; border:1px solid transparent; }
+  .ib-badge--delay { color:#b42318; background:#fee4e2; border-color:#fcd5ce; }
+  .ib-badge--done  { color:#05603a; background:#d1fadf; border-color:#a6f4c5; }
+
+  .fc-event.ib-evt--done    { background:#d1fadf !important; border-color:#a6f4c5 !important; color:#064e3b !important; }
+  .fc-event.ib-evt--overdue { background:#fee4e2 !important; border-color:#fcd5ce !important; color:#7a271a !important; }
+  .fc-event.ib-evt--normal  { background:#fef3c7 !important; border-color:#fde68a !important; color:#78350f !important; }
+
+  .fc .fc-toolbar-title { font-family:ui-serif, 'Times New Roman', serif; font-weight:600; letter-spacing:.2px; }
+  .fc .fc-button { border-radius:.6rem; }
+</style>
 @endpush
 
-<div id="ibCalendar"
-     data-events-url="{{ route('information.booth.calendar.events') }}"
-     data-status="{{ request('status') }}"
-     data-client="{{ request('client') }}"
-     class="rounded-xl border border-neutral-200 overflow-hidden bg-white">
-</div>
+@php
+  // ---- Bangun data aman untuk di-JSON-kan (tanpa collect()->map())
+  $__rows = [];
+  foreach (($feeds ?? []) as $r) {
+      $__rows[] = [
+          'id'              => $r->id ?? null,
+          'company'         => $r->company ?? null,
+          'product'         => $r->product ?? null,
+          'client'          => $r->client ?? null,
+          'location'        => $r->location ?? null,
+          'status'          => $r->status ?? null, // pending|in-progress|done|cancelled
+          'expected_finish' => optional($r->expected_finish)->format('Y-m-d'),
+      ];
+  }
+@endphp
 
 @push('scripts')
-  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      const el = document.getElementById('ibCalendar');
-      const eventsUrl = el.dataset.eventsUrl;
-      const qStatus   = el.dataset.status || '';
-      const qClient   = el.dataset.client || '';
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+<script>
+(function() {
+  // Data dari PHP → JS (pakai json_encode agar Blade gak bingung bracket [])
+  const rows = {!! json_encode($__rows, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) !!};
 
-      const calendar = new FullCalendar.Calendar(el, {
-        height: 'auto',
-        timeZone: 'Asia/Kuala_Lumpur',
-        initialView: 'dayGridMonth',
-        nowIndicator: true,
-        navLinks: true,
+  const today = new Date(); today.setHours(0,0,0,0);
 
-        headerToolbar: {
-          left:   'prev,next today',
-          center: 'title',
-          right:  'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
-        },
+  function isOverdue(row) {
+    if (!row.expected_finish) return false;
+    const d = new Date(row.expected_finish + 'T00:00:00');
+    return (d < today) && (row.status !== 'done' && row.status !== 'cancelled');
+  }
 
-        // Fetch your events with current filters
-        events: function(fetchInfo, success, failure) {
-          const params = new URLSearchParams({
-            start: fetchInfo.startStr,
-            end:   fetchInfo.endStr,
-          });
-          if (qStatus) params.set('status', qStatus);
-          if (qClient) params.set('client', qClient);
+  function eventClass(row) {
+    if (row.status === 'done') return 'ib-evt--done';
+    if (isOverdue(row)) return 'ib-evt--overdue';
+    return 'ib-evt--normal';
+  }
 
-          fetch(`${eventsUrl}?${params.toString()}`, {
-            headers: { 'X-Requested-With': 'XMLHttpRequest' },
-          })
-          .then(r => r.json())
-          .then(data => success(data))
-          .catch(err => failure(err));
-        },
+  const events = rows
+    .filter(r => !!r.expected_finish)
+    .map(r => ({
+      id: String(r.id),
+      title: `${r.company ?? ''} — ${r.product ?? ''}`,
+      start: r.expected_finish,
+      allDay: true,
+      extendedProps: {
+        status: r.status,
+        overdue: isOverdue(r),
+        subtitle: [r.client, r.location].filter(Boolean).join(' • ')
+      },
+      classNames: [eventClass(r)]
+    }));
 
-        // UX like Google Calendar
-        selectable: true,
-        selectMirror: true,
-        selectAllow: (info) => true,
+  const calendarEl = document.getElementById('ib-calendar');
+  if (!calendarEl) return;
 
-        // Click empty slot → go to create with date prefilled
-        select: function(info) {
-          const d = info.startStr; // YYYY-MM-DD (all-day)
-          window.location.href = "{{ route('information.booth.create') }}" + `?date=${d}`;
-        },
+  const calendar = new FullCalendar.Calendar(calendarEl, {
+    initialView: 'dayGridMonth',
+    height: 'auto',
+    headerToolbar: {
+      left: 'prev,next today',
+      center: 'title',
+      right: 'dayGridMonth,timeGridWeek,timeGridDay,listMonth'
+    },
+    navLinks: true,
+    weekNumbers: false,
+    firstDay: 0,
+    events,
 
-        // Click event → go to your existing edit page (provided in 'url')
-        eventClick: function(info) {
-          if (info.event.url) {
-            info.jsEvent.preventDefault();
-            window.location.href = info.event.url;
-          }
-        },
+    eventContent(arg) {
+      const { status, overdue, subtitle } = arg.event.extendedProps;
+      const root = document.createElement('div');
+      root.style.display = 'grid';
+      root.style.gap = '2px';
 
-        // Drag/drop & resize → PATCH to update
-        editable: true,
-        eventDrop: handleMove,
-        eventResize: handleMove,
+      const ttl = document.createElement('div');
+      ttl.textContent = arg.event.title;
+      ttl.style.fontSize = '.8rem';
+      ttl.style.fontWeight = 600;
+      ttl.style.whiteSpace = 'nowrap';
+      ttl.style.overflow = 'hidden';
+      ttl.style.textOverflow = 'ellipsis';
 
-        // Visual polish
-        dayMaxEvents: true,
-        eventDisplay: 'block',
-      });
+      const sub = document.createElement('div');
+      sub.textContent = subtitle || '';
+      sub.style.fontSize = '.7rem';
+      sub.style.opacity = .9;
+      sub.style.whiteSpace = 'nowrap';
+      sub.style.overflow = 'hidden';
+      sub.style.textOverflow = 'ellipsis';
 
-      calendar.render();
+      const row = document.createElement('div');
+      row.style.display = 'flex';
+      row.style.gap = '6px';
+      row.style.alignItems = 'center';
 
-      // Allow filters (if you have a form) to refresh events
-      const filtersForm = document.querySelector('#filtersForm');
-      if (filtersForm) {
-        filtersForm.addEventListener('change', () => calendar.refetchEvents());
-        filtersForm.addEventListener('submit', (e) => {
-          e.preventDefault();
-          calendar.refetchEvents();
-        });
+      if (overdue) {
+        const b = document.createElement('span');
+        b.className = 'ib-badge ib-badge--delay';
+        b.textContent = 'DELAY';
+        row.appendChild(b);
+      } else if (status === 'done') {
+        const b = document.createElement('span');
+        b.className = 'ib-badge ib-badge--done';
+        b.textContent = 'Done';
+        row.appendChild(b);
       }
 
-      function handleMove(info) {
-        const id    = info.event.id;
-        const start = info.event.startStr;
-        const end   = info.event.endStr; // exclusive
+      root.appendChild(ttl);
+      if (subtitle) root.appendChild(sub);
+      root.appendChild(row);
 
-        fetch("{{ route('information.booth.calendar.move', ':id') }}".replace(':id', id), {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-          },
-          body: JSON.stringify({ start, end })
-        })
-        .then(r => {
-          if (!r.ok) throw new Error('Failed to update');
-          return r.json();
-        })
-        .catch(err => {
-          console.error(err);
-          info.revert(); // roll back if server fails
-        });
-      }
-    });
-  </script>
+      return { domNodes: [root] };
+    },
+
+    eventDidMount(info) {
+      const { status, overdue } = info.event.extendedProps;
+      const ef = info.event.start;
+      const efStr = ef ? ef.toLocaleDateString() : '-';
+      const note = overdue ? ' (DELAY)' : (status==='done' ? ' (Done)' : '');
+      info.el.title = `${info.event.title}\nExpected Finish: ${efStr}\nStatus: ${status}${note}`;
+    }
+  });
+
+  calendar.render();
+})();
+</script>
 @endpush

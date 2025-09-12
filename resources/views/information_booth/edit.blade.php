@@ -172,7 +172,7 @@
                 <select name="status" class="input w-full pr-10 @error('status') border-red-300 focus:ring-red-500 @enderror">
                   <option value="pending"     @selected($current==='pending')>Pending</option>
                   <option value="in-progress" @selected($current==='in-progress')>In Progress</option>
-                  <option value="done"        @selected($current==='done')>Done</option>
+                  <option value="completed"        @selected($current==='completed')>Completed</option>
                   <option value="cancelled"   @selected($current==='cancelled')>Cancelled</option>
                 </select>
                 <svg class="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neutral-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">

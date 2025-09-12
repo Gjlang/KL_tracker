@@ -67,7 +67,7 @@
             <select name="status" class="w-full rounded-xl border-neutral-300">
               <option value="pending">Pending</option>
               <option value="in-progress">In Progress</option>
-              <option value="done">Done</option>
+              <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
             </select>
           </div>
@@ -83,6 +83,7 @@
           <button type="submit"
                   class="rounded-xl bg-neutral-900 text-white px-4 py-2 text-sm hover:bg-neutral-800">
             Save Entry
+
           </button>
         </div>
       </form>

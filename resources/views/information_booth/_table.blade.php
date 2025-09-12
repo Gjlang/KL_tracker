@@ -59,7 +59,7 @@
               $statusMap = [
                 'pending'     => 'bg-amber-100 text-amber-800 border-amber-200',
                 'in-progress' => 'bg-[#4bbbed]/10 text-[#22255b] border-[#4bbbed]/20',
-                'done'        => 'bg-emerald-100 text-emerald-800 border-emerald-200',
+                'Completed'        => 'bg-emerald-100 text-emerald-800 border-emerald-200',
                 'cancelled'   => 'bg-red-100 text-[#d33831] border-red-200',
               ];
               $statusClass = $statusMap[$r->status] ?? 'bg-neutral-100 text-neutral-700 border-neutral-200';
@@ -142,7 +142,7 @@
             $statusMap = [
               'pending'     => 'bg-amber-100 text-amber-800 border-amber-200',
               'in-progress' => 'bg-[#4bbbed]/10 text-[#22255b] border-[#4bbbed]/20',
-              'done'        => 'bg-emerald-100 text-emerald-800 border-emerald-200',
+              'completed'        => 'bg-emerald-100 text-emerald-800 border-emerald-200',
               'cancelled'   => 'bg-red-100 text-[#d33831] border-red-200',
             ];
             $statusClass = $statusMap[$r->status] ?? 'bg-neutral-100 text-neutral-700 border-neutral-200';
