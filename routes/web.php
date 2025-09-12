@@ -136,23 +136,6 @@ Route::get('/serials/preview', [MasterFileController::class, 'previewSerials'])-
 Route::delete('/masterfile/{id}', [MasterFileController::class, 'destroy'])->name('masterfile.destroy');
 
 
-// ===============================================
-// INFORMATION BOOTH ROUTES
-// ===============================================
-Route::middleware(['auth'])->group(function () {
-    Route::get('/information-booth', [InformationBoothController::class, 'index'])
-        ->name('information.booth');
-
-    Route::post('/information-booth/feeds', [InformationBoothController::class, 'store'])
-        ->name('information.booth.feeds.store');
-
-    Route::patch('/information-booth/feeds/{feed}', [InformationBoothController::class, 'update'])
-        ->name('information.booth.feeds.update');
-
-    Route::delete('/information-booth/feeds/{feed}', [InformationBoothController::class, 'destroy'])
-        ->name('information.booth.feeds.destroy');
-});
-
 
 // ===============================================
 // COORDINATOR ROUTES
@@ -289,8 +272,23 @@ Route::get('/monthly', function () {
     return view('jobs.monthly', compact('jobs'));
 })->name('jobs.monthly');
 
-Route::post('/clientele/inline-update', [ClienteleController::class, 'inlineUpdate'])
-    ->name('clientele.inline.update');
+Route::prefix('information-booth')
+    ->name('information.booth.')
+    ->middleware('auth')
+    ->group(function () {
 
-Route::post('/clientele/bulk-inline-update', [ClienteleController::class, 'bulkInlineUpdate'])
-    ->name('clientele.bulk.inline.update');
+    // Main pages
+    Route::get('/',        [InformationBoothController::class, 'index'])->name('index');
+    Route::get('/create',  [InformationBoothController::class, 'create'])->name('create');
+    Route::post('/store',  [InformationBoothController::class, 'store'])->name('store');
+
+    // Calendar + Events (put BEFORE param routes)
+    Route::get('/calendar',                 [InformationBoothController::class, 'calendar'])->name('calendar');
+    Route::get('/calendar/events',          [InformationBoothController::class, 'events'])->name('calendar.events');
+    Route::patch('/calendar/move/{feed}',   [InformationBoothController::class, 'move'])->name('calendar.move');
+
+    // Edit/Update/Delete (AFTER calendar routes to avoid conflicts)
+    Route::get('/{feed}/edit', [InformationBoothController::class, 'edit'])->name('edit');
+    Route::put('/{feed}',       [InformationBoothController::class, 'update'])->name('update');
+    Route::delete('/{feed}',    [InformationBoothController::class, 'destroy'])->name('destroy');
+});

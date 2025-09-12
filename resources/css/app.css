@@ -313,3 +313,446 @@ button:focus {
         border-width: 2px;
     }
 }
+
+/* ============================================
+   Information Booth - Classic Elegant Styles
+   ============================================ */
+
+/* Typography & Brand Colors */
+.ink {
+    color: #1c1e26;
+}
+
+/* Button Styles */
+.btn-primary {
+    @apply bg-[#22255b] text-white hover:opacity-90 rounded-full px-4 py-2 font-medium transition-opacity duration-150;
+}
+
+.btn-secondary {
+    @apply border border-neutral-300 text-neutral-700 hover:bg-neutral-50 rounded-full px-4 py-2 font-medium transition-colors duration-150;
+}
+
+.btn-ghost {
+    @apply text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 rounded-full px-3 py-2 font-medium transition-colors duration-150;
+}
+
+/* Card & Layout Styles */
+.card {
+    @apply bg-white rounded-2xl border border-neutral-200/70 shadow-sm;
+}
+
+.hairline {
+    @apply border border-neutral-200;
+}
+
+/* Typography Utilities */
+.tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+}
+
+/* Enhanced Table Hover Effects */
+tbody tr {
+    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+tbody tr:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+/* Pagination Styling */
+.pagination-wrapper .pagination {
+    @apply flex items-center gap-1;
+}
+
+.pagination-wrapper .pagination .page-link {
+    @apply px-3 py-2 text-sm text-neutral-600 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50 transition-colors duration-150;
+}
+
+.pagination-wrapper .pagination .page-item.active .page-link {
+    @apply bg-[#22255b] text-white border-[#22255b];
+}
+
+.pagination-wrapper .pagination .page-item.disabled .page-link {
+    @apply text-neutral-400 bg-neutral-50 cursor-not-allowed;
+}
+
+/* Focus States for Accessibility */
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible,
+.btn-ghost:focus-visible {
+    @apply outline-2 outline-offset-2 outline-[#4bbbed];
+}
+
+/* Table Focus States */
+table a:focus-visible,
+table button:focus-visible {
+    @apply outline-2 outline-offset-1 outline-[#4bbbed] rounded;
+}
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 1023px) {
+    .btn-primary,
+    .btn-secondary,
+    .btn-ghost {
+        @apply text-xs px-3 py-2;
+    }
+
+    .card {
+        @apply rounded-xl;
+    }
+}
+
+/* Smooth Scrolling for Table */
+.overflow-x-auto {
+    scrollbar-width: thin;
+    scrollbar-color: #d1d5db #f9fafb;
+}
+
+.overflow-x-auto::-webkit-scrollbar {
+    height: 6px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-track {
+    background: #f9fafb;
+    border-radius: 3px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 3px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+/* Status Badge Improvements */
+.status-badge {
+    @apply inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium;
+    font-variant: small-caps;
+    letter-spacing: 0.025em;
+}
+
+/* Loading States */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Empty State Styling */
+.empty-state td {
+    @apply bg-neutral-50/30;
+}
+
+/* Tooltip Enhancement */
+[title] {
+    cursor: help;
+}
+
+/* Print Styles */
+@media print {
+    .btn-primary,
+    .btn-secondary,
+    .btn-ghost,
+    [onclick] {
+        display: none !important;
+    }
+
+    .card {
+        @apply shadow-none border-neutral-400;
+    }
+
+    tbody tr:hover {
+        transform: none;
+        box-shadow: none;
+    }
+}
+
+/* KLTG MONTHLY */
+
+/* Typography */
+.ink {
+    color: #1c1e26;
+}
+.font-serif {
+    font-family: "Playfair Display", serif;
+}
+.font-sans {
+    font-family: "Inter", sans-serif;
+}
+
+/* Hairline borders */
+.hairline {
+    border: 1px solid #eaeaea;
+}
+
+/* Header labels */
+.header-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #6b7280;
+    font-family: "Inter", sans-serif;
+}
+
+/* Tabular numbers */
+.tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+}
+
+/* Button System */
+.btn-primary {
+    @apply inline-flex items-center gap-2 px-4 py-2 text-sm font-medium;
+    @apply bg-[#22255b] text-white hover:opacity-90;
+    @apply focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:ring-offset-2;
+    @apply rounded-full transition-all duration-150;
+    @apply shadow-sm border-0;
+}
+
+.btn-secondary {
+    @apply inline-flex items-center gap-2 px-4 py-2 text-sm font-medium;
+    @apply border border-neutral-300 text-neutral-800 bg-white;
+    @apply hover:bg-neutral-50 hover:border-neutral-400;
+    @apply focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:ring-offset-2;
+    @apply rounded-full transition-all duration-150;
+}
+
+.btn-ghost {
+    @apply inline-flex items-center gap-2 px-3 py-2 text-sm font-medium;
+    @apply text-neutral-700 bg-transparent;
+    @apply hover:bg-neutral-50;
+    @apply focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:ring-offset-1;
+    @apply rounded-full transition-all duration-150;
+}
+
+/* Form inputs */
+.form-input {
+    @apply w-full px-3 py-2.5 text-sm bg-white border border-neutral-300;
+    @apply rounded-xl transition-all duration-150;
+    @apply focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent;
+    @apply placeholder-neutral-500;
+    height: 2.75rem; /* h-11 equivalent for consistent heights */
+}
+
+.form-input:disabled {
+    @apply bg-neutral-50 text-neutral-500 cursor-not-allowed;
+}
+
+/* Status badges */
+.badge-pending {
+    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium;
+    @apply bg-rose-50 text-rose-700 border border-rose-200;
+}
+
+.badge-ongoing {
+    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium;
+    @apply bg-amber-50 text-amber-700 border border-amber-200;
+}
+
+.badge-completed {
+    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium;
+    @apply bg-emerald-50 text-emerald-700 border border-emerald-200;
+}
+
+/* Filter chips */
+.chip {
+    @apply inline-flex items-center px-3 py-1 text-sm font-medium;
+    @apply bg-[#22255b] text-white rounded-full;
+    @apply transition-all duration-150;
+}
+
+.chip button {
+    @apply w-5 h-5 flex items-center justify-center;
+    @apply rounded-full hover:bg-white/20;
+    @apply transition-colors duration-150;
+    font-size: 14px;
+    line-height: 1;
+}
+
+/* Status select styling */
+.status-select {
+    @apply transition-colors duration-150;
+}
+
+.status-select:focus {
+    @apply ring-2 ring-[#4bbbed] border-transparent;
+}
+
+/* Table hover effects */
+.table-row:hover .sticky {
+    @apply shadow-sm;
+}
+
+/* Custom scrollbar for webkit browsers */
+.overflow-x-auto::-webkit-scrollbar {
+    height: 8px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-track {
+    background: #f7f7f9;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 4px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+/* Card styling */
+.card {
+    @apply bg-white rounded-2xl border border-neutral-200/70 shadow-sm;
+}
+
+/* Loading state */
+.loading {
+    @apply opacity-50 pointer-events-none;
+    position: relative;
+}
+
+.loading::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    border: 2px solid #22255b;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .btn-primary,
+    .btn-secondary,
+    .btn-ghost {
+        @apply w-full justify-center;
+    }
+
+    .form-input {
+        @apply text-base; /* Prevent zoom on iOS */
+    }
+
+    .sticky {
+        @apply shadow-sm; /* Always show shadow on mobile for better visibility */
+    }
+}
+
+/* Focus visible improvements */
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible,
+.btn-ghost:focus-visible,
+.form-input:focus-visible {
+    @apply ring-2 ring-[#4bbbed] ring-offset-2;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .hairline {
+        border-color: #000;
+    }
+
+    .badge-pending,
+    .badge-ongoing,
+    .badge-completed {
+        @apply border-2;
+    }
+}
+
+/* Add this to your resources/css/app.css */
+
+/* edit on information hub */
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap");
+
+/* Base utility classes */
+.font-serif {
+    font-family: "Playfair Display", serif;
+}
+
+.ink {
+    color: #1c1e26;
+}
+
+.card {
+    @apply bg-white rounded-2xl border border-neutral-200/70 shadow-sm;
+}
+
+.hairline {
+    @apply border border-neutral-200;
+}
+
+/* Button styles */
+.btn-primary {
+    @apply bg-[#22255b] text-white hover:opacity-90 focus:ring-2 focus:ring-[#4bbbed] focus:outline-none rounded-full px-6 py-2.5 text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-ghost {
+    @apply border border-neutral-300 text-neutral-700 hover:bg-neutral-50 focus:ring-2 focus:ring-[#4bbbed] focus:outline-none rounded-full px-6 py-2.5 text-sm font-medium transition-all duration-200;
+}
+
+/* Form elements */
+.label {
+    @apply uppercase text-[11px] tracking-[0.06em] text-neutral-600 font-medium;
+}
+
+.input {
+    @apply h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent transition-all duration-200 text-[#1C1E26] placeholder-neutral-400;
+}
+
+/* Select dropdown specific styling */
+select.input {
+    @apply appearance-none bg-white;
+}
+
+/* Textarea specific styling */
+textarea.input {
+    @apply h-auto py-3 leading-relaxed;
+}
+
+/* Focus states for better accessibility */
+.input:focus {
+    @apply shadow-lg shadow-[#4bbbed]/10;
+}
+
+/* Error states */
+.input.border-red-300:focus {
+    @apply ring-red-500 shadow-red-500/10;
+}
+
+/* Loading animation improvements */
+@keyframes pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 640px) {
+    .btn-primary,
+    .btn-ghost {
+        @apply w-full justify-center;
+    }
+}

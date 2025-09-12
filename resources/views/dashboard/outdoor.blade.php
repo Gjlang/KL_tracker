@@ -40,37 +40,78 @@
     }
 @endphp
 
-
-{{-- at the top of the file, make sure you have CSRF meta if your layout doesn't --}}
 @push('head')
 <meta name="csrf-token" content="{{ csrf_token() }}">
+<style>
+/* Style Tokens */
+.ink { color: #1C1E26; }
+.card { @apply bg-white rounded-2xl border border-neutral-200/70 shadow-sm; }
+.hairline { border-color: #EAEAEA; }
+.btn-primary { @apply bg-[#22255b] text-white hover:opacity-90 focus:ring-2 focus:ring-[#4bbbed] rounded-full px-5 py-2 transition-all duration-150; }
+.btn-secondary { @apply border border-neutral-300 text-neutral-800 hover:bg-neutral-50 rounded-full px-5 py-2 transition-all duration-150; }
+.btn-ghost { @apply text-neutral-700 hover:bg-neutral-50 rounded-full px-4 py-2 transition-all duration-150; }
+.chip { @apply bg-neutral-100 text-neutral-700 px-3 py-1 rounded-full text-xs flex items-center gap-1; }
+.tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* Typography */
+.serif { font-family: 'Playfair Display', 'EB Garamond', serif; }
+.sans { font-family: 'Inter', 'Proxima Nova', sans-serif; }
+
+/* Table headers with small caps */
+.table-header {
+  @apply text-xs uppercase tracking-wider font-medium;
+  color: #6B7280;
+  letter-spacing: 0.05em;
+}
+
+/* Hover effects */
+.hover-lift:hover {
+  @apply shadow-sm;
+  transform: translateY(-1px);
+}
+
+/* Focus rings */
+.focus-ring:focus {
+  @apply ring-1 ring-[#4bbbed]/20 outline-none;
+}
+
+/* Monthly grid specific styles */
+.monthly-input {
+  @apply h-10 text-xs rounded border border-neutral-200 focus:ring-1 focus:ring-[#4bbbed]/20 focus:border-[#4bbbed] transition-all duration-150;
+}
+
+.monthly-input:hover {
+  @apply ring-1 ring-[#4bbbed]/20;
+}
+</style>
 @endpush
 
 <x-app-layout>
-  <div class="flex min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
+  <div class="min-h-screen bg-[#F7F7F9]">
     @include('partials.sidebar')
     <main class="flex-1 overflow-y-auto">
-      <div class="p-4 md:p-8 max-w-[100vw]">
-
-
-        <!-- Back to Dashboard -->
-                    <a href="{{ route('dashboard') }}"
-       class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm">
-      <span class="ml-2">Dashboard</span>
-    </a>
+      <div class="p-6 md:p-8 max-w-full">
 
         {{-- Header Section --}}
         <div class="mb-8">
           <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div>
-              <h1 class="text-3xl font-bold text-gray-900 mb-2">🏞️ Outdoor Monthly Ongoing Jobs</h1>
-              <p class="text-gray-600">Manage and track outdoor advertising campaigns across all locations</p>
+              <h1 class="serif text-4xl font-light ink mb-2">Outdoor Monthly Ongoing Jobs</h1>
+              <p class="sans text-neutral-600">Manage and track outdoor advertising campaigns</p>
+            </div>
+            <div>
+              <a href="{{ route('dashboard') }}" class="btn-ghost">
+                <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"/>
+                </svg>
+                Dashboard
+              </a>
             </div>
           </div>
 
           {{-- Flash Messages --}}
           @if(session('status'))
-            <div class="mb-6 p-4 rounded-xl bg-green-50 border border-green-200 text-green-800 shadow-sm">
+            <div class="mb-6 p-4 card bg-green-50 border-green-200 text-green-800">
               <div class="flex items-center">
                 <svg class="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
@@ -82,280 +123,247 @@
         </div>
 
         {{-- Filters Panel --}}
-        <div class="mb-8 p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200">
-          <form method="GET" action="{{ route('dashboard') }}">
-            <!-- Preserve existing filters -->
-           <input type="hidden" name="search" value="{{ request('search') }}">
-            <input type="hidden" name="status" value="{{ request('status') }}">
-            <input type="hidden" name="product_category" value="{{ request('product_category') }}">
-            {{-- Outdoor page is hard-locked to Outdoor --}}
-            <input type="hidden" id="category" name="category" value="Outdoor">
+        <div class="mb-6 card">
+          <div class="p-6">
+            <form method="GET" action="{{ route('dashboard') }}">
+              <!-- Preserve existing filters -->
+              <input type="hidden" name="search" value="{{ request('search') }}">
+              <input type="hidden" name="status" value="{{ request('status') }}">
+              <input type="hidden" name="product_category" value="{{ request('product_category') }}">
+              <input type="hidden" id="category" name="category" value="Outdoor">
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              <!-- Category Display (locked to Outdoor) -->
-              <div class="space-y-2">
-                <label class="block text-sm font-semibold text-gray-700">🏷️ Category</label>
-                <span class="inline-flex items-center px-3 py-2 text-sm font-semibold rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700">
-                  🏞️ Outdoor Only
-                </span>
-              </div>
-
-               <div class="space-y-2">
-                <label for="outdoor_year" class="block text-sm font-semibold text-gray-700">🗓️ Year</label>
-                <select id="outdoor_year" name="outdoor_year"
-                        class="w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-indigo-500">
-                  @php
-                    $currentYear = (int) (request('outdoor_year') ?? ($year ?? now()->year));
-                    // $years is provided by controller (distinct available years)
-                  @endphp
-                  @foreach(($years ?? [now()->year]) as $y)
-                    <option value="{{ $y }}" {{ (int)$y === $currentYear ? 'selected' : '' }}>
-                      {{ $y }}
-                    </option>
-                  @endforeach
-                </select>
-              </div>
-
-              <!-- Month Filter -->
-              <div class="space-y-2">
-                <label for="outdoor_month" class="block text-sm font-semibold text-gray-700">📅 Month</label>
-                @php
-                  $mSel = (int) (request('outdoor_month') ?? 0);
-                  $monthNames = [1=>'Jan',2=>'Feb',3=>'Mar',4=>'Apr',5=>'May',6=>'Jun',7=>'Jul',8=>'Aug',9=>'Sep',10=>'Oct',11=>'Nov',12=>'Dec'];
-                @endphp
-                <select id="outdoor_month" name="outdoor_month"
-                        class="w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-indigo-500">
-                  <option value="0">All months</option>
-                  @foreach($monthNames as $mi => $mn)
-                    <option value="{{ $mi }}" {{ $mSel === $mi ? 'selected' : '' }}>{{ $mn }}</option>
-                  @endforeach
-                </select>
-              </div>
-
-              <!-- Apply Button -->
-              <div class="flex items-end">
-                <button type="submit"
-                        class="px-4 py-2 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 shadow-sm">
-                  Apply
-                </button>
-              </div>
-            </div>
-
-            <!-- Active filters display -->
-            @if(request('outdoor_year') || request('outdoor_client') || request('outdoor_state') || request('outdoor_status'))
-              <div class="mt-6 p-4 bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl border border-emerald-100">
-                <div class="flex items-center justify-between text-sm">
-                  <div class="flex flex-wrap items-center gap-2">
-                    <span class="font-semibold text-emerald-800">Active filters:</span>
-                    <span class="inline-flex items-center px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-medium ring-1 ring-emerald-200">
-                      Category: Outdoor
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <!-- Category Display (locked to Outdoor) -->
+                <div class="space-y-2">
+                  <label class="sans table-header">Category</label>
+                  <div class="h-11 flex items-center">
+                    <span class="chip bg-[#22255b] text-white">
+                      OUTDOOR
                     </span>
-                    @if(request('outdoor_year'))
-                      <span class="inline-flex items-center px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-medium ring-1 ring-emerald-200">
-                        Year: {{ request('outdoor_year') }}
-                      </span>
-                    @endif
-                    @if(request('outdoor_client'))
-                      <span class="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium ring-1 ring-blue-200">
-                        Client: {{ request('outdoor_client') }}
-                      </span>
-                    @endif
-                    @if(request('outdoor_state'))
-                      <span class="inline-flex items-center px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium ring-1 ring-purple-200">
-                        State: {{ request('outdoor_state') }}
-                      </span>
-                    @endif
-                    @if(request('outdoor_status'))
-                      <span class="inline-flex items-center px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-medium ring-1 ring-orange-200">
-                        Status: {{ request('outdoor_status') }}
-                      </span>
-                    @endif
-                  </div>
-                  <div class="text-emerald-700 font-medium">
-                    {{ isset($rows) ? $rows->count() : 0 }} outdoor records found
                   </div>
                 </div>
+
+                <!-- Year Filter -->
+                <div class="space-y-2">
+                  <label for="outdoor_year" class="sans table-header">Year</label>
+                  <select id="outdoor_year" name="outdoor_year"
+                          class="w-full h-11 sans rounded border border-neutral-200 focus-ring px-3">
+                    @php
+                      $currentYear = (int) (request('outdoor_year') ?? ($year ?? now()->year));
+                    @endphp
+                    @foreach(($years ?? [now()->year]) as $y)
+                      <option value="{{ $y }}" {{ (int)$y === $currentYear ? 'selected' : '' }}>
+                        {{ $y }}
+                      </option>
+                    @endforeach
+                  </select>
+                </div>
+
+                <!-- Month Filter -->
+                <div class="space-y-2">
+                  <label for="outdoor_month" class="sans table-header">Month</label>
+                  @php
+                    $mSel = (int) (request('outdoor_month') ?? 0);
+                    $monthNames = [1=>'Jan',2=>'Feb',3=>'Mar',4=>'Apr',5=>'May',6=>'Jun',7=>'Jul',8=>'Aug',9=>'Sep',10=>'Oct',11=>'Nov',12=>'Dec'];
+                  @endphp
+                  <select id="outdoor_month" name="outdoor_month"
+                          class="w-full h-11 sans rounded border border-neutral-200 focus-ring px-3">
+                    <option value="0">All months</option>
+                    @foreach($monthNames as $mi => $mn)
+                      <option value="{{ $mi }}" {{ $mSel === $mi ? 'selected' : '' }}>{{ $mn }}</option>
+                    @endforeach
+                  </select>
+                </div>
+
+                <!-- Apply Button -->
+                <div class="flex items-end">
+                  <button type="submit" class="btn-primary h-11">
+                    Apply Filters
+                  </button>
+                </div>
               </div>
-            @endif
-          </form>
 
-          <!-- Quick Action Buttons -->
-            <div class="mt-6 pt-6 border-t border-gray-200">
-            <div class="bg-gray-50 p-6 rounded-xl shadow-sm flex flex-wrap gap-4">
+              <!-- Active filters display -->
+              @if(request('outdoor_year') || request('outdoor_month'))
+                <div class="mt-6 flex flex-wrap items-center gap-2">
+                  <span class="sans text-sm text-neutral-600">Active:</span>
+                  <div class="chip">
+                    CATEGORY: OUTDOOR
+                    <button type="button" class="ml-1 text-neutral-500 hover:text-neutral-700">×</button>
+                  </div>
+                  @if(request('outdoor_year'))
+                    <div class="chip">
+                      YEAR: {{ request('outdoor_year') }}
+                      <button type="button" class="ml-1 text-neutral-500 hover:text-neutral-700">×</button>
+                    </div>
+                  @endif
+                  @if(request('outdoor_month') && request('outdoor_month') != '0')
+                    <div class="chip">
+                      MONTH: {{ $monthNames[request('outdoor_month')] ?? '' }}
+                      <button type="button" class="ml-1 text-neutral-500 hover:text-neutral-700">×</button>
+                    </div>
+                  @endif
+                </div>
+              @endif
+            </form>
+          </div>
+        </div>
 
-                <!-- Outdoor Coordinator List -->
-                <a href="{{ route('coordinator.outdoor.index') }}"
-                class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-yellow-900 font-semibold rounded-xl shadow hover:from-yellow-600 hover:to-yellow-700 transition-all duration-200">
-                🏞️ Outdoor Coordinator List
-                </a>
+        {{-- Action Bar --}}
+        <div class="mb-6 card">
+          <div class="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <a href="{{ route('coordinator.outdoor.index') }}" class="btn-secondary">
+              Outdoor Coordinator List
+            </a>
+            <a href="{{ route('coordinator.outdoor.exportMatrix', ['year' => $year]) }}" class="btn-primary">
+              Export CSV
+            </a>
+          </div>
+        </div>
 
-                <!-- Export CSV -->
-                <a href="{{ route('coordinator.outdoor.exportMatrix', ['year' => $year]) }}"
-                class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-black font-semibold rounded-xl shadow hover:from-blue-600 hover:to-blue-700 transition-all duration-200">
-                📤 Export CSV
-                </a>
-
-            </div>
-            </div>
-        {{-- Main Data Table --}}
-        <div class="rounded-2xl bg-white shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200 overflow-hidden">
-          <div class="overflow-x-auto">
-            <table class="min-w-[3250px] w-full text-sm">
-              <thead class="sticky top-0 z-10 bg-gradient-to-r from-gray-50 to-gray-100">
-                <tr>
-                  <th class="px-4 py-4 text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200" style="min-width:110px;width:110px;">
-                    📅 Date Created
-                  </th>
-                  <th class="px-4 py-4 text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200" style="min-width:220px;width:220px;">
-                    🏢 Company
-                  </th>
-                  <th class="px-4 py-4 text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200" style="min-width:160px;width:160px;">
-                    📦 Product
-                  </th>
-                  <th class="px-4 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider border-b border-gray-200"
-                        style="min-width:220px;width:220px;">
-                    📍 Site(s)
+        {{-- Data Table --}}
+        <div class="card overflow-hidden">
+          @if(($rows ?? [])->count() > 0)
+            <div class="overflow-x-auto">
+              <table class="min-w-[3250px] w-full">
+                <thead class="bg-neutral-50 sticky top-0 z-10">
+                  <tr class="hairline border-b">
+                    <th class="px-4 py-4 text-left table-header" style="min-width:120px;">
+                      Date Created
                     </th>
-                  <th class="px-4 py-4 text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200" style="min-width:140px;width:140px;">
-                    🏷️ Category
-                  </th>
-                  <th class="px-4 py-4 text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200" style="min-width:120px;width:120px;">
-                    ▶️ Start
-                  </th>
-                  <th class="px-4 py-4 text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200" style="min-width:120px;width:120px;">
-                    ⏹️ End
-                  </th>
-                  @php
-                      $months = [1=>'January',2=>'February',3=>'March',4=>'April',5=>'May',6=>'June',
-                                 7=>'July',8=>'August',9=>'September',10=>'October',11=>'November',12=>'December'];
-                  @endphp
-                  @foreach($months as $mNum => $mName)
-                    <th class="px-3 py-4 text-xs font-bold text-gray-700 uppercase tracking-wider bg-gradient-to-b from-blue-50 to-blue-100 border-b border-gray-200" style="min-width:180px;width:180px;">
-                      {{ $mName }}
+                    <th class="px-4 py-4 text-left table-header" style="min-width:220px;">
+                      Company
                     </th>
-                  @endforeach
-                </tr>
-              </thead>
-              <tbody class="bg-white divide-y divide-gray-100">
-                {{-- rows already Outdoor-scoped in controller --}}
-                @forelse($rows ?? [] as $index => $row)
-                  @php
-                      $company = $row->company ?? $row->client;
-                      $start   = $row->start_date ?? $row->date ?? null;
-                      $end     = $row->date_finish ?? $row->end_date ?? null;
-
-                      // Format dates for display (d/m/Y)
-                      $startDisp = df($start);  // d/m/Y for table
-                      $endDisp   = df($end);    // d/m/Y for table
-
-                       $sites = [];
-                        if (!empty($row->sites)) {
-                            $sites = array_filter(
-                                array_map('trim', explode('|||', $row->sites)),
-                                fn($site) => $site !== ''
-                            );
-                        }
-                        $siteCount = count($sites);
-
-                      // Check if all monthly fields have values (using existing structure)
-                      $monthFields = ['check_jan','check_feb','check_mar','check_apr','check_may','check_jun',
-                                    'check_jul','check_aug','check_sep','check_oct','check_nov','check_dec'];
-                      $complete = $start && $end && collect($monthFields)->every(fn($field) => !empty($row->$field));
-                  @endphp
-                  <tr class="{{ $index % 2 === 0 ? 'bg-white' : 'bg-gray-50' }} hover:bg-blue-50/60 transition-colors duration-150">
-                    <td class="px-4 py-3 align-top border-b border-gray-100 text-gray-600 font-medium">
-                      {{ df($row->date) ?: df($row->created_at) }}
-                    </td>
-                    <td class="px-4 py-3 align-top border-b border-gray-100 font-semibold text-gray-900">
-                      {{ $company }}
-                    </td>
-                    <td class="px-4 py-3 align-top border-b border-gray-100 text-gray-700">
-                      {{ $row->product }}
-                    </td>
-                  <td class="px-4 py-3 align-top border-b border-gray-100">
-  {{ $row->site ?? '—' }}
-</td>
-
-                    <td class="px-4 py-3 align-top border-b border-gray-100">
-                      <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
-                        {{ $row->product_category ?? 'Outdoor' }}
-                      </span>
-                    </td>
-                    <td class="px-4 py-3 align-top border-b border-gray-100 text-gray-700 font-medium">
-                      {{ $startDisp }}
-                    </td>
-                    <td class="px-4 py-3 align-top border-b border-gray-100 text-red-600 font-medium">
-                      {{ $endDisp }}
-                    </td>
-
-                    {{-- Month cells (STATUS DROPDOWN + DATE) - Updated to use outdoor_item_id --}}
+                    <th class="px-4 py-4 text-left table-header" style="min-width:160px;">
+                      Product
+                    </th>
+                    <th class="px-4 py-4 text-left table-header" style="min-width:220px;">
+                      Site(s)
+                    </th>
+                    <th class="px-4 py-4 text-left table-header" style="min-width:140px;">
+                      Category
+                    </th>
+                    <th class="px-4 py-4 text-left table-header" style="min-width:120px;">
+                      Start Date
+                    </th>
+                    <th class="px-4 py-4 text-left table-header" style="min-width:120px;">
+                      End Date
+                    </th>
+                    @php
+                        $months = [1=>'January',2=>'February',3=>'March',4=>'April',5=>'May',6=>'June',
+                                   7=>'July',8=>'August',9=>'September',10=>'October',11=>'November',12=>'December'];
+                    @endphp
                     @foreach($months as $mNum => $mName)
-                      @php
-                        // 🔑 KEY CHANGE: Use outdoor_item_id instead of row->id for lookups
-                        $savedStatus = omd($existing, $row->outdoor_item_id, $mNum, 'status', 'text');
-                        $savedDate   = omd($existing, $row->outdoor_item_id, $mNum, 'installed_on', 'date');
-                      @endphp
-                      <td class="px-3 py-3 align-top border-b border-gray-100 bg-blue-50/30">
-                        <div class="space-y-2">
-                          <!-- Status dropdown - Updated with data-item attribute -->
-                          <select
-                            class="status-dropdown w-full text-xs font-semibold rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:outline-none bg-white hover:bg-gray-50 shadow-sm transition-all duration-200"
-                            data-master="{{ $row->id }}"
-                            data-item="{{ $row->outdoor_item_id }}"
-                            data-year="{{ $year }}"
-                            data-month="{{ $mNum }}"
-                            data-kind="text"
-                            name="status_{{ $row->id }}_{{ $year }}_{{ $mNum }}"
-                            onchange="saveOutdoorCell(this); setDropdownColor(this);">
-                              <option value=""></option>
-                              <option value="Installation" {{ $savedStatus==='Installation' ? 'selected' : '' }}>🔧 Installation</option>
-                              <option value="Dismantle"   {{ $savedStatus==='Dismantle'   ? 'selected' : '' }}>🔨 Dismantle</option>
-                              <option value="Artwork"     {{ $savedStatus==='Artwork'     ? 'selected' : '' }}>🎨 Artwork</option>
-                              <option value="Payment"     {{ $savedStatus==='Payment'     ? 'selected' : '' }}>💳 Payment</option>
-                              <option value="Ongoing"     {{ $savedStatus==='Ongoing'     ? 'selected' : '' }}>⚡ Ongoing</option>
-                              <option value="Renewal"     {{ $savedStatus==='Renewal'     ? 'selected' : '' }}>🔄 Renewal</option>
-                              <option value="Completed"   {{ $savedStatus==='Completed'   ? 'selected' : '' }}>✅ Completed</option>
-                              <option value="Material"    {{ $savedStatus==='Material'    ? 'selected' : '' }}>📦 Material</option>
-                          </select>
-
-                          <!-- Date input - Updated with data-item attribute -->
-                          <input
-                            type="date"
-                            value="{{ $savedDate }}"
-                            class="w-full text-xs rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:outline-none bg-white hover:bg-gray-50 shadow-sm transition-all duration-200"
-                            data-master="{{ $row->id }}"
-                            data-item="{{ $row->outdoor_item_id }}"
-                            data-year="{{ $year }}"
-                            data-month="{{ $mNum }}"
-                            data-kind="date"
-                            name="date_{{ $row->id }}_{{ $year }}_{{ $mNum }}"
-                            onblur="saveOutdoorCell(this)">
-
-                          <!-- Status indicators -->
-                          <div class="flex items-center justify-between">
-                            <small class="hidden text-emerald-600 font-medium" data-saved>✓ Saved</small>
-                            <small class="hidden text-red-600 font-medium" data-error></small>
-                          </div>
-                        </div>
-                      </td>
+                      <th class="px-3 py-4 text-left table-header bg-neutral-100" style="min-width:180px;">
+                        {{ $mName }}
+                      </th>
                     @endforeach
                   </tr>
-                @empty
-                  <tr>
-                    <td colspan="21" class="px-6 py-16 text-center">
-                      <div class="flex flex-col items-center">
-                        <svg class="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                        </svg>
-                        <p class="text-gray-500 text-lg font-medium">No outdoor jobs found</p>
-                        <p class="text-gray-400 text-sm mt-1">Try adjusting your filters or add some outdoor jobs</p>
-                      </div>
-                    </td>
-                  </tr>
-                @endforelse
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody class="bg-white divide-y divide-neutral-200">
+                  @foreach($rows as $index => $row)
+                    @php
+                        $company = $row->company ?? $row->client;
+                        $start   = $row->start_date ?? $row->date ?? null;
+                        $end     = $row->date_finish ?? $row->end_date ?? null;
+                        $startDisp = df($start);
+                        $endDisp   = df($end);
+                    @endphp
+                    <tr class="hover:bg-neutral-50 hover-lift transition-all duration-150">
+                      <td class="px-4 py-3 sans text-sm text-neutral-600 tabular-nums">
+                        {{ df($row->date) ?: df($row->created_at) }}
+                      </td>
+                      <td class="px-4 py-3 sans text-sm font-medium ink">
+                        <div class="max-w-[200px] truncate" title="{{ $company }}">
+                          {{ $company }}
+                        </div>
+                      </td>
+                      <td class="px-4 py-3 sans text-sm text-neutral-700">
+                        {{ $row->product }}
+                      </td>
+                      <td class="px-4 py-3 sans text-sm text-neutral-700">
+                        {{ $row->site ?? '—' }}
+                      </td>
+                      <td class="px-4 py-3">
+                        <span class="chip text-[#22255b] bg-[#22255b]/10">
+                          {{ $row->product_category ?? 'Outdoor' }}
+                        </span>
+                      </td>
+                      <td class="px-4 py-3 sans text-sm text-neutral-700 tabular-nums">
+                        {{ $startDisp }}
+                      </td>
+                      <td class="px-4 py-3 sans text-sm text-[#d33831] tabular-nums font-medium">
+                        {{ $endDisp }}
+                      </td>
+
+                      {{-- Month cells --}}
+                      @foreach($months as $mNum => $mName)
+                        @php
+                          $savedStatus = omd($existing, $row->outdoor_item_id, $mNum, 'status', 'text');
+                          $savedDate   = omd($existing, $row->outdoor_item_id, $mNum, 'installed_on', 'date');
+                        @endphp
+                        <td class="px-3 py-3 bg-neutral-50/50">
+                          <div class="space-y-2">
+                            <!-- Status dropdown -->
+                            <select
+                              class="status-dropdown w-full monthly-input text-xs"
+                              data-master="{{ $row->id }}"
+                              data-item="{{ $row->outdoor_item_id }}"
+                              data-year="{{ $year }}"
+                              data-month="{{ $mNum }}"
+                              data-kind="text"
+                              name="status_{{ $row->id }}_{{ $year }}_{{ $mNum }}"
+                              onchange="saveOutdoorCell(this); setDropdownColor(this);">
+                                <option value="">Select status...</option>
+                                <option value="Installation" {{ $savedStatus==='Installation' ? 'selected' : '' }}>Installation</option>
+                                <option value="Dismantle"   {{ $savedStatus==='Dismantle'   ? 'selected' : '' }}>Dismantle</option>
+                                <option value="Artwork"     {{ $savedStatus==='Artwork'     ? 'selected' : '' }}>Artwork</option>
+                                <option value="Payment"     {{ $savedStatus==='Payment'     ? 'selected' : '' }}>Payment</option>
+                                <option value="Ongoing"     {{ $savedStatus==='Ongoing'     ? 'selected' : '' }}>Ongoing</option>
+                                <option value="Renewal"     {{ $savedStatus==='Renewal'     ? 'selected' : '' }}>Renewal</option>
+                                <option value="Completed"   {{ $savedStatus==='Completed'   ? 'selected' : '' }}>Completed</option>
+                                <option value="Material"    {{ $savedStatus==='Material'    ? 'selected' : '' }}>Material</option>
+                            </select>
+
+                            <!-- Date input -->
+                            <input
+                              type="date"
+                              value="{{ $savedDate }}"
+                              class="w-full monthly-input text-xs tabular-nums"
+                              data-master="{{ $row->id }}"
+                              data-item="{{ $row->outdoor_item_id }}"
+                              data-year="{{ $year }}"
+                              data-month="{{ $mNum }}"
+                              data-kind="date"
+                              name="date_{{ $row->id }}_{{ $year }}_{{ $mNum }}"
+                              onblur="saveOutdoorCell(this)">
+
+                            <!-- Status indicators -->
+                            <div class="flex items-center justify-between text-xs">
+                              <small class="hidden text-green-600" data-saved>Saved</small>
+                              <small class="hidden text-[#d33831]" data-error></small>
+                            </div>
+                          </div>
+                        </td>
+                      @endforeach
+                    </tr>
+                  @endforeach
+                </tbody>
+              </table>
+            </div>
+          @else
+            {{-- Empty State --}}
+            <div class="px-6 py-16 text-center">
+              <svg class="w-12 h-12 text-neutral-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              <p class="serif text-lg text-neutral-600 mb-2">No ongoing jobs found</p>
+              <p class="sans text-sm text-neutral-500 mb-4">Try adjusting your filters or create new outdoor campaigns</p>
+              <a href="{{ route('coordinator.outdoor.index') }}" class="btn-secondary">
+                Outdoor Coordinator List
+              </a>
+            </div>
+          @endif
         </div>
 
       </div>
@@ -364,17 +372,17 @@
 </x-app-layout>
 
 <script>
-// 🔑 Updated autosave function to use outdoor_item_id
+// Updated autosave function to use outdoor_item_id
 async function saveOutdoorCell(el) {
   const master_file_id = Number(el.dataset.master);
-  const outdoor_item_id = Number(el.dataset.item);  // 🔑 NEW: Get outdoor_item_id
+  const outdoor_item_id = Number(el.dataset.item);
   const year  = Number(el.dataset.year);
   const month = Number(el.dataset.month);
   const kind  = el.dataset.kind; // "text" | "date"
 
   const payload = {
     master_file_id,
-    outdoor_item_id,                 // 🔑 NEW: Include in payload
+    outdoor_item_id,
     year,
     month,
     field_key: kind === 'date' ? 'installed_on' : 'status',
@@ -397,25 +405,25 @@ async function saveOutdoorCell(el) {
 
     if (!res.ok) throw await res.json().catch(() => ({ message: res.statusText }));
 
-    // Success feedback
+    // Success feedback with subtle animation
     const td = el.closest('td');
     const saved = td?.querySelector('[data-saved]');
     saved?.classList.remove('hidden');
     setTimeout(() => saved?.classList.add('hidden'), 2000);
 
     // Visual feedback
-    el.classList.remove('border-red-500', 'border-gray-300');
-    el.classList.add('border-emerald-500', 'bg-emerald-50');
+    el.classList.remove('border-[#d33831]', 'border-neutral-200');
+    el.classList.add('border-green-400', 'bg-green-50');
     setTimeout(() => {
-      el.classList.remove('border-emerald-500', 'bg-emerald-50');
-      el.classList.add('border-gray-300');
+      el.classList.remove('border-green-400', 'bg-green-50');
+      el.classList.add('border-neutral-200');
     }, 1500);
   } catch (e) {
     // Error feedback
     const td = el.closest('td');
     const err = td?.querySelector('[data-error]');
-    el.classList.remove('border-gray-300');
-    el.classList.add('border-red-500', 'bg-red-50');
+    el.classList.remove('border-neutral-200');
+    el.classList.add('border-[#d33831]', 'bg-red-50');
     if (err) {
       err.textContent = (e?.message) || 'Save failed';
       err.classList.remove('hidden');
@@ -426,70 +434,56 @@ async function saveOutdoorCell(el) {
   }
 }
 
-// Status dropdown color mapping (exact matches)
+// Status dropdown color mapping
 function setDropdownColor(selectEl) {
-  const map = {
-  'Installation': { bg:'#dc2626', color:'#fff', border:'#991b1b' }, // 🔴 red-600
-  'Dismantle':    { bg:'#dc2626', color:'#fff', border:'#991b1b' }, // 🔴 red
-  'Payment':      { bg:'#dc2626', color:'#fff', border:'#991b1b' }, // 🔴 red
-  'Renewal':      { bg:'#dc2626', color:'#fff', border:'#991b1b' }, // 🔴 red
+  const colorMap = {
+    'Installation': { bg:'#22255b', color:'#fff', border:'#22255b' },
+    'Dismantle':    { bg:'#d33831', color:'#fff', border:'#d33831' },
+    'Payment':      { bg:'#d33831', color:'#fff', border:'#d33831' },
+    'Renewal':      { bg:'#d33831', color:'#fff', border:'#d33831' },
+    'Completed':    { bg:'#16a34a', color:'#fff', border:'#16a34a' },
+    'Artwork':      { bg:'#f97316', color:'#fff', border:'#f97316' },
+    'Material':     { bg:'#f97316', color:'#fff', border:'#f97316' },
+    'Ongoing':      { bg:'#4bbbed', color:'#1C1E26', border:'#4bbbed' }
+  };
 
-  'Completed':    { bg:'#16a34a', color:'#fff', border:'#166534' }, // ✅ green-600
+  // Reset base classes
+  selectEl.className = 'status-dropdown w-full monthly-input text-xs transition-all duration-150';
 
-  'Artwork':      { bg:'#f97316', color:'#fff', border:'#c2410c' }, // 🟠 orange-500
-  'Material':     { bg:'#f97316', color:'#fff', border:'#c2410c' }, // 🟠 orange
-
-  'Ongoing':      { bg:'#38bdf8', color:'#111827', border:'#0ea5e9' } // 🔵 light blue (sky-400/500)
-};
-
-
-  // base classes (keep your sizing/focus styles)
-  selectEl.className =
-    'status-dropdown w-full text-xs font-semibold rounded-lg border px-3 py-2 ' +
-    'focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:outline-none ' +
-    'shadow-sm transition-all duration-200';
-
-  const s = map[selectEl.value];
-  if (s) {
-    selectEl.style.backgroundColor = s.bg;
-    selectEl.style.color = s.color;
-    selectEl.style.borderColor = s.border;
-    selectEl.classList.add('shadow-md');
+  const style = colorMap[selectEl.value];
+  if (style) {
+    selectEl.style.backgroundColor = style.bg;
+    selectEl.style.color = style.color;
+    selectEl.style.borderColor = style.border;
   } else {
-    // default/empty
+    // Default state
     selectEl.style.backgroundColor = '#ffffff';
-    selectEl.style.color = '#111827';
-    selectEl.style.borderColor = '#d1d5db';
+    selectEl.style.color = '#1C1E26';
+    selectEl.style.borderColor = '#d4d4d8';
   }
 }
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
-  // Call once on load to style preselected dropdowns
+  // Style preselected dropdowns and add event listeners
   document.querySelectorAll('.status-dropdown').forEach(selectEl => {
     setDropdownColor(selectEl);
-
-    // Add change event listener to apply colors when dropdown changes
     selectEl.addEventListener('change', function() {
       setDropdownColor(this);
     });
   });
+
+  // Add subtle focus transitions to inputs
+  document.querySelectorAll('.monthly-input').forEach(input => {
+    input.addEventListener('focus', function() {
+      this.style.transform = 'translateY(-1px)';
+      this.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+    });
+
+    input.addEventListener('blur', function() {
+      this.style.transform = 'translateY(0)';
+      this.style.boxShadow = 'none';
+    });
+  });
 });
-
-// Enhanced move to ongoing function
-function moveToOngoing(id) {
-    if (confirm('🚀 Move this job to ongoing status?\n\nThis action cannot be undone.')) {
-        // Add loading state
-        const button = event.target;
-        const originalText = button.textContent;
-        button.textContent = 'Moving...';
-        button.disabled = true;
-
-        setTimeout(() => {
-            button.textContent = originalText;
-            button.disabled = false;
-            alert('✅ Move to ongoing functionality will be implemented soon!');
-        }, 1000);
-    }
-}
 </script>
