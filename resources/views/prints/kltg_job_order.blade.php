@@ -86,7 +86,7 @@
               <th>CONTACT NUMBER</th>
               <td>{{ $file->contact_number ?? '' }}</td>
               <th>SALES PERSON</th>
-              <td>{{ $file->traffic ?? '' }}</td>
+              <td>{{ $file->sales_person ?? '' }}</td>
             </tr>
             <tr>
               <th>EMAIL</th>

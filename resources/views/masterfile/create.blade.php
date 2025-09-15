@@ -476,28 +476,173 @@
                     </div>
                 </div>
 
-                <!-- Outdoor Details -->
-                <div x-show="selectedCategory === 'Outdoor'"
-                     x-cloak
-                     class="rounded-2xl border border-neutral-200/70 shadow-sm bg-white p-6">
-                    <h3 class="text-sm text-neutral-600 small-caps mb-6 font-medium">Outdoor Details</h3>
 
-                    <div>
-                        <label for="bulk_placements" class="block text-sm font-medium text-[#1C1E26] mb-2">Bulk Locations</label>
-                        <textarea name="bulk_placements"
-                                  id="bulk_placements"
-                                  rows="8"
-                                  placeholder="Format: site | size | council | coords | remarks&#10;Example:&#10;Wangsa Maju LRT | 10x20ft | AREA | 3.154,101.74 | Near station&#10;BB: Jalan Kuching KM3 | 60x20ft | AREA | 3.182,101.68 | City inbound&#10;TB: Setia Alam Exit | 12x24ft | AREA | 3.090,101.48 | Toll plaza"
-                                  class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200">{{ old('bulk_placements') }}</textarea>
-                        <p class="mt-2 text-xs text-neutral-500">
-                            One line per location. Use <code class="px-1 py-0.5 bg-neutral-100 rounded text-xs">|</code> or comma to separate columns.
-                            Optional prefix <code class="px-1 py-0.5 bg-neutral-100 rounded text-xs">BB:</code> or <code class="px-1 py-0.5 bg-neutral-100 rounded text-xs">TB:</code>
-                            before the site will override the sub-product for that line.
-                        </p>
-                    </div>
-                </div>
-            </form>
+                <!-- Outdoor Details -->
+<div
+  x-show="selectedCategory === 'Outdoor'"
+  x-cloak
+  class="rounded-2xl border border-neutral-200/70 shadow-sm bg-white p-6"
+  x-data="outdoorRepeater(() => selectedProduct)"   <!-- pass getter so it always reads current sub-product -->
+  x-init="init()"                                   <!-- IMPORTANT: boot the repeater -->
+>
+  <h3 class="text-sm text-neutral-600 small-caps mb-6 font-medium">Outdoor Details</h3>
+
+  <!-- Count selector -->
+  <div class="mb-4">
+    <label class="block text-sm font-medium text-[#1C1E26] mb-2">How many locations?</label>
+    <div class="flex items-center gap-3">
+      <input type="number" min="1" x-model.number="count"
+             @input="resize()"  <!-- react immediately -->
+      <button type="button" @click="addOne()"
+              class="px-3 py-2 rounded-xl border border-neutral-300 hover:bg-neutral-50">+ Add 1</button>
+      <button type="button" @click="removeOne()"
+              class="px-3 py-2 rounded-xl border border-neutral-300 hover:bg-neutral-50">− Remove 1</button>
+    </div>
+    <p class="mt-2 text-xs text-neutral-500">You can also add/remove rows anytime.</p>
+  </div>
+
+  <!-- Repeater rows -->
+  <template x-for="(row, idx) in rows" :key="idx">
+    <div class="mb-4 p-4 rounded-xl border border-neutral-200/80 bg-neutral-50/40">
+      <div class="flex justify-between items-center mb-2">
+        <h4 class="text-sm font-medium text-[#1C1E26]">Location <span x-text="idx+1"></span></h4>
+        <button type="button" @click="removeAt(idx)"
+                class="text-xs px-2 py-1 rounded-lg border border-neutral-300 hover:bg-neutral-100">Remove</button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
+        <!-- Sub-product override (optional) -->
+        <div class="md:col-span-1">
+          <label class="block text-xs text-neutral-600 mb-1">Sub-Product</label>
+          <select :name="`locations[${idx}][sub_product]`" x-model="row.sub_product"
+                  class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]">
+            <template x-for="opt in outdoorSubProducts" :key="opt">
+              <option :value="opt" x-text="opt"></option>
+            </template>
+          </select>
         </div>
+
+        <div class="md:col-span-2">
+          <label class="block text-xs text-neutral-600 mb-1">Site</label>
+          <input type="text" :name="`locations[${idx}][site]`" x-model="row.site"
+                 placeholder="e.g., Wangsa Maju LRT"
+                 class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
+        </div>
+
+        <div class="md:col-span-1">
+          <label class="block text-xs text-neutral-600 mb-1">Size</label>
+          <input type="text" :name="`locations[${idx}][size]`" x-model="row.size"
+                 placeholder="10x20ft"
+                 class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
+        </div>
+
+        <div class="md:col-span-1">
+          <label class="block text-xs text-neutral-600 mb-1">Council</label>
+          <input type="text" :name="`locations[${idx}][council]`" x-model="row.council"
+                 placeholder="AREA"
+                 class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
+        </div>
+
+        <div class="md:col-span-1">
+          <label class="block text-xs text-neutral-600 mb-1">Coords (lat,lng)</label>
+          <input type="text" :name="`locations[${idx}][coords]`" x-model="row.coords"
+                 placeholder="3.154,101.74"
+                 class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
+        </div>
+
+        <div class="md:col-span-1">
+          <label class="block text-xs text-neutral-600 mb-1">Start Date</label>
+          <input type="date" :name="`locations[${idx}][start_date]`" x-model="row.start_date"
+                 class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
+        </div>
+
+        <div class="md:col-span-1">
+          <label class="block text-xs text-neutral-600 mb-1">End Date</label>
+          <input type="date" :name="`locations[${idx}][end_date]`" x-model="row.end_date"
+                 class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
+        </div>
+
+        <div class="md:col-span-6">
+          <label class="block text-xs text-neutral-600 mb-1">Remarks</label>
+          <input type="text" :name="`locations[${idx}][remarks]`" x-model="row.remarks"
+                 placeholder="Near station"
+                 class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <input type="hidden" name="input_mode" value="structured" />
+</div>
+
+<!-- Make the factory global, and FIX commas/braces -->
+<script>
+  window.outdoorRepeater = function(selectedProductRef) {
+    return {
+      // Allowed Outdoor sub-products
+      outdoorSubProducts: ['BB','TB','Newspaper','Bunting','Flyers','Star','Signages'],
+
+      // Number of rows chosen by user
+      count: 1,
+
+      // The rows
+      rows: [],
+
+      // Init with 1 row using the current product as default
+      init() {
+        const def = (typeof selectedProductRef === 'function')
+          ? selectedProductRef()
+          : (selectedProductRef || 'BB');
+        this.rows = [this.emptyRow(def)];
+        this.count = this.rows.length;
+      },
+
+      // Helpers
+      emptyRow(defaultSub) {
+        return {
+          sub_product: defaultSub || 'BB',
+          site: '',
+          size: '',
+          council: '',
+          coords: '',
+          remarks: '',
+          start_date: '',
+          end_date: ''
+        };
+      },  // <-- MISSING COMMA WAS HERE
+
+      resize() {
+        const def = this.rows[0]?.sub_product || 'BB';
+        const target = Math.max(1, parseInt(this.count || 1, 10));
+        while (this.rows.length < target) this.rows.push(this.emptyRow(def));
+        while (this.rows.length > target) this.rows.pop();
+      },
+
+      addOne() {
+        const def = this.rows[this.rows.length - 1]?.sub_product || 'BB';
+        this.rows.push(this.emptyRow(def));
+        this.count = this.rows.length;
+      },
+
+      removeOne() {
+        if (this.rows.length > 1) {
+          this.rows.pop();
+          this.count = this.rows.length;
+        }
+      },
+
+      removeAt(i) {
+        if (this.rows.length > 1) {
+          this.rows.splice(i, 1);
+          this.count = this.rows.length;
+        }
+      }
+    }
+  }
+</script>
+
+<style>[x-cloak]{display:none !important;}</style>
+
 
         <!-- Sticky Bottom Action Bar -->
         <div class="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-t border-[#EAEAEA]">

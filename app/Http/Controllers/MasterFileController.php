@@ -23,7 +23,7 @@ use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use App\Models\OutdoorItem;
-
+use Illuminate\Support\Arr;
 
 
 
@@ -561,65 +561,101 @@ private function applyMonthFilterForJoinedQuery($query, $rawMonth)
         'bulk_placements' => ['nullable','string'],
     ]);
 
-    DB::transaction(function() use ($request, $data) {
-        // 2) SIMPAN HEADER
-        /** @var \App\Models\MasterFile $masterFile */
-        $masterFile = MasterFile::create($data);
+    DB::transaction(function () use ($request, $data) {
+    /** @var \App\Models\MasterFile $masterFile */
+    $masterFile = MasterFile::create($data);
 
-        // 3) JIKA OUTDOOR & textarea diisi -> parse jadi banyak child
-        $isOutdoor = ($data['product_category'] ?? '') === 'Outdoor';
-        $raw = trim((string) $request->input('bulk_placements', ''));
+    $isOutdoor = ($data['product_category'] ?? '') === 'Outdoor';
 
-        if ($isOutdoor && $raw !== '') {
-            $lines = preg_split("/\r\n|\n|\r/", $raw);
-            $defaultSub = $data['product'] ?? null; // contoh: BB, TB, Bunting, dll
+    // ===== NEW: Repeater mode (locations[...]) =====
+    if ($isOutdoor && $request->has('locations')) {
+        $locs = collect($request->input('locations', []))
+            ->map(function ($r) use ($data) {
+                // coords: "lat,lng" OR empty
+                $coords = trim((string)($r['coords'] ?? ''));
+                // allow sub_product override per row; fall back to selected product
+                $sub = trim((string)($r['sub_product'] ?? ($data['product'] ?? 'Outdoor')));
 
-            $items = [];
-            foreach ($lines as $line) {
-                $line = trim($line);
-                if ($line === '') continue;
+                return [
+                    'sub_product'      => Arr::get($r, 'sub_product', $data['product'] ?? 'Outdoor'),
+                    'qty'              => 1,
+                    'site'             => Arr::get($r, 'site'),
+                    'size'             => Arr::get($r, 'size'),
+                    'district_council' => Arr::get($r, 'council'),
+                    'coordinates'      => Arr::get($r, 'coords'),
+                    'remarks'          => Arr::get($r, 'remarks'),
+                    'start_date'       => Arr::get($r, 'start_date'),
+                    'end_date'         => Arr::get($r, 'end_date'),
+                ];
 
-                // pakai | atau koma sebagai separator
-                $sep = str_contains($line, '|') ? '|' : ',';          // utamakan '|'
-                $parts = array_map('trim', str_getcsv($line, $sep));   // CSV-aware (boleh quoted)
+            })
+            // keep only rows that at least have a site
+            ->filter(fn ($row) => $row['site'] !== '')
+            ->values()
+            ->all();
 
-                // mapping dasar
-                $site        = $parts[0] ?? null;
-                $size        = $parts[1] ?? null;
-                $council     = $parts[2] ?? null;
-                $coordinates = $parts[3] ?? null;
-                $remarks     = $parts[4] ?? null;
+        if (!empty($locs)) {
+            $masterFile->outdoorItems()->createMany($locs);
+        }
 
-                // prefix opsional: "BB: Site name"
-                if ($site && preg_match('/^(BB|TB|Bunting|Flyers|Star|Signages|Newspaper)\s*:\s*(.+)$/i', $site, $m)) {
-                    $sub  = $m[1];
-                    $site = $m[2];
-                }
+        return; // done
+    }
 
-                // AUTO-MERGE kalau lat & long kepotong jadi dua angka berurutan
-                if ($coordinates && $remarks
-                    && preg_match('/^-?\d+(\.\d+)?$/', $coordinates)
-                    && preg_match('/^-?\d+(\.\d+)?$/', $remarks)) {
-                    $coordinates = $coordinates . ',' . $remarks;  // gabungkan jadi "lat,long"
-                    $remarks = null;
-                }
+    // ===== Old textarea mode (bulk_placements) =====
+    $raw = trim((string)$request->input('bulk_placements', ''));
+    if ($isOutdoor && $raw !== '') {
+        $lines = preg_split("/\r\n|\n|\r/", $raw);
+        $defaultSub = $data['product'] ?? 'Outdoor';
 
-                $items[] = [
-                'sub_product'      => $sub ?? ($data['product'] ?? 'Outdoor'),
+        $items = [];
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '') continue;
+
+            // prefer "|" else ","
+            $sep   = str_contains($line, '|') ? '|' : ',';
+            $parts = array_map('trim', str_getcsv($line, $sep));
+
+            $site        = $parts[0] ?? null;
+            $size        = $parts[1] ?? null;
+            $council     = $parts[2] ?? null;
+            $coordinates = $parts[3] ?? null;
+            $remarks     = $parts[4] ?? null;
+
+            // FIX: reset $sub per line (avoid leaking previous value)
+            $sub = $defaultSub;
+
+            // Optional prefix: "BB: Site name"
+            if ($site && preg_match('/^(BB|TB|Bunting|Flyers|Star|Signages|Newspaper)\s*:\s*(.+)$/i', $site, $m)) {
+                $sub  = $m[1];
+                $site = $m[2];
+            }
+
+            // If coords split into two numeric parts (lat / lng) and remarks captured the second, merge them
+            if ($coordinates && $remarks
+                && preg_match('/^-?\d+(\.\d+)?$/', $coordinates)
+                && preg_match('/^-?\d+(\.\d+)?$/', $remarks)) {
+                $coordinates = $coordinates . ',' . $remarks;
+                $remarks = null;
+            }
+
+            $items[] = [
+                'sub_product'      => $sub,
                 'qty'              => 1,
                 'site'             => $site,
-                'size'             => $size,
-                'district_council' => $council,
-                'coordinates'      => $coordinates,
-                'remarks'          => $remarks,
-                ];
-            }
-
-            if (!empty($items)) {
-                $masterFile->outdoorItems()->createMany($items);
-            }
+                'size'             => $size ?: null,
+                'district_council' => $council ?: null,
+                'coordinates'      => $coordinates ?: null,
+                'remarks'          => $remarks ?: null,
+            ];
         }
-    });
+
+        if (!empty($items)) {
+            $masterFile->outdoorItems()->createMany($items);
+        }
+    }
+});
+
 
     return redirect()->route('dashboard')->with('success','Saved.');
     }
