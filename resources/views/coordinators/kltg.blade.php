@@ -11,7 +11,11 @@
     .ink { color: #1C1E26; }
     .muted { color: #6B7280; }
     .tabular-nums { font-variant-numeric: tabular-nums; }
-    .small-caps { font-variant: small-caps; letter-spacing: 0.06em; }
+    .small-caps {
+      font-variant: small-caps;
+      letter-spacing: 0.06em;
+      text-transform: lowercase;
+    }
 
     /* Layout Components */
     .page-bg { background-color: #F7F7F9; min-height: 100vh; }
@@ -20,21 +24,18 @@
     }
     .hairline { border-color: #EAEAEA; }
 
-    /* Button System */
+    /* Button System - Refined */
     .btn-primary {
-      @apply bg-[#22255b] text-white hover:opacity-90 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent rounded-full px-6 py-2.5 font-medium transition-all duration-150 inline-flex items-center justify-center;
+      @apply bg-[#22255b] text-white hover:bg-[#1a1d4a] focus:ring-2 focus:ring-[#4bbbed]/40 focus:border-transparent rounded-full px-6 py-2.5 font-medium transition-all duration-150 inline-flex items-center justify-center;
     }
     .btn-secondary {
-      @apply border border-neutral-300 text-neutral-800 hover:bg-neutral-50 hover:border-neutral-400 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent rounded-full px-5 py-2 font-medium transition-all duration-150 inline-flex items-center justify-center;
+      @apply border border-neutral-300 text-neutral-800 hover:bg-neutral-50 hover:border-neutral-400 focus:ring-2 focus:ring-[#4bbbed]/40 focus:border-transparent rounded-full px-5 py-2 font-medium transition-all duration-150 inline-flex items-center justify-center;
     }
     .btn-ghost {
-      @apply text-neutral-700 hover:bg-neutral-50 focus:ring-2 focus:ring-[#4bbbed] rounded-full px-4 py-2 font-medium transition-all duration-150 inline-flex items-center justify-center;
-    }
-    .btn-export {
-      @apply bg-emerald-700 text-white hover:bg-emerald-800 focus:ring-2 focus:ring-emerald-300 focus:border-transparent rounded-full px-5 py-2 font-medium transition-all duration-150 inline-flex items-center justify-center;
+      @apply text-neutral-700 hover:bg-neutral-50 focus:ring-2 focus:ring-[#4bbbed]/40 rounded-full px-4 py-2 font-medium transition-all duration-150 inline-flex items-center justify-center;
     }
 
-    /* Tab System */
+    /* Enhanced Tab System */
     .tab-strip {
       @apply border-b hairline overflow-x-auto;
       scrollbar-width: none;
@@ -42,56 +43,75 @@
     }
     .tab-strip::-webkit-scrollbar { display: none; }
     .tab {
-      @apply px-6 py-4 text-sm font-medium transition-all duration-150 border-b-2 border-transparent whitespace-nowrap;
+      @apply px-6 py-4 text-sm font-medium transition-all duration-200 border-b-2 border-transparent whitespace-nowrap relative;
     }
     .tab.active {
       @apply ink border-[#22255b];
+    }
+    .tab.active::before {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: #22255b;
+      border-radius: 1px 1px 0 0;
     }
     .tab:not(.active) {
       @apply text-neutral-600 hover:text-neutral-800 hover:bg-[#4bbbed]/5;
     }
 
-    /* Form Controls */
+    /* Filter Chips */
+    .filter-chip {
+      @apply inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-[#22255b]/10 text-[#22255b] border border-[#22255b]/20;
+    }
+
+    /* Form Controls - Refined */
     .form-control {
-      @apply h-11 w-full border border-neutral-300 rounded-xl px-4 text-sm font-sans focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent transition-all duration-150;
+      @apply h-11 w-full border border-neutral-300 rounded-xl px-4 text-sm font-sans focus:ring-2 focus:ring-[#4bbbed]/40 focus:border-[#4bbbed] transition-all duration-150;
     }
     .form-label {
       @apply block text-xs font-semibold text-neutral-600 mb-2 small-caps;
     }
 
-    /* Data Table */
+    /* Enhanced Data Table */
     .data-table {
       @apply w-full text-sm;
     }
     .data-table thead th {
-      @apply px-6 py-4 text-left font-semibold text-neutral-600 bg-neutral-50 border-b hairline small-caps;
+      @apply px-4 sm:px-6 py-4 text-left font-semibold text-neutral-600 bg-neutral-50/80 border-b hairline small-caps;
       position: sticky;
       top: 0;
-      z-index: 10;
+      z-index: 20;
+      backdrop-filter: blur(8px);
     }
     .data-table tbody td {
-      @apply px-6 py-4 border-b hairline;
+      @apply px-4 sm:px-6 py-3 border-b hairline;
     }
     .data-table tbody tr {
       @apply transition-all duration-150;
     }
     .data-table tbody tr:hover {
-      @apply bg-neutral-50 shadow-sm;
+      @apply bg-neutral-50/60 shadow-sm;
     }
     .data-table tbody tr:last-child td {
       @apply border-b-0;
     }
 
-    /* Input Styles for Table */
+    /* Improved Table Inputs */
     .table-input {
-      @apply w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm transition-all duration-150 tabular-nums;
-      min-width: 120px;
+      @apply w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm transition-all duration-200 tabular-nums;
+      min-width: 110px;
     }
     .table-input:focus {
       @apply border-[#4bbbed] ring-2 ring-[#4bbbed]/20 outline-none;
     }
+    .table-input[type="date"] {
+      @apply tabular-nums;
+    }
 
-    /* Status Indicators */
+    /* Status Indicators - Refined */
     .bg-yellow-50 { background-color: #FFFBEB !important; }
     .border-yellow-300 { border-color: #FCD34D !important; }
     .bg-green-50 { background-color: #F0FDF4 !important; }
@@ -99,10 +119,10 @@
     .bg-red-50 { background-color: #FEF2F2 !important; }
     .border-red-300 { border-color: #FCA5A5 !important; }
 
-    /* Badge Styles */
+    /* Badge System */
     .badge {
-      @apply inline-flex items-center justify-center px-3 py-1.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-700 border border-neutral-200;
-      min-width: 80px;
+      @apply inline-flex items-center justify-center px-3 py-1.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-700 border border-neutral-200/80;
+      min-width: 60px;
     }
 
     /* Empty State */
@@ -110,16 +130,23 @@
       @apply text-center py-16 px-6;
     }
 
-    /* Responsive adjustments */
+    /* Responsive Optimizations */
     @media (max-width: 1024px) {
-      .table-input { min-width: 100px; }
+      .table-input { min-width: 90px; }
       .data-table thead th,
-      .data-table tbody td { @apply px-4; }
+      .data-table tbody td { @apply px-3; }
     }
+
     @media (max-width: 768px) {
       .table-input { min-width: 80px; }
       .data-table thead th,
-      .data-table tbody td { @apply px-3 py-3; }
+      .data-table tbody td { @apply px-2 py-3; }
+      .tab { @apply px-4; }
+    }
+
+    /* Container max-width utility */
+    .max-w-8xl {
+      max-width: 90rem;
     }
   </style>
 @endpush
@@ -223,12 +250,12 @@
 
 <x-app-layout>
   <div class="page-bg">
-    <div class="w-full px-4 md:px-10 py-8">
+    <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-      <!-- Header Bar -->
+      <!-- Header Bar with Consolidated Actions -->
       <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
-        <div class="flex items-center gap-8">
-          <a href="{{ route('dashboard.kltg') }}" class="btn-ghost">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
+          <a href="{{ route('dashboard.kltg') }}" class="btn-ghost self-start">
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
             </svg>
@@ -236,26 +263,29 @@
           </a>
 
           <div>
-            <h1 class="font-serif text-4xl lg:text-5xl font-semibold ink">{{ $periodLabel }}</h1>
-            <p class="muted text-sm mt-2 small-caps font-medium">Monthly KLTG Overview</p>
+            <h1 class="font-serif text-3xl sm:text-4xl lg:text-5xl font-semibold ink leading-tight">{{ $periodLabel }}</h1>
+            <p class="muted text-sm mt-1 small-caps font-medium tracking-wide">Monthly KLTG Overview</p>
           </div>
         </div>
 
-        <form method="GET" action="{{ route('coordinator.kltg.export') }}" class="inline-flex" id="exportForm">
-          <input type="hidden" name="subcategory" value="{{ $activeTab }}">
-          <input type="hidden" name="month" id="exportMonth">
-          <input type="hidden" name="year" id="exportYear">
-          <input type="hidden" name="working" value="{{ request('working') }}">
-          <button type="submit" class="btn-export" onclick="syncExportForm()">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-            </svg>
-            Export
-          </button>
-        </form>
+        <!-- Consolidated Action Group -->
+        <div class="flex flex-wrap items-center gap-3">
+          <form method="GET" action="{{ route('coordinator.kltg.export') }}" class="inline-flex" id="exportForm">
+            <input type="hidden" name="subcategory" value="{{ $activeTab }}">
+            <input type="hidden" name="month" id="exportMonth">
+            <input type="hidden" name="year" id="exportYear">
+            <input type="hidden" name="working" value="{{ request('working') }}">
+            <button type="submit" class="btn-primary" onclick="syncExportForm()">
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              Export
+            </button>
+          </form>
+        </div>
       </div>
 
-      <!-- Tab Strip -->
+      <!-- Tab Strip with Active State -->
       @php $tabs = ['print'=>'KLTG','video'=>'Video','article'=>'Article','lb'=>'LB','em'=>'EM']; @endphp
       <div class="tab-strip mb-8">
         <div class="flex">
@@ -268,39 +298,72 @@
         </div>
       </div>
 
-      <!-- Filter Panel -->
-      <form method="get" class="card p-8 mb-8">
-        <input type="hidden" name="tab" value="{{ $activeTab }}">
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div>
-            <label class="form-label">Month</label>
-            <select name="month" class="form-control">
-              <option value="">All Months</option>
-              @for($m=1;$m<=12;$m++)
-                <option value="{{ $m }}" @selected($month==$m)>{{ date('F', mktime(0,0,0,$m,1)) }}</option>
-              @endfor
-            </select>
+      <!-- Enhanced Filter Panel with Active Chips -->
+      <div class="card p-6 sm:p-8 mb-8">
+        <!-- Active Filter Chips -->
+        @if($month || $year)
+          <div class="mb-6 pb-4 border-b hairline">
+            <p class="text-xs font-semibold text-neutral-600 mb-3 small-caps">Active Filters</p>
+            <div class="flex flex-wrap gap-2">
+              @if($month)
+                <span class="filter-chip">
+                  MONTH: {{ date('F', mktime(0,0,0,$month,1)) }}
+                  <a href="{{ route('coordinator.kltg.index', array_filter(['tab'=>$activeTab,'year'=>$year])) }}"
+                     class="ml-2 text-neutral-500 hover:text-neutral-700" title="Remove month filter">
+                    ×
+                  </a>
+                </span>
+              @endif
+              @if($year)
+                <span class="filter-chip">
+                  YEAR: {{ $year }}
+                  <a href="{{ route('coordinator.kltg.index', array_filter(['tab'=>$activeTab,'month'=>$month])) }}"
+                     class="ml-2 text-neutral-500 hover:text-neutral-700" title="Remove year filter">
+                    ×
+                  </a>
+                </span>
+              @endif
+            </div>
           </div>
+        @endif
 
-          <div>
-            <label class="form-label">Year</label>
-            <select name="year" class="form-control">
-              <option value="">All Years</option>
-              @for($y=now()->year+1;$y>=now()->year-4;$y--)
-                <option value="{{ $y }}" @selected($year==$y)>{{ $y }}</option>
-              @endfor
-            </select>
+        <!-- Filter Form -->
+        <form method="get">
+          <input type="hidden" name="tab" value="{{ $activeTab }}">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div>
+              <label class="form-label">Month</label>
+              <select name="month" class="form-control">
+                <option value="">All Months</option>
+                @for($m=1;$m<=12;$m++)
+                  <option value="{{ $m }}" @selected($month==$m)>{{ date('F', mktime(0,0,0,$m,1)) }}</option>
+                @endfor
+              </select>
+            </div>
+
+            <div>
+              <label class="form-label">Year</label>
+              <select name="year" class="form-control">
+                <option value="">All Years</option>
+                @for($y=now()->year+1;$y>=now()->year-4;$y--)
+                  <option value="{{ $y }}" @selected($year==$y)>{{ $y }}</option>
+                @endfor
+              </select>
+            </div>
+
+            <div class="sm:col-span-2 lg:col-span-2 flex items-end">
+              <button type="submit" class="btn-primary w-full sm:w-auto px-8">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z"/>
+                </svg>
+                Apply Filters
+              </button>
+            </div>
           </div>
+        </form>
+      </div>
 
-          <div class="sm:col-span-2 lg:col-span-2 flex items-end">
-            <button type="submit" class="btn-primary w-full lg:w-auto px-10">
-              Apply Filters
-            </button>
-          </div>
-        </div>
-      </form>
-
-      <!-- Data Table -->
+      <!-- Refined Data Table -->
       @if($rows->isEmpty())
         <div class="card">
           <div class="empty-state">
@@ -310,7 +373,10 @@
               </svg>
             </div>
             <h3 class="font-serif text-xl font-medium ink mb-3">No Entries Found</h3>
-            <p class="muted text-sm">No coordinator items found for {{ $periodLabel }}.</p>
+            <p class="muted text-sm mb-6">No coordinator items found for {{ $periodLabel }}.</p>
+            <a href="{{ route('coordinator.kltg.index') }}" class="btn-secondary">
+              View All Periods
+            </a>
           </div>
         </div>
       @else
@@ -319,12 +385,12 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th class="w-16">No</th>
-                  <th class="min-w-[140px]">Date Created</th>
-                  <th class="min-w-[180px]">Company</th>
+                  <th class="w-16 text-right">No</th>
+                  <th class="min-w-[130px]">Date Created</th>
+                  <th class="min-w-[200px]">Company</th>
                   <th class="min-w-[160px]">Person In Charge</th>
                   @foreach ($columns[$activeTab] as $col)
-                    <th class="min-w-[160px]">{{ $col['label'] }}</th>
+                    <th class="min-w-[150px]">{{ $col['label'] }}</th>
                   @endforeach
                 </tr>
               </thead>
@@ -335,7 +401,9 @@
                     <td class="ink tabular-nums font-medium">
                       {{ optional($r->date ?? null)->format('Y-m-d') ?? optional($r->created_at)->format('Y-m-d') }}
                     </td>
-                    <td class="ink font-medium">{{ $r->company_name }}</td>
+                    <td class="ink font-medium" title="{{ $r->company_name }}">
+                      <span class="block truncate max-w-[180px]">{{ $r->company_name }}</span>
+                    </td>
                     <td class="ink">{{ $r->client }}</td>
 
                     @foreach ($columns[$activeTab] as $col)
@@ -344,7 +412,6 @@
                         $type = $col['type'];
                       @endphp
 
-                      {{-- Edition & Publication are read-only from kltg_monthly_details (controller-injected) --}}
                       @if ($key === 'edition')
                         <td>
                           <span class="badge">{{ $r->edition ?? '—' }}</span>
@@ -387,145 +454,145 @@
   </div>
 
   {{-- KLTG Configuration (MUST come before autosave script) --}}
-<script>
-  // --- Export form sync (biarkan seperti punyamu, aku pertahankan) ---
-  function syncExportForm() {
-    const mSel = document.querySelector('select[name="month"]');
-    const ySel = document.querySelector('select[name="year"]');
-    document.getElementById('exportMonth').value = mSel?.value ?? '';
-    document.getElementById('exportYear').value  = ySel?.value ?? '';
-  }
-  document.addEventListener('DOMContentLoaded', function () {
-    const mSel = document.querySelector('select[name="month"]');
-    const ySel = document.querySelector('select[name="year"]');
-    mSel?.addEventListener('change', () => { document.getElementById('exportMonth').value = mSel.value; });
-    ySel?.addEventListener('change', () => { document.getElementById('exportYear').value  = ySel.value; });
-    syncExportForm();
-  });
-
-  window.KLTG = {
-    upsertUrl: @json(route('coordinator.kltg.upsert')),
-    csrf: @json(csrf_token())
-  };
-</script>
-
-<!-- ===== Improved Autosave: month-aware & year normalized ===== -->
-<script>
-(async function () {
-  const upsertUrl = window.KLTG?.upsertUrl;
-  const csrf      = window.KLTG?.csrf;
-
-  if (!upsertUrl || !csrf) {
-    console.error('[KLTG] Missing upsertUrl or CSRF');
-    return;
-  }
-
-  // ----- Helpers -----
-  function getYearMonth() {
-    // 1) Prefer dropdowns
-    const ySel = document.querySelector('select[name="year"]');
-    const mSel = document.querySelector('select[name="month"]');
-    let year  = ySel?.value ?? '';
-    let month = mSel?.value ?? '';
-
-    // 2) Fallback hidden ctx (optional if you have them)
-    if (!year)  year  = document.getElementById('ctxYear')?.value  ?? '';
-    if (!month) month = document.getElementById('ctxMonth')?.value ?? '';
-
-    // Normalize: remove non-digits from year (avoid "2,025")
-    year = String(year ?? '').replace(/[^0-9]/g, '');
-    const yNum = Number(year || 0);
-    const mNum = Number(month || 0);
-
-    return { year: yNum, month: mNum, rawMonth: month };
-  }
-
-  // Warn when trying to edit without a concrete month
-  function requireConcreteMonth() {
-    const { year, month } = getYearMonth();
-    if (!month || month < 1 || month > 12) {
-      alert('Pilih bulan dulu (bukan "All Months") sebelum mengedit.');
-      return null;
+  <script>
+    // --- Export form sync (keeping your existing logic) ---
+    function syncExportForm() {
+      const mSel = document.querySelector('select[name="month"]');
+      const ySel = document.querySelector('select[name="year"]');
+      document.getElementById('exportMonth').value = mSel?.value ?? '';
+      document.getElementById('exportYear').value  = ySel?.value ?? '';
     }
-    if (!year || year < 1900) {
-      alert('Tahun tidak valid. Pilih tahun yang benar.');
-      return null;
-    }
-    return { year, month };
-  }
+    document.addEventListener('DOMContentLoaded', function () {
+      const mSel = document.querySelector('select[name="month"]');
+      const ySel = document.querySelector('select[name="year"]');
+      mSel?.addEventListener('change', () => { document.getElementById('exportMonth').value = mSel.value; });
+      ySel?.addEventListener('change', () => { document.getElementById('exportYear').value  = ySel.value; });
+      syncExportForm();
+    });
 
-  function buildPayload(el) {
-    const masterId    = Number(el.dataset.masterFileId);
-    const subcategory = el.dataset.subcategory;
-    const field       = el.dataset.field;   // nama kolom di DB yang akan diubah
-
-    if (!masterId || !subcategory || !field) return null;
-
-    const value = (el.type === 'checkbox')
-      ? (el.checked ? 1 : 0)
-      : (el.value ?? '');
-
-    // Include year/month (W-A-J-I-B)
-    const ym = requireConcreteMonth();
-    if (!ym) return null;
-
-    const payload = {
-      master_file_id: masterId,
-      subcategory: subcategory,
-      year: ym.year,          // number
-      month: ym.month,        // number 1..12
-      field: field,           // kompatibel dgn controller kamu sekarang
-      column: field,          // safety kalau backend expect 'column'
-      value: value
+    window.KLTG = {
+      upsertUrl: @json(route('coordinator.kltg.upsert')),
+      csrf: @json(csrf_token())
     };
+  </script>
 
-    return payload;
-  }
+  <!-- ===== Improved Autosave: month-aware & year normalized ===== -->
+  <script>
+  (async function () {
+    const upsertUrl = window.KLTG?.upsertUrl;
+    const csrf      = window.KLTG?.csrf;
 
-  // ----- Attach listeners -----
-  const inputs = document.querySelectorAll('[data-master-file-id][data-field]');
-  console.log(`[KLTG] ✅ Autosave listener attached: ${inputs.length} inputs found`);
-
-  inputs.forEach(el => {
-    el.addEventListener('change', () => save(el));
-    el.addEventListener('blur',   () => save(el));
-  });
-
-  async function save(el) {
-    const payload = buildPayload(el);
-    if (!payload) return;
-
-    // UI state
-    el.classList.remove('bg-red-50','border-red-300','bg-green-50','border-green-300');
-    el.classList.add('bg-yellow-50','border-yellow-300');
-
-    try {
-      const resp = await fetch(upsertUrl, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': csrf,
-          'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!resp.ok) {
-        const text = await resp.text().catch(() => '');
-        console.error('[KLTG] ❌ SAVE ERR', resp.status, text);
-        throw new Error(`HTTP ${resp.status}`);
-      }
-
-      el.classList.remove('bg-yellow-50','border-yellow-300');
-      el.classList.add('bg-green-50','border-green-300');
-
-    } catch (e) {
-      el.classList.remove('bg-yellow-50','border-yellow-300');
-      el.classList.add('bg-red-50','border-red-300');
+    if (!upsertUrl || !csrf) {
+      console.error('[KLTG] Missing upsertUrl or CSRF');
+      return;
     }
-  }
-})();
-</script>
+
+    // ----- Helpers -----
+    function getYearMonth() {
+      // 1) Prefer dropdowns
+      const ySel = document.querySelector('select[name="year"]');
+      const mSel = document.querySelector('select[name="month"]');
+      let year  = ySel?.value ?? '';
+      let month = mSel?.value ?? '';
+
+      // 2) Fallback hidden ctx (optional if you have them)
+      if (!year)  year  = document.getElementById('ctxYear')?.value  ?? '';
+      if (!month) month = document.getElementById('ctxMonth')?.value ?? '';
+
+      // Normalize: remove non-digits from year (avoid "2,025")
+      year = String(year ?? '').replace(/[^0-9]/g, '');
+      const yNum = Number(year || 0);
+      const mNum = Number(month || 0);
+
+      return { year: yNum, month: mNum, rawMonth: month };
+    }
+
+    // Warn when trying to edit without a concrete month
+    function requireConcreteMonth() {
+      const { year, month } = getYearMonth();
+      if (!month || month < 1 || month > 12) {
+        alert('Pilih bulan dulu (bukan "All Months") sebelum mengedit.');
+        return null;
+      }
+      if (!year || year < 1900) {
+        alert('Tahun tidak valid. Pilih tahun yang benar.');
+        return null;
+      }
+      return { year, month };
+    }
+
+    function buildPayload(el) {
+      const masterId    = Number(el.dataset.masterFileId);
+      const subcategory = el.dataset.subcategory;
+      const field       = el.dataset.field;   // nama kolom di DB yang akan diubah
+
+      if (!masterId || !subcategory || !field) return null;
+
+      const value = (el.type === 'checkbox')
+        ? (el.checked ? 1 : 0)
+        : (el.value ?? '');
+
+      // Include year/month (W-A-J-I-B)
+      const ym = requireConcreteMonth();
+      if (!ym) return null;
+
+      const payload = {
+        master_file_id: masterId,
+        subcategory: subcategory,
+        year: ym.year,          // number
+        month: ym.month,        // number 1..12
+        field: field,           // kompatibel dgn controller kamu sekarang
+        column: field,          // safety kalau backend expect 'column'
+        value: value
+      };
+
+      return payload;
+    }
+
+    // ----- Attach listeners -----
+    const inputs = document.querySelectorAll('[data-master-file-id][data-field]');
+    console.log(`[KLTG] ✅ Autosave listener attached: ${inputs.length} inputs found`);
+
+    inputs.forEach(el => {
+      el.addEventListener('change', () => save(el));
+      el.addEventListener('blur',   () => save(el));
+    });
+
+    async function save(el) {
+      const payload = buildPayload(el);
+      if (!payload) return;
+
+      // UI state
+      el.classList.remove('bg-red-50','border-red-300','bg-green-50','border-green-300');
+      el.classList.add('bg-yellow-50','border-yellow-300');
+
+      try {
+        const resp = await fetch(upsertUrl, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrf,
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!resp.ok) {
+          const text = await resp.text().catch(() => '');
+          console.error('[KLTG] ❌ SAVE ERR', resp.status, text);
+          throw new Error(`HTTP ${resp.status}`);
+        }
+
+        el.classList.remove('bg-yellow-50','border-yellow-300');
+        el.classList.add('bg-green-50','border-green-300');
+
+      } catch (e) {
+        el.classList.remove('bg-yellow-50','border-yellow-300');
+        el.classList.add('bg-red-50','border-red-300');
+      }
+    }
+  })();
+  </script>
 
 </x-app-layout>
