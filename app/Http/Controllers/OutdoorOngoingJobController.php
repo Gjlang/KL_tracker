@@ -67,13 +67,21 @@ class OutdoorOngoingJobController extends Controller
     // -------- Year filter (works for any year that exists) --------
     // A row qualifies if any of these dates fall within the chosen year
     if ($request->filled('outdoor_year')) {
-        $y = (int) $year;
-        $q->where(function ($w) use ($y) {
-            $w->whereYear('mf.date', $y)
-              ->orWhereYear('mf.date_finish', $y)
-              ->orWhereYear('mf.created_at', $y);
-        });
-    }
+    $y = (int) $year;
+
+    // Show finish-year matches first; if no finish date, allow other year signals
+    $q->where(function ($w) use ($y) {
+        $w->whereYear('mf.date_finish', $y)
+          ->orWhere(function ($x) use ($y) {
+              $x->whereNull('mf.date_finish')
+                ->where(function ($yq) use ($y) {
+                    $yq->whereYear('mf.date', $y)
+                       ->orWhereYear('mf.created_at', $y);
+                });
+          });
+    });
+}
+
 
     // -------- Select one row per master file + aggregated sites --------
     // -------- PER-SITE selection (no GROUP_CONCAT) --------
@@ -156,129 +164,81 @@ $existing = $details->mapWithKeys(function ($r) {
 
 }
 
-// public function index(Request $request)
-// {
-//     // -------- Inputs --------
-//     $year  = (int) ($request->input('outdoor_year') ?: now()->year);
-//     // Accept outdoor_month (preferred). If missing, fall back to 'month'. 0 = "All months".
-//     $month = (int) ($request->input('outdoor_month') ?: $request->input('month') ?: 0);
-//     if ($month < 0 || $month > 12) {
-//         $month = 0;
-//     }
-//     $search = trim((string) $request->get('search', ''));
+public function cloneYear(Request $request)
+{
+    $toYear   = (int) $request->input('to_year');
+    $fromYear = (int) $request->input('from_year', $toYear - 1);
 
-//     // -------- Base query: Outdoor-only + sites joined --------
-//     $q = DB::table('master_files as mf')
-//         ->leftJoin('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
-//         ->where(function ($w) {
-//             $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
-//               ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%']);
-//         });
+    if ($toYear < 2000 || $toYear > 2100) {
+        return back()->with('status', 'Invalid target year.');
+    }
 
-//     // -------- Search (company/product/site/coords/district) --------
-//     if ($search !== '') {
-//         $like = '%' . strtolower($search) . '%';
-//         $q->where(function ($w) use ($like) {
-//             $w->whereRaw('LOWER(mf.company) LIKE ?', [$like])
-//               ->orWhereRaw('LOWER(mf.product) LIKE ?', [$like])
-//               ->orWhereRaw('LOWER(oi.site) LIKE ?', [$like])
-//               ->orWhereRaw('LOWER(COALESCE(oi.coordinates,"")) LIKE ?', [$like])
-//               ->orWhereRaw('LOWER(COALESCE(oi.district_council,"")) LIKE ?', [$like]);
-//         });
-//     }
+    // Field keys you use in the grid
+    $fieldKeys = ['status','installed_on','approved_on','material_received','remark'];
 
-//     // -------- Year filter (a row qualifies if any of these dates fall in the year) --------
-//     if ($request->filled('outdoor_year')) {
-//         $y = (int) $year;
-//         $q->where(function ($w) use ($y) {
-//             $w->whereYear('mf.date', $y)
-//               ->orWhereYear('mf.date_finish', $y)
-//               ->orWhereYear('mf.created_at', $y);
-//         });
-//     }
+    // Pick the visible Outdoor rows for the target year scope (same base as index)
+    $q = DB::table('master_files as mf')
+        ->leftJoin('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
+        ->where(function ($w) {
+            $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
+              ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%']);
+        });
 
-//     // -------- PER-SITE selection (no GROUP_CONCAT) --------
-//     $rows = $q->select([
-//             'mf.id',                       // master_file_id
-//             'mf.company',
-//             'mf.product',
-//             'mf.product_category',
-//             'mf.date',
-//             'mf.date_finish',
-//             'mf.month',
-//             'mf.created_at',
-//             'oi.id  as outdoor_item_id',
-//             'oi.site',
-//             'oi.size',
-//             'oi.coordinates',
-//             'oi.district_council',
-//         ])
-//         ->orderBy('mf.company')
-//         ->orderBy('oi.site')
-//         ->get();
+    // use the same finish-year-first constraint used in index()
+    $q->where(function ($w) use ($toYear) {
+        $w->whereYear('mf.date_finish', $toYear)
+          ->orWhere(function ($x) use ($toYear) {
+              $x->whereNull('mf.date_finish')
+                ->where(function ($yq) use ($toYear) {
+                    $yq->whereYear('mf.date', $toYear)
+                       ->orWhereYear('mf.created_at', $toYear);
+                });
+          });
+    });
 
-//     // -------- Available years (union of date sources across outdoor data) --------
-//     $years = DB::query()
-//         ->fromSub(function ($sub) {
-//             $sub->from('master_files as mf')
-//                 ->leftJoin('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
-//                 ->where(function ($w) {
-//                     $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
-//                       ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%']);
-//                 })
-//                 ->selectRaw('YEAR(mf.date) as y')->whereNotNull('mf.date')
-//                 ->union(
-//                     DB::table('master_files as mf')
-//                         ->leftJoin('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
-//                         ->where(function ($w) {
-//                             $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
-//                               ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%']);
-//                         })
-//                         ->selectRaw('YEAR(mf.date_finish) as y')->whereNotNull('mf.date_finish')
-//                 )
-//                 ->union(
-//                     DB::table('master_files as mf')
-//                         ->leftJoin('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
-//                         ->where(function ($w) {
-//                             $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
-//                               ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%']);
-//                         })
-//                         ->selectRaw('YEAR(mf.created_at) as y')->whereNotNull('mf.created_at')
-//                 );
-//         }, 'years_union')
-//         ->select('y')
-//         ->whereNotNull('y')
-//         ->distinct()
-//         ->orderBy('y', 'desc')
-//         ->pluck('y');
+    $sites = $q->select(['mf.id as master_file_id','oi.id as outdoor_item_id'])
+               ->whereNotNull('oi.id')
+               ->get();
 
-//     $availableYears = $years;
+    if ($sites->isEmpty()) {
+        return back()->with('status', "No Outdoor sites to scaffold for {$toYear}.");
+    }
 
-//     // -------- Existing monthly detail map (filtered by year and optional month) --------
-//     $detailIds = $rows->pluck('outdoor_item_id')->filter()->unique()->values();
+    // Build empty stubs for every site x month x field_key, but only insert if missing
+    $payload = [];
+    foreach ($sites as $s) {
+        for ($m = 1; $m <= 12; $m++) {
+            foreach ($fieldKeys as $k) {
+                $payload[] = [
+                    'master_file_id'  => (int) $s->master_file_id,
+                    'outdoor_item_id' => (int) $s->outdoor_item_id,
+                    'year'            => $toYear,
+                    'month'           => $m,
+                    'field_key'       => $k,
+                    'field_type'      => in_array($k, ['installed_on','approved_on','material_received'], true) ? 'date' : 'text',
+                    'value_text'      => null,
+                    'value_date'      => null,
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ];
+            }
+        }
+    }
 
-//     $detailsQuery = DB::table('outdoor_monthly_details')
-//         ->where('year', $year)
-//         ->whereIn('outdoor_item_id', $detailIds);
+    // Insert-if-not-exists on the composite key
+    // Requires a UNIQUE index (see migration below)
+    $chunkSize = 1000;
+    foreach (array_chunk($payload, $chunkSize) as $chunk) {
+        DB::table('outdoor_monthly_details')->upsert(
+            $chunk,
+            ['master_file_id','outdoor_item_id','year','month','field_key'], // unique by
+            [] // do not update existing rows (we don't want to overwrite values)
+        );
+    }
 
-//     if ($month >= 1 && $month <= 12) {
-//         $detailsQuery->where('month', $month);
-//     }
+    return back()->with('status', "Structure for {$toYear} prepared (from {$fromYear}) with empty values.");
+}
 
-//     $details = $detailsQuery->get();
-
-//     $existing = $details->mapWithKeys(function ($r) {
-//         return [ $r->outdoor_item_id . ':' . $r->month . ':' . $r->field_key => $r ];
-//     });
-
-//     return view('dashboard.outdoor', [
-//         'rows'           => $rows,
-//         'availableYears' => $availableYears,
-//         'year'           => (int) $year,
-//         'month'          => (int) $month, // so your <select> can stay selected
-//         'existing'       => $existing,
-//     ]);
-// }
 
 
 
