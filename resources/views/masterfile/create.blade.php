@@ -478,172 +478,223 @@
 
 
                 <!-- Outdoor Details -->
-<div
-  x-show="selectedCategory === 'Outdoor'"
-  x-cloak
-  class="rounded-2xl border border-neutral-200/70 shadow-sm bg-white p-6"
-  x-data="outdoorRepeater(() => selectedProduct)"   <!-- pass getter so it always reads current sub-product -->
-  x-init="init()"                                   <!-- IMPORTANT: boot the repeater -->
->
-  <h3 class="text-sm text-neutral-600 small-caps mb-6 font-medium">Outdoor Details</h3>
+            <div
+            x-show="selectedCategory === 'Outdoor'"
+            x-cloak
+            class="rounded-2xl border border-neutral-200/70 shadow-sm bg-white p-6"
+            x-data="outdoorRepeater(() => selectedProduct)"   <!-- pass getter so it always reads current sub-product -->
 
-  <!-- Count selector -->
-  <div class="mb-4">
-    <label class="block text-sm font-medium text-[#1C1E26] mb-2">How many locations?</label>
-    <div class="flex items-center gap-3">
-      <input type="number" min="1" x-model.number="count"
-             @input="resize()"  <!-- react immediately -->
-      <button type="button" @click="addOne()"
-              class="px-3 py-2 rounded-xl border border-neutral-300 hover:bg-neutral-50">+ Add 1</button>
-      <button type="button" @click="removeOne()"
-              class="px-3 py-2 rounded-xl border border-neutral-300 hover:bg-neutral-50">− Remove 1</button>
-    </div>
-    <p class="mt-2 text-xs text-neutral-500">You can also add/remove rows anytime.</p>
-  </div>
+            >
+            <h3 class="text-sm text-neutral-600 small-caps mb-6 font-medium">Outdoor Details</h3>
 
-  <!-- Repeater rows -->
-  <template x-for="(row, idx) in rows" :key="idx">
-    <div class="mb-4 p-4 rounded-xl border border-neutral-200/80 bg-neutral-50/40">
-      <div class="flex justify-between items-center mb-2">
-        <h4 class="text-sm font-medium text-[#1C1E26]">Location <span x-text="idx+1"></span></h4>
-        <button type="button" @click="removeAt(idx)"
-                class="text-xs px-2 py-1 rounded-lg border border-neutral-300 hover:bg-neutral-100">Remove</button>
-      </div>
+            <!-- Count selector -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-[#1C1E26] mb-2">How many locations?</label>
+                <div class="flex items-center gap-3">
+                <input type="number" min="1" x-model.number="count"
+                        @input="resize()"  <!-- react immediately -->
+                <button type="button" @click="addOne()"
+                        class="px-3 py-2 rounded-xl border border-neutral-300 hover:bg-neutral-50">+ Add 1</button>
+                <button type="button" @click="removeOne()"
+                        class="px-3 py-2 rounded-xl border border-neutral-300 hover:bg-neutral-50">− Remove 1</button>
+                </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
-        <!-- Sub-product override (optional) -->
-        <div class="md:col-span-1">
-          <label class="block text-xs text-neutral-600 mb-1">Sub-Product</label>
-          <select :name="`locations[${idx}][sub_product]`" x-model="row.sub_product"
-                  class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]">
-            <template x-for="opt in outdoorSubProducts" :key="opt">
-              <option :value="opt" x-text="opt"></option>
+                <button type="button" @click="copyDatesToAll()"
+            class="px-3 py-2 rounded-xl border border-neutral-300 hover:bg-neutral-50">
+            Copy dates from #1 to all
+            </button>
+
+            <button type="button" @click="copySizeToAll()"
+            class="px-3 py-2 rounded-xl border border-neutral-300 hover:bg-neutral-50">
+            Copy size from #1 to all
+            </button>
+
+            <button type="button" @click="copySubToAll()"
+            class="px-3 py-2 rounded-xl border border-neutral-300 hover:bg-neutral-50">
+            Copy sub-product from #1 to all
+            </button>
+                <p class="mt-2 text-xs text-neutral-500">You can also add/remove rows anytime.</p>
+            </div>
+
+            <!-- Repeater rows -->
+            <template x-for="(row, idx) in rows" :key="idx">
+                <div class="mb-4 p-4 rounded-xl border border-neutral-200/80 bg-neutral-50/40">
+                <div class="flex justify-between items-center mb-2">
+                    <h4 class="text-sm font-medium text-[#1C1E26]">Location <span x-text="idx+1"></span></h4>
+                    <button type="button" @click="removeAt(idx)"
+                            class="text-xs px-2 py-1 rounded-lg border border-neutral-300 hover:bg-neutral-100">Remove</button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
+                    <!-- Sub-product override (optional) -->
+                    <div class="md:col-span-1">
+                    <label class="block text-xs text-neutral-600 mb-1">Sub-Product</label>
+                    <select :name="`locations[${idx}][sub_product]`" x-model="row.sub_product"
+                            class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]">
+                        <template x-for="opt in outdoorSubProducts" :key="opt">
+                        <option :value="opt" x-text="opt"></option>
+                        </template>
+                    </select>
+                    </div>
+
+                    <div class="md:col-span-2">
+                    <label class="block text-xs text-neutral-600 mb-1">Site</label>
+                    <input type="text" :name="`locations[${idx}][site]`" x-model="row.site"
+                            placeholder="e.g., Wangsa Maju LRT"
+                            class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
+                    </div>
+
+                    <div class="md:col-span-1">
+                    <label class="block text-xs text-neutral-600 mb-1">Size</label>
+                    <input type="text" :name="`locations[${idx}][size]`" x-model="row.size"
+                            placeholder="10x20ft"
+                            class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
+                    </div>
+
+                    <div class="md:col-span-1">
+                    <label class="block text-xs text-neutral-600 mb-1">Area</label>
+                    <input type="text" :name="`locations[${idx}][council]`" x-model="row.council"
+                            placeholder="AREA"
+                            class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
+                    </div>
+
+                    <div class="md:col-span-1">
+                    <label class="block text-xs text-neutral-600 mb-1">Coords (lat,lng)</label>
+                    <input type="text" :name="`locations[${idx}][coords]`" x-model="row.coords"
+                            placeholder="3.154,101.74"
+                            class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
+                    </div>
+
+                    <div class="md:col-span-1">
+                    <label class="block text-xs text-neutral-600 mb-1">Start Date</label>
+                    <input type="date" :name="`locations[${idx}][start_date]`" x-model="row.start_date"
+                            class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
+                    </div>
+
+                    <div class="md:col-span-1">
+                    <label class="block text-xs text-neutral-600 mb-1">End Date</label>
+                    <input type="date" :name="`locations[${idx}][end_date]`" x-model="row.end_date"
+                            class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
+                    </div>
+
+                    <div class="md:col-span-6">
+                    <label class="block text-xs text-neutral-600 mb-1">Remarks</label>
+                    <input type="text" :name="`locations[${idx}][remarks]`" x-model="row.remarks"
+                            placeholder="Near station"
+                            class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
+                    </div>
+                </div>
+                </div>
             </template>
-          </select>
-        </div>
 
-        <div class="md:col-span-2">
-          <label class="block text-xs text-neutral-600 mb-1">Site</label>
-          <input type="text" :name="`locations[${idx}][site]`" x-model="row.site"
-                 placeholder="e.g., Wangsa Maju LRT"
-                 class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
-        </div>
+            <input type="hidden" name="input_mode" value="structured" />
+            </div>
 
-        <div class="md:col-span-1">
-          <label class="block text-xs text-neutral-600 mb-1">Size</label>
-          <input type="text" :name="`locations[${idx}][size]`" x-model="row.size"
-                 placeholder="10x20ft"
-                 class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
-        </div>
+            <script>
+            window.outdoorRepeater = function(selectedProductRef) {
+                return {
+                outdoorSubProducts: ['BB','TB','Newspaper','Bunting','Flyers','Star','Signages'],
 
-        <div class="md:col-span-1">
-          <label class="block text-xs text-neutral-600 mb-1">Council</label>
-          <input type="text" :name="`locations[${idx}][council]`" x-model="row.council"
-                 placeholder="AREA"
-                 class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
-        </div>
+                count: 1,
+                rows: [],
 
-        <div class="md:col-span-1">
-          <label class="block text-xs text-neutral-600 mb-1">Coords (lat,lng)</label>
-          <input type="text" :name="`locations[${idx}][coords]`" x-model="row.coords"
-                 placeholder="3.154,101.74"
-                 class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
-        </div>
+                // sync toggles
+                syncDates: false,
+                syncSize:  false,     // NEW
+                syncSub:   false,     // NEW
 
-        <div class="md:col-span-1">
-          <label class="block text-xs text-neutral-600 mb-1">Start Date</label>
-          <input type="date" :name="`locations[${idx}][start_date]`" x-model="row.start_date"
-                 class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
-        </div>
+                init() {
+                    const def = (typeof selectedProductRef === 'function')
+                    ? selectedProductRef() : (selectedProductRef || 'BB');
+                    this.rows = [this.emptyRow(def)];
+                    this.count = this.rows.length;
 
-        <div class="md:col-span-1">
-          <label class="block text-xs text-neutral-600 mb-1">End Date</label>
-          <input type="date" :name="`locations[${idx}][end_date]`" x-model="row.end_date"
-                 class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
-        </div>
+                    // === keep others synced when toggled ===
+                    // dates
+                    this.$watch('rows[0].start_date', v => { if (this.syncDates) this.rows.forEach((r,i)=>{ if(i){ r.start_date=v } }); });
+                    this.$watch('rows[0].end_date',   v => { if (this.syncDates) this.rows.forEach((r,i)=>{ if(i){ r.end_date=v } }); });
 
-        <div class="md:col-span-6">
-          <label class="block text-xs text-neutral-600 mb-1">Remarks</label>
-          <input type="text" :name="`locations[${idx}][remarks]`" x-model="row.remarks"
-                 placeholder="Near station"
-                 class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
-        </div>
-      </div>
-    </div>
-  </template>
+                    // size
+                    this.$watch('rows[0].size',       v => { if (this.syncSize)  this.rows.forEach((r,i)=>{ if(i){ r.size=v } }); });
 
-  <input type="hidden" name="input_mode" value="structured" />
-</div>
+                    // sub-product
+                    this.$watch('rows[0].sub_product', v => {
+                    if (!this.syncSub) return;
+                    // only set if value is in allowed list
+                    if (!this.outdoorSubProducts.includes(v)) return;
+                    this.rows.forEach((r,i)=>{ if(i){ r.sub_product=v } });
+                    });
+                },
 
-<!-- Make the factory global, and FIX commas/braces -->
-<script>
-  window.outdoorRepeater = function(selectedProductRef) {
-    return {
-      // Allowed Outdoor sub-products
-      outdoorSubProducts: ['BB','TB','Newspaper','Bunting','Flyers','Star','Signages'],
+                emptyRow(defaultSub) {
+                    return {
+                    sub_product: defaultSub || 'BB',
+                    site: '',
+                    size: '',
+                    council: '',
+                    coords: '',
+                    remarks: '',
+                    start_date: '',
+                    end_date: ''
+                    };
+                },
 
-      // Number of rows chosen by user
-      count: 1,
+                // === one-click copy actions ===
+                copyDatesToAll() {
+                    const s = this.rows[0]?.start_date || '';
+                    const e = this.rows[0]?.end_date   || '';
+                    this.rows.forEach((r,i)=>{ if(i){ r.start_date=s; r.end_date=e; } });
+                },
+                copySizeToAll() {                              // NEW
+                    const v = this.rows[0]?.size || '';
+                    this.rows.forEach((r,i)=>{ if(i){ r.size=v; } });
+                },
+                copySubToAll() {                               // NEW
+                    const v = this.rows[0]?.sub_product || '';
+                    if (!this.outdoorSubProducts.includes(v)) return;
+                    this.rows.forEach((r,i)=>{ if(i){ r.sub_product=v; } });
+                },
 
-      // The rows
-      rows: [],
+                // === row management ===
+                resize() {
+                    const def = this.rows[0]?.sub_product || 'BB';
+                    const target = Math.max(1, parseInt(this.count || 1, 10));
+                    while (this.rows.length < target) {
+                    const r = this.emptyRow(def);
+                    // inherit synced fields for new rows
+                    if (this.syncDates) { r.start_date = this.rows[0]?.start_date || ''; r.end_date = this.rows[0]?.end_date || ''; }
+                    if (this.syncSize)  { r.size       = this.rows[0]?.size       || ''; }
+                    if (this.syncSub)   { r.sub_product= this.rows[0]?.sub_product|| def; }
+                    this.rows.push(r);
+                    }
+                    while (this.rows.length > target) this.rows.pop();
+                },
 
-      // Init with 1 row using the current product as default
-      init() {
-        const def = (typeof selectedProductRef === 'function')
-          ? selectedProductRef()
-          : (selectedProductRef || 'BB');
-        this.rows = [this.emptyRow(def)];
-        this.count = this.rows.length;
-      },
+                addOne() {
+                    const last = this.rows[this.rows.length - 1];
+                    const def  = last?.sub_product || 'BB';
+                    const r    = this.emptyRow(def);
+                    // inherit synced fields for the new row
+                    if (this.syncDates) { r.start_date = this.rows[0]?.start_date || ''; r.end_date = this.rows[0]?.end_date || ''; }
+                    if (this.syncSize)  { r.size       = this.rows[0]?.size       || ''; }
+                    if (this.syncSub)   { r.sub_product= this.rows[0]?.sub_product|| def; }
+                    this.rows.push(r);
+                    this.count = this.rows.length;
+                },
 
-      // Helpers
-      emptyRow(defaultSub) {
-        return {
-          sub_product: defaultSub || 'BB',
-          site: '',
-          size: '',
-          council: '',
-          coords: '',
-          remarks: '',
-          start_date: '',
-          end_date: ''
-        };
-      },  // <-- MISSING COMMA WAS HERE
+                removeOne() {
+                    if (this.rows.length > 1) { this.rows.pop(); this.count = this.rows.length; }
+                },
 
-      resize() {
-        const def = this.rows[0]?.sub_product || 'BB';
-        const target = Math.max(1, parseInt(this.count || 1, 10));
-        while (this.rows.length < target) this.rows.push(this.emptyRow(def));
-        while (this.rows.length > target) this.rows.pop();
-      },
-
-      addOne() {
-        const def = this.rows[this.rows.length - 1]?.sub_product || 'BB';
-        this.rows.push(this.emptyRow(def));
-        this.count = this.rows.length;
-      },
-
-      removeOne() {
-        if (this.rows.length > 1) {
-          this.rows.pop();
-          this.count = this.rows.length;
-        }
-      },
-
-      removeAt(i) {
-        if (this.rows.length > 1) {
-          this.rows.splice(i, 1);
-          this.count = this.rows.length;
-        }
-      }
-    }
-  }
-</script>
-
-<style>[x-cloak]{display:none !important;}</style>
+                removeAt(i) {
+                    if (this.rows.length > 1) { this.rows.splice(i,1); this.count = this.rows.length; }
+                }
+                }
+            }
+            </script>
 
 
+            <style>[x-cloak]{display:none !important;}</style>
         <!-- Sticky Bottom Action Bar -->
         <div class="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-t border-[#EAEAEA]">
             <div class="w-full max-w-none px-6 lg:px-10 xl:px-14 py-4">
