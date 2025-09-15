@@ -15,6 +15,12 @@
     // default date columns
     $dateCols = $dateColumns ?? ['created_at','updated_at','date','date_finish','start_date','end_date','invoice_date'];
 
+    // map master columns -> child outdoor_items columns when the row is an outdoor item
+    $childDateRewrite = [
+        'date'        => 'start_date',
+        'date_finish' => 'end_date',
+    ];
+
     // TABLE display formatter
     $fmt = function (string $col, $val) use ($dateCols) {
         if ($val === null || $val === '' || (is_array($val) && count(array_filter($val, fn($v) => $v !== null && $v !== '')) === 0)) return '—';
@@ -24,11 +30,12 @@
         if (in_array($col, $dateCols, true)) {
             try {
                 $dt = $val instanceof \DateTimeInterface ? $val : Carbon::parse($val);
-                return $dt->format('n/j/y');
+                return $dt->format('d/m/Y');   // <-- changed from n/j/y
             } catch (\Throwable $e) { return (string)$val; }
         }
         return is_scalar($val) ? (string)$val : '—';
     };
+
 
     // RAW value for input fields
     $raw = function (string $col, $val) use ($dateCols) {
@@ -75,11 +82,21 @@
                 <tr class="hover:bg-gray-50">
                     @foreach($columns as $c)
                         @php
-                            $colKey    = is_array($c) ? ($c['key'] ?? '') : $c;
-                            $cellValue = data_get($row, $colKey);
-                            $isEditable = array_key_exists($colKey, $editable);
-                            $type = $isEditable ? ($editable[$colKey] ?? 'text') : null;
-                            $rowId = data_get($row, 'id');
+                            $colKey      = is_array($c) ? ($c['key'] ?? '') : $c;
+                            $isEditable  = array_key_exists($colKey, $editable);
+                            $type        = $isEditable ? ($editable[$colKey] ?? 'text') : null;
+                            $rowId       = data_get($row, 'id');
+
+                            // detect child row (joined outdoor_items) — your code already carries this id
+                            $isChildRow  = isset($row['outdoor_item_id']) || isset($row->outdoor_item_id);
+
+                            // if child row, rewrite master date cols to child date cols
+                            $effectiveKey = ($isChildRow && isset($childDateRewrite[$colKey]))
+                                ? $childDateRewrite[$colKey]
+                                : $colKey;
+
+                            // fetch value using the effective key
+                            $cellValue   = data_get($row, $effectiveKey);
 
                             // ✅ Check if this is a wide column that needs more space
                             $isWideColumn = in_array($colKey, [
@@ -95,9 +112,9 @@
                                     <input
                                         type="date"
                                         class="mf-edit w-full min-w-32 rounded border border-gray-300 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                        value="{{ $raw($colKey, $cellValue) }}"
+                                        value="{{ $raw($effectiveKey, $cellValue) }}"
                                         data-id="{{ $rowId }}"
-                                        data-col="{{ $colKey }}"
+                                        data-col="{{ $effectiveKey }}"
                                         data-url="{{ $updateUrl }}"
                                         data-extra='@json($updatePayloadExtra)'
                                         @if(isset($row['outdoor_item_id']) || isset($row->outdoor_item_id))
@@ -109,9 +126,9 @@
                                         type="number"
                                         step="any"
                                         class="mf-edit w-full min-w-24 rounded border border-gray-300 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                        value="{{ $raw($colKey, $cellValue) }}"
+                                        value="{{ $raw($effectiveKey, $cellValue) }}"
                                         data-id="{{ $rowId }}"
-                                        data-col="{{ $colKey }}"
+                                        data-col="{{ $effectiveKey }}"
                                         data-extra='@json($updatePayloadExtra)'
                                         @if(isset($row['outdoor_item_id']) || isset($row->outdoor_item_id))
                                             data-outdoor-item-id="{{ is_array($row) ? ($row['outdoor_item_id'] ?? '') : ($row->outdoor_item_id ?? '') }}"
@@ -122,20 +139,20 @@
                                         class="mf-edit w-full min-w-48 rounded border border-gray-300 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
                                         rows="3"
                                         data-id="{{ $rowId }}"
-                                        data-col="{{ $colKey }}"
+                                        data-col="{{ $effectiveKey }}"
                                         data-extra='@json($updatePayloadExtra)'
                                         @if(isset($row['outdoor_item_id']) || isset($row->outdoor_item_id))
                                             data-outdoor-item-id="{{ is_array($row) ? ($row['outdoor_item_id'] ?? '') : ($row->outdoor_item_id ?? '') }}"
                                         @endif
-                                    >{{ $raw($colKey, $cellValue) }}</textarea>
+                                    >{{ $raw($effectiveKey, $cellValue) }}</textarea>
                                 @else
                                     {{-- ✅ Different width for different types of text inputs --}}
                                     <input
                                         type="text"
                                         class="mf-edit w-full {{ $isWideColumn ? 'min-w-48' : 'min-w-24' }} rounded border border-gray-300 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                        value="{{ $raw($colKey, $cellValue) }}"
+                                        value="{{ $raw($effectiveKey, $cellValue) }}"
                                         data-id="{{ $rowId }}"
-                                        data-col="{{ $colKey }}"
+                                        data-col="{{ $effectiveKey }}"
                                         data-extra='@json($updatePayloadExtra)'
                                         @if(isset($row['outdoor_item_id']) || isset($row->outdoor_item_id))
                                             data-outdoor-item-id="{{ is_array($row) ? ($row['outdoor_item_id'] ?? '') : ($row->outdoor_item_id ?? '') }}"
@@ -144,7 +161,7 @@
                                 @endif
                             @else
                                 <div class="{{ $isWideColumn ? 'min-w-48 break-words' : '' }}">
-                                    {{ $fmt($colKey, $cellValue) }}
+                                    {{ $fmt($effectiveKey, $cellValue) }}
                                 </div>
                             @endif
                         </td>

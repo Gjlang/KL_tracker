@@ -76,10 +76,9 @@
       <th>CONTACT PERSON</th>
       <td>{{ $file->client ?? '' }}</td>
       <th>JOB ORDER DATE</th>
-<td>
-  {{ $file->created_at ? \Carbon\Carbon::parse($file->created_at)->format('d/m/Y') : '' }}
-</td>
-
+        <td>
+        {{ $file->created_at ? \Carbon\Carbon::parse($file->created_at)->format('d/m/Y') : '' }}
+        </td>
     </tr>
     <tr>
       <th>CONTACT NUMBER</th>
@@ -121,19 +120,22 @@
       @endif
     </td>
 
-    {{-- In charge date: only when there IS an item --}}
+    {{-- In charge date: use individual item dates --}}
     <td>
-      @if ($it && $file->date)
-        {{ \Carbon\Carbon::parse($file->date)->format('d/m/Y') }}
-        {{ $file->date_finish ? ' - ' . \Carbon\Carbon::parse($file->date_finish)->format('d/m/Y') : '' }}
+      @if ($it)
+        @if ($it->start_date && $it->end_date)
+          {{ $it->start_date->format('d/m/Y') }} - {{ $it->end_date->format('d/m/Y') }}
+        @elseif ($it->start_date)
+          {{ $it->start_date->format('d/m/Y') }}
+        @elseif ($it->end_date)
+          {{ $it->end_date->format('d/m/Y') }}
+        @endif
       @endif
     </td>
   </tr>
 @endfor
 
 </table>
-
-
 
   <!-- REMARKS -->
   <table style="margin-top:6px;" class="remarks">

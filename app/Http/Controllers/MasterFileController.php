@@ -175,20 +175,27 @@ public function outdoor(Request $request)
         ->from('master_files as mf')
         ->leftJoin('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
         ->select([
-            'mf.id',                    // required for row identity (master_files)
+            'mf.id',
             'mf.created_at',
             'mf.month',
             'mf.company',
             'mf.product',
             DB::raw('oi.site as location'),
             'mf.duration',
+
+            // keep master-level dates (optional, for rows with no items)
             'mf.date',
             'mf.date_finish',
+
+            // ✅ add child-level dates so the table can use them
+            DB::raw('oi.start_date as start_date'),
+            DB::raw('oi.end_date   as end_date'),
+
             DB::raw('oi.size as outdoor_size'),
             DB::raw('oi.district_council as outdoor_district_council'),
             DB::raw('oi.coordinates as outdoor_coordinates'),
-            DB::raw('oi.id as outdoor_item_id'),   // ★ needed for saving joined outdoor fields
-            'mf.remarks',               // ★ NEW: remarks pulled from master_files
+            DB::raw('oi.id as outdoor_item_id'),
+            'mf.remarks',
         ])
         ->where(function ($w) {
             $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
@@ -203,7 +210,7 @@ public function outdoor(Request $request)
             });
         });
 
-    // month + date filters (created_at on master_files)
+    // (filters unchanged)
     $q = $this->applyMonthFilterForJoinedQuery($q, $request->get('month'));
     if ($from = $request->get('date_from')) $q->whereDate('mf.created_at', '>=', $from);
     if ($to   = $request->get('date_to'))   $q->whereDate('mf.created_at', '<=', $to);
@@ -220,21 +227,22 @@ public function outdoor(Request $request)
         ['key' => 'location',                 'label' => 'LOCATION'],
         ['key' => 'outdoor_district_council', 'label' => 'AREA'],
         ['key' => 'duration',                 'label' => 'DURATION'],
-        ['key' => 'date',                     'label' => 'DATE'],
-        ['key' => 'date_finish',              'label' => 'DATE FINISH'],
+        ['key' => 'date',                     'label' => 'DATE'],          // shown as start_date for outdoor rows (via partial mapping)
+        ['key' => 'date_finish',              'label' => 'DATE FINISH'],   // shown as end_date for outdoor rows
         ['key' => 'outdoor_size',             'label' => 'OUTDOOR SIZE'],
         ['key' => 'outdoor_coordinates',      'label' => 'OUTDOOR COORDINATES'],
-        ['key' => 'remarks',                  'label' => 'REMARKS'],   // ★ NEW column at the end
+        ['key' => 'remarks',                  'label' => 'REMARKS'],
     ];
 
     return view('dashboard.master.outdoor', [
-        'rows'          => $rows, // paginator with outdoor_item_id available per row
+        'rows'          => $rows,
         'columns'       => $columns,
         'column_labels' => collect($columns)->pluck('label', 'key')->all(),
         'active'        => 'outdoor',
         'paginator'     => $rows,
     ]);
 }
+
 
 
 
@@ -702,22 +710,30 @@ public function printAuto(MasterFile $file)
 {
     $type = request('type') ?: $this->guessProductType($file);
 
-    // common data
+    // Ambil items outdoor dengan kolom yang dibutuhkan (termasuk tanggal)
+    if ($type === 'outdoor') {
+        $file->load(['outdoorItems' => function ($q) {
+            $q->orderBy('id')
+              ->select([
+                  'id','master_file_id',
+                  'site','size',
+                  'start_date','end_date',   // <-- penting untuk IN CHARGE DATE
+                  // optional kalau dipakai di PDF:
+                  // 'district_council','coordinates','remarks','qty'
+              ]);
+        }]);
+        $items = $file->outdoorItems; // sudah berupa collection of models (tanggal = Carbon)
+    } else {
+        $items = collect();
+    }
+
     $data = [
         'file'         => $file,
-        'date'         => $file->date ? Carbon::parse($file->date)->format('d/m/Y') : '',
-        'date_finish'  => $file->date_finish ? Carbon::parse($file->date_finish)->format('d/m/Y') : '',
-        'invoice_date' => $file->invoice_date ? Carbon::parse($file->invoice_date)->format('d/m/Y') : '',
+        'items'        => $items,
+        'date'         => $file->date ? \Carbon\Carbon::parse($file->date)->format('d/m/Y') : '',
+        'date_finish'  => $file->date_finish ? \Carbon\Carbon::parse($file->date_finish)->format('d/m/Y') : '',
+        'invoice_date' => $file->invoice_date ? \Carbon\Carbon::parse($file->invoice_date)->format('d/m/Y') : '',
     ];
-
-    // 👇 add this block
-    if ($type === 'outdoor') {
-        $data['items'] = OutdoorItem::where('master_file_id', $file->id)
-            ->orderBy('id')
-            ->get(['site','size']); // add more fields if your view needs them
-    } else {
-        $data['items'] = collect(); // harmless default
-    }
 
     $views = [
         'kltg'    => 'prints.kltg_job_order',
