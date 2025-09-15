@@ -453,7 +453,7 @@ public function cloneYear(Request $request)
     }
 
 
-    public function exportMatrix(Request $req)
+ public function exportMatrix(Request $req)
 {
     // Kalau user kasih ?year=2026 kita tetap export SEMUA tahun yang relevan
     // (berdasarkan overlap date/date_finish dan tahun di details) supaya mirip screenshot.
@@ -533,24 +533,55 @@ public function cloneYear(Request $request)
         $no = 1;
 
         foreach ($masters as $mrow) {
-            // Overlap rule: start <= yearEnd AND finish >= yearStart
+            // overlap check (start <= Dec 31, Y) AND (finish >= Jan 1, Y)
             $overlap = ($mrow->date && $mrow->date_finish)
                 ? (Carbon::parse($mrow->date) <= $yearEnd && Carbon::parse($mrow->date_finish) >= $yearStart)
                 : false;
 
-            // Selain dari overlap, kalau ada details untuk tahun ini, tetap masuk
-            $hasDetailsThisYear = ($detailsByMaster[$mrow->id] ?? collect())
-                ->contains(fn($d) => (int)$d->year === (int)$year);
-
-            if (!$overlap && !$hasDetailsThisYear) continue;
-
             $rows = $detailsByMaster[$mrow->id] ?? collect();
 
-            // Publication & Edition dari tahun ini (month=0, category=KLTG)
+            // build matrix ONLY for this year and detect real content
+            $matrix = $makeEmptyMatrix();
+            $hasContent = false;
+
+            foreach ($rows as $r) {
+                if ((int)$r->year !== (int)$year) continue;
+
+                // exclude month=0 from "content" test
+                $mn = $parseMonth($r->month);
+                if (!$mn || $mn < 1 || $mn > 12 || !isset($matrix[$mn])) continue;
+
+                $key = strtoupper((string)$r->category);
+                if (!in_array($key, $catKeys, true)) continue;
+
+                if ($r->field_type === 'text') {
+                    $t = strtoupper((string)$r->type);
+                    if ($t === '' || $t === 'STATUS' || in_array($t, $catKeys, true)) {
+                        if (!empty($r->value_text)) {
+                            $matrix[$mn]['cats'][$key]['status'] = $r->value_text;
+                            $hasContent = true;
+                        }
+                    }
+                }
+                if (empty($matrix[$mn]['cats'][$key]['status']) && !empty($r->status)) {
+                    $matrix[$mn]['cats'][$key]['status'] = $r->status;
+                    $hasContent = true;
+                }
+                if ($r->field_type === 'date' && $r->value_date) {
+                    $t = strtoupper((string)$r->type);
+                    if ($t === 'START') $matrix[$mn]['cats'][$key]['start'] = substr($r->value_date,0,10);
+                    if ($t === 'END')   $matrix[$mn]['cats'][$key]['end']   = substr($r->value_date,0,10);
+                    $hasContent = true;
+                }
+            }
+
+            // ➜ hanya include jika overlap tahun ini ATAU ada isi nyata di tahun ini
+            if (!$overlap && !$hasContent) continue;
+
+            // Publication/Edition (month=0, tahun ini)
             $publication = optional($rows->first(function($x) use ($year){
                 return (int)$x->year === (int)$year && $x->field_type==='text' && strtoupper((string)$x->type)==='PUBLICATION';
             }))->value_text;
-
             $edition = optional($rows->first(function($x) use ($year){
                 return (int)$x->year === (int)$year && $x->field_type==='text' && strtoupper((string)$x->type)==='EDITION';
             }))->value_text;
@@ -568,40 +599,8 @@ public function cloneYear(Request $request)
                 'end'         => $mrow->date_finish ? Carbon::parse($mrow->date_finish)->format('Y-m-d') : '',
             ];
 
-            $matrix = $makeEmptyMatrix();
-
-            // Isi matrix dari details TAHUN INI saja
-            foreach(($rows ?? collect()) as $r){
-                if ((int)$r->year !== (int)$year) continue;
-
-                $mn = $parseMonth($r->month);
-                if(!$mn || !isset($matrix[$mn])) continue;
-
-                $key = strtoupper((string)$r->category);
-                if(!in_array($key,$catKeys,true)) continue;
-
-                // status dropdown (text)
-                if ($r->field_type === 'text') {
-                    $t = strtoupper((string)$r->type);
-                    if ($t === '' || $t === 'STATUS' || in_array($t, $catKeys, true)) {
-                        if (!empty($r->value_text)) {
-                            $matrix[$mn]['cats'][$key]['status'] = $r->value_text;
-                        }
-                    }
-                }
-                if (empty($matrix[$mn]['cats'][$key]['status']) && !empty($r->status)) {
-                    $matrix[$mn]['cats'][$key]['status'] = $r->status;
-                }
-
-                // dates
-                if ($r->field_type === 'date' && $r->value_date) {
-                    $t = strtoupper((string)$r->type);
-                    if ($t === 'START') $matrix[$mn]['cats'][$key]['start'] = substr($r->value_date,0,10);
-                    if ($t === 'END')   $matrix[$mn]['cats'][$key]['end']   = substr($r->value_date,0,10);
-                }
-            }
-
-            $records[] = ['summary'=>$summary,'matrix'=>array_values($matrix)];
+            // ⬅️ push SEKALI saja
+            $records[] = ['summary' => $summary, 'matrix' => array_values($matrix)];
         }
 
         $recordsByYear[$year] = $records;
@@ -609,10 +608,9 @@ public function cloneYear(Request $request)
 
     // Buat file
     $fileName = 'kltg_matrix_'.now('Asia/Kuala_Lumpur')->format('Ymd_His').'.xlsx';
-   $export = new KltgMatrixExport([], $catLabels, $catKeys);
-return $export->downloadByYear($recordsByYear, $fileName);
+    $export = new KltgMatrixExport([], $catLabels, $catKeys);
+    return $export->downloadByYear($recordsByYear, $fileName);
 }
-
     // ===== Helper stubs (mirror your index queries) =====
     private function getKltgRows(int $year, string $company = '', string $product = '')
     {
