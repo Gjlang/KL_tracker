@@ -213,6 +213,7 @@ Route::prefix('kltg')->name('kltg.')->group(function () {
     Route::post('/details/upsert', [KltgMonthlyController::class, 'upsert'])->name('details.upsert');
     Route::get('/export-matrix', [KltgMonthlyController::class, 'exportMatrix'])->name('exportMatrix');
     Route::get('/export/print', [KltgMonthlyController::class, 'exportPrint'])->name('export.print');
+    Route::post('/clone-year', [KltgMonthlyController::class, 'cloneYear'])->name('cloneYear');
 });
 
 // ===============================================

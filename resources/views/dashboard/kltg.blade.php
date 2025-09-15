@@ -9,7 +9,7 @@
 
   <div class="min-h-screen bg-[#F7F7F9]">
 
-    <!-- Sticky Top Bar -->
+    {{-- <!-- Sticky Top Bar -->
     <div class="sticky top-0 z-40 bg-white border-b hairline shadow-sm">
       <div class="px-6 py-4">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -107,7 +107,141 @@
             </div>
           </div>
         </div>
+      </div> --}}
+
+      <!-- Sticky Top Bar -->
+<div class="sticky top-0 z-40 bg-white border-b hairline shadow-sm">
+  <div class="px-6 py-4">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <!-- Title Section -->
+      <div>
+        <h1 class="font-serif text-2xl ink font-semibold tracking-tight">
+          MONTHLY Ongoing Job – KL The Guide
+        </h1>
+        <p class="text-sm text-neutral-600 mt-1">Inline updates enabled</p>
       </div>
+
+      <!-- Action Button Group -->
+      <div class="flex flex-wrap items-center gap-2">
+
+
+        {{-- Clone structure button (only when target year is empty and a source exists) --}}
+        @php
+          $showClone = (isset($hasAnyForYear) ? !$hasAnyForYear : false) && !empty($bestSourceYear);
+        @endphp
+        @if ($showClone)
+          <form method="POST" action="{{ route('kltg.cloneYear') }}"
+                onsubmit="return confirm('Clone structure from {{ $bestSourceYear }} into {{ $activeYear }}? Values will be empty.');">
+            @csrf
+            <input type="hidden" name="year" value="{{ $activeYear }}">
+            <button type="submit" class="btn-primary">Clone from {{ $bestSourceYear }}</button>
+          </form>
+        @endif
+
+        <a href="{{ route('kltg.exportMatrix', array_filter(request()->only([
+          'year','filter_year','month','filter_month','q','search','status','start','end','date_from','date_to'
+        ]))) }}" class="btn-primary">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"/>
+          </svg>
+          Export Excel
+        </a>
+
+        <a href="{{ route('coordinator.kltg.index') }}" class="btn-secondary">
+          Open KLTG Coordinator
+        </a>
+
+        <a href="{{ route('dashboard') }}" class="btn-ghost">
+          Dashboard
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Main Content -->
+<div class="px-6 py-6 space-y-6">
+
+  <!-- Advanced Filters Card -->
+  <div class="bg-white rounded-2xl border border-neutral-200/70 shadow-sm">
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h3 class="font-serif text-lg ink font-medium">Advanced Filters</h3>
+          <p class="text-sm text-neutral-600 mt-1">Refine your view with precision</p>
+        </div>
+        <button id="clear-filters" class="btn-ghost text-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+          Clear All
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <!-- Month Filter (client-side visual filter only) -->
+        <div class="space-y-2">
+          <label for="filter-month" class="header-label">Month</label>
+          @php $mSel = (string)request('filter_month', ''); @endphp
+          <select id="filter-month" class="form-input">
+            <option value="" {{ $mSel===''?'selected':'' }}>All Months</option>
+            @foreach ([
+              'January','February','March','April','May','June',
+              'July','August','September','October','November','December'
+            ] as $m)
+              <option value="{{ $m }}" {{ $mSel===$m?'selected':'' }}>{{ $m }}</option>
+            @endforeach
+          </select>
+        </div>
+
+        {{-- Server-side Year Switch (authoritative) --}}
+        <form method="GET" action="{{ route('kltg.index') }}" class="flex items-center gap-2">
+          <label for="active-year" class="text-sm text-neutral-600">Year</label>
+          <select id="active-year" name="year" class="form-input" onchange="this.form.submit()">
+            @php
+              $yNow = now('Asia/Kuala_Lumpur')->year;
+              $years = range($yNow - 2, $yNow + 3);
+              $activeYear = isset($activeYear) ? (int)$activeYear : (int)request('year', $yNow);
+            @endphp
+            @foreach ($years as $y)
+              <option value="{{ $y }}" {{ $activeYear === (int)$y ? 'selected' : '' }}>{{ $y }}</option>
+            @endforeach
+          </select>
+          {{-- preserve other filters on year change --}}
+          @foreach (request()->except(['year', '_token']) as $k => $v)
+            @if(is_array($v))
+              @foreach($v as $vv)
+                <input type="hidden" name="{{ $k }}[]" value="{{ $vv }}">
+              @endforeach
+            @elseif($v !== '')
+              <input type="hidden" name="{{ $k }}" value="{{ $v }}">
+            @endif
+          @endforeach
+        </form>
+      </div>
+
+      <!-- Active Filter Chips -->
+      <div id="filter-summary" class="mt-4 hidden">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="header-label">Active:</span>
+          <div id="active-filters-chips" class="flex flex-wrap gap-2"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{{-- Optional: keep filter-year synced with server year --}}
+<script>
+  document.getElementById('filter-year')?.addEventListener('change', (e) => {
+    const params = new URLSearchParams(window.location.search);
+    const v = e.target.value;
+    if (v) params.set('year', v); else params.delete('year');
+    // optionally preserve other filters:
+    window.location = "{{ route('kltg.index') }}?" + params.toString();
+  });
+</script>
+
 
       <!-- Data Table Card -->
 <div class="bg-white rounded-2xl border border-neutral-200/70 shadow-sm overflow-hidden">
@@ -118,8 +252,8 @@
       <thead class="sticky top-0 z-20 bg-white">
         <tr class="bg-neutral-50/80">
           <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">No</th>
+          <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">Created At</th>
             <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">Month</th>
-            <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">Created At</th>
             <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">Company</th>
             <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">Product</th>
             <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">Publication</th>
@@ -150,8 +284,8 @@
 
               <!-- Kolom awal (tidak sticky) -->
               <td class="hairline px-4 py-3 align-top ink tabular-nums">{{ $i+1 }}</td>
-              <td class="hairline px-4 py-3 align-top ink">{{ $r['month_name'] ?? '' }}</td>
               <td class="hairline px-4 py-3 align-top ink tabular-nums">{{ $r['created_at'] ?? '' }}</td>
+              <td class="hairline px-4 py-3 align-top ink">{{ $r['month_name'] ?? '' }}</td>
 
               <td class="hairline px-4 py-3 align-top ink" style="max-width:150px;">
                 <div class="truncate pr-1" title="{{ $r['company'] ?? '' }}">{{ $r['company'] ?? 'N/A' }}</div>
@@ -198,8 +332,35 @@
                 </span>
               </td>
 
-              <td class="hairline px-4 py-3 align-top ink tabular-nums">{{ $r['start'] ?? '' }}</td>
-              <td class="hairline px-4 py-3 align-top ink tabular-nums">{{ $r['end'] ?? '' }}</td>
+                @php
+                $fmt = function($v, $fallbackYear) {
+                    if (!$v) return '';
+                    try {
+                    if ($v instanceof \Carbon\Carbon) return $v->format('d/m/Y');
+
+                    $s = trim((string)$v);
+
+                    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $s)) {
+                        return \Carbon\Carbon::parse($s)->format('d/m/Y');          // 2026-08-07
+                    }
+                    if (preg_match('/^\d{1,2}\/\d{1,2}\/\d{4}$/', $s)) {
+                        return \Carbon\Carbon::createFromFormat('d/m/Y', $s)->format('d/m/Y'); // 07/08/2026
+                    }
+                    if (preg_match('/^\d{1,2}\/\d{1,2}$/', $s)) {
+                        // only day/month provided → fall back to the row's year, not current year
+                        return \Carbon\Carbon::createFromFormat('d/m/Y', $s.'/'.$fallbackYear)->format('d/m/Y');
+                    }
+                    } catch (\Throwable $e) {}
+                    return $s;
+                };
+
+                $rowYear = (int)($r['year'] ?? $year ?? date('Y'));
+                @endphp
+
+                <td class="hairline px-4 py-3 align-top ink tabular-nums">{{ $fmt($r['start'] ?? null, $rowYear) }}</td>
+                <td class="hairline px-4 py-3 align-top ink tabular-nums">{{ $fmt($r['end']   ?? null, $rowYear) }}</td>
+
+
 
               <!-- Monthly Category Input Cells -->
               @for ($m=1; $m<=12; $m++)

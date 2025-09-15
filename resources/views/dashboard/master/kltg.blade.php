@@ -58,3 +58,4 @@
         'updatePayloadExtra' => ['scope' => 'kltg'],
     ])
 </div>
+@endsection

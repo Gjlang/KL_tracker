@@ -133,10 +133,10 @@
                     <!-- Center: Entity Title & Meta -->
                     <div class="text-center">
                         <h1 class="text-2xl font-serif text-[#1C1E26] font-semibold">
-                            {{ $file->company ?: '—' }}
+                            {{ $file->company ?: '' }}
                         </h1>
                         <p class="text-sm text-neutral-500 mt-1">
-                            ID: #{{ $file->id }} • Created: {{ $file->created_at ? $file->created_at->format('M d, Y') : '—' }}
+                            ID: #{{ $file->id }} • Created: {{ $file->created_at ? $file->created_at->format('M d, Y') : '' }}
                         </p>
                     </div>
 
@@ -226,7 +226,7 @@
                                     <div class="flex items-center gap-2">
                                         <label class="text-sm font-medium text-neutral-500">Product:</label>
                                         <input name="product"
-                                               value="{{ old('product', $file->product) ?: '—' }}"
+                                               value="{{ old('product', $file->product) ?: '' }}"
                                                :readonly="!edit"
                                                :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'bg-transparent border-0 focus:ring-0 text-[#4bbbed]'"
                                                class="px-3 py-1 text-sm font-medium">
@@ -249,7 +249,7 @@
                             <div>
                                 <label class="block text-sm font-medium text-neutral-500 mb-2">Month</label>
                                 <input name="month"
-                                       value="{{ old('month', $file->month) ?: '—' }}"
+                                       value="{{ old('month', $file->month) ?: '' }}"
                                        :readonly="!edit"
                                        :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'hairline bg-neutral-50/50'"
                                        class="w-full px-4 py-3 text-sm">
@@ -258,7 +258,7 @@
                             <div>
                                 <label class="block text-sm font-medium text-neutral-500 mb-2">Traffic</label>
                                 <input name="traffic"
-                                       value="{{ old('traffic', $file->traffic) ?: '—' }}"
+                                       value="{{ old('traffic', $file->traffic) ?: '' }}"
                                        :readonly="!edit"
                                        :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'hairline bg-neutral-50/50'"
                                        class="w-full px-4 py-3 text-sm">
@@ -267,7 +267,7 @@
                             <div>
                                 <label class="block text-sm font-medium text-neutral-500 mb-2">Current Location</label>
                                 <input name="location"
-                                       value="{{ old('location', $file->location) ?: '—' }}"
+                                       value="{{ old('location', $file->location) ?: '' }}"
                                        :readonly="!edit"
                                        :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'hairline bg-neutral-50/50'"
                                        class="w-full px-4 py-3 text-sm">
@@ -276,7 +276,7 @@
                             <div>
                                 <label class="block text-sm font-medium text-neutral-500 mb-2">Remarks</label>
                                 <input name="duration"
-                                       value="{{ old('duration', $file->duration) ?: '—' }}"
+                                       value="{{ old('duration', $file->duration) ?: '' }}"
                                        :readonly="!edit"
                                        :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'hairline bg-neutral-50/50'"
                                        class="w-full px-4 py-3 text-sm">
@@ -285,7 +285,7 @@
                             <div>
                                 <label class="block text-sm font-medium text-neutral-500 mb-2">Artwork</label>
                                 <input name="artwork"
-                                       value="{{ old('artwork', $file->artwork) ?: '—' }}"
+                                       value="{{ old('artwork', $file->artwork) ?: '' }}"
                                        :readonly="!edit"
                                        :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'hairline bg-neutral-50/50'"
                                        class="w-full px-4 py-3 text-sm">
@@ -302,7 +302,7 @@
                             <div>
                                 <label class="block text-sm font-medium text-neutral-500 mb-2">Client</label>
                                 <input name="client"
-                                       value="{{ old('client', $file->client) ?: '—' }}"
+                                       value="{{ old('client', $file->client) ?: '' }}"
                                        :readonly="!edit"
                                        :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'hairline bg-neutral-50/50'"
                                        class="w-full px-4 py-3 text-sm">
@@ -311,7 +311,7 @@
                             <div>
                                 <label class="block text-sm font-medium text-neutral-500 mb-2">Sales Person</label>
                                 <input name="sales_person"
-                                       value="{{ old('sales_person', $file->sales_person) ?: '—' }}"
+                                       value="{{ old('sales_person', $file->sales_person) ?: '' }}"
                                        :readonly="!edit"
                                        :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'hairline bg-neutral-50/50'"
                                        class="w-full px-4 py-3 text-sm">
@@ -321,7 +321,7 @@
                                 <label class="block text-sm font-medium text-neutral-500 mb-2">Email</label>
                                 <input name="email"
                                        type="email"
-                                       value="{{ old('email', $file->email) ?: '—' }}"
+                                       value="{{ old('email', $file->email) ?: '' }}"
                                        :readonly="!edit"
                                        :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'hairline bg-neutral-50/50'"
                                        class="w-full px-4 py-3 text-sm">
@@ -330,7 +330,7 @@
                             <div>
                                 <label class="block text-sm font-medium text-neutral-500 mb-2">Contact Number</label>
                                 <input name="contact_number"
-                                       value="{{ old('contact_number', $file->contact_number) ?: '—' }}"
+                                       value="{{ old('contact_number', $file->contact_number) ?: '' }}"
                                        :readonly="!edit"
                                        :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'hairline bg-neutral-50/50'"
                                        class="w-full px-4 py-3 text-sm">
@@ -339,7 +339,7 @@
                             <div>
                                 <label class="block text-sm font-medium text-neutral-500 mb-2">Job Number</label>
                                 <input name="job_number"
-                                       value="{{ old('job_number', $file->job_number) ?: '—' }}"
+                                       value="{{ old('job_number', $file->job_number) ?: '' }}"
                                        :readonly="!edit"
                                        :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'hairline bg-neutral-50/50'"
                                        class="w-full px-4 py-3 text-sm">
@@ -386,7 +386,7 @@
                             <div>
                                 <label class="block text-sm font-medium text-neutral-500 mb-2">Invoice Number</label>
                                 <input name="invoice_number"
-                                       value="{{ old('invoice_number', $file->invoice_number) ?: '—' }}"
+                                       value="{{ old('invoice_number', $file->invoice_number) ?: '' }}"
                                        :readonly="!edit"
                                        :class="edit ? 'h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent' : 'hairline bg-neutral-50/50'"
                                        class="w-full px-4 py-3 text-sm">
@@ -440,16 +440,16 @@
                                 @foreach($file->outdoorItems as $i => $item)
                                     <tr class="hover:bg-neutral-50/50 transition-colors duration-150">
                                         <td class="px-4 py-3 text-neutral-600 tabular">{{ $i + 1 }}</td>
-                                        <td class="px-4 py-3 text-neutral-900">{{ $item->sub_product ?: '—' }}</td>
-                                        <td class="px-4 py-3 text-neutral-900">{{ $item->site ?: '—' }}</td>
-                                        <td class="px-4 py-3 text-neutral-900">{{ $item->size ?: '—' }}</td>
+                                        <td class="px-4 py-3 text-neutral-900">{{ $item->sub_product ?: '' }}</td>
+                                        <td class="px-4 py-3 text-neutral-900">{{ $item->site ?: '' }}</td>
+                                        <td class="px-4 py-3 text-neutral-900">{{ $item->size ?: '' }}</td>
                                         <td class="px-4 py-3 text-neutral-900">
-                                            {{ $item->start_date?->format('d/m/Y') ?? '—' }}
+                                            {{ $item->start_date?->format('d/m/Y') ?? '' }}
                                         </td>
                                         <td class="px-4 py-3 text-neutral-900">
-                                            {{ $item->end_date?->format('d/m/Y') ?? '—' }}
+                                            {{ $item->end_date?->format('d/m/Y') ?? '' }}
                                         </td>
-                                        <td class="px-4 py-3 text-neutral-900">{{ $item->district_council ?: '—' }}</td>
+                                        <td class="px-4 py-3 text-neutral-900">{{ $item->district_council ?: '' }}</td>
                                         <td class="px-4 py-3">
                                             @if($item->coordinates)
                                                 <a href="https://maps.google.com/?q={{ urlencode($item->coordinates) }}"
@@ -458,11 +458,11 @@
                                                     {{ $item->coordinates }}
                                                 </a>
                                             @else
-                                                <span class="text-neutral-400">—</span>
+                                                <span class="text-neutral-400"></span>
                                             @endif
                                         </td>
                                         <td class="px-4 py-3 text-right tabular text-neutral-900">{{ $item->qty ?? 1 }}</td>
-                                        <td class="px-4 py-3 text-neutral-900">{{ $item->remarks ?: '—' }}</td>
+                                        <td class="px-4 py-3 text-neutral-900">{{ $item->remarks ?: '' }}</td>
                                     </tr>
                                 @endforeach
                             </tbody>

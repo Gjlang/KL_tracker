@@ -5,16 +5,16 @@ namespace App\Exports;
 use Carbon\Carbon;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
-
 class KltgMatrixExport
 {
     /** @var array<int,array{summary:array,matrix:array}> */
-    private array $records;      // per master_file_id
+    private array $records;      // single-year records
     private array $catLabels;    // ['KLTG','Video','Article','LB','EM']
     private array $catKeys;      // ['KLTG','VIDEO','ARTICLE','LB','EM']
 
@@ -29,14 +29,20 @@ class KltgMatrixExport
         $s=''; while ($i>0){ $m=($i-1)%26; $s=chr(65+$m).$s; $i=intdiv($i-1,26);} return $s;
     }
 
+    private function defaultMonths(): array
+    {
+        return ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    }
+
     private function statusColor(?string $status): ?string
     {
         if (!$status) return null;
         $map = [
-            // match your dropdown
+            // dropdown utama
             'Artwork'      => 'FFFFFF00', // yellow
             'Installation' => 'FFFF0000', // red
-            'Dismantel'    => 'FF7F7F7F', // gray
+            'Dismantle'    => 'FF7F7F7F', // gray (spelling benar)
+            'Dismantel'    => 'FF7F7F7F', // tolerate typo
             'Payment'      => 'FFFF0000', // red
             'Ongoing'      => 'FF00B0F0', // blue
             'Renewal'      => 'FFFF0000', // red
@@ -44,55 +50,133 @@ class KltgMatrixExport
             'Material'     => 'FFFFC000', // orange
             'Whatsapp'     => 'FF92D050', // light green
             'Posted'       => 'FF7F7F7F', // gray
-            // common alternates
+            // umum
             'In Progress'  => 'FF00B0F0',
             'Hold'         => 'FFFFC000',
             'Cancelled'    => 'FF7F7F7F',
-            'Active'       => 'FF00B0F0', // if you still ever store this
+            'Active'       => 'FF00B0F0',
         ];
         foreach ($map as $k => $argb) {
             if (strcasecmp($k, $status) === 0) return $argb;
         }
-        return null; // no color if unknown
+        return null;
     }
 
-
+    /** ---------- SINGLE YEAR (tetap seperti punyamu) ---------- */
     public function download(string $filename): StreamedResponse
     {
         $ss    = new Spreadsheet();
         $sheet = $ss->getActiveSheet();
         $sheet->setTitle('Export');
 
-        // ========== Header (2 baris) ==========
+        // Header 2 baris
+        [$lastColIdx, $lastCol] = $this->writeHeader($sheet, 1, $this->records ? array_column($this->records[0]['matrix'], 'monthName') : $this->defaultMonths());
+
+        // Rows (tiap record = 2 baris: status & tanggal)
+        $row = 3;
+        foreach ($this->records as $rec) {
+            $row = $this->writeRecord($sheet, $row, $rec, $lastColIdx);
+            $row += 0; // next row already set by writeRecord
+        }
+
+        // Autosize + freeze
+        for ($i=1; $i<=$lastColIdx; $i++) $sheet->getColumnDimension($this->col($i))->setAutoSize(true);
+        $sheet->freezePane('A3');
+
+        return response()->streamDownload(function () use ($ss) {
+            (new Xlsx($ss))->save('php://output');
+        }, $filename, ['Content-Type'=>'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
+    }
+
+    /** ---------- MULTI YEAR (blok “YEAR – 2025”, dst.) ---------- */
+    public function downloadByYear(array $byYear, string $filename): StreamedResponse
+    {
+        // $byYear = [ 2025 => [ ['summary'=>..., 'matrix'=>...], ... ], 2026 => [...], ... ]
+        $ss    = new Spreadsheet();
+        $sheet = $ss->getActiveSheet();
+        $sheet->setTitle('Export');
+
+        $months = null;
+        // coba ambil dari year pertama yang ada data, else default
+        foreach ($byYear as $records) {
+            if (!empty($records)) { $months = array_column($records[0]['matrix'], 'monthName'); break; }
+        }
+        if (!$months) $months = $this->defaultMonths();
+
+        $lastColIdx = 10 + count($months) * count($this->catLabels);
+        $lastCol    = $this->col($lastColIdx);
+
+        $row = 1;
+
+        foreach ($byYear as $year => $records) {
+            // Title row (kuning) merged full width
+            $sheet->setCellValue("A{$row}", "YEAR - {$year}");
+            $sheet->mergeCells("A{$row}:{$lastCol}{$row}");
+            $sheet->getStyle("A{$row}:{$lastCol}{$row}")
+                ->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF200');
+            $sheet->getStyle("A{$row}:{$lastCol}{$row}")
+                ->getFont()->setBold(true);
+            $sheet->getStyle("A{$row}:{$lastCol}{$row}")
+                ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setVertical(Alignment::VERTICAL_CENTER);
+            $row += 1;
+
+            // Header 2 baris untuk blok ini
+            [$lastColIdx, $lastCol] = $this->writeHeader($sheet, $row, $months);
+            $row += 2;
+
+            // Data rows
+            if (empty($records)) {
+                // minimal 1 baris kosong biar bloknya kelihatan
+                $sheet->getStyle("A{$row}:{$lastCol}{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $row += 2;
+            } else {
+                foreach ($records as $rec) {
+                    $row = $this->writeRecord($sheet, $row, $rec, $lastColIdx);
+                }
+            }
+
+            // pemisah kosong antar tahun
+            $row += 1;
+        }
+
+        // Autosize
+        for ($i=1; $i<=$lastColIdx; $i++) $sheet->getColumnDimension($this->col($i))->setAutoSize(true);
+
+        return response()->streamDownload(function () use ($ss) {
+            (new Xlsx($ss))->save('php://output');
+        }, $filename, ['Content-Type'=>'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
+    }
+
+    /** ---------- Helpers to draw header & record blocks ---------- */
+    private function writeHeader(Worksheet $sheet, int $topRow, array $months): array
+    {
         $fixedHeaders = ['No','Month','Created At','Company','Product','Publication','Edition','Status','Start','End'];
+
         $colIdx = 1;
         foreach ($fixedHeaders as $h) {
             $c = $this->col($colIdx);
-            $sheet->setCellValue("{$c}1", $h);
-            $sheet->mergeCells("{$c}1:{$c}2");
+            $sheet->setCellValue("{$c}{$topRow}", $h);
+            $sheet->mergeCells("{$c}{$topRow}:{$c}".($topRow+1));
             $colIdx++;
         }
-
-        // Ambil bulan dari record pertama (semua record punya 12 bulan sama urut)
-        $months = $this->records ? array_column($this->records[0]['matrix'], 'monthName') : [];
 
         foreach ($months as $monthName) {
             $startColIdx = $colIdx;
             foreach ($this->catLabels as $lab) {
                 $c = $this->col($colIdx);
-                $sheet->setCellValue("{$c}2", $lab);
+                $sheet->setCellValue("{$c}".($topRow+1), $lab);
                 $colIdx++;
             }
             $c1 = $this->col($startColIdx);
             $c2 = $this->col($colIdx-1);
-            $sheet->mergeCells("{$c1}1:{$c2}1");
-            $sheet->setCellValue("{$c1}1", $monthName);
+            $sheet->mergeCells("{$c1}{$topRow}:{$c2}{$topRow}");
+            $sheet->setCellValue("{$c1}{$topRow}", $monthName);
         }
 
         $lastColIdx = $colIdx - 1;
         $lastCol    = $this->col($lastColIdx);
 
-        $sheet->getStyle("A1:{$lastCol}2")->applyFromArray([
+        $sheet->getStyle("A{$topRow}:{$lastCol}".($topRow+1))->applyFromArray([
             'font'=>['bold'=>true],
             'alignment'=>[
                 'horizontal'=>Alignment::HORIZONTAL_CENTER,
@@ -102,81 +186,63 @@ class KltgMatrixExport
             'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['argb'=>'FFE5E5E5']],
         ]);
 
-        // ========== Rows (tiap record = 2 baris) ==========
-        $row = 3;
+        return [$lastColIdx, $lastCol];
+    }
 
-        foreach ($this->records as $rec) {
-            $s = $rec['summary'];
-            // kiri (10 kolom)
-            $fixed = [
-                $s['no'],
-                $s['month'],
-                $s['created_at'] ?? '',
-                $s['company'] ?? '',
-                $s['product'] ?? '',
-                $s['publication'] ?? '',
-                $s['edition'] ?? '',
-                $s['status'] ?? '',
-                $s['start'] ? Carbon::parse($s['start'])->format('m/d/Y') : '',
-                $s['end']   ? Carbon::parse($s['end'])->format('m/d/Y')   : '',
-            ];
-            $colIdx = 1;
-            foreach ($fixed as $val) {
-                $sheet->setCellValue($this->col($colIdx).$row, $val);
+    private function writeRecord(Worksheet $sheet, int $startRow, array $rec, int $lastColIdx): int
+    {
+        $row = $startRow;
+
+        $s = $rec['summary'];
+        $fixed = [
+            $s['no'],
+            $s['month'],
+            $s['created_at'] ?? '',
+            $s['company'] ?? '',
+            $s['product'] ?? '',
+            $s['publication'] ?? '',
+            $s['edition'] ?? '',
+            $s['status'] ?? '',
+            $s['start'] ? Carbon::parse($s['start'])->format('m/d/Y') : '',
+            $s['end']   ? Carbon::parse($s['end'])->format('m/d/Y')   : '',
+        ];
+        $colIdx = 1;
+        foreach ($fixed as $val) {
+            $sheet->setCellValue($this->col($colIdx).$row, $val);
+            $colIdx++;
+        }
+
+        // kanan: 12 bulan × n kategori → baris status & baris tanggal
+        foreach ($rec['matrix'] as $m) {
+            foreach ($this->catKeys as $k) {
+                $cell = $this->col($colIdx).$row;
+                $val  = (string)($m['cats'][$k]['status'] ?? '');
+                $sheet->setCellValue($cell, $val);
+                if ($argb = $this->statusColor($val)) {
+                    $sheet->getStyle($cell)->getFill()->setFillType(Fill::FILL_SOLID)
+                          ->getStartColor()->setARGB($argb);
+                }
+
+                $dateStr = '';
+                if (!empty($m['cats'][$k]['start'])) {
+                    $dateStr = Carbon::parse($m['cats'][$k]['start'])->format('m/d/Y');
+                }
+                if (!empty($m['cats'][$k]['end'])) {
+                    $dateStr = trim($dateStr.' – '.Carbon::parse($m['cats'][$k]['end'])->format('m/d/Y'));
+                }
+                $sheet->setCellValue($this->col($colIdx).($row+1), $dateStr);
                 $colIdx++;
             }
-
-            // kanan: 12 bulan × 5 kategori
-            foreach ($rec['matrix'] as $m) {
-                foreach ($this->catKeys as $k) {
-                    // baris status (Text)
-                    $cell = $this->col($colIdx).$row;
-$val  = (string)($m['cats'][$k]['status'] ?? '');
-$sheet->setCellValue($cell, $val);
-
-// ★ add color
-if ($argb = $this->statusColor($val)) {
-    $sheet->getStyle($cell)->getFill()->setFillType(Fill::FILL_SOLID)
-          ->getStartColor()->setARGB($argb);
-}
-
-                    // baris tanggal (Date) — gabung Start–End atau pilih salah satu
-                    $dateStr = '';
-                    if (!empty($m['cats'][$k]['start'])) {
-                        $dateStr = Carbon::parse($m['cats'][$k]['start'])->format('m/d/Y');
-                    }
-                    // kalau mau gabung end: uncomment 3 baris di bawah
-                    if (!empty($m['cats'][$k]['end'])) {
-                        $dateStr = trim($dateStr.' – '.Carbon::parse($m['cats'][$k]['end'])->format('m/d/Y'));
-                    }
-                    $sheet->setCellValue($this->col($colIdx).($row+1), $dateStr);
-                    $colIdx++;
-                }
-            }
-
-            // style block
-            $sheet->getStyle("A{$row}:{$lastCol}".($row+1))->applyFromArray([
-                'borders'=>['allBorders'=>['borderStyle'=>Border::BORDER_THIN]],
-            ]);
-            $sheet->getStyle($this->col(11).$row.":{$lastCol}".($row+1))
-                ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet->getStyle("A{$row}:{$lastCol}".($row+1))
-                ->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
-
-            $row += 2;
         }
 
-        // Autosize
-        for ($i=1; $i<=$lastColIdx; $i++) {
-            $sheet->getColumnDimension($this->col($i))->setAutoSize(true);
-        }
+        // style block (borders & align)
+        $sheet->getStyle("A{$row}:".$this->col($lastColIdx).($row+1))
+            ->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        $sheet->getStyle($this->col(11).$row.":".$this->col($lastColIdx).($row+1))
+            ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("A{$row}:".$this->col($lastColIdx).($row+1))
+            ->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
 
-        $sheet->freezePane('A3');
-
-        return response()->streamDownload(function () use ($ss) {
-            (new Xlsx($ss))->save('php://output');
-        }, $filename, [
-            'Content-Type'=>'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        ]);
+        return $row + 2; // next start row
     }
 }
