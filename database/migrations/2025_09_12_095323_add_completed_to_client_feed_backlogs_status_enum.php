@@ -1,28 +1,25 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
-return new class extends Migration
-{
-    /**
-     * Run the migrations.
-     */
+return new class extends Migration {
     public function up(): void
     {
-        Schema::table('client_feed_backlogs', function (Blueprint $table) {
-            //
-        });
+        DB::statement("
+            ALTER TABLE client_feed_backlogs
+            MODIFY status ENUM('pending','in-progress','done','cancelled','completed')
+            NOT NULL DEFAULT 'pending'
+        ");
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::table('client_feed_backlogs', function (Blueprint $table) {
-            //
-        });
+        // Rollback ke list semula (hati-hati: data 'completed' akan error kalau masih ada)
+        DB::statement("
+            ALTER TABLE client_feed_backlogs
+            MODIFY status ENUM('pending','in-progress','done','cancelled')
+            NOT NULL DEFAULT 'pending'
+        ");
     }
 };

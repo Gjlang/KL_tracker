@@ -38,23 +38,29 @@ class OutdoorOngoingJobController extends Controller
 
    public function index(Request $request)
 {
-    // -------- Inputs --------
-    $year   = (int) $request->integer('outdoor_year') ?: (int) now()->year;
-    $month  = (int) $request->integer('outdoor_month'); // 0 or 1..12
-    $search = trim((string) $request->get('search', ''));
+    $year   = (int) ($request->input('year') ?? $request->input('outdoor_year') ?? now('Asia/Kuala_Lumpur')->year);
+    $month  = (int) ($request->input('month') ?? $request->input('outdoor_month') ?? 0);
+    $search = trim((string) $request->input('search',''));
 
+    // subquery: ada detail di tahun terpilih?
+    $d = DB::table('outdoor_monthly_details')
+        ->select('outdoor_item_id')
+        ->where('year', $year)
+        ->distinct();
 
-    // -------- Base query: Outdoor-only + sites joined --------
     $q = DB::table('master_files as mf')
         ->leftJoin('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
+        ->leftJoinSub($d, 'd', function($j){
+            $j->on('d.outdoor_item_id','=','oi.id');
+        })
         ->where(function ($w) {
             $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
               ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%']);
         });
 
-    // -------- Search (company/product/site/coords/district) --------
+    // Search opsional
     if ($search !== '') {
-        $like = '%' . strtolower($search) . '%';
+        $like = '%'.strtolower($search).'%';
         $q->where(function ($w) use ($like) {
             $w->whereRaw('LOWER(mf.company) LIKE ?', [$like])
               ->orWhereRaw('LOWER(mf.product) LIKE ?', [$like])
@@ -64,105 +70,84 @@ class OutdoorOngoingJobController extends Controller
         });
     }
 
-    // -------- Year filter (works for any year that exists) --------
-    // A row qualifies if any of these dates fall within the chosen year
-    if ($request->filled('outdoor_year')) {
-    $y = (int) $year;
-
-    // Show finish-year matches first; if no finish date, allow other year signals
-    $q->where(function ($w) use ($y) {
-        $w->whereYear('mf.date_finish', $y)
-          ->orWhere(function ($x) use ($y) {
+    // === TAMPILKAN HANYA YANG RELEVAN KE TAHUN TERPILIH ===
+    $q->where(function ($w) use ($year) {
+        // finish-year duluan
+        $w->whereYear('mf.date_finish', $year)
+          // kalau nggak ada finish, boleh date/created_at
+          ->orWhere(function ($x) use ($year) {
               $x->whereNull('mf.date_finish')
-                ->where(function ($yq) use ($y) {
-                    $yq->whereYear('mf.date', $y)
-                       ->orWhereYear('mf.created_at', $y);
+                ->where(function ($yq) use ($year) {
+                    $yq->whereYear('mf.date', $year)
+                       ->orWhereYear('mf.created_at', $year);
                 });
-          });
+          })
+          // atau ada detail untuk tahun ini
+          ->orWhereNotNull('d.outdoor_item_id');
     });
-}
 
+    $rows = $q->select([
+            'mf.id',
+            'mf.company','mf.product','mf.product_category',
+            'mf.date','mf.date_finish','mf.month','mf.created_at',
+            'oi.id as outdoor_item_id','oi.site','oi.size','oi.coordinates','oi.district_council',
+        ])
+        ->whereNotNull('oi.id')
+        ->orderBy('mf.company')->orderBy('oi.site')
+        ->get();
 
-    // -------- Select one row per master file + aggregated sites --------
-    // -------- PER-SITE selection (no GROUP_CONCAT) --------
-$rows = $q->select([
-        'mf.id',                       // master_file_id
-        'mf.company',
-        'mf.product',
-        'mf.product_category',
-        'mf.date',
-        'mf.date_finish',
-        'mf.month',
-        'mf.created_at',
-        'oi.id  as outdoor_item_id',   // <— penting
-        'oi.site',
-        'oi.size',
-        'oi.coordinates',
-        'oi.district_council',
-    ])
-    ->orderBy('mf.company')
-    ->orderBy('oi.site')
-    ->get();
-
-
-    // -------- Available years (union of all date sources across outdoor data) --------
-    $years = DB::query()
-        ->fromSub(function ($sub) {
-            $sub->from('master_files as mf')
-                ->leftJoin('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
-                ->where(function ($w) {
-                    $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
-                      ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%']);
-                })
-                ->selectRaw('YEAR(mf.date) as y')->whereNotNull('mf.date')
-                ->union(
-                    DB::table('master_files as mf')
-                        ->leftJoin('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
-                        ->where(function ($w) {
-                            $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
-                              ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%']);
-                        })
-                        ->selectRaw('YEAR(mf.date_finish) as y')->whereNotNull('mf.date_finish')
-                )
-                ->union(
-                    DB::table('master_files as mf')
-                        ->leftJoin('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
-                        ->where(function ($w) {
-                            $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
-                              ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%']);
-                        })
-                        ->selectRaw('YEAR(mf.created_at) as y')->whereNotNull('mf.created_at')
-                );
-        }, 'years_union')
-        ->select('y')
-        ->whereNotNull('y')
-        ->distinct()
-        ->orderBy('y', 'desc')
-        ->pluck('y');
-
-    $availableYears = $years;  // used by your <select>
-
-    // -------- Existing monthly detail map (keyed by master_file_id:month:key) --------
+    // ambil detail KHUSUS tahun terpilih (+ opsional filter bulan)
     $details = DB::table('outdoor_monthly_details')
-    ->where('year', (int) $year)
-    ->whereIn(
-        'outdoor_item_id',
-        $rows->pluck('outdoor_item_id')->filter()->unique()->values()
-    )
-    ->get();
+        ->where('year', $year)
+        ->when($month > 0, fn($qq) => $qq->where('month',$month))
+        ->whereIn('outdoor_item_id', $rows->pluck('outdoor_item_id')->unique()->values())
+        ->get();
 
-$existing = $details->mapWithKeys(function ($r) {
-    return [ $r->outdoor_item_id . ':' . $r->month . ':' . $r->field_key => $r ];
-});
+    $existing = $details->mapWithKeys(fn($r) => [
+        $r->outdoor_item_id.':'.$r->month.':'.$r->field_key => $r
+    ]);
+
+    // years list untuk dropdown (gabungan masters + details)
+    $years = collect()
+        ->merge(
+            DB::table('master_files as mf')
+              ->leftJoin('outdoor_items as oi','oi.master_file_id','=','mf.id')
+              ->where(function ($w) {
+                  $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
+                    ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%']);
+              })
+              ->whereNotNull('mf.date')->selectRaw('YEAR(mf.date) as y')->pluck('y')
+        )
+        ->merge(
+            DB::table('master_files as mf')
+              ->leftJoin('outdoor_items as oi','oi.master_file_id','=','mf.id')
+              ->where(function ($w) {
+                  $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
+                    ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%']);
+              })
+              ->whereNotNull('mf.date_finish')->selectRaw('YEAR(mf.date_finish) as y')->pluck('y')
+        )
+        ->merge(
+            DB::table('outdoor_monthly_details')->distinct()->pluck('year')
+        )
+        ->map(fn($v)=>(int)$v)->filter()->unique()->sort()->values();
+
+    // months list (untuk select)
+    $months = collect(range(1,12))->map(fn($m)=>[
+        'value'=>$m,'label'=>\Carbon\Carbon::create(null,$m,1)->format('F')
+    ])->all();
 
     return view('dashboard.outdoor', [
-    'rows'           => $rows,
-    'availableYears' => $availableYears,
-    'year'           => (int) $year,
-    'existing'       => $existing,
-]);
-
+        'rows'     => $rows,
+        'years'    => $years,
+        'year'     => $year,
+        'months'   => $months,
+        'month'    => $month,
+        'existing' => $existing,
+        'search'   => $search,
+    ]);
 }
+
 
 public function cloneYear(Request $request)
 {

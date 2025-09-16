@@ -142,7 +142,7 @@
                                     <div>
                                         <h3 class="text-xl font-semibold text-gray-900">Outdoor Projects</h3>
                                         <p class="text-sm text-gray-600 mt-1">
-                                            HM, TB, TTM, BB, Star, Flyers, Bunting, Signages
+                                            HM, TB, TTM, BB, Star, Flyers, Bunting, Signages, Newspaper
                                         </p>
                                     </div>
                                     <div class="flex space-x-3">

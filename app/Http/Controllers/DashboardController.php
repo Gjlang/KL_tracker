@@ -17,7 +17,7 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         $year = $request->input('outdoor_year', now()->year);
-        $outdoorCategories = ['HM','TB','TTM','BB','Star','Flyers','Bunting','Signages','Outdoor'];
+        $outdoorCategories = ['HM','TB','TTM','BB','Star','Flyers','Bunting','Signages','Outdoor', 'Newspaper'];
         $hasPC = Schema::hasColumn('master_files', 'product_category');
 
         $outdoorQuery = MasterFile::query()
@@ -330,16 +330,16 @@ class DashboardController extends Controller
     // Existing coordinator methods...
     public function coordinatorOutdoor()
     {
-        $outdoorJobs = MasterFile::whereIn('product', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages'])
+        $outdoorJobs = MasterFile::whereIn('product', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages', 'Newspaper'])
             ->orderBy('date', 'desc')
             ->paginate(20);
 
-        $totalOutdoor = MasterFile::whereIn('product', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages'])->count();
-        $completedOutdoor = MasterFile::whereIn('product', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages'])
+        $totalOutdoor = MasterFile::whereIn('product', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages', 'Newspaper'])->count();
+        $completedOutdoor = MasterFile::whereIn('product', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages', 'Newspaper'])
             ->where('status', 'completed')->count();
-        $ongoingOutdoor = MasterFile::whereIn('product', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages'])
+        $ongoingOutdoor = MasterFile::whereIn('product', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages', 'Newspaper'])
             ->where('status', 'ongoing')->count();
-        $pendingOutdoor = MasterFile::whereIn('product', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages'])
+        $pendingOutdoor = MasterFile::whereIn('product', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages', 'Newspaper'])
             ->where('status', 'pending')->count();
 
         return view('coordinators.outdoor', compact(
@@ -411,7 +411,7 @@ class DashboardController extends Controller
           ->orWhereRaw('LOWER(product_category) LIKE ?', ['%outdoor%'])
           ->orWhereRaw('LOWER(product) LIKE ?', ['%outdoor%'])
           // Add the same categories used in OutdoorCoordinatorTracking
-          ->orWhereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages']);
+          ->orWhereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages', 'Newspaper']);
     });
 
     // Apply filters from request
@@ -454,7 +454,7 @@ class DashboardController extends Controller
             $q->where('product_category', 'Outdoor')
               ->orWhereRaw('LOWER(product_category) LIKE ?', ['%outdoor%'])
               ->orWhereRaw('LOWER(product) LIKE ?', ['%outdoor%'])
-              ->orWhereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages']);
+              ->orWhereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages', 'Newspaper']);
         })
         ->selectRaw("DISTINCT {$yearExpr}")
         ->orderByDesc('year')
@@ -477,7 +477,7 @@ class DashboardController extends Controller
         $q->where('product_category', 'Outdoor')
           ->orWhereRaw('LOWER(product_category) LIKE ?', ['%outdoor%'])
           ->orWhereRaw('LOWER(product) LIKE ?', ['%outdoor%'])
-          ->orWhereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages']);
+          ->orWhereIn('product_category', ['HM', 'TB', 'TTM', 'BB', 'Star', 'Flyers', 'Bunting', 'Signages', 'Newspaper']);
     });
 
     $outdoorClients = (clone $baseForFilters)

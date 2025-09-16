@@ -122,7 +122,7 @@
           @endif
         </div>
 
-        {{-- Filters Panel --}}
+        {{-- Filters Panel
         <div class="mb-6 card">
           <div class="p-6">
             <form method="GET" action="{{ route('dashboard') }}">
@@ -207,7 +207,122 @@
               @endif
             </form>
           </div>
+        </div> --}}
+
+        {{-- Filters Panel --}}
+<div class="mb-6 card">
+  <div class="p-6">
+    <form method="GET" action="{{ route('coordinator.outdoor.index') }}">
+      {{-- Preserve cross-page filters if you need them --}}
+      <input type="hidden" name="status" value="{{ request('status') }}">
+      <input type="hidden" name="product_category" value="{{ request('product_category') }}">
+      <input type="hidden" id="category" name="category" value="Outdoor">
+
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {{-- Category (locked) --}}
+        <div class="space-y-2">
+          <label class="sans table-header">Category</label>
+          <div class="h-11 flex items-center">
+            <span class="chip bg-[#22255b] text-white">OUTDOOR</span>
+          </div>
         </div>
+
+        {{-- Year --}}
+        <div class="space-y-2">
+          <label for="year" class="sans table-header">Year</label>
+          @php
+            // controller should pass $years (array/collection of ints) and $year (current)
+            $currentYear = (int) ($year ?? now()->year);
+          @endphp
+          <select id="year" name="year" class="w-full h-11 sans rounded border border-neutral-200 focus-ring px-3">
+            @foreach(($years ?? [now()->year]) as $y)
+              <option value="{{ (int)$y }}" @selected((int)$y === $currentYear)>{{ (int)$y }}</option>
+            @endforeach
+          </select>
+        </div>
+
+        {{-- Month --}}
+        <div class="space-y-2">
+          <label for="month" class="sans table-header">Month</label>
+          @php
+            $mSel = (int) (request('month') ?? 0);
+            $monthNames = [1=>'Jan',2=>'Feb',3=>'Mar',4=>'Apr',5=>'May',6=>'Jun',7=>'Jul',8=>'Aug',9=>'Sep',10=>'Oct',11=>'Nov',12=>'Dec'];
+          @endphp
+          <select id="month" name="month" class="w-full h-11 sans rounded border border-neutral-200 focus-ring px-3">
+            <option value="0">All months</option>
+            @foreach($monthNames as $mi => $mn)
+              <option value="{{ $mi }}" @selected($mSel === $mi)>{{ $mn }}</option>
+            @endforeach
+          </select>
+        </div>
+
+        {{-- Search (optional, surfaced) --}}
+        <div class="space-y-2">
+          <label for="search" class="sans table-header">Search</label>
+          <input id="search" name="search" type="text"
+                 value="{{ request('search') }}"
+                 class="w-full h-11 input sans"
+                 placeholder="Company / product / site…">
+        </div>
+      </div>
+
+      <div class="mt-4 flex flex-wrap gap-3">
+        <button type="submit" class="btn-primary h-11">Apply Filters</button>
+        <a href="{{ route('coordinator.outdoor.index') }}" class="btn-secondary h-11">Reset</a>
+      </div>
+
+      {{-- Active filter chips with clear links --}}
+      @php
+        $hasYear  = request()->filled('year');
+        $hasMonth = request()->filled('month') && (int)request('month') !== 0;
+        $hasSearch = trim((string)request('search')) !== '';
+      @endphp
+      @if($hasYear || $hasMonth || $hasSearch)
+        <div class="mt-4 flex flex-wrap items-center gap-2">
+          <span class="sans text-sm text-neutral-600">Active:</span>
+
+          <a class="chip" href="{{ request()->fullUrlWithQuery(['search'=>request('search'),'month'=>request('month'),'year'=>request('year')]) }}">
+            CATEGORY: OUTDOOR
+          </a>
+
+          @if($hasYear)
+            <a class="chip"
+               href="{{ request()->fullUrlWithQuery(['year'=>null]) }}">
+              YEAR: {{ (int)request('year') }} <span class="ml-1">×</span>
+            </a>
+          @endif
+
+          @if($hasMonth)
+            <a class="chip"
+               href="{{ request()->fullUrlWithQuery(['month'=>0]) }}">
+              MONTH: {{ $monthNames[(int)request('month')] ?? '' }} <span class="ml-1">×</span>
+            </a>
+          @endif
+
+          @if($hasSearch)
+            <a class="chip"
+               href="{{ request()->fullUrlWithQuery(['search'=>null]) }}">
+              SEARCH: “{{ Str::limit(request('search'), 20) }}” <span class="ml-1">×</span>
+            </a>
+          @endif
+        </div>
+      @endif
+    </form>
+
+    {{-- Clone structure button (OUTSIDE the filter form; show only when there is no data) --}}
+    @if(($existing ?? collect())->isEmpty())
+      <form method="POST" action="{{ route('coordinator.outdoor.cloneYear') }}" class="mt-3">
+        @csrf
+        <input type="hidden" name="to_year" value="{{ (int)($year ?? now()->year) }}">
+        <input type="hidden" name="from_year" value="{{ (int)($year ?? now()->year) - 1 }}">
+        <button type="submit" class="btn btn-soft">
+          Clone previous year’s structure (no values)
+        </button>
+      </form>
+    @endif
+  </div>
+</div>
+
 
         {{-- Action Bar --}}
         <div class="mb-6 card">
@@ -271,7 +386,7 @@
                     @endphp
                     <tr class="hover:bg-neutral-50 hover-lift transition-all duration-150">
                       <td class="px-4 py-3 sans text-sm text-neutral-600 tabular-nums">
-                        {{ df($row->date) ?: df($row->created_at) }}
+                        {{ df($row->created_at) }}
                       </td>
                       <td class="px-4 py-3 sans text-sm font-medium ink">
                         <div class="max-w-[200px] truncate" title="{{ $company }}">

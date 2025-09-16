@@ -200,6 +200,8 @@ Route::post('/coordinator/outdoor/details/upsert', [OutdoorOngoingJobController:
 
 // Legacy outdoor routes
 Route::get('/outdoor/ongoing-jobs', [OutdoorOngoingJobController::class, 'index'])->name('outdoor.ongoing.index');
+Route::post('/coordinator/outdoor/clone-year', [OutdoorOngoingJobController::class, 'cloneYear'])
+    ->name('coordinator.outdoor.cloneYear');
 
 // ===============================================
 // KLTG MONTHLY ROUTES

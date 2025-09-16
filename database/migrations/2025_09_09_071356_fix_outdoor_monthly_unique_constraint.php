@@ -6,19 +6,31 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
-    public function up(): void
+    public function up()
     {
-        //
+        Schema::table('outdoor_monthly_details', function (Blueprint $table) {
+            // Drop the old unique constraint
+            $table->dropUnique('outdoor_unique_slot');
+            
+            // Add the correct unique constraint including outdoor_item_id
+            $table->unique(
+                ['master_file_id', 'outdoor_item_id', 'year', 'month', 'field_key'],
+                'outdoor_unique_slot'
+            );
+        });
     }
 
-    /**
-     * Reverse the migrations.
-     */
-    public function down(): void
+    public function down()
     {
-        //
+        Schema::table('outdoor_monthly_details', function (Blueprint $table) {
+            // Drop the new constraint
+            $table->dropUnique('outdoor_unique_slot');
+            
+            // Restore the old constraint (without outdoor_item_id)
+            $table->unique(
+                ['master_file_id', 'year', 'month', 'field_key'],
+                'outdoor_unique_slot'
+            );
+        });
     }
 };

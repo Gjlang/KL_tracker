@@ -107,7 +107,7 @@ class ClienteleController extends Controller
                     $value = null;
                 } else {
                     try {
-                        $value = \Carbon\Carbon::parse($value)->format('Y-m-d');
+                        $value = Carbon::parse($value)->format('Y-m-d');
                     } catch (\Throwable $e) {
                         Log::warning('Invalid date format', ['column' => $col, 'value' => $value, 'error' => $e->getMessage()]);
                         return response()->json(['ok' => false, 'message' => 'Invalid date format for ' . $col], 422);
@@ -117,7 +117,7 @@ class ClienteleController extends Controller
 
             if (in_array($col, $freeDateLike, true) && $value) {
                 try {
-                    $value = \Carbon\Carbon::parse($value)->format('n/j/y');
+                    $value = Carbon::parse($value)->format('n/j/y');
                 } catch (\Throwable $e) {
                     Log::warning('Could not parse free date', ['column' => $col, 'value' => $value]);
                     // Keep original value if parsing fails for free date
@@ -312,12 +312,12 @@ class ClienteleController extends Controller
                             if ($val === '' || $val === null) {
                                 $val = null;
                             } else {
-                                $val = \Carbon\Carbon::parse($val)->format('Y-m-d');
+                                $val = Carbon::parse($val)->format('Y-m-d');
                             }
                         }
 
                         if (in_array($colIn, $freeDateLike, true) && $val) {
-                            try { $val = \Carbon\Carbon::parse($val)->format('n/j/y'); } catch (\Throwable $e) { /* leave as is */ }
+                            try { $val = Carbon::parse($val)->format('n/j/y'); } catch (\Throwable $e) { /* leave as is */ }
                         }
 
                         if ($scope === 'outdoor' && isset($outdoorMap[$colIn])) {
