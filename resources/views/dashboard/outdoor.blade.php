@@ -122,97 +122,12 @@
           @endif
         </div>
 
-        {{-- Filters Panel
-        <div class="mb-6 card">
-          <div class="p-6">
-            <form method="GET" action="{{ route('dashboard') }}">
-              <!-- Preserve existing filters -->
-              <input type="hidden" name="search" value="{{ request('search') }}">
-              <input type="hidden" name="status" value="{{ request('status') }}">
-              <input type="hidden" name="product_category" value="{{ request('product_category') }}">
-              <input type="hidden" id="category" name="category" value="Outdoor">
-
-              <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <!-- Category Display (locked to Outdoor) -->
-                <div class="space-y-2">
-                  <label class="sans table-header">Category</label>
-                  <div class="h-11 flex items-center">
-                    <span class="chip bg-[#22255b] text-white">
-                      OUTDOOR
-                    </span>
-                  </div>
-                </div>
-
-                <!-- Year Filter -->
-                <div class="space-y-2">
-                  <label for="outdoor_year" class="sans table-header">Year</label>
-                  <select id="outdoor_year" name="outdoor_year"
-                          class="w-full h-11 sans rounded border border-neutral-200 focus-ring px-3">
-                    @php
-                      $currentYear = (int) (request('outdoor_year') ?? ($year ?? now()->year));
-                    @endphp
-                    @foreach(($years ?? [now()->year]) as $y)
-                      <option value="{{ $y }}" {{ (int)$y === $currentYear ? 'selected' : '' }}>
-                        {{ $y }}
-                      </option>
-                    @endforeach
-                  </select>
-                </div>
-
-                <!-- Month Filter -->
-                <div class="space-y-2">
-                  <label for="outdoor_month" class="sans table-header">Month</label>
-                  @php
-                    $mSel = (int) (request('outdoor_month') ?? 0);
-                    $monthNames = [1=>'Jan',2=>'Feb',3=>'Mar',4=>'Apr',5=>'May',6=>'Jun',7=>'Jul',8=>'Aug',9=>'Sep',10=>'Oct',11=>'Nov',12=>'Dec'];
-                  @endphp
-                  <select id="outdoor_month" name="outdoor_month"
-                          class="w-full h-11 sans rounded border border-neutral-200 focus-ring px-3">
-                    <option value="0">All months</option>
-                    @foreach($monthNames as $mi => $mn)
-                      <option value="{{ $mi }}" {{ $mSel === $mi ? 'selected' : '' }}>{{ $mn }}</option>
-                    @endforeach
-                  </select>
-                </div>
-
-                <!-- Apply Button -->
-                <div class="flex items-end">
-                  <button type="submit" class="btn-primary h-11">
-                    Apply Filters
-                  </button>
-                </div>
-              </div>
-
-              <!-- Active filters display -->
-              @if(request('outdoor_year') || request('outdoor_month'))
-                <div class="mt-6 flex flex-wrap items-center gap-2">
-                  <span class="sans text-sm text-neutral-600">Active:</span>
-                  <div class="chip">
-                    CATEGORY: OUTDOOR
-                    <button type="button" class="ml-1 text-neutral-500 hover:text-neutral-700">×</button>
-                  </div>
-                  @if(request('outdoor_year'))
-                    <div class="chip">
-                      YEAR: {{ request('outdoor_year') }}
-                      <button type="button" class="ml-1 text-neutral-500 hover:text-neutral-700">×</button>
-                    </div>
-                  @endif
-                  @if(request('outdoor_month') && request('outdoor_month') != '0')
-                    <div class="chip">
-                      MONTH: {{ $monthNames[request('outdoor_month')] ?? '' }}
-                      <button type="button" class="ml-1 text-neutral-500 hover:text-neutral-700">×</button>
-                    </div>
-                  @endif
-                </div>
-              @endif
-            </form>
-          </div>
-        </div> --}}
 
         {{-- Filters Panel --}}
 <div class="mb-6 card">
   <div class="p-6">
-    <form method="GET" action="{{ route('coordinator.outdoor.index') }}">
+    <form method="GET" action="{{ url()->current() }}">
+
       {{-- Preserve cross-page filters if you need them --}}
       <input type="hidden" name="status" value="{{ request('status') }}">
       <input type="hidden" name="product_category" value="{{ request('product_category') }}">
@@ -268,7 +183,7 @@
 
       <div class="mt-4 flex flex-wrap gap-3">
         <button type="submit" class="btn-primary h-11">Apply Filters</button>
-        <a href="{{ route('coordinator.outdoor.index') }}" class="btn-secondary h-11">Reset</a>
+        <a href="{{ url()->current() }}" class="btn-secondary h-11">Clear All</a>
       </div>
 
       {{-- Active filter chips with clear links --}}
@@ -365,10 +280,10 @@
                       End Date
                     </th>
                     @php
-                        $months = [1=>'January',2=>'February',3=>'March',4=>'April',5=>'May',6=>'June',
-                                   7=>'July',8=>'August',9=>'September',10=>'October',11=>'November',12=>'December'];
+                        $monthLabels = [1=>'January',2=>'February',3=>'March',4=>'April',5=>'May',6=>'June',
+                                        7=>'July',8=>'August',9=>'September',10=>'October',11=>'November',12=>'December'];
                     @endphp
-                    @foreach($months as $mNum => $mName)
+                    @foreach($monthLabels as $mNum => $mName)
                       <th class="px-3 py-4 text-left table-header bg-neutral-100" style="min-width:180px;">
                         {{ $mName }}
                       </th>
@@ -412,7 +327,8 @@
                       </td>
 
                       {{-- Month cells --}}
-                      @foreach($months as $mNum => $mName)
+                      @foreach($monthLabels as $mNum => $mName)
+
                         @php
                           $savedStatus = omd($existing, $row->outdoor_item_id, $mNum, 'status', 'text');
                           $savedDate   = omd($existing, $row->outdoor_item_id, $mNum, 'installed_on', 'date');
