@@ -85,7 +85,12 @@
                             $colKey      = is_array($c) ? ($c['key'] ?? '') : $c;
                             $isEditable  = array_key_exists($colKey, $editable);
                             $type        = $isEditable ? ($editable[$colKey] ?? 'text') : null;
-                            $rowId       = data_get($row, 'id');
+
+                            // ✅ FIXED: Use fallback to master_file_id for outdoor rows
+                            $rowId       = data_get($row, 'id')
+                                ?? data_get($row, 'master_file_id')
+                                ?? data_get($row, 'mf_id')
+                                ?? null;
 
                             // detect child row (joined outdoor_items) — your code already carries this id
                             $isChildRow  = isset($row['outdoor_item_id']) || isset($row->outdoor_item_id);
@@ -225,17 +230,43 @@ document.addEventListener('DOMContentLoaded', () => {
     const save = async (el) => {
         const url   = el.dataset.url || DEFAULT_UPDATE_URL;
         const id    = el.dataset.id;
-        let   col   = el.dataset.sendCol || el.dataset.col; // ✅ pakai sendCol kalau ada
+        let   col   = el.dataset.sendCol || el.dataset.col;
         const extra = (() => { try { return JSON.parse(el.dataset.extra || '{}'); } catch { return {}; }})();
         const outdoorItemId = el.dataset.outdoorItemId ? parseInt(el.dataset.outdoorItemId, 10) : null;
         const value = (el.type === 'checkbox') ? (el.checked ? 1 : 0) : el.value;
 
         if (!url || !id || !col) return;
 
+        // ✅ NEW: explicit guard for missing outdoor_item_id
+        if ((extra?.scope === 'outdoor') && !outdoorItemId) {
+            alert('Save failed: outdoor_item_id is missing in this row. Make sure your query selects oi.id AS outdoor_item_id and the cell has data-outdoor-item-id.');
+            el.classList.add('ring-2','ring-red-200');
+            return;
+        }
+
         // Fallback guard: kalau scope outdoor & child row & masih ada prefix 'outdoor_', buang prefix
         if ((extra?.scope === 'outdoor') && outdoorItemId && /^outdoor_/.test(col)) {
             col = col.replace(/^outdoor_/, '');
         }
+
+        // ✅ BUILD PAYLOAD - Log what we're sending for debugging
+        const payload = Object.assign(
+            {},
+            extra,
+            { id, column: col, value },
+            outdoorItemId ? { outdoor_item_id: outdoorItemId } : {}
+        );
+
+        // 🔍 DEBUG: Log the payload being sent
+        console.log('🚀 SENDING PAYLOAD:', payload);
+        console.log('📍 URL:', url);
+        console.log('🎯 Element data attributes:', {
+            id: el.dataset.id,
+            col: el.dataset.col,
+            sendCol: el.dataset.sendCol,
+            outdoorItemId: el.dataset.outdoorItemId,
+            extra: el.dataset.extra
+        });
 
         el.classList.remove('ring-2','ring-red-200','ring-green-200');
         el.classList.add('opacity-60');
@@ -248,18 +279,28 @@ document.addEventListener('DOMContentLoaded', () => {
                     'X-CSRF-TOKEN': token,
                     'Accept': 'application/json',
                 },
-                body: JSON.stringify(Object.assign(
-                    {},
-                    extra,
-                    { id, column: col, value },
-                    outdoorItemId ? { outdoor_item_id: outdoorItemId } : {}
-                ))
+                body: JSON.stringify(payload)
             });
 
             const json = await res.json().catch(() => ({}));
 
+            // 🔍 DEBUG: Log the response
+            console.log('📥 RESPONSE STATUS:', res.status);
+            console.log('📥 RESPONSE DATA:', json);
+
             // Check if request failed or server returned error
-            if (!res.ok) throw new Error(`Save failed (${res.status})`);
+            if (!res.ok) {
+                // ✅ Better error handling for 422 validation errors
+                if (res.status === 422 && json.errors) {
+                    const errorMessages = Object.values(json.errors).flat().join(', ');
+                    throw new Error(`Validation failed: ${errorMessages}`);
+                } else if (json.message) {
+                    throw new Error(json.message);
+                } else {
+                    throw new Error(`Save failed (${res.status})`);
+                }
+            }
+
             if (json && json.ok === false) {
                 // Treat "No row changed" as no-op success (nilai sama)
                 if (/no row changed/i.test(json.message || '')) {
@@ -271,7 +312,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 el.classList.add('ring-2','ring-green-200');
             }
         } catch (e) {
-            console.error(e);
+            console.error('❌ SAVE ERROR:', e);
             el.classList.add('ring-2','ring-red-200');
 
             // Show more specific error message

@@ -1417,6 +1417,85 @@ private function normalizeMonthCandidates($raw): array
     ];
 }
 
+public function inlineUpdate(\Illuminate\Http\Request $request)
+{
+    // Validate core shape
+    $data = $request->validate([
+        'id'              => ['required','integer'],
+        'column'          => ['required','string','max:255'],
+        'value'           => ['nullable','string'],
+        'scope'           => ['nullable','in:kltg,outdoor,master'],
+        'outdoor_item_id' => ['nullable','integer'],
+    ]);
+
+    $scope = $data['scope'] ?? 'master';
+    $id    = (int) $data['id'];
+    $col   = $data['column'];
+    $val   = $data['value'] ?? null;
+
+    try {
+        if ($scope === 'outdoor' && $request->filled('outdoor_item_id')) {
+            // Map "outdoor_*" view columns → DB columns
+            $columnMap = [
+                'outdoor_size'             => 'size',
+                'outdoor_district_council' => 'district_council',
+                'outdoor_coordinates'      => 'coordinates',
+            ];
+            $dbCol = $columnMap[$col] ?? null;
+            if (!$dbCol) {
+                return response()->json(['ok' => false, 'message' => "Unknown outdoor column: {$col}"], 422);
+            }
+
+            // Update the outdoor_items row that belongs to this master file
+            $changed = DB::table('outdoor_items')
+                ->where('master_file_id', $id)
+                ->where('id', (int)$request->outdoor_item_id)
+                ->update([$dbCol => $val, 'updated_at' => now()]);
+
+            return response()->json([
+                'ok'      => true,
+                'changed' => $changed,
+                'message' => $changed ? 'Saved' : 'No row changed',
+            ], 200);
+        }
+
+        // Default: update master_files (used by KLTG and general fields)
+        // Whitelist columns you actually allow inline
+        $allowed = [
+            // add safe master_files columns here
+            'company','product','category','location','status',
+            'date','date_finish','start_date','end_date','invoice_date',
+            'outdoor_coordinates', // if you actually stored them on master_files
+            // …extend as needed
+        ];
+
+        if (!in_array($col, $allowed, true)) {
+            return response()->json(['ok' => false, 'message' => "Column not allowed: {$col}"], 422);
+        }
+
+        // Autocast dates (your Blade already formats YYYY-MM-DD, but keep this safe)
+        $dateLike = ['date','date_finish','start_date','end_date','invoice_date'];
+        if (in_array($col, $dateLike, true) && $val !== null && $val !== '') {
+            try { $val = \Carbon\Carbon::parse($val)->format('Y-m-d'); } catch (\Throwable $e) { /* ignore; store raw */ }
+        }
+
+        $changed = DB::table('master_files')
+            ->where('id', $id)
+            ->update([$col => $val, 'updated_at' => now()]);
+
+        return response()->json([
+            'ok'      => true,
+            'changed' => $changed,
+            'message' => $changed ? 'Saved' : 'No row changed',
+        ], 200);
+
+    } catch (\Throwable $e) {
+        Log::error('inlineUpdate error', ['err' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+        return response()->json(['ok' => false, 'message' => 'Server error'], 500);
+    }
+}
+
+
 
 
 

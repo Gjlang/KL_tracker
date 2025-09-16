@@ -22,6 +22,8 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\MasterFileController;
 use App\Http\Controllers\InformationBoothController;
 use App\Http\Controllers\ClienteleController;
+use App\Http\Controllers\OutdoorInlineController;
+
 
 
 
@@ -300,5 +302,10 @@ Route::prefix('information-booth')
 Route::post('/clientele/inline-update', [ClienteleController::class, 'inlineUpdate'])
     ->name('clientele.inline.update');
 
+/* ↓↓↓ ADD THIS RIGHT HERE ↓↓↓ */
+Route::post('/outdoor/inline-update', [OutdoorInlineController::class, 'update'])
+    ->name('outdoor.inline.update');
+
+/* keep the rest */
 Route::post('/clientele/bulk-inline-update', [ClienteleController::class, 'bulkInlineUpdate'])
     ->name('clientele.bulk.inline.update');

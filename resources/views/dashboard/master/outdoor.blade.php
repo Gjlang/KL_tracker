@@ -39,7 +39,8 @@
             'outdoor_coordinates'      => 'text',
         ],
 
-        'updateUrl'          => route('clientele.inline.update'),
+        // ⬇️ use the new controller route
+        'updateUrl'          => route('outdoor.inline.update'),
         'updatePayloadExtra' => ['scope' => 'outdoor'],
     ])
 </div>
