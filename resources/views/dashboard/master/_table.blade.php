@@ -95,6 +95,21 @@
                                 ? $childDateRewrite[$colKey]
                                 : $colKey;
 
+                            // === Kolom yang DIKIRIM ke server (sendCol) ===
+                            // - Child row: tanggal ikut rewrite (start_date/end_date)
+                            //             selain itu buang prefix "outdoor_"
+                            // - Non-child : kirim effectiveKey apa adanya
+                            $sendCol = $effectiveKey;
+                            if ($isChildRow) {
+                                if (isset($childDateRewrite[$colKey])) {
+                                    $sendCol = $childDateRewrite[$colKey]; // start_date / end_date
+                                } else {
+                                    $sendCol = \Illuminate\Support\Str::startsWith($colKey, 'outdoor_')
+                                        ? \Illuminate\Support\Str::after($colKey, 'outdoor_')
+                                        : $colKey;
+                                }
+                            }
+
                             // fetch value using the effective key
                             $cellValue   = data_get($row, $effectiveKey);
 
@@ -115,6 +130,7 @@
                                         value="{{ $raw($effectiveKey, $cellValue) }}"
                                         data-id="{{ $rowId }}"
                                         data-col="{{ $effectiveKey }}"
+                                        data-send-col="{{ $sendCol }}"
                                         data-url="{{ $updateUrl }}"
                                         data-extra='@json($updatePayloadExtra)'
                                         @if(isset($row['outdoor_item_id']) || isset($row->outdoor_item_id))
@@ -129,6 +145,8 @@
                                         value="{{ $raw($effectiveKey, $cellValue) }}"
                                         data-id="{{ $rowId }}"
                                         data-col="{{ $effectiveKey }}"
+                                        data-send-col="{{ $sendCol }}"
+                                        data-url="{{ $updateUrl }}"
                                         data-extra='@json($updatePayloadExtra)'
                                         @if(isset($row['outdoor_item_id']) || isset($row->outdoor_item_id))
                                             data-outdoor-item-id="{{ is_array($row) ? ($row['outdoor_item_id'] ?? '') : ($row->outdoor_item_id ?? '') }}"
@@ -140,6 +158,8 @@
                                         rows="3"
                                         data-id="{{ $rowId }}"
                                         data-col="{{ $effectiveKey }}"
+                                        data-send-col="{{ $sendCol }}"
+                                        data-url="{{ $updateUrl }}"
                                         data-extra='@json($updatePayloadExtra)'
                                         @if(isset($row['outdoor_item_id']) || isset($row->outdoor_item_id))
                                             data-outdoor-item-id="{{ is_array($row) ? ($row['outdoor_item_id'] ?? '') : ($row->outdoor_item_id ?? '') }}"
@@ -153,6 +173,8 @@
                                         value="{{ $raw($effectiveKey, $cellValue) }}"
                                         data-id="{{ $rowId }}"
                                         data-col="{{ $effectiveKey }}"
+                                        data-send-col="{{ $sendCol }}"
+                                        data-url="{{ $updateUrl }}"
                                         data-extra='@json($updatePayloadExtra)'
                                         @if(isset($row['outdoor_item_id']) || isset($row->outdoor_item_id))
                                             data-outdoor-item-id="{{ is_array($row) ? ($row['outdoor_item_id'] ?? '') : ($row->outdoor_item_id ?? '') }}"
@@ -198,55 +220,68 @@ document.addEventListener('DOMContentLoaded', () => {
         let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
     };
 
+    const DEFAULT_UPDATE_URL = @json($updateUrl);
+
     const save = async (el) => {
-    const url   = el.dataset.url;
-    const id    = el.dataset.id;
-    const col   = el.dataset.col;
-    const extra = (() => { try { return JSON.parse(el.dataset.extra || '{}'); } catch { return {}; }})();
-    const outdoorItemId = el.dataset.outdoorItemId ? parseInt(el.dataset.outdoorItemId, 10) : null;
-    const value = (el.type === 'checkbox') ? (el.checked ? 1 : 0) : el.value;
+        const url   = el.dataset.url || DEFAULT_UPDATE_URL;
+        const id    = el.dataset.id;
+        let   col   = el.dataset.sendCol || el.dataset.col; // ✅ pakai sendCol kalau ada
+        const extra = (() => { try { return JSON.parse(el.dataset.extra || '{}'); } catch { return {}; }})();
+        const outdoorItemId = el.dataset.outdoorItemId ? parseInt(el.dataset.outdoorItemId, 10) : null;
+        const value = (el.type === 'checkbox') ? (el.checked ? 1 : 0) : el.value;
 
-    if (!url || !id || !col) return;
+        if (!url || !id || !col) return;
 
-    el.classList.remove('ring-2','ring-red-200','ring-green-200');
-    el.classList.add('opacity-60');
-
-    try {
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': token,
-                'Accept': 'application/json',
-            },
-            body: JSON.stringify(Object.assign(
-                {},
-                extra,
-                { id, column: col, value },
-                outdoorItemId ? { outdoor_item_id: outdoorItemId } : {}
-            ))
-        });
-
-        const json = await res.json().catch(() => ({}));
-
-        // Check if request failed or server returned error
-        if (!res.ok || json.ok === false) {
-            throw new Error(json.message || `Save failed (${res.status})`);
+        // Fallback guard: kalau scope outdoor & child row & masih ada prefix 'outdoor_', buang prefix
+        if ((extra?.scope === 'outdoor') && outdoorItemId && /^outdoor_/.test(col)) {
+            col = col.replace(/^outdoor_/, '');
         }
 
-        el.classList.add('ring-2','ring-green-200');
-    } catch (e) {
-        console.error(e);
-        el.classList.add('ring-2','ring-red-200');
+        el.classList.remove('ring-2','ring-red-200','ring-green-200');
+        el.classList.add('opacity-60');
 
-        // Show more specific error message
-        const errorMsg = e.message || 'Save failed. Check console / server logs.';
-        alert(`Save failed: ${errorMsg}`);
-    } finally {
-        el.classList.remove('opacity-60');
-        setTimeout(() => { el.classList.remove('ring-2','ring-green-200','ring-red-200'); }, 900);
-    }
-};
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': token,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify(Object.assign(
+                    {},
+                    extra,
+                    { id, column: col, value },
+                    outdoorItemId ? { outdoor_item_id: outdoorItemId } : {}
+                ))
+            });
+
+            const json = await res.json().catch(() => ({}));
+
+            // Check if request failed or server returned error
+            if (!res.ok) throw new Error(`Save failed (${res.status})`);
+            if (json && json.ok === false) {
+                // Treat "No row changed" as no-op success (nilai sama)
+                if (/no row changed/i.test(json.message || '')) {
+                    el.classList.add('ring-2','ring-green-200');
+                } else {
+                    throw new Error(json.message || 'Save failed');
+                }
+            } else {
+                el.classList.add('ring-2','ring-green-200');
+            }
+        } catch (e) {
+            console.error(e);
+            el.classList.add('ring-2','ring-red-200');
+
+            // Show more specific error message
+            const errorMsg = e.message || 'Save failed. Check console / server logs.';
+            alert(`Save failed: ${errorMsg}`);
+        } finally {
+            el.classList.remove('opacity-60');
+            setTimeout(() => { el.classList.remove('ring-2','ring-green-200','ring-red-200'); }, 900);
+        }
+    };
 
     // change + debounced input (good UX for text fields)
     document.body.addEventListener('change', (e) => {
