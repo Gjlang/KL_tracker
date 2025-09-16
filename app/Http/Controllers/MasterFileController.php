@@ -706,6 +706,8 @@ private function applyMonthFilterForJoinedQuery($query, $rawMonth)
 
 
 
+
+
 public function printAuto(MasterFile $file)
 {
     $type = request('type') ?: $this->guessProductType($file);
@@ -1414,6 +1416,8 @@ private function normalizeMonthCandidates($raw): array
         $m,
     ];
 }
+
+
 
 
     public function confirmationLink()
