@@ -20,10 +20,10 @@ class AuthController extends Controller
 
         $credentials = [$field => $login, 'password' => $request->input('password')];
 
-        if (Auth::attempt($credentials, $request->boolean('remember'))) {
-            $request->session()->regenerate();
-            return redirect()->intended(route('dashboard'));
-        }
+       if (Auth::guard('web')->attempt($credentials)) {
+    return redirect()->intended('dashboard');
+}
+
 
         return back()->withErrors(['login' => 'Invalid credentials.'])->onlyInput('login');
     }
