@@ -220,46 +220,56 @@
                     <!-- Action Buttons -->
                     <div class="flex flex-wrap gap-3">
                         <!-- Add New - Primary -->
+                        @can('masterfile.create')
                         <a href="{{ route('masterfile.create') }}" class="btn-primary inline-flex items-center px-5 py-2.5 rounded-full text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2">
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                             </svg>
                             Add New
                         </a>
+                        @endcan
 
                         <!-- Calendar View - Secondary -->
+                        @can('dashboard.view')
                         <a href="{{ route('calendar.index') }}" class="btn-secondary inline-flex items-center px-4 py-2.5 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2">
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                             </svg>
                             Calendar View
                         </a>
+                        @endcan
 
                         <!-- Import Data - Ghost -->
+                        @can('masterfile.import')
                         <button type="button" onclick="testImportModal()" class="btn-ghost inline-flex items-center px-4 py-2.5 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2">
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3"></path>
                             </svg>
                             Import Data
                         </button>
+                        @endcan
 
                         <!-- Export All Data - Ghost -->
+                        @can('export.run')
                         <a href="{{ route('masterfile.exportXlsx', request()->query()) }}" class="btn-ghost inline-flex items-center px-4 py-2.5 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2">
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l2-2m0 0l2-2m-2 2H6"></path>
                             </svg>
                             Export All Data
                         </a>
+                        @endcan
 
                         <!-- Information Booth -->
+                        @can('information.booth.view')
                         <a href="{{ route('information.booth.index') }}" class="btn-secondary inline-flex items-center px-4 py-2.5 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2">
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                             </svg>
                             Information Hub
                         </a>
+                        @endcan
 
-                        <!-- Logout - Destructive -->
+                        <!-- Logout - Destructive (Always visible) -->
                         <form method="POST" action="{{ route('logout') }}" class="inline">
                             @csrf
                             <button type="submit" class="btn-destructive inline-flex items-center px-4 py-2.5 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2">
@@ -386,9 +396,13 @@
                                             <td class="px-6 py-4 text-sm ink">{{ $file->created_at ? $file->created_at->format('M d, Y') : '-' }}</td>
                                             <td class="px-6 py-4 text-sm ink">{{ $file->sales_person ?? '-' }}</td>
                                             <td class="px-6 py-4 text-sm">
+                                                @can('masterfile.show')
                                                 <a href="{{ route('masterfile.show', $file->id) }}" class="ink hover:text-blue-600 font-medium">
                                                     <div class="max-w-[200px] truncate" title="{{ $file->company }}">{{ $file->company }}</div>
                                                 </a>
+                                                @else
+                                                <div class="max-w-[200px] truncate" title="{{ $file->company }}">{{ $file->company }}</div>
+                                                @endcan
                                             </td>
                                             <td class="px-6 py-4 text-sm ink">{{ $file->client ?? '-' }}</td>
                                             <td class="px-6 py-4 text-sm text-gray-600">{{ $file->email ?? '-' }}</td>
@@ -420,16 +434,13 @@
                                                 <svg class="w-16 h-16 text-gray-300 mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                                 </svg>
-                                                <h3 class="font-serif text-xl font-medium ink mb-2">No master file data found</h3>
-                                                <p class="text-gray-600 mb-6">Get started by importing data or adding a new record.</p>
-                                                <div class="flex space-x-3">
-                                                    <button onclick="testImportModal()" class="btn-primary px-6 py-3 rounded-xl text-sm">
-                                                        Import Data
-                                                    </button>
-                                                    <a href="{{ route('masterfile.create') }}" class="btn-secondary px-6 py-3 rounded-xl text-sm">
-                                                        Add New Record
-                                                    </a>
-                                                </div>
+                                                <h3 class="font-serif text-lg font-medium ink mb-2">No records found</h3>
+                                                <p class="text-gray-600 mb-4">Get started by adding your first record.</p>
+                                                @can('masterfile.create')
+                                                <a href="{{ route('masterfile.create') }}" class="btn-primary px-4 py-2 rounded-xl text-sm">
+                                                    Add New Record
+                                                </a>
+                                                @endcan
                                             </div>
                                         </td>
                                     </tr>
@@ -439,55 +450,9 @@
                     </div>
                 </div>
 
-                <!-- Mobile Card View -->
-                <div class="md:hidden p-4 space-y-4">
-                    @if(isset($masterFiles) && $masterFiles->count() > 0)
-                        @foreach($masterFiles as $file)
-                            <div class="table-mobile-card">
-                                <div class="flex justify-between items-start mb-3">
-                                    <div class="flex-1">
-                                        <h3 class="font-medium ink mb-1">
-                                            <a href="{{ route('masterfile.show', $file->id) }}" class="ink hover:text-blue-600">
-                                                {{ $file->company ?? 'N/A' }}
-                                            </a>
-                                        </h3>
-                                        <p class="text-sm text-gray-600">{{ $file->created_at ? $file->created_at->format('M d, Y') : '-' }}</p>
-                                    </div>
-                                    <div class="text-right">
-                                        <p class="tabular-nums font-medium ink">{{ $file->amount ?? '-' }}</p>
-                                    </div>
-                                </div>
-                                <div class="space-y-1 text-sm">
-                                    <div class="flex justify-between">
-                                        <span class="text-gray-500">Sales Person:</span>
-                                        <span class="ink">{{ $file->sales_person ?? '-' }}</span>
-                                    </div>
-                                    <div class="flex justify-between">
-                                        <span class="text-gray-500">Contact:</span>
-                                        <span class="ink">{{ $file->client ?? '-' }}</span>
-                                    </div>
-                                    <div class="flex justify-between">
-                                        <span class="text-gray-500">Status:</span>
-                                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full
-                                          {{ $file->status === 'completed' ? 'bg-green-100 text-green-800' : ($file->status === 'ongoing' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800') }}">
-                                          {{ ucfirst($file->status ?? 'pending') }}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        @endforeach
-                    @else
-                        <div class="text-center py-12">
-                            <svg class="w-16 h-16 text-gray-300 mx-auto mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                            </svg>
-                            <h3 class="font-serif text-lg font-medium ink mb-2">No records found</h3>
-                            <p class="text-gray-600 mb-4">Get started by adding your first record.</p>
-                            <a href="{{ route('masterfile.create') }}" class="btn-primary px-4 py-2 rounded-xl text-sm">
-                                Add New Record
-                            </a>
-                        </div>
-                    @endif
+                <!-- Mobile Table (if needed) -->
+                <div class="md:hidden">
+                    <!-- Mobile cards would go here if implemented -->
                 </div>
             </div>
 
@@ -506,7 +471,8 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <!-- KLTG Jobs -->
+                     <!-- KLTG Jobs -->
+                    @can('kltg.edit')
                     <a href="{{ route('dashboard.kltg') }}" class="nav-card card p-6 hover:no-underline group">
                         <div class="flex items-start space-x-4">
                             <div class="flex-shrink-0">
@@ -522,8 +488,10 @@
                             </div>
                         </div>
                     </a>
+                    @endcan
 
                     <!-- Media Jobs -->
+                    @can('media.edit')
                     <a href="{{ route('dashboard.media') }}" class="nav-card card p-6 hover:no-underline group">
                         <div class="flex items-start space-x-4">
                             <div class="flex-shrink-0">
@@ -539,8 +507,10 @@
                             </div>
                         </div>
                     </a>
+                    @endcan
 
                     <!-- Outdoor Jobs -->
+                    @can('outdoor.edit')
                     <a href="{{ route('dashboard.outdoor') }}" class="nav-card card p-6 hover:no-underline group">
                         <div class="flex items-start space-x-4">
                             <div class="flex-shrink-0">
@@ -556,12 +526,14 @@
                             </div>
                         </div>
                     </a>
+                    @endcan
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Import Modal -->
+    @can('masterfile.import')
     <div id="importModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-25 flex items-center justify-center p-4">
         <div class="card max-w-lg w-full p-8 max-h-screen overflow-y-auto">
             <div class="flex justify-between items-start mb-6">
@@ -629,6 +601,7 @@
             </form>
         </div>
     </div>
+    @endcan
 
     <script>
         // Import modal functions
