@@ -12,29 +12,32 @@ class RegisterController extends Controller
 {
     public function create()
     {
-        return view('auth.register'); // separate view OR you can keep using the login page with a toggle
+        return view('auth.register'); // atau tab register di login page
     }
 
     public function store(RegisterRequest $request)
     {
         $data = $request->validated();
 
-        // default role 'user' if not provided
-        if (!isset($data['role'])) {
-            $data['role'] = 'user';
+        $firstUser = User::count() === 0;
+        $role = $data['role'] ?? 'user';
+
+        // Cegah publik bikin admin kalau bukan first user
+        if ($role === 'admin' && !$firstUser) {
+            $role = 'user';
         }
 
         $user = User::create([
             'name'     => $data['name'],
             'email'    => $data['email'],
-            'password' => $data['password'], // will be hashed by the User model cast
-            'role'     => $data['role'],
+            'password' => $data['password'], // auto hash
+            'role'     => $role,
         ]);
 
         event(new Registered($user));
-
         Auth::login($user);
 
         return redirect()->intended(route('dashboard'));
     }
+
 }

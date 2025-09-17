@@ -375,6 +375,14 @@
     <div id="registerSection" style="display: none;">
       <h1 class="title stagger-1 fade-in-up">Create account</h1>
 
+      @if ($errors->any())
+        <div class="error-alert stagger-2 fade-in-up" role="alert">
+          @foreach ($errors->all() as $error)
+            <div>{{ $error }}</div>
+          @endforeach
+        </div>
+      @endif
+
       <form method="POST" action="{{ route('register.store') }}" id="register-form" class="space-y-6" novalidate>
         @csrf
 
@@ -389,6 +397,7 @@
             autocomplete="name"
             class="input"
             placeholder="Your full name"
+            value="{{ old('name') }}"
           >
         </div>
 
@@ -403,6 +412,7 @@
             autocomplete="email"
             class="input"
             placeholder="e.g. user@example.com"
+            value="{{ old('email') }}"
           >
         </div>
 
@@ -429,21 +439,16 @@
           </div>
         </div>
 
-        {{-- Confirm Password --}}
-        <div class="form-group stagger-3 fade-in-up">
-          <label for="reg-password-confirm" class="form-label">Confirm Password</label>
-          <input
-            id="reg-password-confirm"
-            name="password_confirmation"
-            type="password"
-            required
-            autocomplete="new-password"
-            class="input"
-            placeholder="••••••••"
-          >
-        </div>
 
-        <input type="hidden" name="role" value="user">
+        {{-- Role --}}
+        <div class="form-group stagger-3 fade-in-up">
+          <label for="reg-role" class="form-label">Role</label>
+          <select id="reg-role" name="role" class="input" required>
+            <option value="user" {{ old('role', 'user')==='user' ? 'selected' : '' }}>User</option>
+            <option value="support" {{ old('role')==='support' ? 'selected' : '' }}>Support</option>
+          </select>
+          @error('role') <p class="help-error">{{ $message }}</p> @enderror
+        </div>
 
         {{-- Submit --}}
         <div class="pt-3 stagger-4 fade-in-up">
