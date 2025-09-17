@@ -269,6 +269,13 @@
                         </a>
                         <?php endif; ?>
 
+                        <a href="<?php echo e(route('report.summary', ['year'=>request('year', now()->year), 'month'=>request('month'), 'status'=>request('status')])); ?>"
+   class="inline-flex items-center px-3 py-2 rounded-lg text-white"
+   style="background:#22255b">
+   Print All (Summary)
+</a>
+
+
                         <!-- Logout - Destructive (Always visible) -->
                         <form method="POST" action="<?php echo e(route('logout')); ?>" class="inline">
                             <?php echo csrf_field(); ?>

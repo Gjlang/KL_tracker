@@ -24,6 +24,8 @@ use App\Http\Controllers\InformationBoothController;
 use App\Http\Controllers\ClienteleController;
 use App\Http\Controllers\OutdoorInlineController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Report\SummaryReportController;
+
 
 // ===============================================
 // ROOT & AUTHENTICATION ROUTES
@@ -545,3 +547,11 @@ Route::post('/outdoor/inline-update', [OutdoorInlineController::class, 'update']
 Route::post('/clientele/bulk-inline-update', [ClienteleController::class, 'bulkInlineUpdate'])
     ->middleware(['auth', 'permission:clientele.edit'])
     ->name('clientele.bulk.inline.update');
+
+Route::middleware(['auth','permission:report.summary.view'])
+    ->get('/report/summary', [\App\Http\Controllers\Report\SummaryReportController::class, 'index'])
+    ->name('report.summary');
+
+Route::middleware(['auth','permission:report.summary.export'])
+    ->get('/report/summary.pdf', [\App\Http\Controllers\Report\SummaryReportController::class, 'pdf'])
+    ->name('report.summary.pdf');

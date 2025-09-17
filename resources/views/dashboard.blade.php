@@ -269,6 +269,13 @@
                         </a>
                         @endcan
 
+                        <a href="{{ route('report.summary', ['year'=>request('year', now()->year), 'month'=>request('month'), 'status'=>request('status')]) }}"
+   class="inline-flex items-center px-3 py-2 rounded-lg text-white"
+   style="background:#22255b">
+   Print All (Summary)
+</a>
+
+
                         <!-- Logout - Destructive (Always visible) -->
                         <form method="POST" action="{{ route('logout') }}" class="inline">
                             @csrf
