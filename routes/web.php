@@ -23,6 +23,7 @@ use App\Http\Controllers\MasterFileController;
 use App\Http\Controllers\InformationBoothController;
 use App\Http\Controllers\ClienteleController;
 use App\Http\Controllers\OutdoorInlineController;
+use App\Http\Controllers\Auth\RegisterController;
 
 
 
@@ -41,6 +42,9 @@ Route::get('/', fn () => redirect()->route('dashboard'))
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'create'])->name('login');
     Route::post('/login', [AuthController::class, 'store'])->name('login.store');
+
+    Route::get('/register', [RegisterController::class, 'create'])->name('register');
+    Route::post('/register', [RegisterController::class, 'store'])->name('register.store');
 });
 
 // Protected routes (authenticated users only)

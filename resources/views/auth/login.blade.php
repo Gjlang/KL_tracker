@@ -252,94 +252,236 @@
     .stagger-2 { animation-delay: 0.2s; opacity: 0; }
     .stagger-3 { animation-delay: 0.3s; opacity: 0; }
     .stagger-4 { animation-delay: 0.4s; opacity: 0; }
+
+    /* Tab styling */
+    .tab-button {
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.75rem;
+      border: 2px solid #e5e7eb;
+      background: rgba(255, 255, 255, 0.5);
+      color: #6b7280;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .tab-button.active {
+      background: var(--brand);
+      border-color: var(--brand);
+      color: white;
+      box-shadow: 0 4px 15px 0 rgba(34, 37, 91, 0.3);
+    }
+
+    .tab-button:hover:not(.active) {
+      border-color: var(--focus);
+      background: rgba(255, 255, 255, 0.8);
+    }
   </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
   <main class="w-full max-w-md glass-card rounded-3xl p-10 fade-in-up">
-    <h1 class="title stagger-1 fade-in-up">Sign in</h1>
 
-    @if ($errors->any())
-      <div class="error-alert stagger-2 fade-in-up" role="alert">
-        @foreach ($errors->all() as $error)
-          <div>{{ $error }}</div>
-        @endforeach
-      </div>
-    @endif
+    <!-- Tab Switcher -->
+    <div class="flex gap-2 mb-6 stagger-1 fade-in-up">
+      <button type="button" id="loginTab" class="tab-button active flex-1 text-center">Sign in</button>
+      <button type="button" id="registerTab" class="tab-button flex-1 text-center">Create account</button>
+    </div>
 
-    <form method="POST" action="{{ route('login.store') }}" id="login-form" class="space-y-6" novalidate>
-      @csrf
+    <!-- Login Section -->
+    <div id="loginSection">
+      <h1 class="title stagger-1 fade-in-up">Sign in</h1>
 
-      {{-- Username / Email --}}
-      <div class="form-group stagger-3 fade-in-up">
-        <label for="login" class="form-label">Email or username</label>
-        <input
-          id="login"
-          name="login"
-          type="text"
-          required
-          autocomplete="username"
-          autofocus
-          value="{{ old('login') }}"
-          class="input {{ $errors->has('login') ? 'is-invalid' : '' }}"
-          aria-invalid="{{ $errors->has('login') ? 'true' : 'false' }}"
-          aria-describedby="{{ $errors->has('login') ? 'login-error' : '' }}"
-          placeholder="e.g. admin@example.com"
-        >
-        @error('login')
-          <p id="login-error" class="help-error">{{ $message }}</p>
-        @enderror
-      </div>
+      @if ($errors->any())
+        <div class="error-alert stagger-2 fade-in-up" role="alert">
+          @foreach ($errors->all() as $error)
+            <div>{{ $error }}</div>
+          @endforeach
+        </div>
+      @endif
 
-      {{-- Password --}}
-      <div class="form-group stagger-3 fade-in-up">
-        <label for="password" class="form-label">Password</label>
-        <div class="relative">
+      <form method="POST" action="{{ route('login.store') }}" id="login-form" class="space-y-6" novalidate>
+        @csrf
+
+        {{-- Username / Email --}}
+        <div class="form-group stagger-3 fade-in-up">
+          <label for="login" class="form-label">Email or username</label>
           <input
-            id="password"
-            name="password"
+            id="login"
+            name="login"
+            type="text"
+            required
+            autocomplete="username"
+            autofocus
+            value="{{ old('login') }}"
+            class="input {{ $errors->has('login') ? 'is-invalid' : '' }}"
+            aria-invalid="{{ $errors->has('login') ? 'true' : 'false' }}"
+            aria-describedby="{{ $errors->has('login') ? 'login-error' : '' }}"
+            placeholder="e.g. admin@example.com"
+          >
+          @error('login')
+            <p id="login-error" class="help-error">{{ $message }}</p>
+          @enderror
+        </div>
+
+        {{-- Password --}}
+        <div class="form-group stagger-3 fade-in-up">
+          <label for="password" class="form-label">Password</label>
+          <div class="relative">
+            <input
+              id="password"
+              name="password"
+              type="password"
+              required
+              autocomplete="current-password"
+              class="input pr-20 {{ $errors->has('password') ? 'is-invalid' : '' }}"
+              aria-invalid="{{ $errors->has('password') ? 'true' : 'false' }}"
+              aria-describedby="{{ $errors->has('password') ? 'password-error' : '' }}"
+              placeholder="••••••••"
+            >
+            <button
+              type="button"
+              id="togglePassword"
+              class="toggle-password"
+              aria-label="Show password"
+              aria-pressed="false"
+            >Show</button>
+          </div>
+          @error('password')
+            <p id="password-error" class="help-error">{{ $message }}</p>
+          @enderror
+        </div>
+
+        {{-- Remember / Forgot --}}
+        <div class="flex items-center justify-between pt-2 stagger-4 fade-in-up">
+          <label class="flex items-center gap-3 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox" name="remember" value="1" class="checkbox-custom" {{ old('remember') ? 'checked' : '' }}>
+            <span class="font-medium">Remember me</span>
+          </label>
+          @if (Route::has('password.request'))
+            <a href="{{ route('password.request') }}" class="text-sm link-primary">Forgot password?</a>
+          @endif
+        </div>
+
+        {{-- Submit --}}
+        <div class="pt-3 stagger-4 fade-in-up">
+          <button type="submit" class="btn-primary w-full py-4 text-base font-semibold rounded-xl">
+            Sign in
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Register Section -->
+    <div id="registerSection" style="display: none;">
+      <h1 class="title stagger-1 fade-in-up">Create account</h1>
+
+      <form method="POST" action="{{ route('register.store') }}" id="register-form" class="space-y-6" novalidate>
+        @csrf
+
+        {{-- Name --}}
+        <div class="form-group stagger-3 fade-in-up">
+          <label for="reg-name" class="form-label">Name</label>
+          <input
+            id="reg-name"
+            name="name"
+            type="text"
+            required
+            autocomplete="name"
+            class="input"
+            placeholder="Your full name"
+          >
+        </div>
+
+        {{-- Email --}}
+        <div class="form-group stagger-3 fade-in-up">
+          <label for="reg-email" class="form-label">Email</label>
+          <input
+            id="reg-email"
+            name="email"
+            type="email"
+            required
+            autocomplete="email"
+            class="input"
+            placeholder="e.g. user@example.com"
+          >
+        </div>
+
+        {{-- Password --}}
+        <div class="form-group stagger-3 fade-in-up">
+          <label for="reg-password" class="form-label">Password</label>
+          <div class="relative">
+            <input
+              id="reg-password"
+              name="password"
+              type="password"
+              required
+              autocomplete="new-password"
+              class="input pr-20"
+              placeholder="••••••••"
+            >
+            <button
+              type="button"
+              id="toggleRegPassword"
+              class="toggle-password"
+              aria-label="Show password"
+              aria-pressed="false"
+            >Show</button>
+          </div>
+        </div>
+
+        {{-- Confirm Password --}}
+        <div class="form-group stagger-3 fade-in-up">
+          <label for="reg-password-confirm" class="form-label">Confirm Password</label>
+          <input
+            id="reg-password-confirm"
+            name="password_confirmation"
             type="password"
             required
-            autocomplete="current-password"
-            class="input pr-20 {{ $errors->has('password') ? 'is-invalid' : '' }}"
-            aria-invalid="{{ $errors->has('password') ? 'true' : 'false' }}"
-            aria-describedby="{{ $errors->has('password') ? 'password-error' : '' }}"
+            autocomplete="new-password"
+            class="input"
             placeholder="••••••••"
           >
-          <button
-            type="button"
-            id="togglePassword"
-            class="toggle-password"
-            aria-label="Show password"
-            aria-pressed="false"
-          >Show</button>
         </div>
-        @error('password')
-          <p id="password-error" class="help-error">{{ $message }}</p>
-        @enderror
-      </div>
 
-      {{-- Remember / Forgot --}}
-      <div class="flex items-center justify-between pt-2 stagger-4 fade-in-up">
-        <label class="flex items-center gap-3 text-sm text-gray-700 cursor-pointer">
-          <input type="checkbox" name="remember" value="1" class="checkbox-custom" {{ old('remember') ? 'checked' : '' }}>
-          <span class="font-medium">Remember me</span>
-        </label>
-        @if (Route::has('password.request'))
-          <a href="{{ route('password.request') }}" class="text-sm link-primary">Forgot password?</a>
-        @endif
-      </div>
+        <input type="hidden" name="role" value="user">
 
-      {{-- Submit --}}
-      <div class="pt-3 stagger-4 fade-in-up">
-        <button type="submit" class="btn-primary w-full py-4 text-base font-semibold rounded-xl">
-          Sign in
-        </button>
-      </div>
-    </form>
+        {{-- Submit --}}
+        <div class="pt-3 stagger-4 fade-in-up">
+          <button type="submit" class="btn-primary w-full py-4 text-base font-semibold rounded-xl">
+            Create account
+          </button>
+        </div>
+      </form>
+    </div>
+
   </main>
 
   <script>
-    // Toggle password visibility with a11y
+    // Tab switching
+    (function () {
+      const loginTab = document.getElementById('loginTab');
+      const registerTab = document.getElementById('registerTab');
+      const loginSection = document.getElementById('loginSection');
+      const registerSection = document.getElementById('registerSection');
+
+      if (!loginTab || !registerTab || !loginSection || !registerSection) return;
+
+      loginTab.addEventListener('click', () => {
+        loginTab.classList.add('active');
+        registerTab.classList.remove('active');
+        loginSection.style.display = 'block';
+        registerSection.style.display = 'none';
+      });
+
+      registerTab.addEventListener('click', () => {
+        registerTab.classList.add('active');
+        loginTab.classList.remove('active');
+        registerSection.style.display = 'block';
+        loginSection.style.display = 'none';
+      });
+    })();
+
+    // Toggle password visibility for login
     (function () {
       const btn = document.getElementById('togglePassword');
       const input = document.getElementById('password');
@@ -354,7 +496,22 @@
       });
     })();
 
-    // Prevent double submit + subtle loading state
+    // Toggle password visibility for register
+    (function () {
+      const btn = document.getElementById('toggleRegPassword');
+      const input = document.getElementById('reg-password');
+      if (!btn || !input) return;
+
+      btn.addEventListener('click', () => {
+        const isHidden = input.type === 'password';
+        input.type = isHidden ? 'text' : 'password';
+        btn.textContent = isHidden ? 'Hide' : 'Show';
+        btn.setAttribute('aria-pressed', String(isHidden));
+        btn.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+      });
+    })();
+
+    // Prevent double submit for login
     (function () {
       const form = document.getElementById('login-form');
       if (!form) return;
@@ -363,6 +520,19 @@
         if (submitBtn && !submitBtn.disabled) {
           submitBtn.disabled = true;
           submitBtn.textContent = 'Signing in…';
+        }
+      });
+    })();
+
+    // Prevent double submit for register
+    (function () {
+      const form = document.getElementById('register-form');
+      if (!form) return;
+      form.addEventListener('submit', () => {
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn && !submitBtn.disabled) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Creating account…';
         }
       });
     })();
