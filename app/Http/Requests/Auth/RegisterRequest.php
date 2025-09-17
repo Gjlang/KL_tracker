@@ -14,9 +14,11 @@ class RegisterRequest extends FormRequest
         return [
             'name'     => ['required','string','max:255'],
             'email'    => ['required','email','max:255','unique:users,email'],
-            'password' => ['required','string','min:8','max:255','confirmed'], // needs password_confirmation
+            'password' => ['required','string','min:8','max:255'],
             // keep roles simple: admin, editor, user
-            'role'     => ['sometimes', Rule::in(['admin','editor','user'])],
+            'role'     => ['sometimes', Rule::in(['user','support','admin'])],
+
+
         ];
     }
 }

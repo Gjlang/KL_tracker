@@ -11,13 +11,21 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Explicit route middleware aliases for clarity
         $middleware->alias([
-            'auth'     => \Illuminate\Auth\Middleware\Authenticate::class,
-            'guest'    => \Illuminate\Auth\Middleware\RedirectIfAuthenticated::class,
+            'auth' => \Illuminate\Auth\Middleware\Authenticate::class,
+            'guest' => \Illuminate\Auth\Middleware\RedirectIfAuthenticated::class,
             'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
             'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         ]);
+
+        // Note: Changed from 'Middlewares' (plural) to 'Middleware' (singular)
+        if (class_exists(\Spatie\Permission\Middleware\PermissionMiddleware::class)) {
+            $middleware->alias([
+                'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
+                'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+                'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+            ]);
+        }
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
