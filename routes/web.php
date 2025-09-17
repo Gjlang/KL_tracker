@@ -31,11 +31,11 @@ use App\Http\Controllers\Auth\RegisterController;
 
 // Root route - redirect to dashboard for authenticated users
 Route::get('/', fn () => redirect()->route('dashboard'))
-    ->middleware(['auth', 'permission:dashboard.view'])
+    ->middleware(['web', 'auth', 'permission:dashboard.view'])
     ->name('home');
 
 // Guest routes (login)
-Route::middleware('guest')->group(function () {
+Route::middleware(['web', 'guest'])->group(function () {
     Route::get('/login', [AuthController::class, 'create'])->name('login');
     Route::post('/login', [AuthController::class, 'store'])->name('login.store');
 
@@ -43,20 +43,32 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [RegisterController::class, 'store'])->name('register.store');
 });
 
-// Protected routes (authenticated users only)
-Route::middleware(['auth', 'permission:dashboard.view'])->group(function () {
+// Protected routes (authenticated users only) - FIXED MIDDLEWARE ORDER
+Route::middleware(['web', 'auth', 'permission:dashboard.view'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 });
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['web', 'auth'])->group(function () {
     Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
 });
+
+// Debug route (temporary - remove after fixing)
+Route::get('/whoami', function () {
+    $u = Auth::user();
+    if (!$u) return 'not logged in';
+    return [
+        'id'    => $u->id,
+        'email' => $u->email,
+        'roles' => $u->getRoleNames(),
+        'perms' => $u->getAllPermissions()->pluck('name'),
+    ];
+})->middleware(['web', 'auth']);
 
 // ===============================================
 // DASHBOARD ROUTES
 // ===============================================
 
-Route::middleware(['auth', 'permission:dashboard.view'])->group(function () {
+Route::middleware(['web', 'auth', 'permission:dashboard.view'])->group(function () {
     Route::get('/dashboard/kltg', [KltgMonthlyController::class, 'index'])->name('dashboard.kltg');
     Route::get('/dashboard/media', [MediaMonthlyDetailController::class, 'index'])->name('dashboard.media');
     Route::get('/dashboard/outdoor', [OutdoorOngoingJobController::class, 'index'])->name('dashboard.outdoor');
@@ -68,14 +80,14 @@ Route::middleware(['auth', 'permission:dashboard.view'])->group(function () {
 
 // Dashboard specific updates
 Route::post('/dashboard/outdoor/update', [DashboardController::class, 'updateOutdoorField'])
-    ->middleware(['auth', 'role_or_permission:admin|outdoor.edit'])
+    ->middleware(['web', 'auth', 'role_or_permission:admin|outdoor.edit'])
     ->name('dashboard.outdoor.update');
 
 // ===============================================
 // CALENDAR ROUTES
 // ===============================================
 
-Route::prefix('calendar')->middleware(['auth', 'permission:dashboard.view'])->name('calendar.')->group(function () {
+Route::prefix('calendar')->middleware(['web', 'auth', 'permission:dashboard.view'])->name('calendar.')->group(function () {
     Route::get('/', [CalendarController::class, 'index'])->name('index');
     Route::get('/events', [CalendarController::class, 'events'])->name('events');
     Route::get('/debug', [CalendarController::class, 'debugData'])->name('debug');
@@ -83,14 +95,14 @@ Route::prefix('calendar')->middleware(['auth', 'permission:dashboard.view'])->na
 
 // Calendar legacy route
 Route::get('/calendar-view', [CalendarController::class, 'index'])
-    ->middleware(['auth', 'permission:dashboard.view'])
+    ->middleware(['web', 'auth', 'permission:dashboard.view'])
     ->name('calendar');
 
 // ===============================================
 // MASTERFILE ROUTES
 // ===============================================
 
-Route::prefix('masterfile')->middleware('auth')->name('masterfile.')->group(function () {
+Route::prefix('masterfile')->middleware(['web', 'auth'])->name('masterfile.')->group(function () {
     // Export routes (must be before dynamic {id} routes)
     Route::get('/export-xlsx', [MasterFileController::class, 'exportXlsx'])
         ->middleware('permission:export.run')

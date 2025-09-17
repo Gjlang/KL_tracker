@@ -33,6 +33,7 @@ class RegisterController extends Controller
             'password' => $data['password'], // auto hash
             'role'     => $role,
         ]);
+        $user->syncRoles([$role]);
 
         event(new Registered($user));
         Auth::login($user);
