@@ -15,10 +15,10 @@ class InformationBoothController extends Controller
     private function normalizeStatus(?string $s): ?string
     {
         if ($s === null || $s === '') return $s;
-        // UI kirim "completed" → DB simpan "done"
-        if ($s === 'completed') return 'done';
+        // DB now stores `completed` directly
         return $s;
     }
+
 
     public function events(Request $request)
     {
@@ -52,7 +52,7 @@ class InformationBoothController extends Controller
         $events = $rows->map(function ($r) use ($today, $statusColors) {
             $finish = optional($r->expected_finish_date)->toDateString();
             $overdue = $finish && (Carbon::parse($finish)->lt($today))
-                      && !in_array($r->status, ['done','cancelled'], true); // Use DB values
+                      && !in_array($r->status, ['completed','cancelled'], true); // Use DB values
 
             // warna default berdasar status; override merah jika overdue
             $c = $statusColors[$r->status] ?? ['bg' => '#E5E7EB', 'text' => '#374151', 'border' => '#E5E7EB'];
@@ -64,7 +64,7 @@ class InformationBoothController extends Controller
             $title = implode(' — ', $titleBits) ?: 'Expected Finish';
 
             // Convert DB status to UI-friendly label
-            $statusLabel = $r->status === 'done' ? 'completed' : $r->status;
+            $statusLabel = $r->status;
 
             return [
                 'id'    => (string) $r->id,
@@ -136,7 +136,7 @@ class InformationBoothController extends Controller
             ->when($qStatus, fn ($q) => $q->where('status', $qStatus))
             ->when($qClient, fn ($q) => $q->where('client', 'like', "%{$qClient}%"))
             // Handle "completed_only" filter
-            ->when($request->boolean('completed_only'), fn($q) => $q->where('status','done'))
+            ->when($request->boolean('completed_only'), fn($q) => $q->where('status','completed'))
             ->orderByDesc('date')
             ->get();
 
@@ -201,7 +201,7 @@ class InformationBoothController extends Controller
             'location'             => 'sometimes|nullable|string|max:255',
             'client'               => 'sometimes|string|max:255',
             'company'              => 'sometimes|nullable|string|max:255',
-            'status'               => 'sometimes|in:pending,in-progress,done,cancelled', // Use DB values
+            'status'               => 'sometimes|in:pending,in-progress,completed,cancelled', // Use DB values
             'attended_by'          => 'sometimes|nullable|string|max:255',
             'reasons'              => 'sometimes|nullable|string',
             'master_file_id'       => 'sometimes|nullable|integer',
