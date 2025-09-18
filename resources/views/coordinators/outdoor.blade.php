@@ -119,9 +119,6 @@
                     @endforeach
                   </select>
                 </div>
-
-
-
                 {{-- Year Filter --}}
                 <div class="space-y-2">
                   <label for="filterYear" class="sans table-header">Year</label>
@@ -270,57 +267,209 @@
                     </div>
                 </td>
 
-                  {{-- Editable Fields --}}
-                  @foreach ($editableCols as $col)
-                    @php
-                      $val = $row->{$col} ?? '';
-                      $isDate = in_array($col, $dateCols, true);
-                    @endphp
-                    <td class="px-4 py-4 hairline border-b">
-                      <div class="relative">
-                        @if ($isDate)
-                          <input type="date"
-                              class="field-input w-44 tabular-nums outdoor-field"
-                              value="{{ $val }}"
-                              data-id="{{ $trackingId }}"
-                              data-mf="{{ $row->master_file_id }}"
-                              data-oi="{{ $row->outdoor_item_id }}"
-                              data-field="{{ $col }}"
-                              data-scope="{{ $scope }}" />
-                        @else
-                          <input type="text"
-                              class="field-input w-44 outdoor-field"
-                              value="{{ $val }}"
-                              data-id="{{ $trackingId }}"
-                              data-mf="{{ $row->master_file_id }}"
-                              data-oi="{{ $row->outdoor_item_id }}"
-                              data-field="{{ $col }}"
-                              data-scope="{{ $scope }}"
-                              autocomplete="off" />
-                        @endif
+                  {{-- PAYMENT (text + date) --}}
+<td class="px-4 py-4 hairline border-b align-top">
+  <div class="space-y-2 w-44">
+    {{-- text --}}
+    <input
+      type="text"
+      class="field-input w-44 outdoor-field"
+      value="{{ $row->payment ?? '' }}"
+      data-id="{{ $trackingId }}"
+      data-mf="{{ $row->master_file_id }}"
+      data-oi="{{ $row->outdoor_item_id }}"
+      data-field="payment"
+      data-scope="{{ $scope }}"
+      placeholder="note..." />
+    {{-- date --}}
+    <input
+      type="date"
+      class="field-input w-44 tabular-nums outdoor-field"
+      value="{{ $row->payment_date ?? '' }}"
+      data-id="{{ $trackingId }}"
+      data-mf="{{ $row->master_file_id }}"
+      data-oi="{{ $row->outdoor_item_id }}"
+      data-field="payment_date"
+      data-scope="{{ $scope }}" />
+  </div>
+</td>
 
-                        {{-- Save Indicators --}}
-                        <div class="absolute right-2 top-1/2 transform -translate-y-1/2 hidden" data-save-indicator>
-                          <svg class="animate-spin h-4 w-4 text-[#4bbbed]" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                        </div>
-                        <div class="absolute right-2 top-1/2 transform -translate-y-1/2 hidden" data-save-success>
-                          <svg class="h-4 w-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                          </svg>
-                        </div>
-                        <div class="absolute right-2 top-1/2 transform -translate-y-1/2 hidden" data-save-error>
-                          <svg class="h-4 w-4 text-[#d33831]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                          </svg>
-                        </div>
-                      </div>
-                    </td>
-                  @endforeach
+{{-- MATERIAL (text + date) --}}
+<td class="px-4 py-4 hairline border-b align-top">
+  <div class="space-y-2 w-44">
+    <input
+      type="text"
+      class="field-input w-44 outdoor-field"
+      value="{{ $row->material ?? '' }}"
+      data-id="{{ $trackingId }}"
+      data-mf="{{ $row->master_file_id }}"
+      data-oi="{{ $row->outdoor_item_id }}"
+      data-field="material"
+      data-scope="{{ $scope }}"
+      placeholder="note..." />
+    <input
+      type="date"
+      class="field-input w-44 tabular-nums outdoor-field"
+      value="{{ $row->material_date ?? '' }}"
+      data-id="{{ $trackingId }}"
+      data-mf="{{ $row->master_file_id }}"
+      data-oi="{{ $row->outdoor_item_id }}"
+      data-field="material_date"
+      data-scope="{{ $scope }}" />
+  </div>
+</td>
+
+{{-- ARTWORK (text + date) --}}
+<td class="px-4 py-4 hairline border-b align-top">
+  <div class="space-y-2 w-44">
+    <input
+      type="text"
+      class="field-input w-44 outdoor-field"
+      value="{{ $row->artwork ?? '' }}"
+      data-id="{{ $trackingId }}"
+      data-mf="{{ $row->master_file_id }}"
+      data-oi="{{ $row->outdoor_item_id }}"
+      data-field="artwork"
+      data-scope="{{ $scope }}"
+      placeholder="note..." />
+    <input
+      type="date"
+      class="field-input w-44 tabular-nums outdoor-field"
+      value="{{ $row->artwork_date ?? '' }}"
+      data-id="{{ $trackingId }}"
+      data-mf="{{ $row->master_file_id }}"
+      data-oi="{{ $row->outdoor_item_id }}"
+      data-field="artwork_date"
+      data-scope="{{ $scope }}" />
+  </div>
+</td>
+
+{{-- APPROVAL (note + date) --}}
+<td class="px-4 py-4 hairline border-b align-top">
+  <div class="space-y-2 w-44">
+    <input
+      type="text"
+      class="field-input w-44 outdoor-field"
+      value="{{ $row->received_approval_note ?? '' }}"
+      data-id="{{ $trackingId }}"
+      data-mf="{{ $row->master_file_id }}"
+      data-oi="{{ $row->outdoor_item_id }}"
+      data-field="received_approval_note"
+      data-scope="{{ $scope }}"
+      placeholder="note..." />
+    <input
+      type="date"
+      class="field-input w-44 tabular-nums outdoor-field"
+      value="{{ $row->received_approval ?? '' }}"
+      data-id="{{ $trackingId }}"
+      data-mf="{{ $row->master_file_id }}"
+      data-oi="{{ $row->outdoor_item_id }}"
+      data-field="received_approval"
+      data-scope="{{ $scope }}" />
+  </div>
+</td>
+
+{{-- SENT (note + date) --}}
+<td class="px-4 py-4 hairline border-b align-top">
+  <div class="space-y-2 w-44">
+    <input
+      type="text"
+      class="field-input w-44 outdoor-field"
+      value="{{ $row->sent_to_printer_note ?? '' }}"
+      data-id="{{ $trackingId }}"
+      data-mf="{{ $row->master_file_id }}"
+      data-oi="{{ $row->outdoor_item_id }}"
+      data-field="sent_to_printer_note"
+      data-scope="{{ $scope }}"
+      placeholder="note..." />
+    <input
+      type="date"
+      class="field-input w-44 tabular-nums outdoor-field"
+      value="{{ $row->sent_to_printer ?? '' }}"
+      data-id="{{ $trackingId }}"
+      data-mf="{{ $row->master_file_id }}"
+      data-oi="{{ $row->outdoor_item_id }}"
+      data-field="sent_to_printer"
+      data-scope="{{ $scope }}" />
+  </div>
+</td>
+
+{{-- COLLECTED (note + date) --}}
+<td class="px-4 py-4 hairline border-b align-top">
+  <div class="space-y-2 w-44">
+    <input
+      type="text"
+      class="field-input w-44 outdoor-field"
+      value="{{ $row->collection_printer_note ?? '' }}"
+      data-id="{{ $trackingId }}"
+      data-mf="{{ $row->master_file_id }}"
+      data-oi="{{ $row->outdoor_item_id }}"
+      data-field="collection_printer_note"
+      data-scope="{{ $scope }}"
+      placeholder="note..." />
+    <input
+      type="date"
+      class="field-input w-44 tabular-nums outdoor-field"
+      value="{{ $row->collection_printer ?? '' }}"
+      data-id="{{ $trackingId }}"
+      data-mf="{{ $row->master_file_id }}"
+      data-oi="{{ $row->outdoor_item_id }}"
+      data-field="collection_printer"
+      data-scope="{{ $scope }}" />
+  </div>
+</td>
+
+{{-- INSTALL (note + date) --}}
+<td class="px-4 py-4 hairline border-b align-top">
+  <div class="space-y-2 w-44">
+    <input
+      type="text"
+      class="field-input w-44 outdoor-field"
+      value="{{ $row->installation_note ?? '' }}"
+      data-id="{{ $trackingId }}"
+      data-mf="{{ $row->master_file_id }}"
+      data-oi="{{ $row->outdoor_item_id }}"
+      data-field="installation_note"
+      data-scope="{{ $scope }}"
+      placeholder="note..." />
+    <input
+      type="date"
+      class="field-input w-44 tabular-nums outdoor-field"
+      value="{{ $row->installation ?? '' }}"
+      data-id="{{ $trackingId }}"
+      data-mf="{{ $row->master_file_id }}"
+      data-oi="{{ $row->outdoor_item_id }}"
+      data-field="installation"
+      data-scope="{{ $scope }}" />
+  </div>
+</td>
+
+{{-- DISMANTLE (note + date) --}}
+<td class="px-4 py-4 hairline border-b align-top">
+  <div class="space-y-2 w-44">
+    <input
+      type="text"
+      class="field-input w-44 outdoor-field"
+      value="{{ $row->dismantle_note ?? '' }}"
+      data-id="{{ $trackingId }}"
+      data-mf="{{ $row->master_file_id }}"
+      data-oi="{{ $row->outdoor_item_id }}"
+      data-field="dismantle_note"
+      data-scope="{{ $scope }}"
+      placeholder="note..." />
+    <input
+      type="date"
+      class="field-input w-44 tabular-nums outdoor-field"
+      value="{{ $row->dismantle ?? '' }}"
+      data-id="{{ $trackingId }}"
+      data-mf="{{ $row->master_file_id }}"
+      data-oi="{{ $row->outdoor_item_id }}"
+      data-field="dismantle"
+      data-scope="{{ $scope }}" />
+  </div>
+</td>
                 </tr>
-              @endforeach
+                  @endforeach
 
             @else
               {{-- Empty State --}}

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Schema;
 
 class OutdoorCoordinatorTracking extends Model
 {
@@ -13,17 +14,32 @@ class OutdoorCoordinatorTracking extends Model
     protected $guarded = [];
 
 protected $casts = [
-    'received_approval' => 'date',
-    'sent_to_printer' => 'date',
-    'collection_printer' => 'date',
-    'installation' => 'date',
-    'dismantle' => 'date',
-    'next_follow_up' => 'date',
-    'masterfile_created_at' => 'datetime', // ← ADDED for snapshot field
-    'created_at' => 'datetime',
-    'updated_at' => 'datetime',
+    // Existing date/datetime fields
+    'received_approval'      => 'date',
+    'sent_to_printer'        => 'date',
+    'collection_printer'     => 'date',
+    'installation'            => 'date',
+    'dismantle'               => 'date',
+    'next_follow_up'          => 'date',
+    'masterfile_created_at'   => 'datetime',
+    'created_at'               => 'datetime',
+    'updated_at'               => 'datetime',
 
-    // Cast month fields as boolean/integer for easier handling
+    // NEW paired DATE fields
+    'site_date'                => 'date',
+    'payment_date'             => 'date',
+    'material_date'             => 'date',
+    'artwork_date'               => 'date',
+
+    // Notes paired with existing milestone dates
+    'received_approval_note'      => 'string',
+    'sent_to_printer_note'        => 'string',
+    'collection_printer_note'     => 'string',
+    'installation_note'            => 'string',
+    'dismantle_note'               => 'string',
+    'next_follow_up_note'          => 'string',
+
+    // Month flags – keep as boolean for easy checkbox binding
     'month_jan' => 'boolean',
     'month_feb' => 'boolean',
     'month_mar' => 'boolean',
@@ -37,6 +53,25 @@ protected $casts = [
     'month_nov' => 'boolean',
     'month_dec' => 'boolean',
 ];
+
+protected $fillable = [
+    'master_file_id','outdoor_item_id','masterfile_created_at',
+    'year','month','client','product','site',
+    'payment','material','artwork',
+
+    // NEW pairs
+    'site_date','payment_date','material_date','artwork_date',
+    'received_approval_note','sent_to_printer_note',
+    'collection_printer_note','installation_note','dismantle_note','next_follow_up_note',
+
+    // existing dates
+    'received_approval','sent_to_printer','collection_printer','installation','dismantle',
+
+    'remarks','next_follow_up','status',
+    'month_jan','month_feb','month_mar','month_apr','month_may','month_jun',
+    'month_jul','month_aug','month_sep','month_oct','month_nov','month_dec',
+];
+
 
     /**
      * Relationship to MasterFile
