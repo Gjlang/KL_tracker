@@ -411,7 +411,13 @@
               <a href="<?php echo e(route('coordinator.outdoor.index')); ?>" class="btn-secondary">
                 Outdoor Coordinator List
               </a>
+              <a href="<?php echo e(route('outdoor.whiteboard.index')); ?>"
+   class="inline-flex items-center px-4 py-2 rounded-lg bg-[#22255b] text-white hover:opacity-90">
+  OUTDOOR Whiteboard
+</a>
+
             </div>
+
           <?php endif; ?>
         </div>
 

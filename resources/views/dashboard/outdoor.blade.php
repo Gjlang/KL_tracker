@@ -245,6 +245,11 @@
             <a href="{{ route('coordinator.outdoor.index') }}" class="btn-secondary">
               Outdoor Coordinator List
             </a>
+
+             <a href="{{ route('outdoor.whiteboard.index') }}"
+                class="inline-flex items-center px-4 py-2 rounded-lg bg-[#22255b] text-white hover:opacity-90">
+                OUTDOOR Whiteboard
+                </a>
             <a href="{{ route('coordinator.outdoor.exportMatrix', ['year' => $year]) }}" class="btn-primary">
               Export CSV
             </a>
@@ -393,7 +398,12 @@
               <a href="{{ route('coordinator.outdoor.index') }}" class="btn-secondary">
                 Outdoor Coordinator List
               </a>
+
+
             </div>
+
+
+
           @endif
         </div>
 

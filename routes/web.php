@@ -25,6 +25,8 @@ use App\Http\Controllers\ClienteleController;
 use App\Http\Controllers\OutdoorInlineController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Report\SummaryReportController;
+use App\Http\Controllers\OutdoorWhiteboardController;
+
 
 
 // ===============================================
@@ -549,9 +551,16 @@ Route::post('/clientele/bulk-inline-update', [ClienteleController::class, 'bulkI
     ->name('clientele.bulk.inline.update');
 
 Route::middleware(['auth','permission:report.summary.view'])
-    ->get('/report/summary', [\App\Http\Controllers\Report\SummaryReportController::class, 'index'])
+    ->get('/report/summary', [SummaryReportController::class, 'index'])
     ->name('report.summary');
 
 Route::middleware(['auth','permission:report.summary.export'])
-    ->get('/report/summary.pdf', [\App\Http\Controllers\Report\SummaryReportController::class, 'pdf'])
+    ->get('/report/summary.pdf', [SummaryReportController::class, 'pdf'])
     ->name('report.summary.pdf');
+
+
+Route::prefix('outdoor/whiteboard')->name('outdoor.whiteboard.')->group(function () {
+    Route::get('/', [OutdoorWhiteboardController::class, 'index'])->name('index');
+    Route::post('/upsert', [OutdoorWhiteboardController::class, 'upsert'])->name('upsert');
+    Route::delete('/{whiteboard}', [OutdoorWhiteboardController::class, 'destroy'])->name('destroy');
+});
