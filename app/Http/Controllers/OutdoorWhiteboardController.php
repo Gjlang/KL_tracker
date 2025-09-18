@@ -36,11 +36,17 @@ class OutdoorWhiteboardController extends Controller
         return view('outdoor.whiteboard', compact('masterFiles', 'existing', 'search'));
     }
 
-   public function exportByProductCsv(Request $request): StreamedResponse
+    public function exportByProduct(Request $request): StreamedResponse
+{
+    return $this->exportByProductCsv($request);
+}
+
+
+public function exportByProductCsv(Request $request): StreamedResponse
 {
     $filename = 'outdoor-whiteboard_by-product_'.now()->format('Ymd_His').'.csv';
 
-    $queryBase = OutdoorWhiteboard::query()
+    $queryBase = \App\Models\OutdoorWhiteboard::query()
         ->when($request->get('q'), function ($q, $term) {
             $q->where(function ($qq) use ($term) {
                 $qq->where('company', 'like', "%{$term}%")
@@ -51,14 +57,8 @@ class OutdoorWhiteboardController extends Controller
             });
         });
 
-    // get distinct products A→Z
     $products = (clone $queryBase)
-        ->select('product')
-        ->whereNotNull('product')
-        ->distinct()
-        ->orderBy('product')
-        ->pluck('product')
-        ->all();
+        ->select('product')->whereNotNull('product')->distinct()->orderBy('product')->pluck('product')->all();
 
     $headers = [
         'Content-Type'        => 'text/csv; charset=UTF-8',
@@ -68,29 +68,15 @@ class OutdoorWhiteboardController extends Controller
 
     return response()->streamDownload(function () use ($products, $queryBase) {
         $out = fopen('php://output', 'w');
-
-        // UTF-8 BOM so Excel renders properly
-        fwrite($out, "\xEF\xBB\xBF");
+        fwrite($out, "\xEF\xBB\xBF"); // BOM
 
         foreach ($products as $product) {
-            // section title line
             fputcsv($out, ["Product: $product"]);
+            fputcsv($out, ['No','Created','INV Number','Purchase Order','Product','Company','Location','Installation','Dismantle','Supplier','Storage']);
 
-            // headings
-            fputcsv($out, [
-                'No','Created','INV Number','Purchase Order','Product',
-                'Company','Location','Installation','Dismantle','Supplier','Storage'
-            ]);
-
-            $rows = (clone $queryBase)
-                ->where('product', $product)
-                ->orderBy('company')
-                ->orderBy('location')
-                ->orderBy('created_at')
-                ->get([
-                    'created_at','inv_number','purchase_order','product',
-                    'company','location','installation','dismantle','supplier','storage'
-                ]);
+            $rows = (clone $queryBase)->where('product', $product)
+                ->orderBy('company')->orderBy('location')->orderBy('created_at')
+                ->get(['created_at','inv_number','purchase_order','product','company','location','installation','dismantle','supplier','storage']);
 
             $i = 1;
             foreach ($rows as $r) {
@@ -109,8 +95,7 @@ class OutdoorWhiteboardController extends Controller
                 ]);
             }
 
-            // blank separator line between products
-            fputcsv($out, ['']);
+            fputcsv($out, ['']); // separator
         }
 
         fclose($out);
