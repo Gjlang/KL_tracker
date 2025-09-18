@@ -53,4 +53,4 @@ unset($__defined_vars, $__key, $__value); ?>
         <div class="mt-2 text-xs text-neutral-400">Data unavailable</div>
     <?php endif; ?>
 </div>
-<?php /**PATH C:\Users\Gjlang\kl_guide_tracker\resources\views/components/kpi.blade.php ENDPATH**/ ?>
+<?php /**PATH C:\Users\Gjlang\kl_guide_tracker\resources\views\components\kpi.blade.php ENDPATH**/ ?>

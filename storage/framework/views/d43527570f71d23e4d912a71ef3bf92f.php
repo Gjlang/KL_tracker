@@ -1,0 +1,1 @@
+<?php /**PATH C:\Users\Gjlang\kl_guide_tracker\resources\views\components\progress.blade.php ENDPATH**/ ?>
