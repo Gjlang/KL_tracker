@@ -6,6 +6,9 @@ use App\Models\MasterFile;
 use App\Models\OutdoorWhiteboard;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+
+
 
 class OutdoorWhiteboardController extends Controller
 {
@@ -32,6 +35,87 @@ class OutdoorWhiteboardController extends Controller
 
         return view('outdoor.whiteboard', compact('masterFiles', 'existing', 'search'));
     }
+
+   public function exportByProductCsv(Request $request): StreamedResponse
+{
+    $filename = 'outdoor-whiteboard_by-product_'.now()->format('Ymd_His').'.csv';
+
+    $queryBase = OutdoorWhiteboard::query()
+        ->when($request->get('q'), function ($q, $term) {
+            $q->where(function ($qq) use ($term) {
+                $qq->where('company', 'like', "%{$term}%")
+                   ->orWhere('location', 'like', "%{$term}%")
+                   ->orWhere('inv_number', 'like', "%{$term}%")
+                   ->orWhere('purchase_order', 'like', "%{$term}%")
+                   ->orWhere('product', 'like', "%{$term}%");
+            });
+        });
+
+    // get distinct products A→Z
+    $products = (clone $queryBase)
+        ->select('product')
+        ->whereNotNull('product')
+        ->distinct()
+        ->orderBy('product')
+        ->pluck('product')
+        ->all();
+
+    $headers = [
+        'Content-Type'        => 'text/csv; charset=UTF-8',
+        'Content-Disposition' => "attachment; filename=\"$filename\"",
+        'Cache-Control'       => 'no-store, no-cache',
+    ];
+
+    return response()->streamDownload(function () use ($products, $queryBase) {
+        $out = fopen('php://output', 'w');
+
+        // UTF-8 BOM so Excel renders properly
+        fwrite($out, "\xEF\xBB\xBF");
+
+        foreach ($products as $product) {
+            // section title line
+            fputcsv($out, ["Product: $product"]);
+
+            // headings
+            fputcsv($out, [
+                'No','Created','INV Number','Purchase Order','Product',
+                'Company','Location','Installation','Dismantle','Supplier','Storage'
+            ]);
+
+            $rows = (clone $queryBase)
+                ->where('product', $product)
+                ->orderBy('company')
+                ->orderBy('location')
+                ->orderBy('created_at')
+                ->get([
+                    'created_at','inv_number','purchase_order','product',
+                    'company','location','installation','dismantle','supplier','storage'
+                ]);
+
+            $i = 1;
+            foreach ($rows as $r) {
+                fputcsv($out, [
+                    $i++,
+                    optional($r->created_at)->format('Y-m-d'),
+                    $r->inv_number,
+                    $r->purchase_order,
+                    $r->product,
+                    $r->company,
+                    $r->location,
+                    $r->installation,
+                    $r->dismantle,
+                    $r->supplier,
+                    $r->storage,
+                ]);
+            }
+
+            // blank separator line between products
+            fputcsv($out, ['']);
+        }
+
+        fclose($out);
+    }, $filename, $headers);
+}
 
     // Simpan / Update (idempotent per master_file_id)
     public function upsert(Request $request)

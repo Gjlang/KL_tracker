@@ -2,315 +2,253 @@
 
 @section('content')
 <style>
-/* Custom styles for classic elegant design */
-.hairline { border-color: #EAEAEA; }
-.ink { color: #1C1E26; }
+/* Classic Elegant Design System */
 .paper { background-color: #F7F7F9; }
 .surface { background-color: #FFFFFF; }
-.primary-btn {
-  @apply bg-[#22255b] text-white hover:opacity-90 focus:ring-2 focus:ring-[#4bbbed] rounded-full px-4 py-2 transition-all duration-150;
-}
-.ghost-btn {
-  @apply border border-neutral-300 text-neutral-700 hover:bg-neutral-50 rounded-full px-4 py-2 transition-all duration-150;
-}
-.elegant-input {
-  @apply h-11 rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent transition-all duration-150;
-}
-.header-label {
-  @apply tracking-[0.06em] uppercase text-[11px] text-neutral-600 font-medium;
-}
-.elegant-card {
-  @apply bg-white rounded-2xl border border-neutral-200/70 shadow-sm;
-}
-.stacked-input {
-  @apply border rounded-lg px-3 py-2 w-44 elegant-input text-sm;
-}
-.table-cell {
-  @apply px-4 py-3 text-sm;
-}
+.ink { color: #1C1E26; }
+.muted-ink { color: #6B7280; }
+.hairline { border-color: #EAEAEA; }
+
+/* Typography Scale */
+.serif-heading { @apply font-serif font-medium tracking-tight; }
+.sans-body { @apply font-sans; }
+.small-caps { @apply tracking-[0.06em] uppercase text-[11px] font-medium; }
+
+/* Component System */
+.floating-card { @apply bg-white rounded-2xl border border-neutral-200/70 shadow-sm; }
+.primary-btn { @apply bg-[#22255b] text-white hover:bg-[#1a1e4a] focus:ring-2 focus:ring-[#4bbbed] focus:ring-offset-2 rounded-full px-4 py-2.5 text-sm font-medium transition-all duration-150 outline-none; }
+.ghost-btn { @apply border border-neutral-300 text-neutral-600 hover:bg-neutral-50 focus:ring-2 focus:ring-[#4bbbed] focus:ring-offset-2 rounded-full px-4 py-2.5 text-sm font-medium transition-all duration-150 outline-none; }
+.elegant-input { @apply rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-all duration-150 outline-none text-sm; }
+.ledger-input { @apply border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-all duration-150 outline-none bg-white; }
+.pagination-btn { @apply p-2 rounded-lg border border-neutral-200 hover:bg-neutral-50 focus:ring-2 focus:ring-[#4bbbed] focus:ring-offset-2 transition-all duration-150 outline-none disabled:opacity-50 disabled:cursor-not-allowed; }
 </style>
 
 <div class="min-h-screen paper">
-  <div class="max-w-[1400px] mx-auto">
+  <div class="max-w-[1600px] mx-auto">
 
     <!-- Top Navigation Bar -->
-    <header class="surface border-b hairline">
+    <header class="surface border-b hairline sticky top-0 z-20">
       <div class="px-8 py-6">
         <div class="flex items-center justify-between">
-          <!-- Left: Title Section -->
           <div>
-            <h1 class="font-serif text-3xl font-medium ink">OUTDOOR Whiteboard</h1>
-            <p class="text-neutral-500 text-sm mt-1 font-sans">Project tracking & management dashboard</p>
+            <h1 class="serif-heading text-3xl ink">Project Overview</h1>
+            <p class="muted-ink text-sm mt-1 sans-body">Track and manage outdoor advertising projects</p>
           </div>
         </div>
       </div>
     </header>
 
-    <!-- Search Panel -->
+    <!-- Filter Card -->
     <div class="px-8 py-6">
-      <div class="elegant-card p-6">
-        <form method="get" class="flex items-center gap-4">
-          <div class="flex-1">
-            <label class="header-label block mb-2">Search Projects</label>
-            <input
-              type="text"
-              name="q"
-              value="{{ $search }}"
-              placeholder="Search by company, product, or location..."
-              class="elegant-input w-full font-sans"
-            >
-          </div>
-          <div class="pt-7">
-            <button type="submit" class="primary-btn">
-              <span class="text-sm font-medium">Search</span>
-            </button>
+      <div class="floating-card p-6">
+        <form method="get" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label class="small-caps text-neutral-600 block mb-2">Search Projects</label>
+              <input type="text" name="q" value="{{ $search }}" placeholder="Company, product, location..." class="elegant-input w-full">
+            </div>
+            <div class="flex items-end">
+              <button type="submit" class="primary-btn w-full">Apply Filters</button>
+            </div>
+
+            <a href="{{ route('outdoor.whiteboard.export.byProduct', request()->only('q')) }}"
+            class="primary-btn inline-flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V4"/>
+            </svg>
+            Export
+            </a>
           </div>
         </form>
       </div>
     </div>
 
-    <!-- Status Messages -->
-    @if (session('status'))
-      <div class="px-8 mb-6">
-        <div class="elegant-card border-l-4 border-l-green-400 p-4">
-          <div class="text-green-700 text-sm font-medium">{{ session('status') }}</div>
-        </div>
-      </div>
-    @endif
-
     <!-- Main Data Table -->
-    <div class="px-8 pb-8">
-      <div class="elegant-card overflow-hidden">
-        <!-- Table Header -->
-        <div class="surface border-b hairline px-6 py-4">
-          <h2 class="font-serif text-xl ink">Project Overview</h2>
-          <p class="text-neutral-500 text-sm mt-1">Track and manage outdoor advertising projects</p>
+    <div class="px-8 py-6">
+      <div class="floating-card overflow-hidden">
+        <div class="surface border-b hairline px-6 py-4 flex items-center justify-between">
+          <div>
+            <h2 class="serif-heading text-xl ink">Projects Ledger</h2>
+            <p class="muted-ink text-sm mt-1 sans-body">{{ count($masterFiles) }} projects</p>
+          </div>
+
+          <!-- Column Navigation -->
+          <div class="flex items-center gap-2">
+            <span class="small-caps text-neutral-600">Columns</span>
+            <button type="button" class="pagination-btn" id="prevColumns">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+            </button>
+            <span class="text-sm text-neutral-600 px-2" id="columnRange">1-12</span>
+            <button type="button" class="pagination-btn" id="nextColumns">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </button>
+          </div>
         </div>
 
-        <!-- Table Content -->
-        <div class="overflow-x-auto">
-          <table class="w-full">
-            <thead class="surface border-b hairline">
-              <tr>
-                <th class="table-cell text-left">
-                  <span class="header-label">Created</span>
-                </th>
-                <th class="table-cell text-left">
-                  <span class="header-label">Company</span>
-                </th>
-                <th class="table-cell text-left">
-                  <span class="header-label">Product</span>
-                </th>
-                <th class="table-cell text-left">
-                  <span class="header-label">Location</span>
-                </th>
-                <th class="table-cell text-left">
-                  <span class="header-label">Duration</span>
-                </th>
-                <th class="table-cell text-left">
-                  <span class="header-label">Purchase Order</span>
-                </th>
-                <th class="table-cell text-left">
-                  <span class="header-label">Client</span>
-                </th>
-                <th class="table-cell text-left">
-                  <span class="header-label">Supplier</span>
-                </th>
-                <th class="table-cell text-left">
-                  <span class="header-label">Storage</span>
-                </th>
-                <th class="table-cell text-left">
-                  <span class="header-label">Notes</span>
-                </th>
-                <th class="table-cell text-center">
-                  <span class="header-label">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody class="divide-y hairline">
-              @foreach ($masterFiles as $mf)
-                @foreach ($mf->outdoorItems as $item)
-                @php
-                  $wb = $existing[$mf->id] ?? null;
-                  // Get site from outdoor_items
-                  $site = $mf->outdoorItems->first()?->site;
-                @endphp
+        <div class="overflow-hidden">
+          <div class="overflow-x-auto" id="tableContainer">
+            <table class="w-full min-w-[1600px]">
+              <thead class="surface border-b hairline">
+                <tr id="tableHeader"></tr>
+              </thead>
+              <tbody class="divide-y hairline" id="tableBody">
+                @php $row = 1; @endphp
+                @foreach ($masterFiles as $mf)
+                  @foreach ($mf->outdoorItems as $item)
+                    @php $wb = $existing[$mf->id] ?? null; @endphp
 
-                <tr class="hover:bg-neutral-50/50 transition-colors duration-150">
-                  <form action="{{ route('outdoor.whiteboard.upsert') }}" method="post">
-                    @csrf
-                    <input type="hidden" name="master_file_id" value="{{ $mf->id }}">
+                    <tr class="hover:bg-neutral-50 hover:shadow-sm transition-all duration-150 group" data-row-id="{{ $mf->id }}">
+                      <form action="{{ route('outdoor.whiteboard.upsert') }}" method="post" class="contents">
+                        @csrf
+                        <input type="hidden" name="master_file_id" value="{{ $mf->id }}">
 
-                    <!-- Created Date -->
-                    <td class="table-cell">
-                      <div class="ink font-medium">{{ $mf->created_at?->format('M d, Y') }}</div>
-                      <div class="text-neutral-400 text-xs">{{ $mf->created_at?->format('D') }}</div>
-                    </td>
+                        <!-- 1) No. -->
+                        <td class="px-4 py-3 text-sm column-data" data-column="1">
+                          <div class="ink font-medium">{{ $row }}</div>
+                        </td>
 
-                    <!-- Company -->
-                    <td class="table-cell">
-                      <div class="ink font-medium truncate max-w-[120px]" title="{{ $mf->company }}">
-                        {{ $mf->company }}
-                      </div>
-                    </td>
+                        <!-- 2) Created -->
+                        <td class="px-4 py-3 text-sm column-data" data-column="2">
+                          <div class="ink font-medium">{{ $mf->created_at?->format('m/d/Y') }}</div>
+                        </td>
 
-                    <!-- Product -->
-                    <td class="table-cell">
-                      <div class="ink truncate max-w-[120px]" title="{{ $mf->product }}">
-                        {{ $mf->product }}
-                      </div>
-                    </td>
+                        <!-- 3) INV number (from master_files) -->
+                        <td class="px-4 py-3 text-sm column-data" data-column="3">
+                          <div class="ink truncate max-w-[140px]" title="{{ $mf->invoice_number ?? $mf->inv_number }}">
+                            {{ $mf->invoice_number ?? $mf->inv_number }}
+                          </div>
+                        </td>
 
-                    <!-- Location -->
-                    <td class="table-cell">
-                      <div class="ink truncate max-w-[120px]" title="{{ $site }}">
-                        {{ $site }}
-                      </div>
-                    </td>
+                        <!-- 4) PO (stacked) -->
+                        <td class="px-4 py-3 text-sm column-data" data-column="4">
+                          <div class="space-y-2">
+                            <input type="text" name="po_text" class="ledger-input w-36" placeholder="PO note..." value="{{ old('po_text', $wb?->po_text) }}">
+                            <input type="date" name="po_date" class="ledger-input w-36" value="{{ old('po_date', $wb?->po_date?->format('Y-m-d')) }}">
+                          </div>
+                        </td>
 
-                    <!-- Duration -->
-                    <td class="table-cell">
-                      <div class="space-y-1">
-                        <div class="text-xs text-neutral-500">Start: {{ $mf->start_date?->format('M d') }}</div>
-                        <div class="text-xs text-neutral-500">End: {{ $mf->end_date?->format('M d') }}</div>
-                      </div>
-                    </td>
+                        <!-- 5) Product (from master_files) -->
+                        <td class="px-4 py-3 text-sm column-data" data-column="5">
+                          <div class="ink truncate max-w-[140px]" title="{{ $mf->product }}">{{ $mf->product }}</div>
+                        </td>
 
-                    <!-- PO (Stacked) -->
-                    <td class="table-cell">
-                      <div class="space-y-2">
-                        <input
-                          type="text"
-                          name="po_text"
-                          class="stacked-input"
-                          placeholder="PO note..."
-                          value="{{ old('po_text', $wb?->po_text) }}"
-                        >
-                        <input
-                          type="date"
-                          name="po_date"
-                          class="stacked-input"
-                          value="{{ old('po_date', $wb?->po_date?->format('Y-m-d')) }}"
-                        >
-                      </div>
-                    </td>
+                        <!-- 6) Company (from master_files) -->
+                        <td class="px-4 py-3 text-sm column-data" data-column="6">
+                          <div class="ink font-medium truncate max-w-[180px]" title="{{ $mf->company }}">{{ $mf->company }}</div>
+                        </td>
 
-                    <!-- Client (Stacked) -->
-                    <td class="table-cell">
-                      <div class="space-y-2">
-                        <input
-                          type="text"
-                          name="client_text"
-                          class="stacked-input"
-                          placeholder="Client note..."
-                          value="{{ old('client_text', $wb?->client_text) }}"
-                        >
-                        <input
-                          type="date"
-                          name="client_date"
-                          class="stacked-input"
-                          value="{{ old('client_date', $wb?->client_date?->format('Y-m-d')) }}"
-                        >
-                      </div>
-                    </td>
+                        <!-- 7) Location (site from outdoor_items) -->
+                        <td class="px-4 py-3 text-sm column-data" data-column="7">
+                          <div class="ink truncate max-w-[180px]" title="{{ $item->site }}">{{ $item->site }}</div>
+                        </td>
 
-                    <!-- Supplier (Stacked) -->
-                    <td class="table-cell">
-                      <div class="space-y-2">
-                        <input
-                          type="text"
-                          name="supplier_text"
-                          class="stacked-input"
-                          placeholder="Supplier note..."
-                          value="{{ old('supplier_text', $wb?->supplier_text) }}"
-                        >
-                        <input
-                          type="date"
-                          name="supplier_date"
-                          class="stacked-input"
-                          value="{{ old('supplier_date', $wb?->supplier_date?->format('Y-m-d')) }}"
-                        >
-                      </div>
-                    </td>
+                        <!-- 8) Installation (start_date from outdoor_items) -->
+                        <td class="px-4 py-3 text-sm column-data" data-column="8">
+                          <div class="ink">{{ $item->start_date?->format('m/d/Y') }}</div>
+                        </td>
 
-                    <!-- Storage (Stacked) -->
-                    <td class="table-cell">
-                      <div class="space-y-2">
-                        <input
-                          type="text"
-                          name="storage_text"
-                          class="stacked-input"
-                          placeholder="Storage note..."
-                          value="{{ old('storage_text', $wb?->storage_text) }}"
-                        >
-                        <input
-                          type="date"
-                          name="storage_date"
-                          class="stacked-input"
-                          value="{{ old('storage_date', $wb?->storage_date?->format('Y-m-d')) }}"
-                        >
-                      </div>
-                    </td>
+                        <!-- 9) Dismantle (end_date from outdoor_items) -->
+                        <td class="px-4 py-3 text-sm column-data" data-column="9">
+                          <div class="ink">{{ $item->end_date?->format('m/d/Y') }}</div>
+                        </td>
 
-                    <!-- Notes -->
-                    <td class="table-cell">
-                      <input
-                        type="text"
-                        name="notes"
-                        class="border rounded-lg px-3 py-2 w-56 elegant-input text-sm"
-                        placeholder="Additional notes..."
-                        value="{{ old('notes', $wb?->notes) }}"
-                      >
-                    </td>
+                        <!-- 10) Supplier (stacked) -->
+                        <td class="px-4 py-3 text-sm column-data" data-column="10">
+                          <div class="space-y-2">
+                            <input type="text" name="supplier_text" class="ledger-input w-36" placeholder="Supplier note..." value="{{ old('supplier_text', $wb?->supplier_text) }}">
+                            <input type="date" name="supplier_date" class="ledger-input w-36" value="{{ old('supplier_date', $wb?->supplier_date?->format('Y-m-d')) }}">
+                          </div>
+                        </td>
 
-                    <!-- Save Button -->
-                    <td class="table-cell text-center">
-                      <button type="submit" class="primary-btn text-xs px-3 py-1.5">
-                        Save
-                      </button>
-                    </td>
-                  </form>
-                </tr>
+                        <!-- 11) Storage (stacked) -->
+                        <td class="px-4 py-3 text-sm column-data" data-column="11">
+                          <div class="space-y-2">
+                            <input type="text" name="storage_text" class="ledger-input w-36" placeholder="Storage note..." value="{{ old('storage_text', $wb?->storage_text) }}">
+                            <input type="date" name="storage_date" class="ledger-input w-36" value="{{ old('storage_date', $wb?->storage_date?->format('Y-m-d')) }}">
+                          </div>
+                        </td>
+
+                        <!-- 12) Actions -->
+                        <td class="px-4 py-3 text-sm column-data text-center" data-column="12">
+                          <button type="submit" class="primary-btn text-xs px-3 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150">Save</button>
+                        </td>
+                      </form>
+                    </tr>
+                    @php $row++; @endphp
+                  @endforeach
                 @endforeach
-              @endforeach
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         </div>
+
       </div>
     </div>
+
   </div>
 </div>
 
 <script>
-// Optional: Add subtle interactions
 document.addEventListener('DOMContentLoaded', function() {
-  // Focus ring improvements
-  const inputs = document.querySelectorAll('input, button');
-  inputs.forEach(input => {
-    input.addEventListener('focus', function() {
-      this.style.outline = '2px solid #4bbbed';
-      this.style.outlineOffset = '2px';
+  // Column pagination system
+  const COLUMNS_PER_PAGE = 12; // total columns shown per page
+  let currentColumnPage = 1;
+
+  // Header titles in the EXACT order we render cells:
+  const columnHeaders = [
+    { title: 'No.', key: 'no' },
+    { title: 'Created', key: 'created' },
+    { title: 'INV Number', key: 'inv' },
+    { title: 'Purchase Order', key: 'po' },
+    { title: 'Product', key: 'product' },
+    { title: 'Company', key: 'company' },
+    { title: 'Location', key: 'location' },
+    { title: 'Installation', key: 'installation' },
+    { title: 'Dismantle', key: 'dismantle' },
+    { title: 'Supplier', key: 'supplier' },
+    { title: 'Storage', key: 'storage' },
+    { title: 'Actions', key: 'actions' },
+  ];
+
+  function updateColumnDisplay() {
+    const startCol = (currentColumnPage - 1) * COLUMNS_PER_PAGE + 1;
+    const endCol = Math.min(currentColumnPage * COLUMNS_PER_PAGE, columnHeaders.length);
+
+    // Update header
+    const headerRow = document.getElementById('tableHeader');
+    headerRow.innerHTML = '';
+    for (let i = startCol; i <= endCol; i++) {
+      const header = columnHeaders[i - 1];
+      const th = document.createElement('th');
+      th.className = 'px-4 py-3 text-left';
+      th.innerHTML = `<span class="small-caps text-neutral-600">${header.title}</span>`;
+      headerRow.appendChild(th);
+    }
+
+    // Show/hide body cells
+    document.querySelectorAll('.column-data').forEach(cell => {
+      const columnNum = parseInt(cell.getAttribute('data-column'));
+      cell.style.display = (columnNum >= startCol && columnNum <= endCol) ? 'table-cell' : 'none';
     });
-    input.addEventListener('blur', function() {
-      this.style.outline = 'none';
-    });
+
+    // Update pager state
+    document.getElementById('columnRange').textContent = `${startCol}-${endCol}`;
+    document.getElementById('prevColumns').disabled = currentColumnPage === 1;
+    document.getElementById('nextColumns').disabled = endCol >= columnHeaders.length;
+  }
+
+  // Column navigation
+  document.getElementById('prevColumns').addEventListener('click', function() {
+    if (currentColumnPage > 1) { currentColumnPage--; updateColumnDisplay(); }
+  });
+  document.getElementById('nextColumns').addEventListener('click', function() {
+    const maxPages = Math.ceil(columnHeaders.length / COLUMNS_PER_PAGE);
+    if (currentColumnPage < maxPages) { currentColumnPage++; updateColumnDisplay(); }
   });
 
-  // Form validation feedback
-  const forms = document.querySelectorAll('form');
-  forms.forEach(form => {
-    form.addEventListener('submit', function(e) {
-      const button = this.querySelector('button[type="submit"]');
-      if (button) {
-        button.textContent = 'Saving...';
-        button.disabled = true;
-        setTimeout(() => {
-          button.textContent = 'Save';
-          button.disabled = false;
-        }, 2000);
-      }
-    });
-  });
+  // Initialize
+  updateColumnDisplay();
 });
 </script>
 @endsection
