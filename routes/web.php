@@ -568,8 +568,9 @@ Route::prefix('outdoor/whiteboard')->name('outdoor.whiteboard.')->group(function
 
     Route::post('/upsert', [OutdoorWhiteboardController::class, 'upsert'])->name('upsert');
 
-    Route::post('/complete', [OutdoorWhiteboardController::class, 'complete'])->name('complete');
+    Route::post('/mark-completed', [OutdoorWhiteboardController::class, 'markCompleted'])->name('markCompleted');
 
     Route::get('/export/by-product', [OutdoorWhiteboardController::class, 'exportByProduct'])->name('export.byProduct');
     Route::delete('/{whiteboard}', [OutdoorWhiteboardController::class, 'destroy'])->name('destroy');
 });
+

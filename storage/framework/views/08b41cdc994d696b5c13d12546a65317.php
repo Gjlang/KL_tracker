@@ -126,8 +126,9 @@
         ?>
 
         <tr class="hover:bg-neutral-50 hover:shadow-sm transition-all duration-150 group"
-            data-item="<?php echo e($item->id); ?>" data-master="<?php echo e($mf->id); ?>">
-
+        data-item="<?php echo e($item->id); ?>"
+        data-master="<?php echo e($mf->id); ?>"
+        data-updated="<?php echo e(optional($wb?->updated_at)->timestamp ?? 0); ?>">
         <!-- 1) No. -->
         <td class="px-4 py-3 text-sm column-data" data-column="1">
             <div class="ink font-medium"><?php echo e($row); ?></div>
@@ -232,10 +233,10 @@
 
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
-  // Column pagination system
+  // ===== Column pagination =====
   const COLUMNS_PER_PAGE = 12;
   let currentColumnPage = 1;
 
@@ -259,13 +260,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const endCol = Math.min(currentColumnPage * COLUMNS_PER_PAGE, columnHeaders.length);
 
     const headerRow = document.getElementById('tableHeader');
-    headerRow.innerHTML = '';
-    for (let i = startCol; i <= endCol; i++) {
-      const header = columnHeaders[i - 1];
-      const th = document.createElement('th');
-      th.className = 'px-4 py-3 text-left';
-      th.innerHTML = `<span class="small-caps text-neutral-600">${header.title}</span>`;
-      headerRow.appendChild(th);
+    if (headerRow) {
+      headerRow.innerHTML = '';
+      for (let i = startCol; i <= endCol; i++) {
+        const header = columnHeaders[i - 1];
+        const th = document.createElement('th');
+        th.className = 'px-4 py-3 text-left';
+        th.innerHTML = `<span class="small-caps text-neutral-600">${header.title}</span>`;
+        headerRow.appendChild(th);
+      }
     }
 
     document.querySelectorAll('.column-data').forEach(cell => {
@@ -273,41 +276,50 @@ document.addEventListener('DOMContentLoaded', function() {
       cell.style.display = (columnNum >= startCol && columnNum <= endCol) ? 'table-cell' : 'none';
     });
 
-    document.getElementById('columnRange').textContent = `${startCol}-${endCol}`;
-    document.getElementById('prevColumns').disabled = currentColumnPage === 1;
-    document.getElementById('nextColumns').disabled = endCol >= columnHeaders.length;
+    const rangeEl = document.getElementById('columnRange');
+    if (rangeEl) rangeEl.textContent = `${startCol}-${endCol}`;
+
+    const prevBtn = document.getElementById('prevColumns');
+    const nextBtn = document.getElementById('nextColumns');
+    if (prevBtn) prevBtn.disabled = currentColumnPage === 1;
+    if (nextBtn) nextBtn.disabled = endCol >= columnHeaders.length;
   }
 
-  document.getElementById('prevColumns').addEventListener('click', function() {
+  const prevBtn = document.getElementById('prevColumns');
+  if (prevBtn) prevBtn.addEventListener('click', function () {
     if (currentColumnPage > 1) { currentColumnPage--; updateColumnDisplay(); }
   });
-  document.getElementById('nextColumns').addEventListener('click', function() {
+
+  const nextBtn = document.getElementById('nextColumns');
+  if (nextBtn) nextBtn.addEventListener('click', function () {
     const maxPages = Math.ceil(columnHeaders.length / COLUMNS_PER_PAGE);
     if (currentColumnPage < maxPages) { currentColumnPage++; updateColumnDisplay(); }
   });
 
   updateColumnDisplay();
 
-  // Autosave functionality
+  // ===== Autosave =====
   const debounce = (fn, ms = 800) => {
     let t;
     return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
   };
 
   function gatherRow(row) {
-    const master_file_id = row.getAttribute('data-master');
-    const outdoor_item_id  = row.getAttribute('data-item');
+    const master_file_id  = row.getAttribute('data-master');
+    const outdoor_item_id = row.getAttribute('data-item');
+
     const payload = { master_file_id, outdoor_item_id };
     row.querySelectorAll('.wb-field').forEach(el => {
       payload[el.name] = el.value || null;
     });
+    console.debug('WB payload', payload);
     return payload;
   }
 
   async function autosave(row) {
     const stateEl = row.querySelector('.save-state');
     try {
-      stateEl.textContent = 'Saving...';
+      if (stateEl) stateEl.textContent = 'Saving...';
       const res = await fetch('<?php echo e(route('outdoor.whiteboard.upsert')); ?>', {
         method: 'POST',
         headers: {
@@ -319,66 +331,88 @@ document.addEventListener('DOMContentLoaded', function() {
       });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error('Autosave failed');
-      stateEl.textContent = 'Saved';
-      setTimeout(() => stateEl.textContent = 'Idle', 1200);
-    } catch(e) {
+      if (stateEl) {
+        stateEl.textContent = 'Saved';
+        setTimeout(() => stateEl.textContent = 'Idle', 1200);
+      }
+    } catch (e) {
       console.error(e);
-      stateEl.textContent = 'Error';
+      if (stateEl) stateEl.textContent = 'Error';
     }
   }
 
-  // Attach debounced input listener to all fields
-  document.querySelectorAll('#tableBody tr').forEach(row => {
-    const debounced = debounce(() => autosave(row), 800);
-    row.querySelectorAll('.wb-field').forEach(el => {
-      el.addEventListener('input', debounced);
-      el.addEventListener('change', debounced);
-    });
+  const debouncedAutosave = debounce((row) => autosave(row), 600);
 
-    // Mark Completed
-    const completeBtn = row.querySelector('.complete-btn');
-    if (completeBtn) {
-      completeBtn.addEventListener('click', async () => {
-        const master_file_id = row.getAttribute('data-master');
-        const btn = row.querySelector('.complete-btn');
-        btn.disabled = true;
-        btn.textContent = 'Completing...';
-        try {
-          const res = await fetch('<?php echo e(route('outdoor.whiteboard.complete')); ?>', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRF-TOKEN': token,
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify({ master_file_id })
-          });
-          const data = await res.json();
-          if (!res.ok || !data.ok) throw new Error('Complete failed');
+  // Delegate input/change for autosave
+  document.addEventListener('input', (e) => {
+    const el = e.target;
+    if (!el.classList?.contains('wb-field')) return;
+    const row = el.closest('tr[data-item][data-master]');
+    if (row) debouncedAutosave(row);
+  });
 
-          // Remove row from main table
-          row.parentNode.removeChild(row);
+  document.addEventListener('change', (e) => {
+    const el = e.target;
+    if (!el.classList?.contains('wb-field')) return;
+    const row = el.closest('tr[data-item][data-master]');
+    if (row) autosave(row);
+  });
 
-          // Update completed count if element exists
-          const completedLink = document.querySelector('a[href*="completed"]');
-          if (completedLink) {
-            const currentText = completedLink.textContent;
-            const match = currentText.match(/\((\d+)\)/);
-            if (match) {
-              const newCount = parseInt(match[1]) + 1;
-              completedLink.textContent = currentText.replace(/\(\d+\)/, `(${newCount})`);
-            }
-          }
-        } catch (e) {
-          console.error(e);
-          btn.disabled = false;
-          btn.textContent = 'Mark Completed';
-        }
+  // ===== Mark Completed (delegated) =====
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.complete-btn');
+    if (!btn) return;
+
+    const row = btn.closest('tr[data-item][data-master]');
+    if (!row) return;
+
+    const outdoor_item_id = row.getAttribute('data-item');
+    btn.disabled = true;
+    const originalText = btn.textContent;
+    btn.textContent = 'Completing...';
+
+    try {
+      // (Optional) persist any unsaved edits before completing
+      try {
+        await autosave(row);
+      } catch (ignore) {
+        // Even if autosave fails, still attempt to mark completed below
+      }
+
+      const res = await fetch('<?php echo e(route('outdoor.whiteboard.markCompleted')); ?>', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': token,
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ outdoor_item_id })
       });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error('Complete failed');
+
+      // Remove row from main table
+      row.parentNode.removeChild(row);
+
+      // Update completed count if element exists (e.g., "Completed (12)")
+      const completedLink = document.querySelector('a[href*="completed"]');
+      if (completedLink) {
+        const currentText = completedLink.textContent;
+        const match = currentText.match(/\((\d+)\)/);
+        if (match) {
+          const newCount = parseInt(match[1], 10) + 1;
+          completedLink.textContent = currentText.replace(/\(\d+\)/, `(${newCount})`);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      btn.disabled = false;
+      btn.textContent = originalText || 'Mark Completed';
     }
   });
 });
 </script>
+
 <?php $__env->stopSection(); ?>
 
 <?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\Gjlang\kl_guide_tracker\resources\views/outdoor/whiteboard.blade.php ENDPATH**/ ?>
