@@ -16,22 +16,17 @@ class OutdoorWhiteboardController extends Controller
      * Supports optional `q` search over master_files (company/product/location).
      * Shows only ACTIVE (not completed) items.
      */
-   public function index(Request $request)
+    public function index(Request $request)
     {
-         $search = $request->query('q');
+        $search = $request->query('q');
 
-        // Get IDs of completed master files to exclude
-        $completedIds = OutdoorWhiteboard::whereNotNull('completed_at')
-            ->pluck('master_file_id')
-            ->toArray();
-
+        // Base master files query (for grid)
         $masterFiles = MasterFile::query()
-            ->whereNotIn('id', $completedIds) // Exclude completed ones
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($qq) use ($search) {
                     $qq->where('company', 'like', "%{$search}%")
-                    ->orWhere('product', 'like', "%{$search}%")
-                    ->orWhere('location', 'like', "%{$search}%");
+                      ->orWhere('product', 'like', "%{$search}%")
+                      ->orWhere('location', 'like', "%{$search}%");
                 });
             })
             ->with(['outdoorItems:id,master_file_id,site,start_date,end_date'])
@@ -39,29 +34,31 @@ class OutdoorWhiteboardController extends Controller
             ->limit(200)
             ->get();
 
+        // Map existing whiteboards for those master files (ACTIVE only)
         $existing = OutdoorWhiteboard::whereIn('master_file_id', $masterFiles->pluck('id'))
             ->whereNull('completed_at')
             ->get()
             ->keyBy('master_file_id');
 
+        // Small badge counter for completed list
         $completedCount = OutdoorWhiteboard::whereNotNull('completed_at')->count();
 
-        return view('outdoor.whiteboard', compact('masterFiles','existing','search','completedCount'));
+        return view('outdoor.whiteboard', compact('masterFiles', 'existing', 'search', 'completedCount'));
     }
-
 
     public function completed(Request $request)
     {
+        // If you have a dedicated completed view
         $search = $request->query('q');
 
-        $whiteboards = OutdoorWhiteboard::query()
+        $rows = OutdoorWhiteboard::query()
             ->whereNotNull('completed_at')
             ->leftJoin('master_files', 'master_files.id', '=', 'outdoor_whiteboards.master_file_id')
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($qq) use ($search) {
                     $qq->where('master_files.company', 'like', "%{$search}%")
-                    ->orWhere('master_files.product', 'like', "%{$search}%")
-                    ->orWhere('master_files.location', 'like', "%{$search}%");
+                       ->orWhere('master_files.product', 'like', "%{$search}%")
+                       ->orWhere('master_files.location', 'like', "%{$search}%");
                 });
             })
             ->orderByDesc('completed_at')
@@ -70,15 +67,10 @@ class OutdoorWhiteboardController extends Controller
                 'master_files.company',
                 'master_files.product',
                 'master_files.location',
-                'master_files.invoice_number',
-                'master_files.inv_number',
-                'master_files.purchase_order',
-                'master_files.installation',
-                'master_files.dismantle',
             ])
             ->paginate(30);
 
-        return view('outdoor.whiteboard-completed', compact('whiteboards','search'));
+        return view('outdoor.whiteboard-completed', compact('rows', 'search'));
     }
 
     /**
@@ -231,9 +223,10 @@ class OutdoorWhiteboardController extends Controller
      * FIXED: Now validates against master_files instead of outdoor_whiteboards
      * to handle cases where the whiteboard row doesn't exist yet.
      */
-   public function complete(Request $request)
+    public function complete(Request $request)
     {
         $data = $request->validate([
+            // Validate master file exists (not the whiteboard row)
             'master_file_id' => ['required', Rule::exists('master_files', 'id')],
         ]);
 
@@ -242,20 +235,15 @@ class OutdoorWhiteboardController extends Controller
             ['completed_at' => now()]
         );
 
-        // ← get the latest count from DB (authoritative)
-        $completedCount = OutdoorWhiteboard::whereNotNull('completed_at')->count();
-
         if ($request->wantsJson()) {
             return response()->json([
-                'ok'              => true,
-                'completed_at'    => optional($wb->completed_at)->toDateTimeString(),
-                'completed_count' => $completedCount,   // ← send to UI
+                'ok'           => true,
+                'completed_at' => optional($wb->completed_at)->toDateTimeString(),
             ]);
         }
 
         return back()->with('success', 'Marked as completed.');
     }
-
 
     public function destroy(OutdoorWhiteboard $whiteboard)
     {
