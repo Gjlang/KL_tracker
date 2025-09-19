@@ -558,12 +558,18 @@ Route::middleware(['auth','permission:report.summary.export'])
     ->get('/report/summary.pdf', [SummaryReportController::class, 'pdf'])
     ->name('report.summary.pdf');
 
+// ===============================================
+// OUTDOOR WHITEBOARD ROUTES
+// ===============================================
+
 Route::prefix('outdoor/whiteboard')->name('outdoor.whiteboard.')->group(function () {
     Route::get('/', [OutdoorWhiteboardController::class, 'index'])->name('index');
-    Route::post('/upsert', [OutdoorWhiteboardController::class, 'upsert'])->name('upsert');
-    Route::delete('/{whiteboard}', [OutdoorWhiteboardController::class, 'destroy'])->name('destroy');
+    Route::get('/completed', [OutdoorWhiteboardController::class, 'completed'])->name('completed');
 
-    // export route konsisten
-    Route::get('/export/by-product', [OutdoorWhiteboardController::class, 'exportByProduct'])
-        ->name('export.byProduct');
+    Route::post('/upsert', [OutdoorWhiteboardController::class, 'upsert'])->name('upsert');
+
+    Route::post('/complete', [OutdoorWhiteboardController::class, 'complete'])->name('complete');
+
+    Route::get('/export/by-product', [OutdoorWhiteboardController::class, 'exportByProduct'])->name('export.byProduct');
+    Route::delete('/{whiteboard}', [OutdoorWhiteboardController::class, 'destroy'])->name('destroy');
 });

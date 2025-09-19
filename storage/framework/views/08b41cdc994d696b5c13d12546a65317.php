@@ -1,6 +1,4 @@
-@extends('layouts.app')
-
-@section('content')
+<?php $__env->startSection('content'); ?>
 <style>
 /* Classic Elegant Design System */
 .paper { background-color: #F7F7F9; }
@@ -37,9 +35,9 @@
 
           <!-- Completed button -->
           <div class="flex items-center gap-2">
-            <a href="{{ route('outdoor.whiteboard.completed') }}"
+            <a href="<?php echo e(route('outdoor.whiteboard.completed')); ?>"
                class="text-xs px-3 py-1.5 rounded-full border border-neutral-300 hover:bg-neutral-100">
-               <span id="completed-badge">Completed ({{ $completedCount ?? 0 }})</span>
+               <span id="completed-badge">Completed (<?php echo e($completedCount ?? 0); ?>)</span>
             </a>
           </div>
         </div>
@@ -53,13 +51,13 @@
           <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label class="small-caps text-neutral-600 block mb-2">Search Projects</label>
-              <input type="text" name="q" value="{{ $search }}" placeholder="Company, product, location..." class="elegant-input w-full">
+              <input type="text" name="q" value="<?php echo e($search); ?>" placeholder="Company, product, location..." class="elegant-input w-full">
             </div>
             <div class="flex items-end">
               <button type="submit" class="primary-btn w-full">Apply Filters</button>
             </div>
 
-            <a href="{{ route('outdoor.whiteboard.export.byProduct', request()->only('q')) }}"
+            <a href="<?php echo e(route('outdoor.whiteboard.export.byProduct', request()->only('q'))); ?>"
                 class="primary-btn">
                 Export (Grouped by Product)
             </a>
@@ -74,7 +72,7 @@
         <div class="surface border-b hairline px-6 py-4 flex items-center justify-between">
           <div>
             <h2 class="serif-heading text-xl ink">Projects Ledger</h2>
-            <p class="muted-ink text-sm mt-1 sans-body">{{ count($masterFiles) }} projects</p>
+            <p class="muted-ink text-sm mt-1 sans-body"><?php echo e(count($masterFiles)); ?> projects</p>
           </div>
 
           <!-- Column Navigation -->
@@ -97,77 +95,78 @@
                 <tr id="tableHeader"></tr>
               </thead>
               <tbody class="divide-y hairline" id="tableBody">
-                @php $row = 1; @endphp
-                @foreach ($masterFiles as $mf)
-                  @foreach ($mf->outdoorItems as $item)
-                    @php $wb = $existing[$mf->id] ?? null; @endphp
+                <?php $row = 1; ?>
+                <?php $__currentLoopData = $masterFiles; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $mf): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                  <?php $__currentLoopData = $mf->outdoorItems; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <?php $wb = $existing[$mf->id] ?? null; ?>
 
                     <tr class="hover:bg-neutral-50 hover:shadow-sm transition-all duration-150 group"
-                        data-row-id="{{ $mf->id }}" data-master="{{ $mf->id }}">
+                        data-row-id="<?php echo e($mf->id); ?>" data-master="<?php echo e($mf->id); ?>">
 
                       <!-- 1) No. -->
                       <td class="px-4 py-3 text-sm column-data" data-column="1">
-                        <div class="ink font-medium">{{ $row }}</div>
+                        <div class="ink font-medium"><?php echo e($row); ?></div>
                       </td>
 
                       <!-- 2) Created -->
                       <td class="px-4 py-3 text-sm column-data" data-column="2">
-                        <div class="ink font-medium">{{ $mf->created_at?->format('m/d/Y') }}</div>
+                        <div class="ink font-medium"><?php echo e($mf->created_at?->format('m/d/Y')); ?></div>
                       </td>
 
                       <!-- 3) INV number (from master_files) -->
                       <td class="px-4 py-3 text-sm column-data" data-column="3">
-                        <div class="ink truncate max-w-[140px]" title="{{ $mf->invoice_number ?? $mf->inv_number }}">
-                          {{ $mf->invoice_number ?? $mf->inv_number }}
+                        <div class="ink truncate max-w-[140px]" title="<?php echo e($mf->invoice_number ?? $mf->inv_number); ?>">
+                          <?php echo e($mf->invoice_number ?? $mf->inv_number); ?>
+
                         </div>
                       </td>
 
                       <!-- 4) PO (stacked) -->
                       <td class="px-4 py-3 text-sm column-data" data-column="4">
                         <div class="space-y-2">
-                          <input type="text" name="po_text" class="wb-field ledger-input w-36" placeholder="PO note..." value="{{ old('po_text', $wb?->po_text) }}">
-                          <input type="date" name="po_date" class="wb-field ledger-input w-36" value="{{ old('po_date', $wb?->po_date?->format('Y-m-d')) }}">
+                          <input type="text" name="po_text" class="wb-field ledger-input w-36" placeholder="PO note..." value="<?php echo e(old('po_text', $wb?->po_text)); ?>">
+                          <input type="date" name="po_date" class="wb-field ledger-input w-36" value="<?php echo e(old('po_date', $wb?->po_date?->format('Y-m-d'))); ?>">
                         </div>
                       </td>
 
                       <!-- 5) Product (from master_files) -->
                       <td class="px-4 py-3 text-sm column-data" data-column="5">
-                        <div class="ink truncate max-w-[140px]" title="{{ $mf->product }}">{{ $mf->product }}</div>
+                        <div class="ink truncate max-w-[140px]" title="<?php echo e($mf->product); ?>"><?php echo e($mf->product); ?></div>
                       </td>
 
                       <!-- 6) Company (from master_files) -->
                       <td class="px-4 py-3 text-sm column-data" data-column="6">
-                        <div class="ink font-medium truncate max-w-[180px]" title="{{ $mf->company }}">{{ $mf->company }}</div>
+                        <div class="ink font-medium truncate max-w-[180px]" title="<?php echo e($mf->company); ?>"><?php echo e($mf->company); ?></div>
                       </td>
 
                       <!-- 7) Location (site from outdoor_items) -->
                       <td class="px-4 py-3 text-sm column-data" data-column="7">
-                        <div class="ink truncate max-w-[180px]" title="{{ $item->site }}">{{ $item->site }}</div>
+                        <div class="ink truncate max-w-[180px]" title="<?php echo e($item->site); ?>"><?php echo e($item->site); ?></div>
                       </td>
 
                       <!-- 8) Installation (start_date from outdoor_items) -->
                       <td class="px-4 py-3 text-sm column-data" data-column="8">
-                        <div class="ink">{{ $item->start_date?->format('m/d/Y') }}</div>
+                        <div class="ink"><?php echo e($item->start_date?->format('m/d/Y')); ?></div>
                       </td>
 
                       <!-- 9) Dismantle (end_date from outdoor_items) -->
                       <td class="px-4 py-3 text-sm column-data" data-column="9">
-                        <div class="ink">{{ $item->end_date?->format('m/d/Y') }}</div>
+                        <div class="ink"><?php echo e($item->end_date?->format('m/d/Y')); ?></div>
                       </td>
 
                       <!-- 10) Supplier (stacked) -->
                       <td class="px-4 py-3 text-sm column-data" data-column="10">
                         <div class="space-y-2">
-                          <input type="text" name="supplier_text" class="wb-field ledger-input w-36" placeholder="Supplier note..." value="{{ old('supplier_text', $wb?->supplier_text) }}">
-                          <input type="date" name="supplier_date" class="wb-field ledger-input w-36" value="{{ old('supplier_date', $wb?->supplier_date?->format('Y-m-d')) }}">
+                          <input type="text" name="supplier_text" class="wb-field ledger-input w-36" placeholder="Supplier note..." value="<?php echo e(old('supplier_text', $wb?->supplier_text)); ?>">
+                          <input type="date" name="supplier_date" class="wb-field ledger-input w-36" value="<?php echo e(old('supplier_date', $wb?->supplier_date?->format('Y-m-d'))); ?>">
                         </div>
                       </td>
 
                       <!-- 11) Storage (stacked) -->
                       <td class="px-4 py-3 text-sm column-data" data-column="11">
                         <div class="space-y-2">
-                          <input type="text" name="storage_text" class="wb-field ledger-input w-36" placeholder="Storage note..." value="{{ old('storage_text', $wb?->storage_text) }}">
-                          <input type="date" name="storage_date" class="wb-field ledger-input w-36" value="{{ old('storage_date', $wb?->storage_date?->format('Y-m-d')) }}">
+                          <input type="text" name="storage_text" class="wb-field ledger-input w-36" placeholder="Storage note..." value="<?php echo e(old('storage_text', $wb?->storage_text)); ?>">
+                          <input type="date" name="storage_date" class="wb-field ledger-input w-36" value="<?php echo e(old('storage_date', $wb?->storage_date?->format('Y-m-d'))); ?>">
                         </div>
                       </td>
 
@@ -184,9 +183,9 @@
                         </div>
                       </td>
                     </tr>
-                    @php $row++; @endphp
-                  @endforeach
-                @endforeach
+                    <?php $row++; ?>
+                  <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
               </tbody>
             </table>
           </div>
@@ -197,15 +196,16 @@
 
     <!-- Pagination -->
     <div class="px-8 pb-6">
-      @if(isset($masterFiles) && method_exists($masterFiles, 'links'))
-        {{ $masterFiles->links() }}
-      @endif
+      <?php if(isset($masterFiles) && method_exists($masterFiles, 'links')): ?>
+        <?php echo e($masterFiles->links()); ?>
+
+      <?php endif; ?>
     </div>
 
   </div>
 </div>
 
-{{-- Autosave JS --}}
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -282,7 +282,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const stateEl = row.querySelector('.save-state');
     try {
       stateEl.textContent = 'Saving...';
-      const res = await fetch('{{ route('outdoor.whiteboard.upsert') }}', {
+      const res = await fetch('<?php echo e(route('outdoor.whiteboard.upsert')); ?>', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -318,7 +318,7 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.disabled = true;
         btn.textContent = 'Completing...';
         try {
-          const res = await fetch('{{ route('outdoor.whiteboard.complete') }}', {
+          const res = await fetch('<?php echo e(route('outdoor.whiteboard.complete')); ?>', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -353,4 +353,6 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 </script>
-@endsection
+<?php $__env->stopSection(); ?>
+
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\Gjlang\kl_guide_tracker\resources\views/outdoor/whiteboard.blade.php ENDPATH**/ ?>

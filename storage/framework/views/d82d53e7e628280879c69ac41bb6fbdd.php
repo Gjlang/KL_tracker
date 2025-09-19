@@ -1,1 +1,0 @@
-<?php /**PATH C:\Users\Gjlang\kl_guide_tracker\resources\views\components\chip.blade.php ENDPATH**/ ?>
