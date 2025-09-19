@@ -8,6 +8,10 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Illuminate\Support\Facades\Log;
+use App\Models\OutdoorItem;
+
+
 
 class OutdoorWhiteboardController extends Controller
 {
@@ -16,61 +20,86 @@ class OutdoorWhiteboardController extends Controller
      * Supports optional `q` search over master_files (company/product/location).
      * Shows only ACTIVE (not completed) items.
      */
-    public function index(Request $request)
+   public function index(Request $request)
     {
-        $search = $request->query('q');
+        $searchRaw = (string) $request->query('q', '');
+        // Escape % and _ in LIKE to avoid wildcard surprises
+        $search = str_replace(['\\',   '%',  '_'], ['\\\\', '\%', '\_'], $searchRaw);
 
-        // Base master files query (for grid)
-        $masterFiles = MasterFile::query()
-            ->when($search, function ($q) use ($search) {
+        // Base MasterFile query with optional LIKE filters
+        $mfQuery = MasterFile::query()
+            ->when($search !== '', function ($q) use ($search) {
                 $q->where(function ($qq) use ($search) {
-                    $qq->where('company', 'like', "%{$search}%")
-                      ->orWhere('product', 'like', "%{$search}%")
-                      ->orWhere('location', 'like', "%{$search}%");
+                    $qq->where('company',  'like', "%{$search}%")
+                    ->orWhere('product', 'like', "%{$search}%")
+                    ->orWhere('location','like', "%{$search}%");
                 });
             })
-            ->with(['outdoorItems:id,master_file_id,site,start_date,end_date'])
-            ->orderByDesc('created_at')
-            ->limit(200)
-            ->get();
+            ->with(['outdoorItems' => function ($q) {
+                $q->select('id','master_file_id','site','start_date','end_date');
+            }])
+            ->orderByDesc('created_at');
 
-        // Map existing whiteboards for those master files (ACTIVE only)
-        $existing = OutdoorWhiteboard::whereIn('master_file_id', $masterFiles->pluck('id'))
-            ->whereNull('completed_at')
-            ->get()
-            ->keyBy('master_file_id');
+        // If you list master files on this page, paginate; if not, you can keep it capped
+        // $masterFiles = $mfQuery->limit(200)->get();
+        $masterFiles = $mfQuery->paginate(50)->withQueryString();
 
-        // Small badge counter for completed list
+        // Collect all item IDs actually rendered on the page
+        $itemIds = $masterFiles->getCollection()
+            ->pluck('outdoorItems')->flatten()->pluck('id')->unique()->values();
+
+        // Map existing active whiteboards by outdoor_item_id for prefill
+        $existing = collect();
+        if ($itemIds->isNotEmpty()) {
+            $existing = OutdoorWhiteboard::query()
+                ->whereIn('outdoor_item_id', $itemIds)
+                ->whereNull('completed_at')
+                ->get()
+                ->keyBy('outdoor_item_id');
+        }
+
+        // Completed badge (global); if you want it to follow the same search scope, apply similar joins/filters
         $completedCount = OutdoorWhiteboard::whereNotNull('completed_at')->count();
 
-        return view('outdoor.whiteboard', compact('masterFiles', 'existing', 'search', 'completedCount'));
-    }
-
-    public function completed(Request $request)
-    {
-        // If you have a dedicated completed view
-        $search = $request->query('q');
-
-        $rows = OutdoorWhiteboard::query()
-            ->whereNotNull('completed_at')
-            ->leftJoin('master_files', 'master_files.id', '=', 'outdoor_whiteboards.master_file_id')
-            ->when($search, function ($q) use ($search) {
+        // Table of active whiteboards (joined view) — paginate and avoid column overwrite
+        $whiteboards = OutdoorWhiteboard::query()
+            ->whereNull('completed_at')
+            ->leftJoin('outdoor_items', 'outdoor_items.id', '=', 'outdoor_whiteboards.outdoor_item_id')
+            ->leftJoin('master_files', 'master_files.id', '=', 'outdoor_items.master_file_id')
+            ->when($search !== '', function ($q) use ($search) {
                 $q->where(function ($qq) use ($search) {
-                    $qq->where('master_files.company', 'like', "%{$search}%")
-                       ->orWhere('master_files.product', 'like', "%{$search}%")
-                       ->orWhere('master_files.location', 'like', "%{$search}%");
+                    $qq->where('master_files.company',  'like', "%{$search}%")
+                    ->orWhere('master_files.product', 'like', "%{$search}%")
+                    ->orWhere('master_files.location','like', "%{$search}%")
+                    ->orWhere('outdoor_items.site',    'like', "%{$search}%");
                 });
             })
-            ->orderByDesc('completed_at')
             ->select([
                 'outdoor_whiteboards.*',
+                // IMPORTANT: avoid overwriting outdoor_whiteboards.outdoor_item_id
+                'outdoor_items.id as oi_id',
+                'outdoor_items.site',
                 'master_files.company',
                 'master_files.product',
                 'master_files.location',
             ])
-            ->paginate(30);
+            ->orderByDesc('outdoor_whiteboards.created_at')
+            ->paginate(100)
+            ->withQueryString();
 
-        return view('outdoor.whiteboard-completed', compact('rows', 'search'));
+        // Optional debug logs (won’t explode with pagination)
+        Log::info('MF page count: '.$masterFiles->count().' / total: '.$masterFiles->total());
+        Log::info('Rendered item IDs: '.$itemIds->count());
+        Log::info('Existing WB (active) map: '.$existing->count());
+        Log::info('WB table page count: '.$whiteboards->count().' / total: '.$whiteboards->total());
+
+        return view('outdoor.whiteboard', compact(
+            'masterFiles',
+            'existing',
+            'searchRaw',
+            'completedCount',
+            'whiteboards'
+        ));
     }
 
     /**
@@ -189,32 +218,39 @@ class OutdoorWhiteboardController extends Controller
     public function upsert(Request $request)
     {
         $data = $request->validate([
-            'master_file_id'  => ['required', Rule::exists('master_files', 'id')],
-            'client_text'     => ['nullable', 'string', 'max:255'],
-            'client_date'     => ['nullable', 'date'],
-            'po_text'         => ['nullable', 'string', 'max:255'],
-            'po_date'         => ['nullable', 'date'],
-            'supplier_text'   => ['nullable', 'string', 'max:255'],
-            'supplier_date'   => ['nullable', 'date'],
-            'storage_text'    => ['nullable', 'string', 'max:255'],
-            'storage_date'    => ['nullable', 'date'],
-            'notes'           => ['nullable', 'string'],
+            'outdoor_item_id'  => ['required', Rule::exists('outdoor_items','id')],
+            'master_file_id'   => ['nullable', Rule::exists('master_files','id')],
+            'client_text'      => ['nullable', 'string', 'max:255'],
+            'client_date'      => ['nullable', 'date'],
+            'po_text'          => ['nullable', 'string', 'max:255'],
+            'po_date'          => ['nullable', 'date'],
+            'supplier_text'    => ['nullable', 'string', 'max:255'],
+            'supplier_date'    => ['nullable', 'date'],
+            'storage_text'     => ['nullable', 'string', 'max:255'],
+            'storage_date'     => ['nullable', 'date'],
+            'notes'             => ['nullable', 'string'],
         ]);
 
+        if (empty($data['master_file_id'])) {
+            $data['master_file_id'] = OutdoorItem::where('id',$data['outdoor_item_id'])
+                ->value('master_file_id');
+        }
+
         $wb = OutdoorWhiteboard::updateOrCreate(
-            ['master_file_id' => $data['master_file_id']],
-            collect($data)->except('master_file_id')->toArray()
+            ['outdoor_item_id' => $data['outdoor_item_id']],
+            collect($data)->except('outdoor_item_id')->toArray()
         );
 
         if ($request->wantsJson()) {
             return response()->json([
-                'ok'         => true,
+                'ok' => true,
                 'updated_at' => optional($wb->updated_at)->toDateTimeString(),
             ]);
         }
 
-        return back()->with('success', 'Whiteboard saved.');
+        return back()->with('success','Whiteboard saved.');
     }
+
 
     /**
      * Mark a row as completed (sets completed_at = now()).
@@ -223,27 +259,44 @@ class OutdoorWhiteboardController extends Controller
      * FIXED: Now validates against master_files instead of outdoor_whiteboards
      * to handle cases where the whiteboard row doesn't exist yet.
      */
-    public function complete(Request $request)
+
+    public function completed(Request $request)
     {
-        $data = $request->validate([
-            // Validate master file exists (not the whiteboard row)
-            'master_file_id' => ['required', Rule::exists('master_files', 'id')],
-        ]);
+        $search = $request->query('q');
 
-        $wb = OutdoorWhiteboard::updateOrCreate(
-            ['master_file_id' => $data['master_file_id']],
-            ['completed_at' => now()]
-        );
+        $whiteboards = OutdoorWhiteboard::query()
+            ->whereNotNull('outdoor_whiteboards.completed_at')
+            ->leftJoin('outdoor_items', 'outdoor_items.id', '=', 'outdoor_whiteboards.outdoor_item_id')
+            ->leftJoin('master_files', 'master_files.id', '=', 'outdoor_items.master_file_id')
+            ->when($search, function ($q) use ($search) {
+                $q->where(function ($qq) use ($search) {
+                    $like = "%{$search}%";
+                    $qq->where('master_files.company', 'like', $like)
+                    ->orWhere('master_files.product', 'like', $like)
+                    ->orWhere('master_files.location', 'like', $like)
+                    ->orWhere('outdoor_items.site', 'like', $like);
+                });
+            })
+            ->orderByDesc('outdoor_whiteboards.completed_at')
+            ->select([
+                'outdoor_whiteboards.*',
+                'outdoor_items.id as outdoor_item_id',
+                'outdoor_items.site',
+                'outdoor_items.start_date',
+                'outdoor_items.end_date',
+                'master_files.company',
+                'master_files.product',
+                'master_files.location',
+            ])
+            ->paginate(30)
+            ->withQueryString(); // keep ?q=... on pagination links
 
-        if ($request->wantsJson()) {
-            return response()->json([
-                'ok'           => true,
-                'completed_at' => optional($wb->completed_at)->toDateTimeString(),
-            ]);
-        }
+        // (Optional) quick debug
+        // Log::info('Completed count page:', ['count' => $whiteboards->count(), 'q' => $search]);
 
-        return back()->with('success', 'Marked as completed.');
+        return view('outdoor.whiteboard-completed', compact('whiteboards', 'search'));
     }
+
 
     public function destroy(OutdoorWhiteboard $whiteboard)
     {

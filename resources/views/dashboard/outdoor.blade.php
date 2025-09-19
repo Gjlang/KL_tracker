@@ -15,7 +15,7 @@
             }
             // If it's Carbon/DateTime or some other string, normalize
             try {
-                return \Illuminate\Support\Carbon::parse($v)->format('Y-m-d');
+                return Carbon::parse($v)->format('Y-m-d');
             } catch (\Throwable $e) {
                 return '';
             }
@@ -121,124 +121,120 @@
             </div>
           @endif
         </div>
-
-
         {{-- Filters Panel --}}
-<div class="mb-6 card">
-  <div class="p-6">
-    <form method="GET" action="{{ url()->current() }}">
+        <div class="mb-6 card">
+        <div class="p-6">
+            <form method="GET" action="{{ url()->current() }}">
 
-      {{-- Preserve cross-page filters if you need them --}}
-      <input type="hidden" name="status" value="{{ request('status') }}">
-      <input type="hidden" name="product_category" value="{{ request('product_category') }}">
-      <input type="hidden" id="category" name="category" value="Outdoor">
+            {{-- Preserve cross-page filters if you need them --}}
+            <input type="hidden" name="status" value="{{ request('status') }}">
+            <input type="hidden" name="product_category" value="{{ request('product_category') }}">
+            <input type="hidden" id="category" name="category" value="Outdoor">
 
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {{-- Category (locked) --}}
-        <div class="space-y-2">
-          <label class="sans table-header">Category</label>
-          <div class="h-11 flex items-center">
-            <span class="chip bg-[#22255b] text-white">OUTDOOR</span>
-          </div>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {{-- Category (locked) --}}
+                <div class="space-y-2">
+                <label class="sans table-header">Category</label>
+                <div class="h-11 flex items-center">
+                    <span class="chip bg-[#22255b] text-white">OUTDOOR</span>
+                </div>
+                </div>
+
+                {{-- Year --}}
+                <div class="space-y-2">
+                <label for="year" class="sans table-header">Year</label>
+                @php
+                    // controller should pass $years (array/collection of ints) and $year (current)
+                    $currentYear = (int) ($year ?? now()->year);
+                @endphp
+                <select id="year" name="year" class="w-full h-11 sans rounded border border-neutral-200 focus-ring px-3">
+                    @foreach(($years ?? [now()->year]) as $y)
+                    <option value="{{ (int)$y }}" @selected((int)$y === $currentYear)>{{ (int)$y }}</option>
+                    @endforeach
+                </select>
+                </div>
+
+                {{-- Month --}}
+                <div class="space-y-2">
+                <label for="month" class="sans table-header">Month</label>
+                @php
+                    $mSel = (int) (request('month') ?? 0);
+                    $monthNames = [1=>'Jan',2=>'Feb',3=>'Mar',4=>'Apr',5=>'May',6=>'Jun',7=>'Jul',8=>'Aug',9=>'Sep',10=>'Oct',11=>'Nov',12=>'Dec'];
+                @endphp
+                <select id="month" name="month" class="w-full h-11 sans rounded border border-neutral-200 focus-ring px-3">
+                    <option value="0">All months</option>
+                    @foreach($monthNames as $mi => $mn)
+                    <option value="{{ $mi }}" @selected($mSel === $mi)>{{ $mn }}</option>
+                    @endforeach
+                </select>
+                </div>
+
+                {{-- Search (optional, surfaced) --}}
+                <div class="space-y-2">
+                <label for="search" class="sans table-header">Search</label>
+                <input id="search" name="search" type="text"
+                        value="{{ request('search') }}"
+                        class="w-full h-11 input sans"
+                        placeholder="Company / product / site…">
+                </div>
+            </div>
+
+            <div class="mt-4 flex flex-wrap gap-3">
+                <button type="submit" class="btn-primary h-11">Apply Filters</button>
+                <a href="{{ url()->current() }}" class="btn-secondary h-11">Clear All</a>
+            </div>
+
+            {{-- Active filter chips with clear links --}}
+            @php
+                $hasYear  = request()->filled('year');
+                $hasMonth = request()->filled('month') && (int)request('month') !== 0;
+                $hasSearch = trim((string)request('search')) !== '';
+            @endphp
+            @if($hasYear || $hasMonth || $hasSearch)
+                <div class="mt-4 flex flex-wrap items-center gap-2">
+                <span class="sans text-sm text-neutral-600">Active:</span>
+
+                <a class="chip" href="{{ request()->fullUrlWithQuery(['search'=>request('search'),'month'=>request('month'),'year'=>request('year')]) }}">
+                    CATEGORY: OUTDOOR
+                </a>
+
+                @if($hasYear)
+                    <a class="chip"
+                    href="{{ request()->fullUrlWithQuery(['year'=>null]) }}">
+                    YEAR: {{ (int)request('year') }} <span class="ml-1">×</span>
+                    </a>
+                @endif
+
+                @if($hasMonth)
+                    <a class="chip"
+                    href="{{ request()->fullUrlWithQuery(['month'=>0]) }}">
+                    MONTH: {{ $monthNames[(int)request('month')] ?? '' }} <span class="ml-1">×</span>
+                    </a>
+                @endif
+
+                @if($hasSearch)
+                    <a class="chip"
+                    href="{{ request()->fullUrlWithQuery(['search'=>null]) }}">
+                    SEARCH: “{{ Str::limit(request('search'), 20) }}” <span class="ml-1">×</span>
+                    </a>
+                @endif
+                </div>
+            @endif
+            </form>
+
+            {{-- Clone structure button (OUTSIDE the filter form; show only when there is no data) --}}
+            @if(($existing ?? collect())->isEmpty())
+            <form method="POST" action="{{ route('coordinator.outdoor.cloneYear') }}" class="mt-3">
+                @csrf
+                <input type="hidden" name="to_year" value="{{ (int)($year ?? now()->year) }}">
+                <input type="hidden" name="from_year" value="{{ (int)($year ?? now()->year) - 1 }}">
+                <button type="submit" class="btn btn-soft">
+                Clone previous year’s structure (no values)
+                </button>
+            </form>
+            @endif
         </div>
-
-        {{-- Year --}}
-        <div class="space-y-2">
-          <label for="year" class="sans table-header">Year</label>
-          @php
-            // controller should pass $years (array/collection of ints) and $year (current)
-            $currentYear = (int) ($year ?? now()->year);
-          @endphp
-          <select id="year" name="year" class="w-full h-11 sans rounded border border-neutral-200 focus-ring px-3">
-            @foreach(($years ?? [now()->year]) as $y)
-              <option value="{{ (int)$y }}" @selected((int)$y === $currentYear)>{{ (int)$y }}</option>
-            @endforeach
-          </select>
         </div>
-
-        {{-- Month --}}
-        <div class="space-y-2">
-          <label for="month" class="sans table-header">Month</label>
-          @php
-            $mSel = (int) (request('month') ?? 0);
-            $monthNames = [1=>'Jan',2=>'Feb',3=>'Mar',4=>'Apr',5=>'May',6=>'Jun',7=>'Jul',8=>'Aug',9=>'Sep',10=>'Oct',11=>'Nov',12=>'Dec'];
-          @endphp
-          <select id="month" name="month" class="w-full h-11 sans rounded border border-neutral-200 focus-ring px-3">
-            <option value="0">All months</option>
-            @foreach($monthNames as $mi => $mn)
-              <option value="{{ $mi }}" @selected($mSel === $mi)>{{ $mn }}</option>
-            @endforeach
-          </select>
-        </div>
-
-        {{-- Search (optional, surfaced) --}}
-        <div class="space-y-2">
-          <label for="search" class="sans table-header">Search</label>
-          <input id="search" name="search" type="text"
-                 value="{{ request('search') }}"
-                 class="w-full h-11 input sans"
-                 placeholder="Company / product / site…">
-        </div>
-      </div>
-
-      <div class="mt-4 flex flex-wrap gap-3">
-        <button type="submit" class="btn-primary h-11">Apply Filters</button>
-        <a href="{{ url()->current() }}" class="btn-secondary h-11">Clear All</a>
-      </div>
-
-      {{-- Active filter chips with clear links --}}
-      @php
-        $hasYear  = request()->filled('year');
-        $hasMonth = request()->filled('month') && (int)request('month') !== 0;
-        $hasSearch = trim((string)request('search')) !== '';
-      @endphp
-      @if($hasYear || $hasMonth || $hasSearch)
-        <div class="mt-4 flex flex-wrap items-center gap-2">
-          <span class="sans text-sm text-neutral-600">Active:</span>
-
-          <a class="chip" href="{{ request()->fullUrlWithQuery(['search'=>request('search'),'month'=>request('month'),'year'=>request('year')]) }}">
-            CATEGORY: OUTDOOR
-          </a>
-
-          @if($hasYear)
-            <a class="chip"
-               href="{{ request()->fullUrlWithQuery(['year'=>null]) }}">
-              YEAR: {{ (int)request('year') }} <span class="ml-1">×</span>
-            </a>
-          @endif
-
-          @if($hasMonth)
-            <a class="chip"
-               href="{{ request()->fullUrlWithQuery(['month'=>0]) }}">
-              MONTH: {{ $monthNames[(int)request('month')] ?? '' }} <span class="ml-1">×</span>
-            </a>
-          @endif
-
-          @if($hasSearch)
-            <a class="chip"
-               href="{{ request()->fullUrlWithQuery(['search'=>null]) }}">
-              SEARCH: “{{ Str::limit(request('search'), 20) }}” <span class="ml-1">×</span>
-            </a>
-          @endif
-        </div>
-      @endif
-    </form>
-
-    {{-- Clone structure button (OUTSIDE the filter form; show only when there is no data) --}}
-    @if(($existing ?? collect())->isEmpty())
-      <form method="POST" action="{{ route('coordinator.outdoor.cloneYear') }}" class="mt-3">
-        @csrf
-        <input type="hidden" name="to_year" value="{{ (int)($year ?? now()->year) }}">
-        <input type="hidden" name="from_year" value="{{ (int)($year ?? now()->year) - 1 }}">
-        <button type="submit" class="btn btn-soft">
-          Clone previous year’s structure (no values)
-        </button>
-      </form>
-    @endif
-  </div>
-</div>
-
-
         {{-- Action Bar --}}
         <div class="mb-6 card">
           <div class="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -410,72 +406,110 @@
       </div>
     </main>
   </div>
+
+
 </x-app-layout>
 
 <script>
-// Updated autosave function to use outdoor_item_id
-async function saveOutdoorCell(el) {
-  const master_file_id = Number(el.dataset.master);
-  const outdoor_item_id = Number(el.dataset.item);
-  const year  = Number(el.dataset.year);
-  const month = Number(el.dataset.month);
-  const kind  = el.dataset.kind; // "text" | "date"
+// ------- Small helpers -------
+const getCsrf = () =>
+  document.querySelector('meta[name="csrf-token"]')?.content || "{{ csrf_token() }}";
 
+const toInt = (v) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+const normalizeDate = (v) => {
+  // Accept "", null, undefined
+  if (!v) return null;
+  // If already YYYY-MM-DD (native date inputs), just return
+  // You can add more parsing if your backend needs it
+  return v;
+};
+
+async function saveOutdoorCell(el) {
+  // Required IDs from data-attrs on the input/select
+  const outdoor_item_id = toInt(el.dataset.item);
+  if (!outdoor_item_id) {
+    console.warn('saveOutdoorCell: missing data-item (outdoor_item_id).');
+    return;
+  }
+  // Optional: still store master_file_id for joins/filtering if you like
+  const master_file_id  = toInt(el.dataset.master);
+
+  const year  = toInt(el.dataset.year);   // optional for monthly tables
+  const month = toInt(el.dataset.month);  // optional for monthly tables
+  const kind  = el.dataset.kind || 'text'; // "text" | "date"
+
+  // Field mapping (adjust if your backend expects different keys)
   const payload = {
-    master_file_id,
     outdoor_item_id,
-    year,
-    month,
-    field_key: kind === 'date' ? 'installed_on' : 'status',
+    master_file_id,   // ok to be null
+    year,             // ok to be null (if your monthly endpoint uses it)
+    month,            // ok to be null
+    field_key: kind === 'date' ? 'installed_on' : 'status', // <-- adjust if needed
     field_type: kind, // 'text' or 'date'
   };
-  if (kind === 'date') payload.value_date = el.value || null;
-  else payload.value_text = (el.value ?? '').toString();
+
+  if (kind === 'date') {
+    payload.value_date = normalizeDate(el.value);
+  } else {
+    payload.value_text = (el.value ?? '').toString();
+  }
+
+  const td = el.closest('td');
+  const savedBadge = td?.querySelector('[data-saved]');
+  const errorBadge = td?.querySelector('[data-error]');
+
+  // reset badges
+  if (errorBadge) { errorBadge.classList.add('hidden'); errorBadge.textContent = ''; }
 
   try {
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || "{{ csrf_token() }}";
     const res = await fetch("{{ route('outdoor.monthly.upsert') }}", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-CSRF-TOKEN": csrfToken,
+        "X-CSRF-TOKEN": getCsrf(),
         "Accept": "application/json",
       },
       body: JSON.stringify(payload),
     });
 
-    if (!res.ok) throw await res.json().catch(() => ({ message: res.statusText }));
+    // Try to parse JSON either way, for better messages
+    let data = null;
+    try { data = await res.json(); } catch (_) {}
 
-    // Success feedback with subtle animation
-    const td = el.closest('td');
-    const saved = td?.querySelector('[data-saved]');
-    saved?.classList.remove('hidden');
-    setTimeout(() => saved?.classList.add('hidden'), 2000);
+    if (!res.ok || (data && data.ok === false)) {
+      const msg = (data && (data.message || data.error)) || res.statusText || 'Save failed';
+      throw new Error(msg);
+    }
 
-    // Visual feedback
-    el.classList.remove('border-[#d33831]', 'border-neutral-200');
+    // Success feedback
+    savedBadge?.classList.remove('hidden');
+
+    el.classList.remove('border-[#d33831]', 'bg-red-50');
     el.classList.add('border-green-400', 'bg-green-50');
+
     setTimeout(() => {
+      savedBadge?.classList.add('hidden');
       el.classList.remove('border-green-400', 'bg-green-50');
       el.classList.add('border-neutral-200');
     }, 1500);
+
   } catch (e) {
     // Error feedback
-    const td = el.closest('td');
-    const err = td?.querySelector('[data-error]');
     el.classList.remove('border-neutral-200');
     el.classList.add('border-[#d33831]', 'bg-red-50');
-    if (err) {
-      err.textContent = (e?.message) || 'Save failed';
-      err.classList.remove('hidden');
+    if (errorBadge) {
+      errorBadge.textContent = e?.message || 'Save failed';
+      errorBadge.classList.remove('hidden');
     }
-    setTimeout(() => {
-      el.classList.remove('bg-red-50');
-    }, 3000);
+    setTimeout(() => el.classList.remove('bg-red-50'), 3000);
   }
 }
 
-// Status dropdown color mapping
+// -------- Status dropdown color mapping (non-destructive to Tailwind classes) --------
 function setDropdownColor(selectEl) {
   const colorMap = {
     'Installation': { bg:'#22255b', color:'#fff', border:'#22255b' },
@@ -485,42 +519,41 @@ function setDropdownColor(selectEl) {
     'Completed':    { bg:'#16a34a', color:'#fff', border:'#16a34a' },
     'Artwork':      { bg:'#f97316', color:'#fff', border:'#f97316' },
     'Material':     { bg:'#f97316', color:'#fff', border:'#f97316' },
-    'Ongoing':      { bg:'#4bbbed', color:'#1C1E26', border:'#4bbbed' }
+    'Ongoing':      { bg:'#4bbbed', color:'#1C1E26', border:'#4bbbed' },
   };
 
-  // Reset base classes
-  selectEl.className = 'status-dropdown w-full monthly-input text-xs transition-all duration-150';
-
+  // Preserve existing classes; only tweak inline styles
   const style = colorMap[selectEl.value];
   if (style) {
     selectEl.style.backgroundColor = style.bg;
     selectEl.style.color = style.color;
     selectEl.style.borderColor = style.border;
   } else {
-    // Default state
+    // Default visuals
     selectEl.style.backgroundColor = '#ffffff';
     selectEl.style.color = '#1C1E26';
     selectEl.style.borderColor = '#d4d4d8';
   }
 }
 
-// Initialize on page load
+// -------- Initialize on page load --------
 document.addEventListener('DOMContentLoaded', function() {
-  // Style preselected dropdowns and add event listeners
+  // Style preselected dropdowns + watch changes
   document.querySelectorAll('.status-dropdown').forEach(selectEl => {
     setDropdownColor(selectEl);
     selectEl.addEventListener('change', function() {
       setDropdownColor(this);
+      // Optional: auto-save when status changes
+      // saveOutdoorCell(this);
     });
   });
 
-  // Add subtle focus transitions to inputs
+  // Nice focus transitions
   document.querySelectorAll('.monthly-input').forEach(input => {
     input.addEventListener('focus', function() {
       this.style.transform = 'translateY(-1px)';
       this.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
     });
-
     input.addEventListener('blur', function() {
       this.style.transform = 'translateY(0)';
       this.style.boxShadow = 'none';

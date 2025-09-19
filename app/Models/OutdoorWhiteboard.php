@@ -22,11 +22,13 @@ class OutdoorWhiteboard extends Model
 
     // Make date columns real dates (Carbon):
     protected $casts = [
-        'client_date'   => 'date',
-        'po_date'       => 'date',
-        'supplier_date' => 'date',
-        'storage_date'  => 'date',
-        'completed_at'  => 'datetime',
+    'client_date'   => 'date',
+    'po_date'       => 'date',
+    'supplier_date' => 'date',
+    'storage_date'  => 'date',
+    'completed_at'  => 'datetime',
+    'created_at'    => 'datetime',
+    'updated_at'    => 'datetime',
     ];
 
     // Scopes for filtering
