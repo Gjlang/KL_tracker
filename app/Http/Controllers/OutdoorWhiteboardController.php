@@ -8,36 +8,64 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use App\Exports\OutdoorWhiteboardLedgerExport;
+use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Log;
 use App\Models\OutdoorItem;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Collection;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+
 
 class OutdoorWhiteboardController extends Controller
 {
 
-   public function index(Request $request)
+  public function index(Request $request)
 {
-    // Use ONE variable: $search (already escaped for LIKE)
+    // Search (escaped for LIKE)
     $search = (string) $request->query('q', '');
     $search = str_replace(['\\','%','_'], ['\\\\','\\%','\\_'], $search);
 
+    // Master files + ONLY active outdoor items (no completed whiteboard)
     $masterFiles = MasterFile::query()
         ->when($search !== '', function ($q) use ($search) {
-            $q->where(function ($qq) use ($search) {
-                $qq->where('company',  'like', "%{$search}%")
-                   ->orWhere('product', 'like', "%{$search}%")
-                   ->orWhere('location','like', "%{$search}%");
+            $like = "%{$search}%";
+            $q->where(function ($qq) use ($like) {
+                $qq->where('company',  'like', $like)
+                   ->orWhere('product', 'like', $like)
+                   ->orWhere('location','like', $like);
             });
         })
         ->with(['outdoorItems' => function ($q) {
-            $q->select('id','master_file_id','site','start_date','end_date');
+            $q->select(
+                'outdoor_items.id',
+                'outdoor_items.master_file_id',
+                'outdoor_items.site',
+                'outdoor_items.start_date',
+                'outdoor_items.end_date'
+            )
+            // Exclude items that already have a completed whiteboard
+            ->whereNotExists(function ($qq) {
+                $qq->select(DB::raw(1))
+                   ->from('outdoor_whiteboards as ow')
+                   ->whereColumn('ow.outdoor_item_id', 'outdoor_items.id')
+                   ->whereNotNull('ow.completed_at');
+            });
         }])
         ->orderByDesc('created_at')
         ->get();
 
-    // Unique item IDs actually rendered
+    // (Optional) hide MasterFiles that end up with zero active items:
+    // $masterFiles = $masterFiles->filter(fn ($mf) => $mf->outdoorItems->isNotEmpty())->values();
+
+    // Active item ids actually rendered
     $itemIds = $masterFiles->pluck('outdoorItems')->flatten()->pluck('id')->unique()->values();
 
-    // Prefill map keyed by outdoor_item_id (active only)
+    // Prefill for active items (so values show after refresh)
     $existing = collect();
     if ($itemIds->isNotEmpty()) {
         $existing = OutdoorWhiteboard::query()
@@ -47,25 +75,26 @@ class OutdoorWhiteboardController extends Controller
             ->keyBy('outdoor_item_id');
     }
 
-    // Badge count
+    // Badge count for Completed link
     $completedCount = OutdoorWhiteboard::whereNotNull('completed_at')->count();
 
-    // Optional joined list (avoid overwriting outdoor_item_id)
+    // If your Blade doesn’t use $whiteboards, you can drop this block.
     $whiteboards = OutdoorWhiteboard::query()
         ->whereNull('completed_at')
         ->leftJoin('outdoor_items', 'outdoor_items.id', '=', 'outdoor_whiteboards.outdoor_item_id')
         ->leftJoin('master_files', 'master_files.id', '=', 'outdoor_items.master_file_id')
         ->when($search !== '', function ($q) use ($search) {
-            $q->where(function ($qq) use ($search) {
-                $qq->where('master_files.company',  'like', "%{$search}%")
-                   ->orWhere('master_files.product', 'like', "%{$search}%")
-                   ->orWhere('master_files.location','like', "%{$search}%")
-                   ->orWhere('outdoor_items.site',    'like', "%{$search}%");
+            $like = "%{$search}%";
+            $q->where(function ($qq) use ($like) {
+                $qq->where('master_files.company',  'like', $like)
+                   ->orWhere('master_files.product', 'like', $like)
+                   ->orWhere('master_files.location','like', $like)
+                   ->orWhere('outdoor_items.site',    'like', $like);
             });
         })
         ->select([
             'outdoor_whiteboards.*',
-            'outdoor_items.id as oi_id', // <- keep original OWB.outdoor_item_id intact
+            'outdoor_items.id as oi_id',
             'outdoor_items.site',
             'master_files.company',
             'master_files.product',
@@ -77,113 +106,246 @@ class OutdoorWhiteboardController extends Controller
     return view('outdoor.whiteboard', compact(
         'masterFiles',
         'existing',
-        'search',          // <- pass $search (not searchRaw)
+        'search',
         'completedCount',
         'whiteboards'
     ));
 }
 
 
-    public function exportByProduct(Request $request): StreamedResponse
-    {
-        return $this->exportByProductCsv($request);
+   public function exportLedgerXlsx(): StreamedResponse
+{
+    // === 1) DATA: active only, latest per outdoor_item ===
+    $latestActiveWB = DB::table('outdoor_whiteboards as w')
+        ->select('w.*')
+        ->join(DB::raw('(
+            SELECT outdoor_item_id, MAX(updated_at) AS maxu
+            FROM outdoor_whiteboards
+            WHERE completed_at IS NULL
+            GROUP BY outdoor_item_id
+        ) as x'), function ($j) {
+            $j->on('x.outdoor_item_id', '=', 'w.outdoor_item_id')
+              ->on('x.maxu', '=', 'w.updated_at');
+        });
+
+    $rows = DB::table('outdoor_items as oi')
+        ->join('master_files as mf', 'mf.id', '=', 'oi.master_file_id')
+        ->leftJoinSub($latestActiveWB, 'wb', function ($j) {
+            $j->on('wb.outdoor_item_id', '=', 'oi.id');
+        })
+        ->whereNull('wb.completed_at') // ACTIVE ONLY
+        ->orderBy('mf.product')
+        ->orderBy('mf.company')
+        ->orderBy('oi.site')
+        ->get([
+            'oi.id as outdoor_item_id',
+            'mf.product',
+            'mf.company',
+            DB::raw('COALESCE(oi.site, mf.location) as location'),
+            'oi.start_date as installation',
+            'oi.end_date as dismantle',
+
+            // from outdoor_whiteboards (latest active wb)
+            'wb.created_at as created',
+
+            // INV Number => client_text
+            DB::raw('wb.client_text as inv_number'),
+
+            // Purchase Order
+            DB::raw('wb.po_text as po_text'),
+            DB::raw('wb.po_date as po_date'),
+
+            // Supplier note/date
+            DB::raw('wb.supplier_text as supplier_text'),
+            DB::raw('wb.supplier_date as supplier_date'),
+
+            // Storage note/date
+            DB::raw('wb.storage_text as storage_text'),
+            DB::raw('wb.storage_date as storage_date'),
+        ]);
+
+    // Group by product
+    $byProduct = collect($rows)->groupBy(fn ($r) => (string)($r->product ?? '—'));
+
+    // === 2) SHEET SETUP ===
+    $headers = [
+        'No.',
+        'Created',
+        'INV Number',
+        'Purchase Order',
+        'Product',
+        'Company',
+        'Location',
+        'Installation',
+        'Dismantle',
+        'Supplier',
+        'Storage',
+    ];
+    $lastCol = 'K'; // 11 cols
+
+    $ss = new Spreadsheet();
+    $sheet = $ss->getActiveSheet();
+    $sheet->setTitle('Outdoor Whiteboard');
+    $ss->getDefaultStyle()->getFont()->setName('Calibri')->setSize(11);
+
+    // Column widths (plus autosize feel)
+    $sheet->getColumnDimension('A')->setWidth(5);
+    $sheet->getColumnDimension('B')->setWidth(12);
+    $sheet->getColumnDimension('C')->setWidth(18);
+    $sheet->getColumnDimension('D')->setWidth(20);
+    $sheet->getColumnDimension('E')->setWidth(12);
+    $sheet->getColumnDimension('F')->setWidth(22);
+    $sheet->getColumnDimension('G')->setWidth(22);
+    $sheet->getColumnDimension('H')->setWidth(12);
+    $sheet->getColumnDimension('I')->setWidth(12);
+    $sheet->getColumnDimension('J')->setWidth(20);
+    $sheet->getColumnDimension('K')->setWidth(20);
+
+    // Wrap Purchase Order + Supplier + Storage
+    foreach (['D', 'J', 'K'] as $col) {
+        $sheet->getStyle("{$col}:{$col}")->getAlignment()->setWrapText(true);
     }
 
-    public function exportByProductCsv(Request $request): StreamedResponse
-    {
-        $filename = 'outdoor-whiteboard_by-product_' . now()->format('Ymd_His') . '.csv';
+    // Title row
+    $sheet->mergeCells('A1:K1');
+    $sheet->setCellValue('A1', 'TITLE (OUTDOOR WHITEBOARD)');
+    $sheet->getStyle('A1:K1')->applyFromArray([
+        'font' => [
+            'bold' => true,
+            'size' => 14,
+        ],
+        'alignment' => [
+            'horizontal' => Alignment::HORIZONTAL_CENTER,
+            'vertical' => Alignment::VERTICAL_CENTER,
+        ],
+        'fill' => [
+            'fillType' => Fill::FILL_SOLID,
+            'startColor' => ['rgb' => 'FFFF00'], // bright yellow
+        ],
+    ]);
 
-        // Base query: join master_files to get product/company/location
-        $queryBase = OutdoorWhiteboard::query()
-            ->leftJoin('master_files', 'master_files.id', '=', 'outdoor_whiteboards.master_file_id')
-            ->when($request->get('q'), function ($q, $term) {
-                $q->where(function ($qq) use ($term) {
-                    $qq->where('master_files.company', 'like', "%{$term}%")
-                       ->orWhere('master_files.location', 'like', "%{$term}%")
-                       ->orWhere('master_files.product', 'like', "%{$term}%");
-                });
-            })
-            ->select([
-                'outdoor_whiteboards.*',
-                'master_files.company',
-                'master_files.location',
-                'master_files.product',
+    $rowIdx = 3; // leave a blank row between title and first section
+
+    // === 3) WRITE SECTIONS ===
+    foreach ($byProduct as $product => $items) {
+        // Section bar (green)
+        $sheet->mergeCells("A{$rowIdx}:{$lastCol}{$rowIdx}");
+        $sheet->setCellValue("A{$rowIdx}", "Product: {$product}");
+        $sheet->getStyle("A{$rowIdx}:{$lastCol}{$rowIdx}")->applyFromArray([
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '92D050'], // green
+            ],
+            'font' => ['bold' => true],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+                'horizontal' => Alignment::HORIZONTAL_LEFT,
+            ],
+        ]);
+        $rowIdx++;
+
+        // Table header (light yellow)
+        $col = 'A';
+        foreach ($headers as $h) {
+            $sheet->setCellValue("{$col}{$rowIdx}", $h);
+            $col++;
+        }
+        $sheet->getStyle("A{$rowIdx}:{$lastCol}{$rowIdx}")->applyFromArray([
+            'font' => ['bold' => true],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'FFF2CC'], // light yellow
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => 'EAEAEA'],
+                ],
+            ],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+                'horizontal' => Alignment::HORIZONTAL_LEFT,
+            ],
+        ]);
+        $rowIdx++;
+
+        // Data rows
+        $i = 1;
+        foreach ($items as $r) {
+            $sheet->fromArray([[
+                $i,
+                $this->fmtDate($r->created ?? null),
+                $this->blank($r->inv_number ?? null),
+                $this->stack($r->po_text ?? null, $r->po_date ?? null),
+                $this->blank($r->product ?? null),
+                $this->blank($r->company ?? null),
+                $this->blank($r->location ?? null),
+                $this->fmtDate($r->installation ?? null),
+                $this->fmtDate($r->dismantle ?? null),
+                $this->stack($r->supplier_text ?? null, $r->supplier_date ?? null),
+                $this->stack($r->storage_text ?? null,  $r->storage_date ?? null),
+            ]], null, "A{$rowIdx}");
+            // Borders + vertical top for this row
+            $sheet->getStyle("A{$rowIdx}:{$lastCol}{$rowIdx}")->applyFromArray([
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => Border::BORDER_THIN,
+                        'color' => ['rgb' => 'EAEAEA'],
+                    ],
+                ],
+                'alignment' => [
+                    'vertical' => Alignment::VERTICAL_TOP,
+                ],
             ]);
+            $i++;
+            $rowIdx++;
+        }
 
-        // Distinct list of products (from master_files)
-        $products = (clone $queryBase)
-            ->whereNotNull('master_files.product')
-            ->distinct()
-            ->orderBy('master_files.product')
-            ->pluck('master_files.product')
-            ->all();
-
-        $headers = [
-            'Content-Type'        => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-            'Cache-Control'       => 'no-store, no-cache',
-        ];
-
-        return response()->streamDownload(function () use ($products, $queryBase) {
-            $out = fopen('php://output', 'w');
-            fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM
-
-            foreach ($products as $product) {
-                fputcsv($out, ["Product: {$product}"]);
-                // Use the columns that actually exist:
-                fputcsv($out, [
-                    'No',
-                    'Created',
-                    'Product',
-                    'Company',
-                    'Location',
-                    'Client Text', 'Client Date',
-                    'PO Text', 'PO Date',
-                    'Supplier Text', 'Supplier Date',
-                    'Storage Text', 'Storage Date',
-                    'Notes',
-                    'Completed At',
-                ]);
-
-                $rows = (clone $queryBase)
-                    ->where('master_files.product', $product)
-                    ->orderBy('master_files.company')
-                    ->orderBy('master_files.location')
-                    ->orderBy('outdoor_whiteboards.created_at')
-                    ->get();
-
-                $i = 1;
-                foreach ($rows as $r) {
-                    fputcsv($out, [
-                        $i++,
-                        optional($r->created_at)->format('Y-m-d'),
-                        $r->product,
-                        $r->company,
-                        $r->location,
-
-                        $r->client_text,
-                        optional($r->client_date)->format('Y-m-d'),
-
-                        $r->po_text,
-                        optional($r->po_date)->format('Y-m-d'),
-
-                        $r->supplier_text,
-                        optional($r->supplier_date)->format('Y-m-d'),
-
-                        $r->storage_text,
-                        optional($r->storage_date)->format('Y-m-d'),
-
-                        $r->notes,
-                        optional($r->completed_at)->format('Y-m-d H:i:s'),
-                    ]);
-                }
-
-                fputcsv($out, ['']); // separator line
-            }
-
-            fclose($out);
-        }, $filename, $headers);
+        // Spacer
+        $rowIdx++;
     }
+
+    // Optional: freeze top left-ish (not per-section)
+    $sheet->freezePane('A3');
+
+    // === 4) Stream XLSX download ===
+    $fileName = 'outdoor_whiteboard_' . now()->format('Ymd_His') . '.xlsx';
+
+    return response()->streamDownload(function () use ($ss) {
+        $writer = new Xlsx($ss);
+        $writer->save('php://output');
+    }, $fileName, [
+        'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ]);
+}
+
+    // ===== helpers =====
+    private function blank($v): string
+    {
+        return isset($v) && $v !== '0' ? (string)$v : '';
+    }
+
+    private function fmtDate($v): string
+    {
+        if (empty($v)) return '';
+        try {
+            return Carbon::parse($v)->format('m/d/Y'); // mm/dd/yyyy
+        } catch (\Throwable) {
+            return '';
+        }
+    }
+
+    // Stack "note" + "date" in one cell with a line break, like your mock
+    private function stack(?string $text, $date): string
+    {
+        $t = trim((string)($text ?? ''));
+        $d = $this->fmtDate($date);
+        if ($t !== '' && $d !== '') return $t . "\n" . $d;
+        if ($t !== '') return $t;
+        if ($d !== '') return $d;
+        return '';
+    }
+
 
     public function upsert(Request $request)
 {
@@ -201,32 +363,20 @@ class OutdoorWhiteboardController extends Controller
         'notes'           => ['nullable','string'],
     ]);
 
-    // Defensive typing
     $data['outdoor_item_id'] = (int) $data['outdoor_item_id'];
 
-    // Derive master_file_id if missing
     if (empty($data['master_file_id'])) {
         $data['master_file_id'] = OutdoorItem::where('id', $data['outdoor_item_id'])->value('master_file_id');
     }
 
-    // Ensure we never upsert without a valid outdoor_item_id
-    $values = $data;
-    $values['outdoor_item_id'] = $data['outdoor_item_id'];
-
-    // Upsert ONLY editable fields (do not touch completed_at here)
     $wb = OutdoorWhiteboard::updateOrCreate(
         ['outdoor_item_id' => $data['outdoor_item_id']],
-        $values
+        $data
     );
 
-    if ($request->wantsJson()) {
-        return response()->json([
-            'ok'         => true,
-            'updated_at' => optional($wb->updated_at)->toDateTimeString(),
-        ]);
-    }
-
-    return back()->with('success', 'Whiteboard saved.');
+    return $request->wantsJson()
+        ? response()->json(['ok' => true, 'updated_at' => optional($wb->updated_at)->toDateTimeString()])
+        : back()->with('success', 'Whiteboard saved.');
 }
 
 public function completed(Request $request)
@@ -249,20 +399,20 @@ public function completed(Request $request)
         })
         ->orderByDesc('outdoor_whiteboards.completed_at')
         ->select([
-            'outdoor_whiteboards.*',
-            'outdoor_items.id as oi_id', // safe alias; do not overwrite outdoor_whiteboards.outdoor_item_id
-            'outdoor_items.site',
-            'outdoor_items.start_date',
-            'outdoor_items.end_date',
+            'outdoor_whiteboards.*',          // model fields: client_text, po_text, supplier_text, storage_text, completed_at, etc.
+            'outdoor_items.start_date as installation_date',
+            'outdoor_items.end_date as dismantle_date',
             'master_files.company',
             'master_files.product',
             'master_files.location',
+            // 'master_files.inv_number as inv_number',
         ])
         ->paginate(30)
         ->withQueryString();
 
     return view('outdoor.whiteboard-completed', compact('whiteboards','searchRaw'));
 }
+
 
 public function markCompleted(Request $request)
 {
@@ -286,6 +436,25 @@ public function markCompleted(Request $request)
         ? response()->json(['ok' => true, 'completed_at' => $wb->completed_at->toDateTimeString()])
         : back()->with('success','Marked as completed.');
 }
+
+public function restore(Request $request)
+{
+    $validated = $request->validate([
+        'outdoor_item_id' => ['required', Rule::exists('outdoor_whiteboards','outdoor_item_id')],
+    ]);
+
+    $wb = OutdoorWhiteboard::where('outdoor_item_id', (int) $validated['outdoor_item_id'])
+        ->whereNotNull('completed_at') // only restore completed ones
+        ->firstOrFail();
+
+    $wb->completed_at = null;
+    $wb->save();
+
+    return $request->wantsJson()
+        ? response()->json(['ok' => true])
+        : back()->with('success', 'Restored to Active.');
+}
+
 
 
 }

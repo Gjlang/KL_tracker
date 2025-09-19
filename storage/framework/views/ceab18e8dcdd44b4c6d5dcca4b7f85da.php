@@ -1,15 +1,13 @@
-@extends('layouts.app')
-
-@section('content')
+<?php $__env->startSection('content'); ?>
 <div class="flex items-center justify-between mb-4">
   <h1 class="text-lg font-semibold">Completed Whiteboards</h1>
-  <a href="{{ route('outdoor.whiteboard.index') }}"
+  <a href="<?php echo e(route('outdoor.whiteboard.index')); ?>"
      class="text-xs px-3 py-1.5 rounded-full border border-neutral-300 hover:bg-neutral-100">
      Back to Active
   </a>
 </div>
 
-@php
+<?php
   // Helper to format dates consistently (mm/dd/yyyy); falls back gracefully
   $fmt = function ($d) {
       if (empty($d)) return '-';
@@ -21,7 +19,7 @@
       try { return \Illuminate\Support\Carbon::parse($d)->format('Y-m-d H:i'); }
       catch (\Throwable $e) { return (string) $d; }
   };
-@endphp
+?>
 
 <table class="w-full text-sm border-separate border-spacing-0">
   <thead>
@@ -43,40 +41,41 @@
   </thead>
 
   <tbody>
-    @forelse ($whiteboards as $index => $wb)
+    <?php $__empty_1 = true; $__currentLoopData = $whiteboards; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $wb): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
       <tr class="border-b">
-        <td class="px-3 py-2">{{ $index + $whiteboards->firstItem() }}</td>
+        <td class="px-3 py-2"><?php echo e($index + $whiteboards->firstItem()); ?></td>
 
-        {{-- Created: from whiteboard row --}}
+        
         <td class="px-3 py-2">
-          {{ $fmt(optional($wb->created_at)->toDateTimeString() ?? $wb->created_at) }}
+          <?php echo e($fmt(optional($wb->created_at)->toDateTimeString() ?? $wb->created_at)); ?>
+
         </td>
 
-        {{-- INV Number: show if you selected/aliased it in controller; else "-" --}}
-        <td class="px-3 py-2">{{ $wb->inv_number ?? '-' }}</td>
+        
+        <td class="px-3 py-2"><?php echo e($wb->inv_number ?? '-'); ?></td>
 
-        {{-- Purchase Order: from outdoor_whiteboards.po_text --}}
-        <td class="px-3 py-2">{{ $wb->po_text ?? '-' }}</td>
+        
+        <td class="px-3 py-2"><?php echo e($wb->po_text ?? '-'); ?></td>
 
-        {{-- From master_files --}}
-        <td class="px-3 py-2">{{ $wb->product ?? '-' }}</td>
-        <td class="px-3 py-2">{{ $wb->company ?? '-' }}</td>
-        <td class="px-3 py-2">{{ $wb->location ?? '-' }}</td>
+        
+        <td class="px-3 py-2"><?php echo e($wb->product ?? '-'); ?></td>
+        <td class="px-3 py-2"><?php echo e($wb->company ?? '-'); ?></td>
+        <td class="px-3 py-2"><?php echo e($wb->location ?? '-'); ?></td>
 
-        {{-- Dates from outdoor_items (aliased) --}}
-        <td class="px-3 py-2">{{ $fmt($wb->installation_date) }}</td>
-        <td class="px-3 py-2">{{ $fmt($wb->dismantle_date) }}</td>
+        
+        <td class="px-3 py-2"><?php echo e($fmt($wb->installation_date)); ?></td>
+        <td class="px-3 py-2"><?php echo e($fmt($wb->dismantle_date)); ?></td>
 
-        {{-- Texts from outdoor_whiteboards --}}
-        <td class="px-3 py-2">{{ $wb->supplier_text ?? 'None' }}</td>
-        <td class="px-3 py-2">{{ $wb->storage_text ?? 'None' }}</td>
+        
+        <td class="px-3 py-2"><?php echo e($wb->supplier_text ?? 'None'); ?></td>
+        <td class="px-3 py-2"><?php echo e($wb->storage_text ?? 'None'); ?></td>
 
-        <td class="px-3 py-2">{{ $fmtDT($wb->completed_at) }}</td>
+        <td class="px-3 py-2"><?php echo e($fmtDT($wb->completed_at)); ?></td>
 
         <td class="px-3 py-2 text-center">
-  <form method="POST" action="{{ route('outdoor.whiteboard.restore') }}">
-    @csrf
-    <input type="hidden" name="outdoor_item_id" value="{{ $wb->outdoor_item_id }}">
+  <form method="POST" action="<?php echo e(route('outdoor.whiteboard.restore')); ?>">
+    <?php echo csrf_field(); ?>
+    <input type="hidden" name="outdoor_item_id" value="<?php echo e($wb->outdoor_item_id); ?>">
     <button class="text-xs px-3 py-1.5 rounded-full bg-emerald-600 text-white hover:bg-emerald-700">
       Restore to Active
     </button>
@@ -84,17 +83,20 @@
 </td>
 
       </tr>
-    @empty
+    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
       <tr>
         <td colspan="13" class="px-3 py-4 text-center text-neutral-500">
           No completed whiteboards yet.
         </td>
       </tr>
-    @endforelse
+    <?php endif; ?>
   </tbody>
 </table>
 
 <div class="mt-4">
-  {{ $whiteboards->links() }}
+  <?php echo e($whiteboards->links()); ?>
+
 </div>
-@endsection
+<?php $__env->stopSection(); ?>
+
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\Gjlang\kl_guide_tracker\resources\views/outdoor/whiteboard-completed.blade.php ENDPATH**/ ?>

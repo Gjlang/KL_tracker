@@ -561,16 +561,17 @@ Route::middleware(['auth','permission:report.summary.export'])
 // ===============================================
 // OUTDOOR WHITEBOARD ROUTES
 // ===============================================
-
 Route::prefix('outdoor/whiteboard')->name('outdoor.whiteboard.')->group(function () {
-    Route::get('/', [OutdoorWhiteboardController::class, 'index'])->name('index');
-    Route::get('/completed', [OutdoorWhiteboardController::class, 'completed'])->name('completed');
-
-    Route::post('/upsert', [OutdoorWhiteboardController::class, 'upsert'])->name('upsert');
-
+    // Views
+    Route::get('/',           [OutdoorWhiteboardController::class, 'index'])->name('index');
+    Route::get('/completed',  [OutdoorWhiteboardController::class, 'completed'])->name('completed');
+    // Mutations
+    Route::post('/upsert',         [OutdoorWhiteboardController::class, 'upsert'])->name('upsert');
     Route::post('/mark-completed', [OutdoorWhiteboardController::class, 'markCompleted'])->name('markCompleted');
-
-    Route::get('/export/by-product', [OutdoorWhiteboardController::class, 'exportByProduct'])->name('export.byProduct');
+    Route::post('/restore',        [OutdoorWhiteboardController::class, 'restore'])->name('restore');
+    // Export
+    Route::get('/export/ledger',[OutdoorWhiteboardController::class, 'exportLedgerXlsx'])->name('export.ledger');
+     // Danger zone
     Route::delete('/{whiteboard}', [OutdoorWhiteboardController::class, 'destroy'])->name('destroy');
 });
 
