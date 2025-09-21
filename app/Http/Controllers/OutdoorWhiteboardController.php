@@ -26,11 +26,17 @@ class OutdoorWhiteboardController extends Controller
 
   public function index(Request $request)
 {
+    // --- Inputs ---
     // Search (escaped for LIKE)
     $search = (string) $request->query('q', '');
     $search = str_replace(['\\','%','_'], ['\\\\','\\%','\\_'], $search);
 
-    // Master files + ONLY active outdoor items (no completed whiteboard)
+    // Sub Product filter
+    $allowedSubs = ['BB','TB','Newspaper','Bunting','Flyers','Star','Signages'];
+    $sub = (string) $request->query('sub', '');
+    $sub = in_array($sub, $allowedSubs, true) ? $sub : '';
+
+    // --- Master files + ONLY active outdoor items (no completed whiteboard) ---
     $masterFiles = MasterFile::query()
         ->when($search !== '', function ($q) use ($search) {
             $like = "%{$search}%";
@@ -40,7 +46,7 @@ class OutdoorWhiteboardController extends Controller
                    ->orWhere('location','like', $like);
             });
         })
-        ->with(['outdoorItems' => function ($q) {
+        ->with(['outdoorItems' => function ($q) use ($sub) {
             $q->select(
                 'outdoor_items.id',
                 'outdoor_items.master_file_id',
@@ -48,6 +54,8 @@ class OutdoorWhiteboardController extends Controller
                 'outdoor_items.start_date',
                 'outdoor_items.end_date'
             )
+            // Apply Sub Product filter (per-site)
+            ->when($sub !== '', fn ($qq) => $qq->where('outdoor_items.sub_product', $sub))
             // Exclude items that already have a completed whiteboard
             ->whereNotExists(function ($qq) {
                 $qq->select(DB::raw(1))
@@ -62,10 +70,10 @@ class OutdoorWhiteboardController extends Controller
     // (Optional) hide MasterFiles that end up with zero active items:
     // $masterFiles = $masterFiles->filter(fn ($mf) => $mf->outdoorItems->isNotEmpty())->values();
 
-    // Active item ids actually rendered
+    // --- Active item ids actually rendered ---
     $itemIds = $masterFiles->pluck('outdoorItems')->flatten()->pluck('id')->unique()->values();
 
-    // Prefill for active items (so values show after refresh)
+    // --- Prefill for active items (so values show after refresh) ---
     $existing = collect();
     if ($itemIds->isNotEmpty()) {
         $existing = OutdoorWhiteboard::query()
@@ -75,10 +83,10 @@ class OutdoorWhiteboardController extends Controller
             ->keyBy('outdoor_item_id');
     }
 
-    // Badge count for Completed link
+    // --- Badge count for Completed link (global, not filtered) ---
     $completedCount = OutdoorWhiteboard::whereNotNull('completed_at')->count();
 
-    // If your Blade doesn’t use $whiteboards, you can drop this block.
+    // --- Helper list: current open whiteboards (kept if your Blade uses it) ---
     $whiteboards = OutdoorWhiteboard::query()
         ->whereNull('completed_at')
         ->leftJoin('outdoor_items', 'outdoor_items.id', '=', 'outdoor_whiteboards.outdoor_item_id')
@@ -92,6 +100,8 @@ class OutdoorWhiteboardController extends Controller
                    ->orWhere('outdoor_items.site',    'like', $like);
             });
         })
+        // Apply Sub Product filter here too for consistency
+        ->when($sub !== '', fn ($q) => $q->where('outdoor_items.sub_product', $sub))
         ->select([
             'outdoor_whiteboards.*',
             'outdoor_items.id as oi_id',
@@ -108,9 +118,11 @@ class OutdoorWhiteboardController extends Controller
         'existing',
         'search',
         'completedCount',
-        'whiteboards'
+        'whiteboards',
+        'sub' // pass current filter to Blade
     ));
 }
+
 
 
    public function exportLedgerXlsx(): StreamedResponse

@@ -1,26 +1,12 @@
+<?php $__env->startSection('head'); ?>
+<!-- Google Fonts - Keep these link tags only -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+<?php $__env->stopSection(); ?>
+
 <?php $__env->startSection('content'); ?>
-<style>
-/* Classic Elegant Design System */
-.paper { background-color: #F7F7F9; }
-.surface { background-color: #FFFFFF; }
-.ink { color: #1C1E26; }
-.muted-ink { color: #6B7280; }
-.hairline { border-color: #EAEAEA; }
-
-/* Typography Scale */
-.serif-heading { @apply font-serif font-medium tracking-tight; }
-.sans-body { @apply font-sans; }
-.small-caps { @apply tracking-[0.06em] uppercase text-[11px] font-medium; }
-
-/* Component System */
-.floating-card { @apply bg-white rounded-2xl border border-neutral-200/70 shadow-sm; }
-.primary-btn { @apply bg-[#22255b] text-white hover:bg-[#1a1e4a] focus:ring-2 focus:ring-[#4bbbed] focus:ring-offset-2 rounded-full px-4 py-2.5 text-sm font-medium transition-all duration-150 outline-none; }
-.ghost-btn { @apply border border-neutral-300 text-neutral-600 hover:bg-neutral-50 focus:ring-2 focus:ring-[#4bbbed] focus:ring-offset-2 rounded-full px-4 py-2.5 text-sm font-medium transition-all duration-150 outline-none; }
-.elegant-input { @apply rounded-xl border-neutral-300 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-all duration-150 outline-none text-sm; }
-.ledger-input { @apply border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-all duration-150 outline-none bg-white; }
-.pagination-btn { @apply p-2 rounded-lg border border-neutral-200 hover:bg-neutral-50 focus:ring-2 focus:ring-[#4bbbed] focus:ring-offset-2 transition-all duration-150 outline-none disabled:opacity-50 disabled:cursor-not-allowed; }
-</style>
-
 <div class="min-h-screen paper">
   <div class="max-w-[1600px] mx-auto">
 
@@ -48,19 +34,50 @@
     <div class="px-8 py-6">
       <div class="floating-card p-6">
         <form method="get" class="space-y-4">
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
+          <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+            
+            <div class="md:col-span-2">
               <label class="small-caps text-neutral-600 block mb-2">Search Projects</label>
-              <input type="text" name="q" value="<?php echo e($search); ?>" placeholder="Company, product, location..." class="elegant-input w-full">
+              <input
+                type="text"
+                name="q"
+                value="<?php echo e($search); ?>"
+                placeholder="Company, product, location..."
+                class="elegant-input w-full"
+              >
             </div>
+
+            
+            <div>
+              <label class="small-caps text-neutral-600 block mb-2">Sub Product</label>
+              <select name="sub" class="elegant-input w-full">
+                <?php
+                  $subOptions = ['' => 'All', 'BB' => 'BB', 'TB' => 'TB', 'Newspaper' => 'Newspaper', 'Bunting' => 'Bunting', 'Flyers' => 'Flyers', 'Star' => 'Star', 'Signages' => 'Signages'];
+                ?>
+                <?php $__currentLoopData = $subOptions; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $val => $label): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                  <option value="<?php echo e($val); ?>" <?php if(($sub ?? '') === $val): echo 'selected'; endif; ?>><?php echo e($label); ?></option>
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+              </select>
+            </div>
+
+            
             <div class="flex items-end">
               <button type="submit" class="primary-btn w-full">Apply Filters</button>
             </div>
+
+            
+            <div class="flex items-end">
+              <a href="<?php echo e(route('outdoor.whiteboard.index')); ?>" class="secondary-btn w-full text-center">Clear</a>
+            </div>
+          </div>
+
+          
+          <div class="flex items-center gap-3 pt-2">
             <a
-            href="<?php echo e(route('outdoor.whiteboard.export.ledger')); ?>"
-            class="primary-btn inline-flex items-center gap-2"
+              href="<?php echo e(route('outdoor.whiteboard.export.ledger', ['q' => $search, 'sub' => $sub])); ?>"
+              class="primary-btn inline-flex items-center gap-2"
             >
-            Export
+              Export
             </a>
           </div>
         </form>
@@ -76,16 +93,20 @@
             <p class="muted-ink text-sm mt-1 sans-body"><?php echo e(count($masterFiles)); ?> projects</p>
           </div>
 
-          <!-- Column Navigation -->
-          <div class="flex items-center gap-2">
-            <span class="small-caps text-neutral-600">Columns</span>
-            <button type="button" class="pagination-btn" id="prevColumns">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-            </button>
-            <span class="text-sm text-neutral-600 px-2" id="columnRange">1-12</span>
-            <button type="button" class="pagination-btn" id="nextColumns">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-            </button>
+          <!-- Navigation Controls -->
+          <div class="flex items-center gap-6">
+
+            <!-- Row Navigation -->
+            <div class="flex items-center gap-2">
+              <span class="small-caps text-neutral-600">Rows</span>
+              <button type="button" class="pagination-btn" id="prevRows">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+              </button>
+              <span class="text-sm text-neutral-600 px-2" id="rowRange">1–15</span>
+              <button type="button" class="pagination-btn" id="nextRows">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -100,10 +121,7 @@
                 <?php $__currentLoopData = $masterFiles; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $mf): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                     <?php $__currentLoopData = $mf->outdoorItems; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                         <?php
-                        // Use outdoor_item_id instead of master_file_id for lookup
                         $wb = $existing->get($item->id);
-
-                        // Safe date formatting - handle both Carbon objects and string dates
                         $poDate = '';
                         if ($wb?->po_date) {
                             $poDate = $wb->po_date instanceof \Carbon\Carbon
@@ -130,6 +148,7 @@
                         data-item="<?php echo e($item->id); ?>"
                         data-master="<?php echo e($mf->id); ?>"
                         data-updated="<?php echo e(optional($wb?->updated_at)->timestamp ?? 0); ?>">
+
                         <!-- 1) No. -->
                         <td class="px-4 py-3 text-sm column-data" data-column="1">
                             <div class="ink font-medium"><?php echo e($row); ?></div>
@@ -140,7 +159,7 @@
                             <div class="ink font-medium"><?php echo e($mf->created_at?->format('m/d/Y')); ?></div>
                         </td>
 
-                        <!-- 3) INV number (from master_files) -->
+                        <!-- 3) INV number -->
                         <td class="px-4 py-3 text-sm column-data" data-column="3">
                             <div class="ink truncate max-w-[140px]" title="<?php echo e($mf->invoice_number ?? $mf->inv_number); ?>">
                             <?php echo e($mf->invoice_number ?? $mf->inv_number); ?>
@@ -148,7 +167,7 @@
                             </div>
                         </td>
 
-                        <!-- 4) PO (stacked) -->
+                        <!-- 4) PO -->
                         <td class="px-4 py-3 text-sm column-data" data-column="4">
                             <div class="space-y-2">
                             <input type="text" name="po_text" class="wb-field ledger-input w-36" placeholder="PO note..." value="<?php echo e(old('po_text', $wb?->po_text)); ?>">
@@ -156,32 +175,32 @@
                             </div>
                         </td>
 
-                        <!-- 5) Product (from master_files) -->
+                        <!-- 5) Company -->
                         <td class="px-4 py-3 text-sm column-data" data-column="5">
-                            <div class="ink truncate max-w-[140px]" title="<?php echo e($mf->product); ?>"><?php echo e($mf->product); ?></div>
-                        </td>
-
-                        <!-- 6) Company (from master_files) -->
-                        <td class="px-4 py-3 text-sm column-data" data-column="6">
                             <div class="ink font-medium truncate max-w-[180px]" title="<?php echo e($mf->company); ?>"><?php echo e($mf->company); ?></div>
                         </td>
 
-                        <!-- 7) Location (site from outdoor_items) -->
+                        <!-- 6) Product -->
+                        <td class="px-4 py-3 text-sm column-data" data-column="6">
+                            <div class="ink truncate max-w-[140px]" title="<?php echo e($mf->product); ?>"><?php echo e($mf->product); ?></div>
+                        </td>
+
+                        <!-- 7) Location -->
                         <td class="px-4 py-3 text-sm column-data" data-column="7">
                             <div class="ink truncate max-w-[180px]" title="<?php echo e($item->site); ?>"><?php echo e($item->site); ?></div>
                         </td>
 
-                        <!-- 8) Installation (start_date from outdoor_items) -->
+                        <!-- 8) Installation -->
                         <td class="px-4 py-3 text-sm column-data" data-column="8">
                             <div class="ink"><?php echo e($item->start_date?->format('m/d/Y')); ?></div>
                         </td>
 
-                        <!-- 9) Dismantle (end_date from outdoor_items) -->
+                        <!-- 9) Dismantle -->
                         <td class="px-4 py-3 text-sm column-data" data-column="9">
                             <div class="ink"><?php echo e($item->end_date?->format('m/d/Y')); ?></div>
                         </td>
 
-                        <!-- 10) Supplier (stacked) -->
+                        <!-- 10) Supplier -->
                         <td class="px-4 py-3 text-sm column-data" data-column="10">
                             <div class="space-y-2">
                             <input type="text" name="supplier_text" class="wb-field ledger-input w-36" placeholder="Supplier note..." value="<?php echo e(old('supplier_text', $wb?->supplier_text)); ?>">
@@ -189,7 +208,7 @@
                             </div>
                         </td>
 
-                        <!-- 11) Storage (stacked) -->
+                        <!-- 11) Storage -->
                         <td class="px-4 py-3 text-sm column-data" data-column="11">
                             <div class="space-y-2">
                             <input type="text" name="storage_text" class="wb-field ledger-input w-36" placeholder="Storage note..." value="<?php echo e(old('storage_text', $wb?->storage_text)); ?>">
@@ -232,7 +251,6 @@
   </div>
 </div>
 
-
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -246,8 +264,8 @@ document.addEventListener('DOMContentLoaded', function () {
     { title: 'Created', key: 'created' },
     { title: 'INV Number', key: 'inv' },
     { title: 'Purchase Order', key: 'po' },
-    { title: 'Product', key: 'product' },
     { title: 'Company', key: 'company' },
+    { title: 'Product', key: 'product' },
     { title: 'Location', key: 'location' },
     { title: 'Installation', key: 'installation' },
     { title: 'Dismantle', key: 'dismantle' },
@@ -286,34 +304,88 @@ document.addEventListener('DOMContentLoaded', function () {
     if (nextBtn) nextBtn.disabled = endCol >= columnHeaders.length;
   }
 
-  const prevBtn = document.getElementById('prevColumns');
-  if (prevBtn) prevBtn.addEventListener('click', function () {
+  // Column navigation event listeners
+  const prevColBtn = document.getElementById('prevColumns');
+  if (prevColBtn) prevColBtn.addEventListener('click', function () {
     if (currentColumnPage > 1) { currentColumnPage--; updateColumnDisplay(); }
   });
 
-  const nextBtn = document.getElementById('nextColumns');
-  if (nextBtn) nextBtn.addEventListener('click', function () {
+  const nextColBtn = document.getElementById('nextColumns');
+  if (nextColBtn) nextColBtn.addEventListener('click', function () {
     const maxPages = Math.ceil(columnHeaders.length / COLUMNS_PER_PAGE);
     if (currentColumnPage < maxPages) { currentColumnPage++; updateColumnDisplay(); }
   });
 
-  updateColumnDisplay();
+  // --- Row pagination ---
+  const ROWS_PER_PAGE = 15;
+  let currentRowPage = 1;
 
-  // ===== Autosave =====
+  function getRows() {
+    return Array.from(document.querySelectorAll('#tableBody > tr'));
+  }
+
+  function renumberAll() {
+    const rows = getRows();
+    rows.forEach((tr, idx) => {
+      const noTd = tr.querySelector('td[data-column="1"]');
+      if (!noTd) return;
+      const ink = noTd.querySelector('.ink');
+      if (ink) ink.textContent = idx + 1;
+      else noTd.textContent = idx + 1;
+    });
+  }
+
+  function updateRowDisplay() {
+    const rows = getRows();
+    const total = rows.length;
+    const maxPages = Math.max(1, Math.ceil(total / ROWS_PER_PAGE));
+    if (currentRowPage > maxPages) currentRowPage = maxPages;
+
+    const startIdx = (currentRowPage - 1) * ROWS_PER_PAGE;
+    const endIdx = Math.min(startIdx + ROWS_PER_PAGE, total);
+
+    rows.forEach((tr, i) => {
+      tr.style.display = (i >= startIdx && i < endIdx) ? '' : 'none';
+    });
+
+    const range = document.getElementById('rowRange');
+    if (range) range.textContent = `${total ? startIdx + 1 : 0}–${endIdx} of ${total}`;
+
+    const prev = document.getElementById('prevRows');
+    const next = document.getElementById('nextRows');
+    if (prev) prev.disabled = currentRowPage === 1;
+    if (next) next.disabled = currentRowPage >= maxPages;
+
+    renumberAll();
+  }
+
+  // Row navigation event listeners
+  document.getElementById('prevRows')?.addEventListener('click', () => {
+    if (currentRowPage > 1) { currentRowPage--; updateRowDisplay(); }
+  });
+  document.getElementById('nextRows')?.addEventListener('click', () => {
+    const maxPages = Math.max(1, Math.ceil(getRows().length / ROWS_PER_PAGE));
+    if (currentRowPage < maxPages) { currentRowPage++; updateRowDisplay(); }
+  });
+
+  // Initialize both pagers
+  updateColumnDisplay();
+  updateRowDisplay();
+
+  // ===== Autosave functionality =====
   const debounce = (fn, ms = 800) => {
     let t;
     return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
   };
 
   function gatherRow(row) {
-    const master_file_id  = row.getAttribute('data-master');
+    const master_file_id = row.getAttribute('data-master');
     const outdoor_item_id = row.getAttribute('data-item');
 
     const payload = { master_file_id, outdoor_item_id };
     row.querySelectorAll('.wb-field').forEach(el => {
       payload[el.name] = el.value || null;
     });
-    console.debug('WB payload', payload);
     return payload;
   }
 
@@ -344,7 +416,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   const debouncedAutosave = debounce((row) => autosave(row), 600);
 
-  // Delegate input/change for autosave
+  // Autosave event listeners
   document.addEventListener('input', (e) => {
     const el = e.target;
     if (!el.classList?.contains('wb-field')) return;
@@ -359,7 +431,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (row) autosave(row);
   });
 
-  // ===== Mark Completed (delegated) =====
+  // ===== Mark Completed functionality =====
   document.addEventListener('click', async (e) => {
     const btn = e.target.closest('.complete-btn');
     if (!btn) return;
@@ -373,11 +445,10 @@ document.addEventListener('DOMContentLoaded', function () {
     btn.textContent = 'Completing...';
 
     try {
-      // (Optional) persist any unsaved edits before completing
       try {
         await autosave(row);
       } catch (ignore) {
-        // Even if autosave fails, still attempt to mark completed below
+        // Continue even if autosave fails
       }
 
       const res = await fetch('<?php echo e(route('outdoor.whiteboard.markCompleted')); ?>', {
@@ -392,17 +463,18 @@ document.addEventListener('DOMContentLoaded', function () {
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error('Complete failed');
 
-      // Remove row from main table
+      // Remove row and update display
       row.parentNode.removeChild(row);
+      updateRowDisplay();
 
-      // Update completed count if element exists (e.g., "Completed (12)")
-      const completedLink = document.querySelector('a[href*="completed"]');
-      if (completedLink) {
-        const currentText = completedLink.textContent;
+      // Update completed count
+      const completedBadge = document.getElementById('completed-badge');
+      if (completedBadge) {
+        const currentText = completedBadge.textContent;
         const match = currentText.match(/\((\d+)\)/);
         if (match) {
           const newCount = parseInt(match[1], 10) + 1;
-          completedLink.textContent = currentText.replace(/\(\d+\)/, `(${newCount})`);
+          completedBadge.textContent = currentText.replace(/\(\d+\)/, `(${newCount})`);
         }
       }
     } catch (err) {
