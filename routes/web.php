@@ -26,6 +26,8 @@ use App\Http\Controllers\OutdoorInlineController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Report\SummaryReportController;
 use App\Http\Controllers\OutdoorWhiteboardController;
+use App\Http\Controllers\CoordinatorCalendarController;
+
 
 
 
@@ -575,3 +577,10 @@ Route::prefix('outdoor/whiteboard')->name('outdoor.whiteboard.')->group(function
     Route::delete('/{whiteboard}', [OutdoorWhiteboardController::class, 'destroy'])->name('destroy');
 });
 
+Route::middleware(['auth'])->group(function () {
+    Route::get('/calendar/coordinators', [CoordinatorCalendarController::class, 'index'])
+        ->name('calendar.coordinators.index');
+
+    Route::get('/calendar/coordinators/events', [CoordinatorCalendarController::class, 'events'])
+        ->name('calendar.coordinators.events');
+});

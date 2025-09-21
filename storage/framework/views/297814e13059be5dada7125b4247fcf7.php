@@ -273,7 +273,15 @@
    class="inline-flex items-center px-3 py-2 rounded-lg text-white"
    style="background:#22255b">
    Print All (Summary)
+
 </a>
+
+<a href="<?php echo e(route('calendar.coordinators.index')); ?>"
+   class="inline-flex items-center px-3 py-2 rounded-full text-white"
+   style="background:#22255b">
+  Coordinator Calendar
+</a>
+
 
 
                         <!-- Logout - Destructive (Always visible) -->

@@ -519,7 +519,7 @@ public function upsert(Request $request)
     $dateKeyMap = [
         'artwork_reminder_date'   => 'artwork_reminder',
         'material_received_date'  => 'material_record',
-        // 'artwork_done'        => 'artwork_reminder', // ❌ salah: hapus fallback ini
+        'artwork_done_date'       => 'artwork_done',
         'send_chop_sign_date'     => 'send_chop_sign',
         'chop_sign_approval_date' => 'chop_sign_approval',
         'park_in_server_date'     => 'park_in_file_server',
@@ -571,7 +571,7 @@ public function upsert(Request $request)
         'print' => [
             'title_snapshot','company_snapshot','client_bp','x','edition','publication',
             'artwork_bp_client','artwork_reminder','material_record',
-            'send_chop_sign','chop_sign_approval','park_in_file_server','remarks'
+            'send_chop_sign','chop_sign_approval','park_in_file_server','remarks','artwork_done'
         ],
         'video' => [
             'title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text',
@@ -601,12 +601,8 @@ public function upsert(Request $request)
         ], 422);
     }
 
-    // 6) Coerce types
-    if ($column === 'x') {
-        $value = filter_var($value, FILTER_VALIDATE_BOOLEAN) ? '1' : '0';
-    }
     $dateColumns = [
-        'artwork_reminder','material_record','send_chop_sign','chop_sign_approval',
+        'artwork_reminder','material_record','send_chop_sign','chop_sign_approval','artwork_done',
         'video_done','pending_approval','video_approved','video_scheduled','video_posted',
         'article_done','article_approved','article_scheduled','article_posted',
         'em_date_write','em_date_to_post','em_post_date',

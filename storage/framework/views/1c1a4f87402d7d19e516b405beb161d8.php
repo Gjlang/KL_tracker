@@ -1,11 +1,11 @@
-@push('head')
-  <meta name="csrf-token" content="{{ csrf_token() }}">
+<?php $__env->startPush('head'); ?>
+  <meta name="csrf-token" content="<?php echo e(csrf_token()); ?>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-@endpush
+<?php $__env->stopPush(); ?>
 
-@push('styles')
+<?php $__env->startPush('styles'); ?>
 <style>
 /* Typography & Base Styles */
 .font-serif { font-family: 'EB Garamond', Georgia, serif; }
@@ -393,9 +393,9 @@
   letter-spacing: 0.025em;
 }
 </style>
-@endpush
+<?php $__env->stopPush(); ?>
 
-@php
+<?php
   /** @var \Illuminate\Support\Collection $rows */
   /** @var \Illuminate\Support\Collection $existing */
 
@@ -490,16 +490,25 @@
     // Non-date: return as-is (string/number/bool)
     return $v ?? '';
   }
-@endphp
+?>
 
-<x-app-layout>
+<?php if (isset($component)) { $__componentOriginal4619374cef299e94fd7263111d0abc69 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal4619374cef299e94fd7263111d0abc69 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.app-layout','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('app-layout'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
   <div class="page-canvas">
     <!-- Header Bar -->
     <div class="header-bar">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div class="flex items-center gap-6">
-            <a href="{{ route('dashboard.kltg') }}" class="btn-ghost">
+            <a href="<?php echo e(route('dashboard.kltg')); ?>" class="btn-ghost">
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
               </svg>
@@ -507,17 +516,17 @@
             </a>
 
             <div>
-              <h1 class="font-serif text-4xl font-medium ink text-balance">{{ $periodLabel }}</h1>
+              <h1 class="font-serif text-4xl font-medium ink text-balance"><?php echo e($periodLabel); ?></h1>
               <p class="soft-ink text-sm mt-1 tracking-wide">Monthly KLTG Overview</p>
             </div>
           </div>
 
           <div class="flex items-center gap-3">
-            <form method="GET" action="{{ route('coordinator.kltg.export') }}" id="exportForm">
-              <input type="hidden" name="subcategory" value="{{ $activeTab }}">
-              <input type="hidden" name="month" id="exportMonth" value="{{ $month }}">
-              <input type="hidden" name="year" id="exportYear" value="{{ $year }}">
-              <input type="hidden" name="working" value="{{ request('working') }}">
+            <form method="GET" action="<?php echo e(route('coordinator.kltg.export')); ?>" id="exportForm">
+              <input type="hidden" name="subcategory" value="<?php echo e($activeTab); ?>">
+              <input type="hidden" name="month" id="exportMonth" value="<?php echo e($month); ?>">
+              <input type="hidden" name="year" id="exportYear" value="<?php echo e($year); ?>">
+              <input type="hidden" name="working" value="<?php echo e(request('working')); ?>">
               <button type="submit" class="btn-primary">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
@@ -534,32 +543,34 @@
       <!-- Filter Card -->
       <div class="filter-card" style="background: white; border-radius: 1rem; border: 2px solid #E5E7EB; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05); padding: 1.5rem; margin-bottom: 2rem;">
         <!-- Active Filter Chips -->
-        @if($month || $year)
+        <?php if($month || $year): ?>
           <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #E5E7EB;">
-            @if($month)
+            <?php if($month): ?>
               <span style="display: inline-flex; align-items: center; padding: 0.5rem 1rem; background: linear-gradient(135deg, #22255b 0%, #1a1d4a 100%); color: white; border-radius: 9999px; font-size: 0.875rem; font-weight: 500; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
-                {{ date('F', mktime(0,0,0,$month,1)) }}
+                <?php echo e(date('F', mktime(0,0,0,$month,1))); ?>
+
                 <span style="margin-left: 0.75rem; color: rgba(255, 255, 255, 0.7); cursor: pointer; font-weight: 600; padding: 0.125rem 0.25rem; border-radius: 50%; transition: all 150ms ease;"
                       onclick="clearParam('month')"
                       onmouseover="this.style.backgroundColor='rgba(255,255,255,0.2)'; this.style.color='white';"
                       onmouseout="this.style.backgroundColor='transparent'; this.style.color='rgba(255,255,255,0.7)';">×</span>
               </span>
-            @endif
-            @if($year)
+            <?php endif; ?>
+            <?php if($year): ?>
               <span style="display: inline-flex; align-items: center; padding: 0.5rem 1rem; background: linear-gradient(135deg, #22255b 0%, #1a1d4a 100%); color: white; border-radius: 9999px; font-size: 0.875rem; font-weight: 500; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
-                {{ $year }}
+                <?php echo e($year); ?>
+
                 <span style="margin-left: 0.75rem; color: rgba(255, 255, 255, 0.7); cursor: pointer; font-weight: 600; padding: 0.125rem 0.25rem; border-radius: 50%; transition: all 150ms ease;"
                       onclick="clearParam('year')"
                       onmouseover="this.style.backgroundColor='rgba(255,255,255,0.2)'; this.style.color='white';"
                       onmouseout="this.style.backgroundColor='transparent'; this.style.color='rgba(255,255,255,0.7)';">×</span>
               </span>
-            @endif
+            <?php endif; ?>
           </div>
-        @endif
+        <?php endif; ?>
 
         <!-- Filter Form -->
         <form method="get">
-          <input type="hidden" name="tab" value="{{ $activeTab }}">
+          <input type="hidden" name="tab" value="<?php echo e($activeTab); ?>">
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-end">
             <div>
               <label style="display: block; color: #6B7280; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; font-weight: 600; font-family: 'Inter', sans-serif;">Month</label>
@@ -567,9 +578,9 @@
                       onfocus="this.style.borderColor='#4bbbed'; this.style.boxShadow='0 0 0 3px rgba(75, 187, 237, 0.1)';"
                       onblur="this.style.borderColor='#D1D5DB'; this.style.boxShadow='none';">
                 <option value="">All Months</option>
-                @for($m=1;$m<=12;$m++)
-                  <option value="{{ $m }}" @selected($month==$m)>{{ date('F', mktime(0,0,0,$m,1)) }}</option>
-                @endfor
+                <?php for($m=1;$m<=12;$m++): ?>
+                  <option value="<?php echo e($m); ?>" <?php if($month==$m): echo 'selected'; endif; ?>><?php echo e(date('F', mktime(0,0,0,$m,1))); ?></option>
+                <?php endfor; ?>
               </select>
             </div>
 
@@ -579,9 +590,9 @@
                       onfocus="this.style.borderColor='#4bbbed'; this.style.boxShadow='0 0 0 3px rgba(75, 187, 237, 0.1)';"
                       onblur="this.style.borderColor='#D1D5DB'; this.style.boxShadow='none';">
                 <option value="">All Years</option>
-                @for($y=now()->year+1;$y>=now()->year-4;$y--)
-                  <option value="{{ $y }}" @selected($year==$y)>{{ $y }}</option>
-                @endfor
+                <?php for($y=now()->year+1;$y>=now()->year-4;$y--): ?>
+                  <option value="<?php echo e($y); ?>" <?php if($year==$y): echo 'selected'; endif; ?>><?php echo e($y); ?></option>
+                <?php endfor; ?>
               </select>
             </div>
 
@@ -601,29 +612,30 @@
       </div>
 
       <!-- Tab Container -->
-      @php $tabs = ['print'=>'KLTG','video'=>'Video','article'=>'Article','lb'=>'LB','em'=>'EM']; @endphp
+      <?php $tabs = ['print'=>'KLTG','video'=>'Video','article'=>'Article','lb'=>'LB','em'=>'EM']; ?>
       <div style="background: white; border-radius: 1rem; border: 2px solid #E5E7EB; margin-bottom: 2rem; overflow: hidden; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
         <div style="display: flex; background: #F1F3F4; padding: 0.75rem; gap: 0.375rem; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none;">
-          @foreach ($tabs as $key => $label)
-            @php
+          <?php $__currentLoopData = $tabs; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $key => $label): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <?php
               $isActive = $activeTab === $key;
               $baseStyle = "display: inline-block; padding: 0.875rem 1.75rem; font-size: 0.875rem; font-weight: 600; text-decoration: none; border-radius: 0.75rem; white-space: nowrap; min-width: max-content; transition: all 200ms ease; font-family: 'Inter', sans-serif;";
               $activeStyle = $isActive
                 ? "color: #1C1E26; background: white; box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06); border: 1px solid #E5E7EB;"
                 : "color: #6B7280; background: transparent; border: 1px solid transparent;";
               $hoverStyle = !$isActive ? "onmouseover=\"this.style.backgroundColor='rgba(255,255,255,0.6)'; this.style.color='#374151';\" onmouseout=\"this.style.backgroundColor='transparent'; this.style.color='#6B7280';\"" : "";
-            @endphp
-            <a href="{{ route('coordinator.kltg.index', array_filter(['tab'=>$key,'month'=>$month,'year'=>$year])) }}"
-               style="{{ $baseStyle }} {{ $activeStyle }}"
-               {!! $hoverStyle !!}>
-              {{ $label }}
+            ?>
+            <a href="<?php echo e(route('coordinator.kltg.index', array_filter(['tab'=>$key,'month'=>$month,'year'=>$year]))); ?>"
+               style="<?php echo e($baseStyle); ?> <?php echo e($activeStyle); ?>"
+               <?php echo $hoverStyle; ?>>
+              <?php echo e($label); ?>
+
             </a>
-          @endforeach
+          <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
         </div>
       </div>
 
       <!-- Data Table -->
-      @if($rows->isEmpty())
+      <?php if($rows->isEmpty()): ?>
         <div class="table-card">
           <div class="empty-state">
             <div class="empty-icon">
@@ -635,7 +647,7 @@
             <p class="soft-ink text-sm tracking-wide">No coordinator items found for the selected period.</p>
           </div>
         </div>
-      @else
+      <?php else: ?>
         <div class="table-card" style="border: 2px solid #D1D5DB; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
           <div class="overflow-x-auto">
             <table class="ledger-table" style="border-collapse: separate; border-spacing: 0; width: 100%;">
@@ -646,90 +658,92 @@
                   <th class="col-date caps-header" style="background: #F3F4F6; border-bottom: 3px solid #D1D5DB; border-right: 2px solid #D1D5DB; padding: 1.25rem 1rem; font-weight: 700;">Date Created</th>
                   <th class="col-company caps-header" style="background: #F3F4F6; border-bottom: 3px solid #D1D5DB; border-right: 2px solid #D1D5DB; padding: 1.25rem 1rem; font-weight: 700;">Company</th>
                   <th class="col-person caps-header" style="background: #F3F4F6; border-bottom: 3px solid #D1D5DB; border-right: 2px solid #D1D5DB; padding: 1.25rem 1rem; font-weight: 700;">Person In Charge</th>
-                  @foreach ($columns[$activeTab] as $col)
-                    @php
+                  <?php $__currentLoopData = $columns[$activeTab]; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $col): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <?php
                       $isNumeric = in_array($col['key'], ['x', 'edition', 'publication', 'em_qty']);
                       $headerStyle = "background: #F3F4F6; border-bottom: 3px solid #D1D5DB; border-right: 2px solid #D1D5DB; padding: 1.25rem 1rem; font-weight: 700;";
                       if ($isNumeric) $headerStyle .= " text-align: right;";
-                    @endphp
-                    <th class="col-standard caps-header {{ $isNumeric ? 'text-right' : '' }}" style="{{ $headerStyle }}">
-                      @if($col['key'] === 'x')
+                    ?>
+                    <th class="col-standard caps-header <?php echo e($isNumeric ? 'text-right' : ''); ?>" style="<?php echo e($headerStyle); ?>">
+                      <?php if($col['key'] === 'x'): ?>
                         X
-                      @elseif($col['key'] === 'em_qty')
+                      <?php elseif($col['key'] === 'em_qty'): ?>
                         Quantity
-                      @else
-                        {{ $col['label'] }}
-                      @endif
+                      <?php else: ?>
+                        <?php echo e($col['label']); ?>
+
+                      <?php endif; ?>
                     </th>
-                  @endforeach
+                  <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                 </tr>
               </thead>
               <tbody>
-                @foreach ($rows as $i => $r)
+                <?php $__currentLoopData = $rows; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $i => $r): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                   <tr style="transition: all 150ms ease;" onmouseover="this.style.backgroundColor='#EBF8FF'" onmouseout="this.style.backgroundColor='white'">
-                    <td class="col-no text-right soft-ink font-medium tabular-nums" style="padding: 1.25rem 1rem; border-bottom: 1px solid #D1D5DB; border-right: 1px solid #D1D5DB; background: white;">{{ $i+1 }}</td>
+                    <td class="col-no text-right soft-ink font-medium tabular-nums" style="padding: 1.25rem 1rem; border-bottom: 1px solid #D1D5DB; border-right: 1px solid #D1D5DB; background: white;"><?php echo e($i+1); ?></td>
                     <td class="col-date ink font-medium tabular-nums" style="padding: 1.25rem 1rem; border-bottom: 1px solid #D1D5DB; border-right: 1px solid #D1D5DB; background: white;">
-                      {{ optional($r->date ?? null)->format('Y-m-d') ?? optional($r->created_at)->format('Y-m-d') }}
+                      <?php echo e(optional($r->date ?? null)->format('Y-m-d') ?? optional($r->created_at)->format('Y-m-d')); ?>
+
                     </td>
                     <td class="col-company ink font-medium" style="padding: 1.25rem 1rem; border-bottom: 1px solid #D1D5DB; border-right: 1px solid #D1D5DB; background: white;">
-                      <div class="truncate" title="{{ $r->company_name }}">{{ $r->company_name }}</div>
+                      <div class="truncate" title="<?php echo e($r->company_name); ?>"><?php echo e($r->company_name); ?></div>
                     </td>
-                    <td class="col-person ink" style="padding: 1.25rem 1rem; border-bottom: 1px solid #D1D5DB; border-right: 1px solid #D1D5DB; background: white;">{{ $r->client }}</td>
+                    <td class="col-person ink" style="padding: 1.25rem 1rem; border-bottom: 1px solid #D1D5DB; border-right: 1px solid #D1D5DB; background: white;"><?php echo e($r->client); ?></td>
 
-                    @foreach ($columns[$activeTab] as $col)
-                      @php
+                    <?php $__currentLoopData = $columns[$activeTab]; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $col): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                      <?php
                         $key = $col['key'];
                         $type = $col['type'];
                         $isNumeric = in_array($key, ['x', 'edition', 'publication', 'em_qty']);
                         $cellStyle = "padding: 1.25rem 1rem; border-bottom: 1px solid #D1D5DB; border-right: 1px solid #D1D5DB; background: white;";
                         if ($isNumeric) $cellStyle .= " text-align: right;";
-                      @endphp
+                      ?>
 
-                      @if ($key === 'edition')
-                        <td class="col-standard {{ $isNumeric ? 'text-right' : '' }}" style="{{ $cellStyle }}">
-                          @if($r->edition)
-                            <span class="badge">{{ $r->edition }}</span>
-                          @else
+                      <?php if($key === 'edition'): ?>
+                        <td class="col-standard <?php echo e($isNumeric ? 'text-right' : ''); ?>" style="<?php echo e($cellStyle); ?>">
+                          <?php if($r->edition): ?>
+                            <span class="badge"><?php echo e($r->edition); ?></span>
+                          <?php else: ?>
                             <span class="placeholder-dash">—</span>
-                          @endif
+                          <?php endif; ?>
                         </td>
-                      @elseif ($key === 'publication')
-                        <td class="col-standard {{ $isNumeric ? 'text-right' : '' }}" style="{{ $cellStyle }}">
-                          @if($r->publication)
-                            <span class="badge">{{ $r->publication }}</span>
-                          @else
+                      <?php elseif($key === 'publication'): ?>
+                        <td class="col-standard <?php echo e($isNumeric ? 'text-right' : ''); ?>" style="<?php echo e($cellStyle); ?>">
+                          <?php if($r->publication): ?>
+                            <span class="badge"><?php echo e($r->publication); ?></span>
+                          <?php else: ?>
                             <span class="placeholder-dash">—</span>
-                          @endif
+                          <?php endif; ?>
                         </td>
-                      @else
-                        @php $val = cellVal($existing, $r, $key, $type, $activeTab); @endphp
-                        <td class="col-standard {{ $isNumeric ? 'text-right' : '' }}" style="{{ $cellStyle }}">
-                          @if($type==='date')
+                      <?php else: ?>
+                        <?php $val = cellVal($existing, $r, $key, $type, $activeTab); ?>
+                        <td class="col-standard <?php echo e($isNumeric ? 'text-right' : ''); ?>" style="<?php echo e($cellStyle); ?>">
+                          <?php if($type==='date'): ?>
                             <input type="date"
-                              class="table-input {{ $isNumeric ? 'text-right' : '' }} tabular-nums"
-                              value="{{ $val }}"
-                              data-master-file-id="{{ $r->id }}"
-                              data-subcategory="{{ $activeTab }}"
-                              data-field="{{ $key }}" />
-                          @else
+                              class="table-input <?php echo e($isNumeric ? 'text-right' : ''); ?> tabular-nums"
+                              value="<?php echo e($val); ?>"
+                              data-master-file-id="<?php echo e($r->id); ?>"
+                              data-subcategory="<?php echo e($activeTab); ?>"
+                              data-field="<?php echo e($key); ?>" />
+                          <?php else: ?>
                             <input type="text"
-                              class="table-input {{ $isNumeric ? 'text-right tabular-nums' : '' }}"
-                              value="{{ $val }}"
+                              class="table-input <?php echo e($isNumeric ? 'text-right tabular-nums' : ''); ?>"
+                              value="<?php echo e($val); ?>"
                               placeholder="—"
-                              data-master-file-id="{{ $r->id }}"
-                              data-subcategory="{{ $activeTab }}"
-                              data-field="{{ $key }}" />
-                          @endif
+                              data-master-file-id="<?php echo e($r->id); ?>"
+                              data-subcategory="<?php echo e($activeTab); ?>"
+                              data-field="<?php echo e($key); ?>" />
+                          <?php endif; ?>
                         </td>
-                      @endif
-                    @endforeach
+                      <?php endif; ?>
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                   </tr>
-                @endforeach
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
               </tbody>
             </table>
           </div>
         </div>
-      @endif
+      <?php endif; ?>
 
     </div>
   </div>
@@ -759,8 +773,8 @@
     });
 
     window.KLTG = {
-      upsertUrl: @json(route('coordinator.kltg.upsert')),
-      csrf: @json(csrf_token())
+      upsertUrl: <?php echo json_encode(route('coordinator.kltg.upsert'), 15, 512) ?>,
+      csrf: <?php echo json_encode(csrf_token(), 15, 512) ?>
     };
 
     // Autosave functionality
@@ -867,4 +881,14 @@
     })();
   </script>
 
-</x-app-layout>
+ <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal4619374cef299e94fd7263111d0abc69)): ?>
+<?php $attributes = $__attributesOriginal4619374cef299e94fd7263111d0abc69; ?>
+<?php unset($__attributesOriginal4619374cef299e94fd7263111d0abc69); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal4619374cef299e94fd7263111d0abc69)): ?>
+<?php $component = $__componentOriginal4619374cef299e94fd7263111d0abc69; ?>
+<?php unset($__componentOriginal4619374cef299e94fd7263111d0abc69); ?>
+<?php endif; ?>
+<?php /**PATH C:\Users\Gjlang\kl_guide_tracker\resources\views/coordinators/kltg.blade.php ENDPATH**/ ?>
