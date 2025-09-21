@@ -35,14 +35,21 @@ class OutdoorOngoingJobController extends Controller
 }
 
 
-
-   public function index(Request $request)
+public function index(Request $request)
 {
     $year   = (int) ($request->input('year') ?? $request->input('outdoor_year') ?? now('Asia/Kuala_Lumpur')->year);
     $month  = (int) ($request->input('month') ?? $request->input('outdoor_month') ?? 0);
     $search = trim((string) $request->input('search',''));
 
-    // subquery: ada detail di tahun terpilih?
+    // Subproduct whitelist + value from dropdown
+    $subproducts = ['BB','TB','Newspaper','Bunting','Flyers','Star','Signages'];
+    $sub = trim((string) $request->input('product_category', ''));
+
+    // Year boundaries for overlap checks
+    $yearStart = Carbon::create($year, 1, 1)->toDateString();
+    $yearEnd   = Carbon::create($year, 12, 31)->toDateString();
+
+    // Preload: is there any detail for selected year (acts as a bypass)
     $d = DB::table('outdoor_monthly_details')
         ->select('outdoor_item_id')
         ->where('year', $year)
@@ -53,38 +60,65 @@ class OutdoorOngoingJobController extends Controller
         ->leftJoinSub($d, 'd', function($j){
             $j->on('d.outdoor_item_id','=','oi.id');
         })
+        // Only Outdoor category (robust)
         ->where(function ($w) {
             $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
               ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%']);
         });
 
-    // Search opsional
+    // Text search (optional)
     if ($search !== '') {
         $like = '%'.strtolower($search).'%';
         $q->where(function ($w) use ($like) {
             $w->whereRaw('LOWER(mf.company) LIKE ?', [$like])
               ->orWhereRaw('LOWER(mf.product) LIKE ?', [$like])
-              ->orWhereRaw('LOWER(oi.site) LIKE ?', [$like])
-              ->orWhereRaw('LOWER(COALESCE(oi.coordinates,"")) LIKE ?', [$like])
-              ->orWhereRaw('LOWER(COALESCE(oi.district_council,"")) LIKE ?', [$like]);
+              ->orWhereRaw('LOWER(oi.site) LIKE ?',   [$like])
+              ->orWhereRaw('LOWER(COALESCE(oi.coordinates,"")) LIKE ?',     [$like])
+              ->orWhereRaw('LOWER(COALESCE(oi.district_council,"")) LIKE ?',[$like]);
         });
     }
 
-    // === TAMPILKAN HANYA YANG RELEVAN KE TAHUN TERPILIH ===
-    $q->where(function ($w) use ($year) {
-        // finish-year duluan
-        $w->whereYear('mf.date_finish', $year)
-          // kalau nggak ada finish, boleh date/created_at
-          ->orWhere(function ($x) use ($year) {
-              $x->whereNull('mf.date_finish')
-                ->where(function ($yq) use ($year) {
-                    $yq->whereYear('mf.date', $year)
-                       ->orWhereYear('mf.created_at', $year);
+    // Subproduct filter (BB/TB/…)
+    if ($sub !== '' && in_array($sub, $subproducts, true)) {
+        $q->whereRaw('LOWER(mf.product) = ?', [strtolower($sub)]);
+    }
+
+    // === Show items relevant to the selected YEAR (overlap OR has details in that year) ===
+    $q->where(function ($w) use ($yearStart, $yearEnd) {
+        $w->where(function ($x) use ($yearStart, $yearEnd) {
+              // overlap if: start <= 31/12/Y AND (end IS NULL OR end >= 01/01/Y)
+              $x->whereDate('mf.date', '<=', $yearEnd)
+                ->where(function ($y) use ($yearStart) {
+                    $y->whereNull('mf.date_finish')
+                      ->orWhereDate('mf.date_finish', '>=', $yearStart);
                 });
           })
-          // atau ada detail untuk tahun ini
+          // or has any monthly details in that year
           ->orWhereNotNull('d.outdoor_item_id');
     });
+
+    // === If a specific MONTH is chosen, also require overlap with that month OR have detail (Y,M) ===
+    if ($month > 0) {
+        $mStart = Carbon::create($year, $month, 1)->startOfMonth()->toDateString();
+        $mEnd   = Carbon::create($year, $month, 1)->endOfMonth()->toDateString();
+
+        $q->where(function ($w) use ($mStart, $mEnd, $year, $month) {
+            $w->where(function ($x) use ($mStart, $mEnd) {
+                  $x->whereDate('mf.date', '<=', $mEnd)
+                    ->where(function ($y) use ($mStart) {
+                        $y->whereNull('mf.date_finish')
+                          ->orWhereDate('mf.date_finish', '>=', $mStart);
+                    });
+              })
+              ->orWhereExists(function ($sq) use ($year, $month) {
+                  $sq->select(DB::raw(1))
+                     ->from('outdoor_monthly_details as omd')
+                     ->whereColumn('omd.outdoor_item_id', 'oi.id')
+                     ->where('omd.year', $year)
+                     ->where('omd.month', $month);
+              });
+        });
+    }
 
     $rows = $q->select([
             'mf.id',
@@ -96,7 +130,7 @@ class OutdoorOngoingJobController extends Controller
         ->orderBy('mf.company')->orderBy('oi.site')
         ->get();
 
-    // ambil detail KHUSUS tahun terpilih (+ opsional filter bulan)
+    // Load monthly details for the selected year (+ optional month)
     $details = DB::table('outdoor_monthly_details')
         ->where('year', $year)
         ->when($month > 0, fn($qq) => $qq->where('month',$month))
@@ -107,7 +141,7 @@ class OutdoorOngoingJobController extends Controller
         $r->outdoor_item_id.':'.$r->month.':'.$r->field_key => $r
     ]);
 
-    // years list untuk dropdown (gabungan masters + details)
+    // Years dropdown (from masters + details)
     $years = collect()
         ->merge(
             DB::table('master_files as mf')
@@ -132,21 +166,25 @@ class OutdoorOngoingJobController extends Controller
         )
         ->map(fn($v)=>(int)$v)->filter()->unique()->sort()->values();
 
-    // months list (untuk select)
+    // Months list
     $months = collect(range(1,12))->map(fn($m)=>[
-        'value'=>$m,'label'=>\Carbon\Carbon::create(null,$m,1)->format('F')
+        'value'=>$m,'label'=>Carbon::create(null,$m,1)->format('F')
     ])->all();
 
     return view('dashboard.outdoor', [
-        'rows'     => $rows,
-        'years'    => $years,
-        'year'     => $year,
-        'months'   => $months,
-        'month'    => $month,
-        'existing' => $existing,
-        'search'   => $search,
+        'rows'        => $rows,
+        'years'       => $years,
+        'year'        => $year,
+        'months'      => $months,
+        'month'       => $month,
+        'existing'    => $existing,
+        'search'      => $search,
+        'sub'         => $sub,
+        'subproducts' => $subproducts,
     ]);
 }
+
+
 
 
 public function cloneYear(Request $request)
@@ -244,43 +282,47 @@ public function cloneYear(Request $request)
 
 public function exportMatrix(Request $req)
 {
-    $tz      = 'Asia/Kuala_Lumpur';
-    $year    = (int)($req->input('year') ?: now($tz)->year);
+    $tz    = 'Asia/Kuala_Lumpur';
+    $today = now($tz)->format('d/m/Y');                // ✅ current date
+    $year  = (int)($req->input('year') ?: now($tz)->year);
     $product = trim((string)$req->input('product', ''));
 
-    // 1) Ambil baris PER-SITE (mf × oi), include oi.id sebagai outdoor_item_id
+    // 1) Base query: per-site rows
     $sitesQ = DB::table('master_files as mf')
         ->join('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
         ->when($product !== '', function ($q) use ($product) {
             $q->where('mf.product', $product);
         })
-        // batasi ke tahun yang dipilih (sesuai logika lama kamu)
         ->where(function ($w) use ($year) {
             $w->whereYear('mf.date', $year)
               ->orWhereYear('mf.date_finish', $year)
               ->orWhereYear('mf.created_at', $year);
         })
-        ->orderBy('mf.company')
-        ->orderBy('oi.site');
+        // ✅ sort alphabetically
+        ->orderByRaw('LOWER(mf.company) ASC')
+        ->orderByRaw('LOWER(oi.site) ASC');
 
     $siteRows = $sitesQ->get([
         'mf.id           as master_file_id',
-        'oi.id           as outdoor_item_id', // 🔑 WAJIB
+        'oi.id           as outdoor_item_id', // 🔑
         'mf.company',
         'mf.product',
         'mf.product_category',
-        'mf.date         as ui_date',
+        'mf.created_at   as created_at',      // ✅ use created_at
         'mf.date         as start',
         'mf.date_finish  as end',
         'oi.site',
     ]);
 
+    // 5) File naming - MOVED UP
+    $title = "Outdoor - Monthly - {$today} - {$year}";
+    $file  = Str::slug($title, '_').'.xlsx';
+
     if ($siteRows->isEmpty()) {
-        return (new \App\Exports\OutdoorMatrixExport([]))
-            ->download('outdoor_coordinator_'.$year.($product ? '_'.\Illuminate\Support\Str::slug($product) : '').'.xlsx');
+        return (new OutdoorMatrixExport([], $title))->download($file);  // ✅ Pass title
     }
 
-    // 2) Ambil monthly details HANYA untuk daftar site di atas (per-site by outdoor_item_id)
+    // 2) Load monthly details
     $siteIds = $siteRows->pluck('outdoor_item_id')->filter()->unique()->values();
     $details = DB::table('outdoor_monthly_details as omd')
         ->where('omd.year', $year)
@@ -288,7 +330,7 @@ public function exportMatrix(Request $req)
         ->orderBy('omd.outdoor_item_id')
         ->orderBy('omd.month')
         ->get([
-            'omd.outdoor_item_id', // 🔑
+            'omd.outdoor_item_id',
             'omd.month',
             'omd.field_key',
             'omd.field_type',
@@ -296,15 +338,13 @@ public function exportMatrix(Request $req)
             'omd.value_date',
         ]);
 
-    // 3) Bangun peta months per OUTDOOR ITEM (bukan per master)
-    //    itemId => [1..12 => ['status'=>..,'date'=>..]]
+    // 3) Group months by item
     $monthsByItem = [];
     foreach ($details->groupBy('outdoor_item_id') as $itemId => $rows) {
         $months = [];
         for ($m = 1; $m <= 12; $m++) {
             $months[$m] = ['status' => '', 'date' => null];
         }
-
         foreach ($rows as $r) {
             $mn = (int)$r->month;
             if ($mn < 1 || $mn > 12) continue;
@@ -320,7 +360,7 @@ public function exportMatrix(Request $req)
         $monthsByItem[$itemId] = $months;
     }
 
-    // 4) Build records per-SITE, ambil months dari monthsByItem[outdoor_item_id]
+    // 4) Build records
     $records = [];
     foreach ($siteRows as $r) {
         $itemId = (int)$r->outdoor_item_id;
@@ -332,7 +372,7 @@ public function exportMatrix(Request $req)
 
         $records[] = [
             'summary' => [
-                'date'     => $r->ui_date ?: $r->start,
+                'date'     => $r->created_at,       // ✅ created_at for "date created"
                 'company'  => $r->company,
                 'product'  => $r->product,
                 'site'     => $r->site,
@@ -344,9 +384,9 @@ public function exportMatrix(Request $req)
         ];
     }
 
-    $file = 'outdoor_coordinator_'.$year.($product ? '_'.\Illuminate\Support\Str::slug($product) : '').'.xlsx';
-    return (new \App\Exports\OutdoorMatrixExport($records))->download($file);
+    return (new OutdoorMatrixExport($records, $title))->download($file);  // ✅ Pass title
 }
+
 
 
   public function upsert(Request $req)

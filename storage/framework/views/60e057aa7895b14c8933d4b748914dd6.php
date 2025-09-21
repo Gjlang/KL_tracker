@@ -1,6 +1,9 @@
+<?php use Illuminate\Support\Str; ?>
+
 <?php
     /** @var \Illuminate\Support\Collection $existing */
     $existing = isset($existing) && $existing ? collect($existing) : collect();
+
 
     function omd($existing, $id, $m, $key, $type) {
         $row = $existing->get("{$id}:{$m}:{$key}");
@@ -132,118 +135,144 @@
           <?php endif; ?>
         </div>
         
-        <div class="mb-6 card">
-        <div class="p-6">
-            <form method="GET" action="<?php echo e(url()->current()); ?>">
+<div class="mb-6 card">
+  <div class="p-6">
+    <form method="GET" action="<?php echo e(url()->current()); ?>">
 
-            
-            <input type="hidden" name="status" value="<?php echo e(request('status')); ?>">
-            <input type="hidden" name="product_category" value="<?php echo e(request('product_category')); ?>">
-            <input type="hidden" id="category" name="category" value="Outdoor">
+      
+      <input type="hidden" name="status" value="<?php echo e(request('status')); ?>">
+      
+      <input type="hidden" name="category" value="Outdoor">
 
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                
-                <div class="space-y-2">
-                <label class="sans table-header">Category</label>
-                <div class="h-11 flex items-center">
-                    <span class="chip bg-[#22255b] text-white">OUTDOOR</span>
-                </div>
-                </div>
-
-                
-                <div class="space-y-2">
-                <label for="year" class="sans table-header">Year</label>
-                <?php
-                    // controller should pass $years (array/collection of ints) and $year (current)
-                    $currentYear = (int) ($year ?? now()->year);
-                ?>
-                <select id="year" name="year" class="w-full h-11 sans rounded border border-neutral-200 focus-ring px-3">
-                    <?php $__currentLoopData = ($years ?? [now()->year]); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $y): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                    <option value="<?php echo e((int)$y); ?>" <?php if((int)$y === $currentYear): echo 'selected'; endif; ?>><?php echo e((int)$y); ?></option>
-                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-                </select>
-                </div>
-
-                
-                <div class="space-y-2">
-                <label for="month" class="sans table-header">Month</label>
-                <?php
-                    $mSel = (int) (request('month') ?? 0);
-                    $monthNames = [1=>'Jan',2=>'Feb',3=>'Mar',4=>'Apr',5=>'May',6=>'Jun',7=>'Jul',8=>'Aug',9=>'Sep',10=>'Oct',11=>'Nov',12=>'Dec'];
-                ?>
-                <select id="month" name="month" class="w-full h-11 sans rounded border border-neutral-200 focus-ring px-3">
-                    <option value="0">All months</option>
-                    <?php $__currentLoopData = $monthNames; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $mi => $mn): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                    <option value="<?php echo e($mi); ?>" <?php if($mSel === $mi): echo 'selected'; endif; ?>><?php echo e($mn); ?></option>
-                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-                </select>
-                </div>
-
-                
-                <div class="space-y-2">
-                <label for="search" class="sans table-header">Search</label>
-                <input id="search" name="search" type="text"
-                        value="<?php echo e(request('search')); ?>"
-                        class="w-full h-11 input sans"
-                        placeholder="Company / product / site…">
-                </div>
-            </div>
-
-            <div class="mt-4 flex flex-wrap gap-3">
-                <button type="submit" class="btn-primary h-11">Apply Filters</button>
-                <a href="<?php echo e(url()->current()); ?>" class="btn-secondary h-11">Clear All</a>
-            </div>
-
-            
-            <?php
-                $hasYear  = request()->filled('year');
-                $hasMonth = request()->filled('month') && (int)request('month') !== 0;
-                $hasSearch = trim((string)request('search')) !== '';
-            ?>
-            <?php if($hasYear || $hasMonth || $hasSearch): ?>
-                <div class="mt-4 flex flex-wrap items-center gap-2">
-                <span class="sans text-sm text-neutral-600">Active:</span>
-
-                <a class="chip" href="<?php echo e(request()->fullUrlWithQuery(['search'=>request('search'),'month'=>request('month'),'year'=>request('year')])); ?>">
-                    CATEGORY: OUTDOOR
-                </a>
-
-                <?php if($hasYear): ?>
-                    <a class="chip"
-                    href="<?php echo e(request()->fullUrlWithQuery(['year'=>null])); ?>">
-                    YEAR: <?php echo e((int)request('year')); ?> <span class="ml-1">×</span>
-                    </a>
-                <?php endif; ?>
-
-                <?php if($hasMonth): ?>
-                    <a class="chip"
-                    href="<?php echo e(request()->fullUrlWithQuery(['month'=>0])); ?>">
-                    MONTH: <?php echo e($monthNames[(int)request('month')] ?? ''); ?> <span class="ml-1">×</span>
-                    </a>
-                <?php endif; ?>
-
-                <?php if($hasSearch): ?>
-                    <a class="chip"
-                    href="<?php echo e(request()->fullUrlWithQuery(['search'=>null])); ?>">
-                    SEARCH: “<?php echo e(Str::limit(request('search'), 20)); ?>” <span class="ml-1">×</span>
-                    </a>
-                <?php endif; ?>
-                </div>
-            <?php endif; ?>
-            </form>
-
-            
-            <?php if(($existing ?? collect())->isEmpty()): ?>
-            <form method="POST" action="<?php echo e(route('coordinator.outdoor.cloneYear')); ?>" class="mt-3">
-                <?php echo csrf_field(); ?>
-                <input type="hidden" name="to_year" value="<?php echo e((int)($year ?? now()->year)); ?>">
-                <input type="hidden" name="from_year" value="<?php echo e((int)($year ?? now()->year) - 1); ?>">
-                <button type="submit" class="btn btn-soft">
-                Clone previous year’s structure (no values)
-                </button>
-            </form>
-            <?php endif; ?>
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        
+        <div class="space-y-2">
+          <label class="sans table-header">Category</label>
+          <div class="h-11 flex items-center">
+            <span class="chip bg-[#22255b] text-white">OUTDOOR</span>
+          </div>
         </div>
+
+        
+        <div class="space-y-2">
+          <label for="year" class="sans table-header">Year</label>
+          <?php
+            $currentYear = (int) ($year ?? now()->year);
+          ?>
+          <select id="year" name="year" class="w-full h-11 sans rounded border border-neutral-200 focus-ring px-3">
+            <?php $__currentLoopData = ($years ?? [now()->year]); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $y): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+              <option value="<?php echo e((int)$y); ?>" <?php if((int)$y === $currentYear): echo 'selected'; endif; ?>><?php echo e((int)$y); ?></option>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+          </select>
+        </div>
+
+        
+        <div class="space-y-2">
+          <label for="month" class="sans table-header">Month</label>
+          <?php
+            $mSel = (int) (request('month') ?? 0);
+            $monthNames = [1=>'Jan',2=>'Feb',3=>'Mar',4=>'Apr',5=>'May',6=>'Jun',7=>'Jul',8=>'Aug',9=>'Sep',10=>'Oct',11=>'Nov',12=>'Dec'];
+          ?>
+          <select id="month" name="month" class="w-full h-11 sans rounded border border-neutral-200 focus-ring px-3">
+            <option value="0">All months</option>
+            <?php $__currentLoopData = $monthNames; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $mi => $mn): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+              <option value="<?php echo e($mi); ?>" <?php if($mSel === $mi): echo 'selected'; endif; ?>><?php echo e($mn); ?></option>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+          </select>
+        </div>
+
+        
+        <div class="space-y-2">
+          <label for="product_category" class="sans table-header">Subproduct</label>
+          <?php
+            $subproducts = ['BB','TB','Newspaper','Bunting','Flyers','Star','Signages'];
+            $pc = (string) request('product_category', '');
+          ?>
+          <select id="product_category" name="product_category" class="w-full h-11 sans rounded border border-neutral-200 focus-ring px-3">
+            <option value="">All</option>
+            <?php $__currentLoopData = $subproducts; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $opt): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+              <option value="<?php echo e($opt); ?>" <?php if($pc === $opt): echo 'selected'; endif; ?>><?php echo e($opt); ?></option>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+          </select>
+        </div>
+
+        
+        <div class="space-y-2">
+          <label for="search" class="sans table-header">Search</label>
+          <input id="search" name="search" type="text"
+                 value="<?php echo e(request('search')); ?>"
+                 class="w-full h-11 input sans"
+                 placeholder="Company / product / site…">
+        </div>
+      </div>
+
+      <div class="mt-4 flex flex-wrap gap-3">
+        <button type="submit" class="btn-primary h-11">Apply Filters</button>
+        <a href="<?php echo e(url()->current()); ?>" class="btn-secondary h-11">Clear All</a>
+      </div>
+
+      
+      <?php
+        $hasYear      = request()->filled('year');
+        $hasMonth     = request()->filled('month') && (int)request('month') !== 0;
+        $hasSearch    = trim((string)request('search')) !== '';
+        $hasSubprod   = trim((string)request('product_category')) !== '';
+      ?>
+
+      <?php if($hasYear || $hasMonth || $hasSearch || $hasSubprod): ?>
+        <div class="mt-4 flex flex-wrap items-center gap-2">
+          <span class="sans text-sm text-neutral-600">Active:</span>
+
+          <a class="chip" href="<?php echo e(request()->fullUrlWithQuery([
+                'search'=>request('search'),
+                'month'=>request('month'),
+                'year'=>request('year'),
+                'product_category'=>request('product_category'),
+            ])); ?>">
+            CATEGORY: OUTDOOR
+          </a>
+
+          <?php if($hasYear): ?>
+            <a class="chip" href="<?php echo e(request()->fullUrlWithQuery(['year'=>null])); ?>">
+              YEAR: <?php echo e((int)request('year')); ?> <span class="ml-1">×</span>
+            </a>
+          <?php endif; ?>
+
+          <?php if($hasMonth): ?>
+            <a class="chip" href="<?php echo e(request()->fullUrlWithQuery(['month'=>0])); ?>">
+              MONTH: <?php echo e($monthNames[(int)request('month')] ?? ''); ?> <span class="ml-1">×</span>
+            </a>
+          <?php endif; ?>
+
+          <?php if($hasSubprod): ?>
+            <a class="chip" href="<?php echo e(request()->fullUrlWithQuery(['product_category'=>null])); ?>">
+              SUBPRODUCT: <?php echo e(request('product_category')); ?> <span class="ml-1">×</span>
+            </a>
+          <?php endif; ?>
+
+          <?php if($hasSearch): ?>
+            <a class="chip" href="<?php echo e(request()->fullUrlWithQuery(['search'=>null])); ?>">
+              SEARCH: “<?php echo e(Str::limit(request('search'), 20)); ?>” <span class="ml-1">×</span>
+            </a>
+          <?php endif; ?>
+        </div>
+      <?php endif; ?>
+    </form>
+
+    
+    <?php if(($existing ?? collect())->isEmpty()): ?>
+      <form method="POST" action="<?php echo e(route('coordinator.outdoor.cloneYear')); ?>" class="mt-3">
+        <?php echo csrf_field(); ?>
+        <input type="hidden" name="to_year" value="<?php echo e((int)($year ?? now()->year)); ?>">
+        <input type="hidden" name="from_year" value="<?php echo e((int)($year ?? now()->year) - 1); ?>">
+        <button type="submit" class="btn btn-soft">
+          Clone previous year’s structure (no values)
+        </button>
+      </form>
+    <?php endif; ?>
+  </div>
+</div>
+
         </div>
         
         <div class="mb-6 card">
@@ -269,6 +298,7 @@
               <table class="min-w-[3250px] w-full">
                 <thead class="bg-neutral-50 sticky top-0 z-10">
                   <tr class="hairline border-b">
+                    <th class="px-3 py-2 text-right w-12">NO</th>
                     <th class="px-4 py-4 text-left table-header" style="min-width:120px;">
                       Date Created
                     </th>
@@ -312,6 +342,7 @@
                         $endDisp   = df($end);
                     ?>
                     <tr class="hover:bg-neutral-50 hover-lift transition-all duration-150">
+                    <td class="px-3 py-2 text-right tabular-nums"><?php echo e($loop->iteration); ?></td>
                       <td class="px-4 py-3 sans text-sm text-neutral-600 tabular-nums">
                         <?php echo e(df($row->created_at)); ?>
 
