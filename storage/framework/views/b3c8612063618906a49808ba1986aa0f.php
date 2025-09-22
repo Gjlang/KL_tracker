@@ -1,113 +1,24 @@
-<x-app-shell title="KLTG – Monthly Ongoing Job">
+<?php if (isset($component)) { $__componentOriginal9144295cee351e372dbe9bffc4f13bc5 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal9144295cee351e372dbe9bffc4f13bc5 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.app-shell','data' => ['title' => 'KLTG – Monthly Ongoing Job']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('app-shell'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['title' => 'KLTG – Monthly Ongoing Job']); ?>
 
-  @push('head')
-    <meta name="csrf-token" content="{{ csrf_token() }}">
+  <?php $__env->startPush('head'); ?>
+    <meta name="csrf-token" content="<?php echo e(csrf_token()); ?>">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-  @endpush
+  <?php $__env->stopPush(); ?>
 
   <!-- Page Container -->
 
   <div class="min-h-screen bg-[#F7F7F9]">
 
-    {{-- <!-- Sticky Top Bar -->
-    <div class="sticky top-0 z-40 bg-white border-b hairline shadow-sm">
-      <div class="px-6 py-4">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <!-- Title Section -->
-          <div>
-            <h1 class="font-serif text-2xl ink font-semibold tracking-tight">
-              MONTHLY Ongoing Job – KL The Guide
-            </h1>
-            <p class="text-sm text-neutral-600 mt-1">Inline updates enabled</p>
-          </div>
-
-          <!-- Action Button Group -->
-          <div class="flex flex-wrap items-center gap-2">
-            <a href="{{ route('kltg.exportMatrix', array_filter(request()->only([
-                'year','filter_year','month','filter_month',
-                'q','search','status',
-                'start','end','date_from','date_to'
-            ]))) }}"
-               class="btn-primary">
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"/>
-              </svg>
-              Export Excel
-            </a>
-
-            <a href="{{ route('coordinator.kltg.index') }}" class="btn-secondary">
-              Open KLTG Coordinator
-            </a>
-
-            <a href="{{ route('dashboard') }}" class="btn-ghost">
-              Dashboard
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Main Content -->
-    <div class="px-6 py-6 space-y-6">
-
-      <!-- Advanced Filters Card -->
-      <div class="bg-white rounded-2xl border border-neutral-200/70 shadow-sm">
-        <div class="p-6">
-          <div class="flex items-center justify-between mb-6">
-            <div>
-              <h3 class="font-serif text-lg ink font-medium">Advanced Filters</h3>
-              <p class="text-sm text-neutral-600 mt-1">Refine your view with precision</p>
-            </div>
-            <button id="clear-filters" class="btn-ghost text-sm">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-              </svg>
-              Clear All
-            </button>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <!-- Month Filter -->
-            <div class="space-y-2">
-              <label for="filter-month" class="header-label">Month</label>
-              <select id="filter-month" class="form-input">
-                <option value="">All Months</option>
-                <option value="January">January</option>
-                <option value="February">February</option>
-                <option value="March">March</option>
-                <option value="April">April</option>
-                <option value="May">May</option>
-                <option value="June">June</option>
-                <option value="July">July</option>
-                <option value="August">August</option>
-                <option value="September">September</option>
-                <option value="October">October</option>
-                <option value="November">November</option>
-                <option value="December">December</option>
-              </select>
-            </div>
-
-            <!-- Year Filter -->
-            <div class="space-y-2">
-              <label for="filter-year" class="header-label">Filter Year</label>
-              <select id="filter-year" class="form-input">
-                <option value="">All Years</option>
-                <option value="2024">2024</option>
-                <option value="2025">2025</option>
-                <option value="2026">2026</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Active Filter Chips -->
-          <div id="filter-summary" class="mt-4 hidden">
-            <div class="flex flex-wrap items-center gap-2">
-              <span class="header-label">Active:</span>
-              <div id="active-filters-chips" class="flex flex-wrap gap-2"></div>
-            </div>
-          </div>
-        </div>
-      </div> --}}
+    
 
       <!-- Sticky Top Bar -->
 <div class="sticky top-0 z-40 bg-white border-b hairline shadow-sm">
@@ -125,33 +36,33 @@
       <div class="flex flex-wrap items-center gap-2">
 
 
-        {{-- Clone structure button (only when target year is empty and a source exists) --}}
-        @php
+        
+        <?php
           $showClone = (isset($hasAnyForYear) ? !$hasAnyForYear : false) && !empty($bestSourceYear);
-        @endphp
-        @if ($showClone)
-          <form method="POST" action="{{ route('kltg.cloneYear') }}"
-                onsubmit="return confirm('Clone structure from {{ $bestSourceYear }} into {{ $activeYear }}? Values will be empty.');">
-            @csrf
-            <input type="hidden" name="year" value="{{ $activeYear }}">
-            <button type="submit" class="btn-primary">Clone from {{ $bestSourceYear }}</button>
+        ?>
+        <?php if($showClone): ?>
+          <form method="POST" action="<?php echo e(route('kltg.cloneYear')); ?>"
+                onsubmit="return confirm('Clone structure from <?php echo e($bestSourceYear); ?> into <?php echo e($activeYear); ?>? Values will be empty.');">
+            <?php echo csrf_field(); ?>
+            <input type="hidden" name="year" value="<?php echo e($activeYear); ?>">
+            <button type="submit" class="btn-primary">Clone from <?php echo e($bestSourceYear); ?></button>
           </form>
-        @endif
+        <?php endif; ?>
 
-        <a href="{{ route('kltg.exportMatrix', array_filter(request()->only([
+        <a href="<?php echo e(route('kltg.exportMatrix', array_filter(request()->only([
           'year','filter_year','month','filter_month','q','search','status','start','end','date_from','date_to'
-        ]))) }}" class="btn-primary">
+        ])))); ?>" class="btn-primary">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"/>
           </svg>
           Export Excel
         </a>
 
-        <a href="{{ route('coordinator.kltg.index') }}" class="btn-secondary">
+        <a href="<?php echo e(route('coordinator.kltg.index')); ?>" class="btn-secondary">
           Open KLTG Coordinator
         </a>
 
-        <a href="{{ route('dashboard') }}" class="btn-ghost">
+        <a href="<?php echo e(route('dashboard')); ?>" class="btn-ghost">
           Dashboard
         </a>
       </div>
@@ -182,41 +93,41 @@
         <!-- Month Filter (client-side visual filter only) -->
         <div class="space-y-2">
           <label for="filter-month" class="header-label">Month</label>
-          @php $mSel = (string)request('filter_month', ''); @endphp
+          <?php $mSel = (string)request('filter_month', ''); ?>
           <select id="filter-month" class="form-input">
-            <option value="" {{ $mSel===''?'selected':'' }}>All Months</option>
-            @foreach ([
+            <option value="" <?php echo e($mSel===''?'selected':''); ?>>All Months</option>
+            <?php $__currentLoopData = [
               'January','February','March','April','May','June',
               'July','August','September','October','November','December'
-            ] as $m)
-              <option value="{{ $m }}" {{ $mSel===$m?'selected':'' }}>{{ $m }}</option>
-            @endforeach
+            ]; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $m): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+              <option value="<?php echo e($m); ?>" <?php echo e($mSel===$m?'selected':''); ?>><?php echo e($m); ?></option>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
           </select>
         </div>
 
-        {{-- Server-side Year Switch (authoritative) --}}
-        <form method="GET" action="{{ route('kltg.index') }}" class="flex items-center gap-2">
+        
+        <form method="GET" action="<?php echo e(route('kltg.index')); ?>" class="flex items-center gap-2">
           <label for="active-year" class="text-sm text-neutral-600">Year</label>
           <select id="active-year" name="year" class="form-input" onchange="this.form.submit()">
-            @php
+            <?php
               $yNow = now('Asia/Kuala_Lumpur')->year;
               $years = range($yNow - 2, $yNow + 3);
               $activeYear = isset($activeYear) ? (int)$activeYear : (int)request('year', $yNow);
-            @endphp
-            @foreach ($years as $y)
-              <option value="{{ $y }}" {{ $activeYear === (int)$y ? 'selected' : '' }}>{{ $y }}</option>
-            @endforeach
+            ?>
+            <?php $__currentLoopData = $years; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $y): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+              <option value="<?php echo e($y); ?>" <?php echo e($activeYear === (int)$y ? 'selected' : ''); ?>><?php echo e($y); ?></option>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
           </select>
-          {{-- preserve other filters on year change --}}
-          @foreach (request()->except(['year', '_token']) as $k => $v)
-            @if(is_array($v))
-              @foreach($v as $vv)
-                <input type="hidden" name="{{ $k }}[]" value="{{ $vv }}">
-              @endforeach
-            @elseif($v !== '')
-              <input type="hidden" name="{{ $k }}" value="{{ $v }}">
-            @endif
-          @endforeach
+          
+          <?php $__currentLoopData = request()->except(['year', '_token']); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $k => $v): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <?php if(is_array($v)): ?>
+              <?php $__currentLoopData = $v; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $vv): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                <input type="hidden" name="<?php echo e($k); ?>[]" value="<?php echo e($vv); ?>">
+              <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+            <?php elseif($v !== ''): ?>
+              <input type="hidden" name="<?php echo e($k); ?>" value="<?php echo e($v); ?>">
+            <?php endif; ?>
+          <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
         </form>
       </div>
 
@@ -231,14 +142,14 @@
   </div>
 </div>
 
-{{-- Optional: keep filter-year synced with server year --}}
+
 <script>
   document.getElementById('filter-year')?.addEventListener('change', (e) => {
     const params = new URLSearchParams(window.location.search);
     const v = e.target.value;
     if (v) params.set('year', v); else params.delete('year');
     // optionally preserve other filters:
-    window.location = "{{ route('kltg.index') }}?" + params.toString();
+    window.location = "<?php echo e(route('kltg.index')); ?>?" + params.toString();
   });
 </script>
 
@@ -262,38 +173,40 @@
             <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">Start</th>
             <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">End</th>
 
-          @for ($m=1; $m<=12; $m++)
+          <?php for($m=1; $m<=12; $m++): ?>
             <th class="px-4 py-3 text-center hairline bg-neutral-50/60 header-label min-w-[900px]">
-              {{ \Carbon\Carbon::create()->startOfYear()->month($m)->format('F') }}
+              <?php echo e(\Carbon\Carbon::create()->startOfYear()->month($m)->format('F')); ?>
+
             </th>
-          @endfor
+          <?php endfor; ?>
         </tr>
       </thead>
 
       <tbody>
-        @if(isset($rows) && count($rows) > 0)
-          @foreach ($rows as $i => $r)
+        <?php if(isset($rows) && count($rows) > 0): ?>
+          <?php $__currentLoopData = $rows; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $i => $r): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
             <tr class="table-row transition-all duration-150 hover:bg-neutral-50 hover:shadow-[inset_0_0_0_1px_rgba(0,0,0,0.03)]"
-                data-master="{{ $r['id'] ?? '' }}"
-                data-status="{{ strtolower($r['status'] ?? '') }}"
-                data-company="{{ strtolower($r['company'] ?? '') }}"
-                data-product="{{ strtolower($r['product'] ?? '') }}"
-                data-year="{{ $year ?? date('Y') }}"
-                data-month="{{ $r['month_name'] ?? '' }}"
-                data-created-date="{{ $r['created_at'] ?? '' }}">
+                data-master="<?php echo e($r['id'] ?? ''); ?>"
+                data-status="<?php echo e(strtolower($r['status'] ?? '')); ?>"
+                data-company="<?php echo e(strtolower($r['company'] ?? '')); ?>"
+                data-product="<?php echo e(strtolower($r['product'] ?? '')); ?>"
+                data-year="<?php echo e($year ?? date('Y')); ?>"
+                data-month="<?php echo e($r['month_name'] ?? ''); ?>"
+                data-created-date="<?php echo e($r['created_at'] ?? ''); ?>">
 
               <!-- Kolom awal (tidak sticky) -->
-              <td class="hairline px-4 py-3 align-top ink tabular-nums">{{ $i+1 }}</td>
-              <td class="hairline px-4 py-3 align-top ink tabular-nums">{{ $r['created_at'] ?? '' }}</td>
-              <td class="hairline px-4 py-3 align-top ink">{{ $r['month_name'] ?? '' }}</td>
+              <td class="hairline px-4 py-3 align-top ink tabular-nums"><?php echo e($i+1); ?></td>
+              <td class="hairline px-4 py-3 align-top ink tabular-nums"><?php echo e($r['created_at'] ?? ''); ?></td>
+              <td class="hairline px-4 py-3 align-top ink"><?php echo e($r['month_name'] ?? ''); ?></td>
 
               <td class="hairline px-4 py-3 align-top ink" style="max-width:150px;">
-                <div class="truncate pr-1" title="{{ $r['company'] ?? '' }}">{{ $r['company'] ?? 'N/A' }}</div>
+                <div class="truncate pr-1" title="<?php echo e($r['company'] ?? ''); ?>"><?php echo e($r['company'] ?? 'N/A'); ?></div>
               </td>
 
               <td class="hairline px-4 py-3 align-top">
                 <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
-                  {{ $r['product'] ?? 'N/A' }}
+                  <?php echo e($r['product'] ?? 'N/A'); ?>
+
                 </span>
               </td>
 
@@ -301,9 +214,9 @@
               <td class="hairline px-4 py-3 align-top">
                 <input
                   class="form-input auto-save-input w-32"
-                  value="{{ $r['publication'] ?? '' }}"
-                  data-master="{{ $r['id'] ?? '' }}"
-                  data-year="{{ $year ?? date('Y') }}"
+                  value="<?php echo e($r['publication'] ?? ''); ?>"
+                  data-master="<?php echo e($r['id'] ?? ''); ?>"
+                  data-year="<?php echo e($year ?? date('Y')); ?>"
                   data-category="KLTG"
                   data-type="PUBLICATION"
                   data-field="publication"
@@ -315,9 +228,9 @@
               <td class="hairline px-4 py-3 align-top">
                 <input
                   class="form-input auto-save-input w-32"
-                  value="{{ $r['edition'] ?? '' }}"
-                  data-master="{{ $r['id'] ?? '' }}"
-                  data-year="{{ $year ?? date('Y') }}"
+                  value="<?php echo e($r['edition'] ?? ''); ?>"
+                  data-master="<?php echo e($r['id'] ?? ''); ?>"
+                  data-year="<?php echo e($year ?? date('Y')); ?>"
                   data-category="KLTG"
                   data-type="EDITION"
                   data-field="edition"
@@ -327,12 +240,13 @@
 
               <!-- Status Badge -->
               <td class="hairline px-4 py-3 align-top">
-                <span class="badge-{{ strtolower($r['status'] ?? 'pending') }}">
-                  {{ $r['status'] ?? 'Pending' }}
+                <span class="badge-<?php echo e(strtolower($r['status'] ?? 'pending')); ?>">
+                  <?php echo e($r['status'] ?? 'Pending'); ?>
+
                 </span>
               </td>
 
-                @php
+                <?php
                 $fmt = function($v, $fallbackYear) {
                     if (!$v) return '';
                     try {
@@ -355,16 +269,16 @@
                 };
 
                 $rowYear = (int)($r['year'] ?? $year ?? date('Y'));
-                @endphp
+                ?>
 
-                <td class="hairline px-4 py-3 align-top ink tabular-nums">{{ $fmt($r['start'] ?? null, $rowYear) }}</td>
-                <td class="hairline px-4 py-3 align-top ink tabular-nums">{{ $fmt($r['end']   ?? null, $rowYear) }}</td>
+                <td class="hairline px-4 py-3 align-top ink tabular-nums"><?php echo e($fmt($r['start'] ?? null, $rowYear)); ?></td>
+                <td class="hairline px-4 py-3 align-top ink tabular-nums"><?php echo e($fmt($r['end']   ?? null, $rowYear)); ?></td>
 
 
 
               <!-- Monthly Category Input Cells -->
-              @for ($m=1; $m<=12; $m++)
-                @php
+              <?php for($m=1; $m<=12; $m++): ?>
+                <?php
                   $cats = [
                     ['code' => 'KLTG',   'label' => 'KLTG'],
                     ['code' => 'VIDEO',  'label' => 'Video'],
@@ -372,69 +286,69 @@
                     ['code' => 'LB',     'label' => 'LB'],
                     ['code' => 'EM',     'label' => 'EM'],
                   ];
-                @endphp
+                ?>
 
-                <td class="px-2 py-2 align-top hairline month-cell" data-month="{{ $m }}">
+                <td class="px-2 py-2 align-top hairline month-cell" data-month="<?php echo e($m); ?>">
                   <div class="min-w-[900px] border border-neutral-200 rounded-xl bg-white shadow-sm">
 
 
                     <div class="flex h-full">
-                      @foreach($cats as $index => $c)
-                        <div class="flex-1 flex flex-col {{ $index < count($cats) - 1 ? 'border-r border-neutral-200' : '' }}">
+                      <?php $__currentLoopData = $cats; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $c): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <div class="flex-1 flex flex-col <?php echo e($index < count($cats) - 1 ? 'border-r border-neutral-200' : ''); ?>">
                           <!-- Category Header -->
                           <div class="text-center py-2 bg-neutral-50/30 border-b border-neutral-200 flex-shrink-0">
-                            <div class="header-label text-neutral-700">{{ $c['label'] }}</div>
+                            <div class="header-label text-neutral-700"><?php echo e($c['label']); ?></div>
                           </div>
 
                           <!-- Input Container -->
                           <div class="flex flex-col flex-1 p-3 space-y-2">
-                            @php
+                            <?php
                               $gridKey = sprintf('%02d_%s', $m, $c['code']);
-                            @endphp
+                            ?>
 
                             <!-- Status Select -->
                             <select
                               class="form-input text-xs status-select"
                               data-input="text"
-                              data-master="{{ $r['id'] ?? '' }}"
-                              data-year="{{ $year ?? date('Y') }}"
-                              data-month="{{ $m }}"
-                              data-category="{{ $c['code'] }}"
+                              data-master="<?php echo e($r['id'] ?? ''); ?>"
+                              data-year="<?php echo e($year ?? date('Y')); ?>"
+                              data-month="<?php echo e($m); ?>"
+                              data-category="<?php echo e($c['code']); ?>"
                               data-type="STATUS"
                               onchange="saveCell(this); setDropdownColor(this);">
                                 <option value=""></option>
-                                <option value="Installation" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Installation' ? 'selected' : '' }}>Installation</option>
-                                <option value="Dismantle" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Dismantle' ? 'selected' : '' }}>Dismantle</option>
-                                <option value="Artwork" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Artwork' ? 'selected' : '' }}>Artwork</option>
-                                <option value="Payment" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Payment' ? 'selected' : '' }}>Payment</option>
-                                <option value="Ongoing" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Ongoing' ? 'selected' : '' }}>Ongoing</option>
-                                <option value="Renewal" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Renewal' ? 'selected' : '' }}>Renewal</option>
-                                <option value="Completed" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Completed' ? 'selected' : '' }}>Completed</option>
-                                <option value="Material" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Material' ? 'selected' : '' }}>Material</option>
-                                <option value="Whatsapp" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Whatsapp' ? 'selected' : '' }}>Whatsapp</option>
-                                <option value="Posted" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Posted' ? 'selected' : '' }}>Posted</option>
+                                <option value="Installation" <?php echo e(($r['grid'][$gridKey]['status'] ?? '') == 'Installation' ? 'selected' : ''); ?>>Installation</option>
+                                <option value="Dismantle" <?php echo e(($r['grid'][$gridKey]['status'] ?? '') == 'Dismantle' ? 'selected' : ''); ?>>Dismantle</option>
+                                <option value="Artwork" <?php echo e(($r['grid'][$gridKey]['status'] ?? '') == 'Artwork' ? 'selected' : ''); ?>>Artwork</option>
+                                <option value="Payment" <?php echo e(($r['grid'][$gridKey]['status'] ?? '') == 'Payment' ? 'selected' : ''); ?>>Payment</option>
+                                <option value="Ongoing" <?php echo e(($r['grid'][$gridKey]['status'] ?? '') == 'Ongoing' ? 'selected' : ''); ?>>Ongoing</option>
+                                <option value="Renewal" <?php echo e(($r['grid'][$gridKey]['status'] ?? '') == 'Renewal' ? 'selected' : ''); ?>>Renewal</option>
+                                <option value="Completed" <?php echo e(($r['grid'][$gridKey]['status'] ?? '') == 'Completed' ? 'selected' : ''); ?>>Completed</option>
+                                <option value="Material" <?php echo e(($r['grid'][$gridKey]['status'] ?? '') == 'Material' ? 'selected' : ''); ?>>Material</option>
+                                <option value="Whatsapp" <?php echo e(($r['grid'][$gridKey]['status'] ?? '') == 'Whatsapp' ? 'selected' : ''); ?>>Whatsapp</option>
+                                <option value="Posted" <?php echo e(($r['grid'][$gridKey]['status'] ?? '') == 'Posted' ? 'selected' : ''); ?>>Posted</option>
                             </select>
 
-                            @php
+                            <?php
                               $inputIdStart = "date-start-y{$year}-m{$m}-{$c['code']}-{$r['id']}-" . uniqid();
-                            @endphp
+                            ?>
 
                             <div class="flex items-center gap-2">
                               <input
-                                id="{{ $inputIdStart }}"
+                                id="<?php echo e($inputIdStart); ?>"
                                 type="date"
                                 class="form-input text-xs flex-1"
-                                value="{{ $r['grid'][$gridKey]['start'] ?? '' }}"
+                                value="<?php echo e($r['grid'][$gridKey]['start'] ?? ''); ?>"
                                 data-input="date"
-                                data-master="{{ $r['id'] ?? '' }}"
-                                data-year="{{ $year }}"
-                                data-month="{{ $m }}"
-                                data-category="{{ $c['code'] }}"
+                                data-master="<?php echo e($r['id'] ?? ''); ?>"
+                                data-year="<?php echo e($year); ?>"
+                                data-month="<?php echo e($m); ?>"
+                                data-category="<?php echo e($c['code']); ?>"
                                 data-type="START"
                                 onchange="saveCell(this)">
                               <button type="button"
                                 class="p-2 text-neutral-500 hover:text-neutral-700 transition-colors"
-                                onclick="document.getElementById('{{ $inputIdStart }}').showPicker()"
+                                onclick="document.getElementById('<?php echo e($inputIdStart); ?>').showPicker()"
                                 title="Start date">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
@@ -443,14 +357,14 @@
                             </div>
                           </div>
                         </div>
-                      @endforeach
+                      <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                     </div>
                   </div>
                 </td>
-              @endfor
+              <?php endfor; ?>
             </tr>
-          @endforeach
-        @else
+          <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+        <?php else: ?>
           <!-- Empty State -->
           <tr>
             <td colspan="22" class="hairline px-6 py-16 text-center">
@@ -460,13 +374,13 @@
                 </svg>
                 <h3 class="font-serif text-lg ink mb-2">No ongoing jobs found</h3>
                 <p class="text-neutral-600 mb-4">Try adjusting your filters or add new entries.</p>
-                <a href="{{ route('coordinator.kltg.index') }}" class="btn-secondary">
+                <a href="<?php echo e(route('coordinator.kltg.index')); ?>" class="btn-secondary">
                   Open KLTG Coordinator
                 </a>
               </div>
             </td>
           </tr>
-        @endif
+        <?php endif; ?>
       </tbody>
     </table>
   </div>
@@ -478,13 +392,13 @@
 
   <!-- JavaScript (preserve all existing logic) -->
   <script>
-    const UPDATE_URL = "{{ route('kltg.details.upsert') }}";
+    const UPDATE_URL = "<?php echo e(route('kltg.details.upsert')); ?>";
 
     // CSRF Token handling
     function getCSRFToken() {
       let token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
       if (!token) {
-        token = window.Laravel?.csrfToken || "{{ csrf_token() }}";
+        token = window.Laravel?.csrfToken || "<?php echo e(csrf_token()); ?>";
       }
       return token;
     }
@@ -766,4 +680,14 @@
     });
   </script>
 
-</x-app-shell>
+ <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal9144295cee351e372dbe9bffc4f13bc5)): ?>
+<?php $attributes = $__attributesOriginal9144295cee351e372dbe9bffc4f13bc5; ?>
+<?php unset($__attributesOriginal9144295cee351e372dbe9bffc4f13bc5); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal9144295cee351e372dbe9bffc4f13bc5)): ?>
+<?php $component = $__componentOriginal9144295cee351e372dbe9bffc4f13bc5; ?>
+<?php unset($__componentOriginal9144295cee351e372dbe9bffc4f13bc5); ?>
+<?php endif; ?>
+<?php /**PATH C:\Users\Gjlang\kl_guide_tracker\resources\views/dashboard/kltg.blade.php ENDPATH**/ ?>

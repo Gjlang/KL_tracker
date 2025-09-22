@@ -89,16 +89,16 @@
 </style>
 <?php $__env->stopPush(); ?>
 
-<?php if (isset($component)) { $__componentOriginal4619374cef299e94fd7263111d0abc69 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal4619374cef299e94fd7263111d0abc69 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.app-layout','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('app-layout'); ?>
+<?php if (isset($component)) { $__componentOriginal9144295cee351e372dbe9bffc4f13bc5 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal9144295cee351e372dbe9bffc4f13bc5 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.app-shell','data' => ['title' => 'Outdoor Monthly Ongoing Jobs']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('app-shell'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes([]); ?>
+<?php $component->withAttributes(['title' => 'Outdoor Monthly Ongoing Jobs']); ?>
   <div class="min-h-screen bg-[#F7F7F9]">
     <?php echo $__env->make('partials.sidebar', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
     <main class="flex-1 overflow-y-auto">
@@ -469,13 +469,13 @@
 
  <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginal4619374cef299e94fd7263111d0abc69)): ?>
-<?php $attributes = $__attributesOriginal4619374cef299e94fd7263111d0abc69; ?>
-<?php unset($__attributesOriginal4619374cef299e94fd7263111d0abc69); ?>
+<?php if (isset($__attributesOriginal9144295cee351e372dbe9bffc4f13bc5)): ?>
+<?php $attributes = $__attributesOriginal9144295cee351e372dbe9bffc4f13bc5; ?>
+<?php unset($__attributesOriginal9144295cee351e372dbe9bffc4f13bc5); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginal4619374cef299e94fd7263111d0abc69)): ?>
-<?php $component = $__componentOriginal4619374cef299e94fd7263111d0abc69; ?>
-<?php unset($__componentOriginal4619374cef299e94fd7263111d0abc69); ?>
+<?php if (isset($__componentOriginal9144295cee351e372dbe9bffc4f13bc5)): ?>
+<?php $component = $__componentOriginal9144295cee351e372dbe9bffc4f13bc5; ?>
+<?php unset($__componentOriginal9144295cee351e372dbe9bffc4f13bc5); ?>
 <?php endif; ?>
 
 <script>

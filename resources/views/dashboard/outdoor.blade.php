@@ -89,7 +89,7 @@
 </style>
 @endpush
 
-<x-app-layout>
+<x-app-shell title="Outdoor Monthly Ongoing Jobs">
   <div class="min-h-screen bg-[#F7F7F9]">
     @include('partials.sidebar')
     <main class="flex-1 overflow-y-auto">
@@ -449,7 +449,7 @@
   </div>
 
 
-</x-app-layout>
+</x-app-shell>
 
 <script>
 // ------- Small helpers -------

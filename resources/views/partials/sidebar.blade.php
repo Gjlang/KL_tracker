@@ -1,227 +1,150 @@
-{{-- resources/views/partials/sidebar.blade.php
-<!-- Mobile backdrop overlay -->
-<div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden hidden"></div>
-
-<!-- Sidebar -->
-<aside id="app-sidebar"
-       class="fixed inset-y-0 left-0 z-40 w-56 bg-gradient-to-br from-blue-600 via-blue-700 to-purple-700 transform -translate-x-full md:translate-x-0 transition-transform duration-200 ease-out shadow-xl">
-  <div class="h-full flex flex-col">
-
-    <!-- Logo/Brand -->
-    <div class="flex items-center gap-3 p-6 border-b border-white/10">
-      <div class="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
-        <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-        </svg>
-      </div>
-      <span class="text-xl font-bold text-white">CodingLab</span>
+<aside
+  class="fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-neutral-200
+         transform transition-transform duration-200
+         -translate-x-full md:flex md:flex-col"
+  :class="isOpen ? 'translate-x-0' : '-translate-x-full'"
+  x-cloak
+>
+  <div class="h-14 flex items-center gap-3 px-4 border-b border-neutral-200">
+    {{-- Logo: click to close (mobile only) --}}
+    <div class="w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer relative z-50"
+         style="background:#22255b;"
+         title="Close sidebar"
+         @click.stop="close()">
+      <svg class="w-5 h-5 text-white pointer-events-none" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+      </svg>
     </div>
-
-    <!-- Quick Search -->
-    <div class="px-4 pt-4 pb-2">
-      <div class="relative">
-        <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-        </svg>
-        <input type="text"
-               placeholder="Quick Search ..."
-               class="w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl py-3 pl-10 pr-4 text-white placeholder-white/60 text-sm focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-white/40 transition-all">
-      </div>
-    </div>
-
-    <!-- Navigation -->
-    <nav class="flex-1 px-4 py-2 overflow-y-auto">
-
-      <!-- Main Menu Section -->
-      <div class="mb-8">
-        <div class="space-y-2">
-          <!-- Dashboard -->
-          <a href="{{ route('dashboard') }}"
-             class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 {{ request()->routeIs('dashboard') ? 'bg-white/20 backdrop-blur-sm text-white shadow-lg' : 'text-white/80 hover:bg-white/10 hover:text-white hover:backdrop-blur-sm' }}">
-            <div class="w-5 h-5 flex items-center justify-center">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"/>
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v6H8V5z"/>
-              </svg>
-            </div>
-            <span class="font-medium">Dashboard</span>
-          </a>
-
-          <!-- Projects (Calendar) -->
-          <a href="{{ route('calendar.index') }}"
-             class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 {{ request()->routeIs('calendar.*') ? 'bg-white/20 backdrop-blur-sm text-white shadow-lg' : 'text-white/80 hover:bg-white/10 hover:text-white hover:backdrop-blur-sm' }}">
-            <div class="w-5 h-5 flex items-center justify-center">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-              </svg>
-            </div>
-            <span class="font-medium">Projects</span>
-          </a>
-
-          <!-- Messages (KLTG Job) -->
-          <a href="{{ route('dashboard.kltg') }}"
-             class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 {{ request()->routeIs('dashboard.kltg') ? 'bg-white/20 backdrop-blur-sm text-white shadow-lg' : 'text-white/80 hover:bg-white/10 hover:text-white hover:backdrop-blur-sm' }}">
-            <div class="w-5 h-5 flex items-center justify-center">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
-              </svg>
-            </div>
-            <span class="font-medium">Messages</span>
-          </a>
-
-          <!-- Analytics (Media Job) -->
-          <a href="{{ route('dashboard.media') }}"
-             class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 {{ request()->routeIs('dashboard.media') ? 'bg-white/20 backdrop-blur-sm text-white shadow-lg' : 'text-white/80 hover:bg-white/10 hover:text-white hover:backdrop-blur-sm' }}">
-            <div class="w-5 h-5 flex items-center justify-center">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-              </svg>
-            </div>
-            <span class="font-medium">Analytics</span>
-          </a>
-
-          <!-- Outdoor Job (Settings icon) -->
-          <a href="{{ route('dashboard.outdoor') }}"
-             class="group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 {{ request()->routeIs('dashboard.outdoor') ? 'bg-white/20 backdrop-blur-sm text-white shadow-lg' : 'text-white/80 hover:bg-white/10 hover:text-white hover:backdrop-blur-sm' }}">
-            <div class="w-5 h-5 flex items-center justify-center">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-              </svg>
-            </div>
-            <span class="font-medium">Settings</span>
-          </a>
-        </div>
-      </div>
-
-    </nav>
-
-    <!-- User Profile -->
-    <div class="p-4 mt-auto border-t border-white/10">
-      <div class="flex items-center gap-3 p-3 bg-white/10 backdrop-blur-sm rounded-xl">
-        <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center shadow-md">
-          <span class="text-sm font-bold text-white">{{ substr(auth()->user()->name ?? 'U', 0, 1) }}</span>
-        </div>
-        <div class="flex-1 min-w-0">
-          <p class="text-sm font-semibold text-white truncate">{{ auth()->user()->name ?? 'User' }}</p>
-          <p class="text-xs text-white/60 truncate">Admin</p>
-        </div>
-        <div class="w-6 h-6 bg-white/10 rounded-lg flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors">
-          <svg class="w-4 h-4 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-          </svg>
-        </div>
-      </div>
-    </div>
-
+    <span class="font-semibold cursor-pointer select-none" @click.stop="close()">Navigation</span>
   </div>
+
+  <nav class="flex-1 overflow-y-auto py-3" x-data="sidebarState()">
+
+    {{-- Main Dashboard --}}
+    <div class="px-3 mb-2">
+      <a href="{{ route('dashboard') }}"
+         @click="if (window.matchMedia('(max-width: 767px)').matches) close()"
+         class="block px-3 py-2 rounded-lg font-medium text-sm
+                {{ request()->routeIs('dashboard') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
+        <i class="fas fa-home mr-2"></i> Dashboard
+      </a>
+    </div>
+
+    {{-- KLTG --}}
+    <div class="px-3">
+      <button @click="toggle('kltg')" class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-neutral-50">
+        <span class="font-medium">KLTG</span>
+        <svg class="w-4 h-4 transition-transform duration-200" :class="open.kltg ? 'rotate-180' : ''" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path stroke-linecap="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+      </button>
+      <div x-show="open.kltg"
+           x-transition:enter="transition ease-out duration-200"
+           x-transition:enter-start="opacity-0 transform scale-95"
+           x-transition:enter-end="opacity-100 transform scale-100"
+           x-transition:leave="transition ease-in duration-150"
+           x-transition:leave-start="opacity-100 transform scale-100"
+           x-transition:leave-end="opacity-0 transform scale-95">
+        <a href="{{ route('dashboard.kltg') }}"
+           @click="if (window.matchMedia('(max-width: 767px)').matches) close()"
+           class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('dashboard.kltg') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
+          Monthly
+        </a>
+        @if (Route::has('coordinator.kltg.index'))
+        <a href="{{ route('coordinator.kltg.index') }}"
+           @click="if (window.matchMedia('(max-width: 767px)').matches) close()"
+           class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('coordinator.kltg.*') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
+          Coordinator List
+        </a>
+        @endif
+      </div>
+    </div>
+
+    {{-- Social Media --}}
+    <div class="px-3 mt-2">
+      <button @click="toggle('media')" class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-neutral-50">
+        <span class="font-medium">Social Media</span>
+        <svg class="w-4 h-4 transition-transform duration-200" :class="open.media ? 'rotate-180' : ''" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path stroke-linecap="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+      </button>
+      <div x-show="open.media"
+           x-transition:enter="transition ease-out duration-200"
+           x-transition:enter-start="opacity-0 transform scale-95"
+           x-transition:enter-end="opacity-100 transform scale-100"
+           x-transition:leave="transition ease-in duration-150"
+           x-transition:leave-start="opacity-100 transform scale-100"
+           x-transition:leave-end="opacity-0 transform scale-95">
+        <a href="{{ route('dashboard.media') }}"
+           @click="if (window.matchMedia('(max-width: 767px)').matches) close()"
+           class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('dashboard.media') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
+          Monthly
+        </a>
+        @if (Route::has('coordinator.media.index'))
+        <a href="{{ route('coordinator.media.index') }}"
+           @click="if (window.matchMedia('(max-width: 767px)').matches) close()"
+           class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('coordinator.media.*') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
+          Coordinator List
+        </a>
+        @endif
+      </div>
+    </div>
+
+    {{-- Outdoor --}}
+    <div class="px-3 mt-2">
+      <button @click="toggle('outdoor')" class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-neutral-50">
+        <span class="font-medium">Outdoor</span>
+        <svg class="w-4 h-4 transition-transform duration-200" :class="open.outdoor ? 'rotate-180' : ''" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path stroke-linecap="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+      </button>
+      <div x-show="open.outdoor"
+           x-transition:enter="transition ease-out duration-200"
+           x-transition:enter-start="opacity-0 transform scale-95"
+           x-transition:enter-end="opacity-100 transform scale-100"
+           x-transition:leave="transition ease-in duration-150"
+           x-transition:leave-start="opacity-100 transform scale-100"
+           x-transition:leave-end="opacity-0 transform scale-95">
+        <a href="{{ route('dashboard.outdoor') }}"
+           @click="if (window.matchMedia('(max-width: 767px)').matches) close()"
+           class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('dashboard.outdoor') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
+          Monthly
+        </a>
+        @if (Route::has('coordinator.outdoor.index'))
+        <a href="{{ route('coordinator.outdoor.index') }}"
+           @click="if (window.matchMedia('(max-width: 767px)').matches) close()"
+           class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('coordinator.outdoor.*') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
+          Coordinator List
+        </a>
+        @endif
+        @if (Route::has('outdoor.whiteboard.index'))
+        <a href="{{ route('outdoor.whiteboard.index') }}"
+           @click="if (window.matchMedia('(max-width: 767px)').matches) close()"
+           class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('outdoor.whiteboard.*') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
+          Outdoor Whiteboard
+        </a>
+        @endif
+      </div>
+    </div>
+
+  </nav>
 </aside>
 
+{{-- Overlay (mobile only) --}}
+<div class="fixed inset-0 bg-black/40 z-40 md:hidden"
+     x-show="isOpen" x-transition.opacity @click="close()" x-cloak></div>
+
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-  const sidebar = document.getElementById('app-sidebar');
-  const overlay = document.getElementById('sidebar-overlay');
-  const openBtn = document.getElementById('open-sidebar');
-  const main = document.querySelector('.app-main');
-
-  function openSidebar() {
-    sidebar.classList.remove('-translate-x-full');
-    overlay.classList.remove('hidden');
-    document.body.classList.add('overflow-hidden');
-    if (main && window.innerWidth < 768) {
-      main.classList.add('translate-x-56');
+  function sidebarState() {
+    const key = 'sidebar-open-groups';
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem(key)) ?? {}; } catch(e) {}
+    return {
+      open: Object.assign({ kltg: true, media: true, outdoor: true }, saved),
+      toggle(section) {
+        this.open[section] = !this.open[section];
+        localStorage.setItem(key, JSON.stringify(this.open));
+      },
     }
   }
-
-  function closeSidebar() {
-    sidebar.classList.add('-translate-x-full');
-    overlay.classList.add('hidden');
-    document.body.classList.remove('overflow-hidden');
-    if (main) {
-      main.classList.remove('translate-x-56');
-    }
-  }
-
-  function resetSidebar() {
-    if (window.innerWidth >= 768) {
-      sidebar.classList.remove('-translate-x-full');
-      overlay.classList.add('hidden');
-      document.body.classList.remove('overflow-hidden');
-      if (main) {
-        main.classList.remove('translate-x-56');
-      }
-    } else {
-      sidebar.classList.add('-translate-x-full');
-      overlay.classList.add('hidden');
-      document.body.classList.remove('overflow-hidden');
-      if (main) {
-        main.classList.remove('translate-x-56');
-      }
-    }
-  }
-
-  // Open sidebar button
-  if (openBtn) {
-    openBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      openSidebar();
-    });
-  }
-
-  // Close on overlay click
-  if (overlay) {
-    overlay.addEventListener('click', closeSidebar);
-  }
-
-  // Close on Escape key
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      closeSidebar();
-    }
-  });
-
-  // Reset on window resize
-  window.addEventListener('resize', resetSidebar);
-
-  // Initialize on load
-  resetSidebar();
-});
 </script>
-
-<style>
-  /* Smooth scrolling and focus ring polish */
-  html {
-    scroll-behavior: smooth;
-  }
-
-  /* Custom focus rings for sidebar links */
-  #app-sidebar a:focus {
-    outline: 2px solid rgba(255, 255, 255, 0.3);
-    outline-offset: 2px;
-  }
-
-  /* Hide scrollbar but keep functionality */
-  #app-sidebar nav::-webkit-scrollbar {
-    width: 4px;
-  }
-
-  #app-sidebar nav::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  #app-sidebar nav::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 2px;
-  }
-
-  #app-sidebar nav::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.3);
-  }
-
-  /* Custom backdrop blur support */
-  .backdrop-blur-sm {
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-  }
-</style> --}}
