@@ -1,3 +1,5 @@
+<?php $__env->startSection('title','Outdoor Coordinator'); ?>
+
 <?php $__env->startPush('head'); ?>
 <meta name="csrf-token" content="<?php echo e(csrf_token()); ?>">
 <style>

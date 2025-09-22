@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title','Outdoor Coordinator')
 
 @push('head')
 <meta name="csrf-token" content="{{ csrf_token() }}">
