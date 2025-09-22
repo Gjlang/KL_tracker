@@ -213,18 +213,18 @@
           
           <thead class="bg-neutral-50 sticky top-0 z-10">
             <tr class="hairline border-b">
-                <th class="px-4 py-4 table-header text-center min-w-[80px] w-[80px]">ID</th>
+                <th class="px-4 py-4 table-header text-center min-w-[80px] w-[80px]">NO</th>
                 <th class="px-4 py-4 table-header min-w-[200px] w-[200px]">Company</th>
                 <th class="px-4 py-4 table-header min-w-[200px] w-[200px]">Person In Charge</th>
                 <th class="px-4 py-4 table-header min-w-[180px] w-[180px]">Product</th>
                 <th class="px-4 py-4 table-header min-w-[180px] w-[180px]">Site</th>
                 <th class="px-4 py-4 table-header min-w-[160px]">Payment</th>
-                <th class="px-4 py-4 table-header min-w-[160px]">Material</th>
-                <th class="px-4 py-4 table-header min-w-[160px]">Artwork</th>
-                <th class="px-4 py-4 table-header min-w-[160px]">Approval</th>
-                <th class="px-4 py-4 table-header min-w-[160px]">Sent</th>
-                <th class="px-4 py-4 table-header min-w-[160px]">Collected</th>
-                <th class="px-4 py-4 table-header min-w-[160px]">Install</th>
+                <th class="px-4 py-4 table-header min-w-[160px]">Material Received</th>
+                <th class="px-4 py-4 table-header min-w-[160px]">Artwork Done</th>
+                <th class="px-4 py-4 table-header min-w-[160px]">Received Approval</th>
+                <th class="px-4 py-4 table-header min-w-[160px]">Sent to Printer</th>
+                <th class="px-4 py-4 table-header min-w-[160px]">Collection to Printer</th>
+                <th class="px-4 py-4 table-header min-w-[160px]">Installation</th>
                 <th class="px-4 py-4 table-header min-w-[160px]">Dismantle</th>
             </tr>
             </thead>
@@ -294,206 +294,206 @@
                 </td>
 
                   
-<td class="px-4 py-4 hairline border-b align-top">
-  <div class="space-y-2 w-44">
-    
-    <input
-      type="text"
-      class="field-input w-44 outdoor-field"
-      value="<?php echo e($row->payment ?? ''); ?>"
-      data-id="<?php echo e($trackingId); ?>"
-      data-mf="<?php echo e($row->master_file_id); ?>"
-      data-oi="<?php echo e($row->outdoor_item_id); ?>"
-      data-field="payment"
-      data-scope="<?php echo e($scope); ?>"
-      placeholder="note..." />
-    
-    <input
-      type="date"
-      class="field-input w-44 tabular-nums outdoor-field"
-      value="<?php echo e($row->payment_date ?? ''); ?>"
-      data-id="<?php echo e($trackingId); ?>"
-      data-mf="<?php echo e($row->master_file_id); ?>"
-      data-oi="<?php echo e($row->outdoor_item_id); ?>"
-      data-field="payment_date"
-      data-scope="<?php echo e($scope); ?>" />
-  </div>
-</td>
+                    <td class="px-4 py-4 hairline border-b align-top">
+                    <div class="space-y-2 w-44">
+                        
+                        <input
+                        type="text"
+                        class="field-input w-44 outdoor-field"
+                        value="<?php echo e($row->payment ?? ''); ?>"
+                        data-id="<?php echo e($trackingId); ?>"
+                        data-mf="<?php echo e($row->master_file_id); ?>"
+                        data-oi="<?php echo e($row->outdoor_item_id); ?>"
+                        data-field="payment"
+                        data-scope="<?php echo e($scope); ?>"
+                        placeholder="note..." />
+                        
+                        <input
+                        type="date"
+                        class="field-input w-44 tabular-nums outdoor-field"
+                        value="<?php echo e($row->payment_date ?? ''); ?>"
+                        data-id="<?php echo e($trackingId); ?>"
+                        data-mf="<?php echo e($row->master_file_id); ?>"
+                        data-oi="<?php echo e($row->outdoor_item_id); ?>"
+                        data-field="payment_date"
+                        data-scope="<?php echo e($scope); ?>" />
+                    </div>
+                    </td>
 
+                    
+                    <td class="px-4 py-4 hairline border-b align-top">
+                    <div class="space-y-2 w-44">
+                        <input
+                        type="text"
+                        class="field-input w-44 outdoor-field"
+                        value="<?php echo e($row->material ?? ''); ?>"
+                        data-id="<?php echo e($trackingId); ?>"
+                        data-mf="<?php echo e($row->master_file_id); ?>"
+                        data-oi="<?php echo e($row->outdoor_item_id); ?>"
+                        data-field="material"
+                        data-scope="<?php echo e($scope); ?>"
+                        placeholder="note..." />
+                        <input
+                        type="date"
+                        class="field-input w-44 tabular-nums outdoor-field"
+                        value="<?php echo e($row->material_date ?? ''); ?>"
+                        data-id="<?php echo e($trackingId); ?>"
+                        data-mf="<?php echo e($row->master_file_id); ?>"
+                        data-oi="<?php echo e($row->outdoor_item_id); ?>"
+                        data-field="material_date"
+                        data-scope="<?php echo e($scope); ?>" />
+                    </div>
+                    </td>
 
-<td class="px-4 py-4 hairline border-b align-top">
-  <div class="space-y-2 w-44">
-    <input
-      type="text"
-      class="field-input w-44 outdoor-field"
-      value="<?php echo e($row->material ?? ''); ?>"
-      data-id="<?php echo e($trackingId); ?>"
-      data-mf="<?php echo e($row->master_file_id); ?>"
-      data-oi="<?php echo e($row->outdoor_item_id); ?>"
-      data-field="material"
-      data-scope="<?php echo e($scope); ?>"
-      placeholder="note..." />
-    <input
-      type="date"
-      class="field-input w-44 tabular-nums outdoor-field"
-      value="<?php echo e($row->material_date ?? ''); ?>"
-      data-id="<?php echo e($trackingId); ?>"
-      data-mf="<?php echo e($row->master_file_id); ?>"
-      data-oi="<?php echo e($row->outdoor_item_id); ?>"
-      data-field="material_date"
-      data-scope="<?php echo e($scope); ?>" />
-  </div>
-</td>
+                    
+                    <td class="px-4 py-4 hairline border-b align-top">
+                    <div class="space-y-2 w-44">
+                        <input
+                        type="text"
+                        class="field-input w-44 outdoor-field"
+                        value="<?php echo e($row->artwork ?? ''); ?>"
+                        data-id="<?php echo e($trackingId); ?>"
+                        data-mf="<?php echo e($row->master_file_id); ?>"
+                        data-oi="<?php echo e($row->outdoor_item_id); ?>"
+                        data-field="artwork"
+                        data-scope="<?php echo e($scope); ?>"
+                        placeholder="note..." />
+                        <input
+                        type="date"
+                        class="field-input w-44 tabular-nums outdoor-field"
+                        value="<?php echo e($row->artwork_date ?? ''); ?>"
+                        data-id="<?php echo e($trackingId); ?>"
+                        data-mf="<?php echo e($row->master_file_id); ?>"
+                        data-oi="<?php echo e($row->outdoor_item_id); ?>"
+                        data-field="artwork_date"
+                        data-scope="<?php echo e($scope); ?>" />
+                    </div>
+                    </td>
 
+                    
+                    <td class="px-4 py-4 hairline border-b align-top">
+                    <div class="space-y-2 w-44">
+                        <input
+                        type="text"
+                        class="field-input w-44 outdoor-field"
+                        value="<?php echo e($row->received_approval_note ?? ''); ?>"
+                        data-id="<?php echo e($trackingId); ?>"
+                        data-mf="<?php echo e($row->master_file_id); ?>"
+                        data-oi="<?php echo e($row->outdoor_item_id); ?>"
+                        data-field="received_approval_note"
+                        data-scope="<?php echo e($scope); ?>"
+                        placeholder="note..." />
+                        <input
+                        type="date"
+                        class="field-input w-44 tabular-nums outdoor-field"
+                        value="<?php echo e($row->received_approval ?? ''); ?>"
+                        data-id="<?php echo e($trackingId); ?>"
+                        data-mf="<?php echo e($row->master_file_id); ?>"
+                        data-oi="<?php echo e($row->outdoor_item_id); ?>"
+                        data-field="received_approval"
+                        data-scope="<?php echo e($scope); ?>" />
+                    </div>
+                    </td>
 
-<td class="px-4 py-4 hairline border-b align-top">
-  <div class="space-y-2 w-44">
-    <input
-      type="text"
-      class="field-input w-44 outdoor-field"
-      value="<?php echo e($row->artwork ?? ''); ?>"
-      data-id="<?php echo e($trackingId); ?>"
-      data-mf="<?php echo e($row->master_file_id); ?>"
-      data-oi="<?php echo e($row->outdoor_item_id); ?>"
-      data-field="artwork"
-      data-scope="<?php echo e($scope); ?>"
-      placeholder="note..." />
-    <input
-      type="date"
-      class="field-input w-44 tabular-nums outdoor-field"
-      value="<?php echo e($row->artwork_date ?? ''); ?>"
-      data-id="<?php echo e($trackingId); ?>"
-      data-mf="<?php echo e($row->master_file_id); ?>"
-      data-oi="<?php echo e($row->outdoor_item_id); ?>"
-      data-field="artwork_date"
-      data-scope="<?php echo e($scope); ?>" />
-  </div>
-</td>
+                    
+                    <td class="px-4 py-4 hairline border-b align-top">
+                    <div class="space-y-2 w-44">
+                        <input
+                        type="text"
+                        class="field-input w-44 outdoor-field"
+                        value="<?php echo e($row->sent_to_printer_note ?? ''); ?>"
+                        data-id="<?php echo e($trackingId); ?>"
+                        data-mf="<?php echo e($row->master_file_id); ?>"
+                        data-oi="<?php echo e($row->outdoor_item_id); ?>"
+                        data-field="sent_to_printer_note"
+                        data-scope="<?php echo e($scope); ?>"
+                        placeholder="note..." />
+                        <input
+                        type="date"
+                        class="field-input w-44 tabular-nums outdoor-field"
+                        value="<?php echo e($row->sent_to_printer ?? ''); ?>"
+                        data-id="<?php echo e($trackingId); ?>"
+                        data-mf="<?php echo e($row->master_file_id); ?>"
+                        data-oi="<?php echo e($row->outdoor_item_id); ?>"
+                        data-field="sent_to_printer"
+                        data-scope="<?php echo e($scope); ?>" />
+                    </div>
+                    </td>
 
+                    
+                    <td class="px-4 py-4 hairline border-b align-top">
+                    <div class="space-y-2 w-44">
+                        <input
+                        type="text"
+                        class="field-input w-44 outdoor-field"
+                        value="<?php echo e($row->collection_printer_note ?? ''); ?>"
+                        data-id="<?php echo e($trackingId); ?>"
+                        data-mf="<?php echo e($row->master_file_id); ?>"
+                        data-oi="<?php echo e($row->outdoor_item_id); ?>"
+                        data-field="collection_printer_note"
+                        data-scope="<?php echo e($scope); ?>"
+                        placeholder="note..." />
+                        <input
+                        type="date"
+                        class="field-input w-44 tabular-nums outdoor-field"
+                        value="<?php echo e($row->collection_printer ?? ''); ?>"
+                        data-id="<?php echo e($trackingId); ?>"
+                        data-mf="<?php echo e($row->master_file_id); ?>"
+                        data-oi="<?php echo e($row->outdoor_item_id); ?>"
+                        data-field="collection_printer"
+                        data-scope="<?php echo e($scope); ?>" />
+                    </div>
+                    </td>
 
-<td class="px-4 py-4 hairline border-b align-top">
-  <div class="space-y-2 w-44">
-    <input
-      type="text"
-      class="field-input w-44 outdoor-field"
-      value="<?php echo e($row->received_approval_note ?? ''); ?>"
-      data-id="<?php echo e($trackingId); ?>"
-      data-mf="<?php echo e($row->master_file_id); ?>"
-      data-oi="<?php echo e($row->outdoor_item_id); ?>"
-      data-field="received_approval_note"
-      data-scope="<?php echo e($scope); ?>"
-      placeholder="note..." />
-    <input
-      type="date"
-      class="field-input w-44 tabular-nums outdoor-field"
-      value="<?php echo e($row->received_approval ?? ''); ?>"
-      data-id="<?php echo e($trackingId); ?>"
-      data-mf="<?php echo e($row->master_file_id); ?>"
-      data-oi="<?php echo e($row->outdoor_item_id); ?>"
-      data-field="received_approval"
-      data-scope="<?php echo e($scope); ?>" />
-  </div>
-</td>
+                    
+                    <td class="px-4 py-4 hairline border-b align-top">
+                    <div class="space-y-2 w-44">
+                        <input
+                        type="text"
+                        class="field-input w-44 outdoor-field"
+                        value="<?php echo e($row->installation_note ?? ''); ?>"
+                        data-id="<?php echo e($trackingId); ?>"
+                        data-mf="<?php echo e($row->master_file_id); ?>"
+                        data-oi="<?php echo e($row->outdoor_item_id); ?>"
+                        data-field="installation_note"
+                        data-scope="<?php echo e($scope); ?>"
+                        placeholder="note..." />
+                        <input
+                        type="date"
+                        class="field-input w-44 tabular-nums outdoor-field"
+                        value="<?php echo e($row->installation ?? ''); ?>"
+                        data-id="<?php echo e($trackingId); ?>"
+                        data-mf="<?php echo e($row->master_file_id); ?>"
+                        data-oi="<?php echo e($row->outdoor_item_id); ?>"
+                        data-field="installation"
+                        data-scope="<?php echo e($scope); ?>" />
+                    </div>
+                    </td>
 
-
-<td class="px-4 py-4 hairline border-b align-top">
-  <div class="space-y-2 w-44">
-    <input
-      type="text"
-      class="field-input w-44 outdoor-field"
-      value="<?php echo e($row->sent_to_printer_note ?? ''); ?>"
-      data-id="<?php echo e($trackingId); ?>"
-      data-mf="<?php echo e($row->master_file_id); ?>"
-      data-oi="<?php echo e($row->outdoor_item_id); ?>"
-      data-field="sent_to_printer_note"
-      data-scope="<?php echo e($scope); ?>"
-      placeholder="note..." />
-    <input
-      type="date"
-      class="field-input w-44 tabular-nums outdoor-field"
-      value="<?php echo e($row->sent_to_printer ?? ''); ?>"
-      data-id="<?php echo e($trackingId); ?>"
-      data-mf="<?php echo e($row->master_file_id); ?>"
-      data-oi="<?php echo e($row->outdoor_item_id); ?>"
-      data-field="sent_to_printer"
-      data-scope="<?php echo e($scope); ?>" />
-  </div>
-</td>
-
-
-<td class="px-4 py-4 hairline border-b align-top">
-  <div class="space-y-2 w-44">
-    <input
-      type="text"
-      class="field-input w-44 outdoor-field"
-      value="<?php echo e($row->collection_printer_note ?? ''); ?>"
-      data-id="<?php echo e($trackingId); ?>"
-      data-mf="<?php echo e($row->master_file_id); ?>"
-      data-oi="<?php echo e($row->outdoor_item_id); ?>"
-      data-field="collection_printer_note"
-      data-scope="<?php echo e($scope); ?>"
-      placeholder="note..." />
-    <input
-      type="date"
-      class="field-input w-44 tabular-nums outdoor-field"
-      value="<?php echo e($row->collection_printer ?? ''); ?>"
-      data-id="<?php echo e($trackingId); ?>"
-      data-mf="<?php echo e($row->master_file_id); ?>"
-      data-oi="<?php echo e($row->outdoor_item_id); ?>"
-      data-field="collection_printer"
-      data-scope="<?php echo e($scope); ?>" />
-  </div>
-</td>
-
-
-<td class="px-4 py-4 hairline border-b align-top">
-  <div class="space-y-2 w-44">
-    <input
-      type="text"
-      class="field-input w-44 outdoor-field"
-      value="<?php echo e($row->installation_note ?? ''); ?>"
-      data-id="<?php echo e($trackingId); ?>"
-      data-mf="<?php echo e($row->master_file_id); ?>"
-      data-oi="<?php echo e($row->outdoor_item_id); ?>"
-      data-field="installation_note"
-      data-scope="<?php echo e($scope); ?>"
-      placeholder="note..." />
-    <input
-      type="date"
-      class="field-input w-44 tabular-nums outdoor-field"
-      value="<?php echo e($row->installation ?? ''); ?>"
-      data-id="<?php echo e($trackingId); ?>"
-      data-mf="<?php echo e($row->master_file_id); ?>"
-      data-oi="<?php echo e($row->outdoor_item_id); ?>"
-      data-field="installation"
-      data-scope="<?php echo e($scope); ?>" />
-  </div>
-</td>
-
-
-<td class="px-4 py-4 hairline border-b align-top">
-  <div class="space-y-2 w-44">
-    <input
-      type="text"
-      class="field-input w-44 outdoor-field"
-      value="<?php echo e($row->dismantle_note ?? ''); ?>"
-      data-id="<?php echo e($trackingId); ?>"
-      data-mf="<?php echo e($row->master_file_id); ?>"
-      data-oi="<?php echo e($row->outdoor_item_id); ?>"
-      data-field="dismantle_note"
-      data-scope="<?php echo e($scope); ?>"
-      placeholder="note..." />
-    <input
-      type="date"
-      class="field-input w-44 tabular-nums outdoor-field"
-      value="<?php echo e($row->dismantle ?? ''); ?>"
-      data-id="<?php echo e($trackingId); ?>"
-      data-mf="<?php echo e($row->master_file_id); ?>"
-      data-oi="<?php echo e($row->outdoor_item_id); ?>"
-      data-field="dismantle"
-      data-scope="<?php echo e($scope); ?>" />
-  </div>
-</td>
+                    
+                    <td class="px-4 py-4 hairline border-b align-top">
+                    <div class="space-y-2 w-44">
+                        <input
+                        type="text"
+                        class="field-input w-44 outdoor-field"
+                        value="<?php echo e($row->dismantle_note ?? ''); ?>"
+                        data-id="<?php echo e($trackingId); ?>"
+                        data-mf="<?php echo e($row->master_file_id); ?>"
+                        data-oi="<?php echo e($row->outdoor_item_id); ?>"
+                        data-field="dismantle_note"
+                        data-scope="<?php echo e($scope); ?>"
+                        placeholder="note..." />
+                        <input
+                        type="date"
+                        class="field-input w-44 tabular-nums outdoor-field"
+                        value="<?php echo e($row->dismantle ?? ''); ?>"
+                        data-id="<?php echo e($trackingId); ?>"
+                        data-mf="<?php echo e($row->master_file_id); ?>"
+                        data-oi="<?php echo e($row->outdoor_item_id); ?>"
+                        data-field="dismantle"
+                        data-scope="<?php echo e($scope); ?>" />
+                    </div>
+                    </td>
                 </tr>
                   <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 

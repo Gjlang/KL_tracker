@@ -13,7 +13,7 @@
   <div class="max-w-[1600px] mx-auto">
 
     <!-- Top Navigation Bar -->
-    <header class="surface border-b hairline sticky top-0 z-20">
+    <header class="surface border-b hairline">
       <div class="px-8 py-6">
         <div class="flex items-center justify-between">
           <div>

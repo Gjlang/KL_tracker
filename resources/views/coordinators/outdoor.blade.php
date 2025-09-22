@@ -212,18 +212,18 @@
           {{-- Table Headers --}}
           <thead class="bg-neutral-50 sticky top-0 z-10">
             <tr class="hairline border-b">
-                <th class="px-4 py-4 table-header text-center min-w-[80px] w-[80px]">ID</th>
+                <th class="px-4 py-4 table-header text-center min-w-[80px] w-[80px]">NO</th>
                 <th class="px-4 py-4 table-header min-w-[200px] w-[200px]">Company</th>
                 <th class="px-4 py-4 table-header min-w-[200px] w-[200px]">Person In Charge</th>
                 <th class="px-4 py-4 table-header min-w-[180px] w-[180px]">Product</th>
                 <th class="px-4 py-4 table-header min-w-[180px] w-[180px]">Site</th>
                 <th class="px-4 py-4 table-header min-w-[160px]">Payment</th>
-                <th class="px-4 py-4 table-header min-w-[160px]">Material</th>
-                <th class="px-4 py-4 table-header min-w-[160px]">Artwork</th>
-                <th class="px-4 py-4 table-header min-w-[160px]">Approval</th>
-                <th class="px-4 py-4 table-header min-w-[160px]">Sent</th>
-                <th class="px-4 py-4 table-header min-w-[160px]">Collected</th>
-                <th class="px-4 py-4 table-header min-w-[160px]">Install</th>
+                <th class="px-4 py-4 table-header min-w-[160px]">Material Received</th>
+                <th class="px-4 py-4 table-header min-w-[160px]">Artwork Done</th>
+                <th class="px-4 py-4 table-header min-w-[160px]">Received Approval</th>
+                <th class="px-4 py-4 table-header min-w-[160px]">Sent to Printer</th>
+                <th class="px-4 py-4 table-header min-w-[160px]">Collection to Printer</th>
+                <th class="px-4 py-4 table-header min-w-[160px]">Installation</th>
                 <th class="px-4 py-4 table-header min-w-[160px]">Dismantle</th>
             </tr>
             </thead>
@@ -288,206 +288,206 @@
                 </td>
 
                   {{-- PAYMENT (text + date) --}}
-<td class="px-4 py-4 hairline border-b align-top">
-  <div class="space-y-2 w-44">
-    {{-- text --}}
-    <input
-      type="text"
-      class="field-input w-44 outdoor-field"
-      value="{{ $row->payment ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
-      data-field="payment"
-      data-scope="{{ $scope }}"
-      placeholder="note..." />
-    {{-- date --}}
-    <input
-      type="date"
-      class="field-input w-44 tabular-nums outdoor-field"
-      value="{{ $row->payment_date ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
-      data-field="payment_date"
-      data-scope="{{ $scope }}" />
-  </div>
-</td>
+                    <td class="px-4 py-4 hairline border-b align-top">
+                    <div class="space-y-2 w-44">
+                        {{-- text --}}
+                        <input
+                        type="text"
+                        class="field-input w-44 outdoor-field"
+                        value="{{ $row->payment ?? '' }}"
+                        data-id="{{ $trackingId }}"
+                        data-mf="{{ $row->master_file_id }}"
+                        data-oi="{{ $row->outdoor_item_id }}"
+                        data-field="payment"
+                        data-scope="{{ $scope }}"
+                        placeholder="note..." />
+                        {{-- date --}}
+                        <input
+                        type="date"
+                        class="field-input w-44 tabular-nums outdoor-field"
+                        value="{{ $row->payment_date ?? '' }}"
+                        data-id="{{ $trackingId }}"
+                        data-mf="{{ $row->master_file_id }}"
+                        data-oi="{{ $row->outdoor_item_id }}"
+                        data-field="payment_date"
+                        data-scope="{{ $scope }}" />
+                    </div>
+                    </td>
 
-{{-- MATERIAL (text + date) --}}
-<td class="px-4 py-4 hairline border-b align-top">
-  <div class="space-y-2 w-44">
-    <input
-      type="text"
-      class="field-input w-44 outdoor-field"
-      value="{{ $row->material ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
-      data-field="material"
-      data-scope="{{ $scope }}"
-      placeholder="note..." />
-    <input
-      type="date"
-      class="field-input w-44 tabular-nums outdoor-field"
-      value="{{ $row->material_date ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
-      data-field="material_date"
-      data-scope="{{ $scope }}" />
-  </div>
-</td>
+                    {{-- MATERIAL (text + date) --}}
+                    <td class="px-4 py-4 hairline border-b align-top">
+                    <div class="space-y-2 w-44">
+                        <input
+                        type="text"
+                        class="field-input w-44 outdoor-field"
+                        value="{{ $row->material ?? '' }}"
+                        data-id="{{ $trackingId }}"
+                        data-mf="{{ $row->master_file_id }}"
+                        data-oi="{{ $row->outdoor_item_id }}"
+                        data-field="material"
+                        data-scope="{{ $scope }}"
+                        placeholder="note..." />
+                        <input
+                        type="date"
+                        class="field-input w-44 tabular-nums outdoor-field"
+                        value="{{ $row->material_date ?? '' }}"
+                        data-id="{{ $trackingId }}"
+                        data-mf="{{ $row->master_file_id }}"
+                        data-oi="{{ $row->outdoor_item_id }}"
+                        data-field="material_date"
+                        data-scope="{{ $scope }}" />
+                    </div>
+                    </td>
 
-{{-- ARTWORK (text + date) --}}
-<td class="px-4 py-4 hairline border-b align-top">
-  <div class="space-y-2 w-44">
-    <input
-      type="text"
-      class="field-input w-44 outdoor-field"
-      value="{{ $row->artwork ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
-      data-field="artwork"
-      data-scope="{{ $scope }}"
-      placeholder="note..." />
-    <input
-      type="date"
-      class="field-input w-44 tabular-nums outdoor-field"
-      value="{{ $row->artwork_date ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
-      data-field="artwork_date"
-      data-scope="{{ $scope }}" />
-  </div>
-</td>
+                    {{-- ARTWORK (text + date) --}}
+                    <td class="px-4 py-4 hairline border-b align-top">
+                    <div class="space-y-2 w-44">
+                        <input
+                        type="text"
+                        class="field-input w-44 outdoor-field"
+                        value="{{ $row->artwork ?? '' }}"
+                        data-id="{{ $trackingId }}"
+                        data-mf="{{ $row->master_file_id }}"
+                        data-oi="{{ $row->outdoor_item_id }}"
+                        data-field="artwork"
+                        data-scope="{{ $scope }}"
+                        placeholder="note..." />
+                        <input
+                        type="date"
+                        class="field-input w-44 tabular-nums outdoor-field"
+                        value="{{ $row->artwork_date ?? '' }}"
+                        data-id="{{ $trackingId }}"
+                        data-mf="{{ $row->master_file_id }}"
+                        data-oi="{{ $row->outdoor_item_id }}"
+                        data-field="artwork_date"
+                        data-scope="{{ $scope }}" />
+                    </div>
+                    </td>
 
-{{-- APPROVAL (note + date) --}}
-<td class="px-4 py-4 hairline border-b align-top">
-  <div class="space-y-2 w-44">
-    <input
-      type="text"
-      class="field-input w-44 outdoor-field"
-      value="{{ $row->received_approval_note ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
-      data-field="received_approval_note"
-      data-scope="{{ $scope }}"
-      placeholder="note..." />
-    <input
-      type="date"
-      class="field-input w-44 tabular-nums outdoor-field"
-      value="{{ $row->received_approval ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
-      data-field="received_approval"
-      data-scope="{{ $scope }}" />
-  </div>
-</td>
+                    {{-- APPROVAL (note + date) --}}
+                    <td class="px-4 py-4 hairline border-b align-top">
+                    <div class="space-y-2 w-44">
+                        <input
+                        type="text"
+                        class="field-input w-44 outdoor-field"
+                        value="{{ $row->received_approval_note ?? '' }}"
+                        data-id="{{ $trackingId }}"
+                        data-mf="{{ $row->master_file_id }}"
+                        data-oi="{{ $row->outdoor_item_id }}"
+                        data-field="received_approval_note"
+                        data-scope="{{ $scope }}"
+                        placeholder="note..." />
+                        <input
+                        type="date"
+                        class="field-input w-44 tabular-nums outdoor-field"
+                        value="{{ $row->received_approval ?? '' }}"
+                        data-id="{{ $trackingId }}"
+                        data-mf="{{ $row->master_file_id }}"
+                        data-oi="{{ $row->outdoor_item_id }}"
+                        data-field="received_approval"
+                        data-scope="{{ $scope }}" />
+                    </div>
+                    </td>
 
-{{-- SENT (note + date) --}}
-<td class="px-4 py-4 hairline border-b align-top">
-  <div class="space-y-2 w-44">
-    <input
-      type="text"
-      class="field-input w-44 outdoor-field"
-      value="{{ $row->sent_to_printer_note ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
-      data-field="sent_to_printer_note"
-      data-scope="{{ $scope }}"
-      placeholder="note..." />
-    <input
-      type="date"
-      class="field-input w-44 tabular-nums outdoor-field"
-      value="{{ $row->sent_to_printer ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
-      data-field="sent_to_printer"
-      data-scope="{{ $scope }}" />
-  </div>
-</td>
+                    {{-- SENT (note + date) --}}
+                    <td class="px-4 py-4 hairline border-b align-top">
+                    <div class="space-y-2 w-44">
+                        <input
+                        type="text"
+                        class="field-input w-44 outdoor-field"
+                        value="{{ $row->sent_to_printer_note ?? '' }}"
+                        data-id="{{ $trackingId }}"
+                        data-mf="{{ $row->master_file_id }}"
+                        data-oi="{{ $row->outdoor_item_id }}"
+                        data-field="sent_to_printer_note"
+                        data-scope="{{ $scope }}"
+                        placeholder="note..." />
+                        <input
+                        type="date"
+                        class="field-input w-44 tabular-nums outdoor-field"
+                        value="{{ $row->sent_to_printer ?? '' }}"
+                        data-id="{{ $trackingId }}"
+                        data-mf="{{ $row->master_file_id }}"
+                        data-oi="{{ $row->outdoor_item_id }}"
+                        data-field="sent_to_printer"
+                        data-scope="{{ $scope }}" />
+                    </div>
+                    </td>
 
-{{-- COLLECTED (note + date) --}}
-<td class="px-4 py-4 hairline border-b align-top">
-  <div class="space-y-2 w-44">
-    <input
-      type="text"
-      class="field-input w-44 outdoor-field"
-      value="{{ $row->collection_printer_note ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
-      data-field="collection_printer_note"
-      data-scope="{{ $scope }}"
-      placeholder="note..." />
-    <input
-      type="date"
-      class="field-input w-44 tabular-nums outdoor-field"
-      value="{{ $row->collection_printer ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
-      data-field="collection_printer"
-      data-scope="{{ $scope }}" />
-  </div>
-</td>
+                    {{-- COLLECTED (note + date) --}}
+                    <td class="px-4 py-4 hairline border-b align-top">
+                    <div class="space-y-2 w-44">
+                        <input
+                        type="text"
+                        class="field-input w-44 outdoor-field"
+                        value="{{ $row->collection_printer_note ?? '' }}"
+                        data-id="{{ $trackingId }}"
+                        data-mf="{{ $row->master_file_id }}"
+                        data-oi="{{ $row->outdoor_item_id }}"
+                        data-field="collection_printer_note"
+                        data-scope="{{ $scope }}"
+                        placeholder="note..." />
+                        <input
+                        type="date"
+                        class="field-input w-44 tabular-nums outdoor-field"
+                        value="{{ $row->collection_printer ?? '' }}"
+                        data-id="{{ $trackingId }}"
+                        data-mf="{{ $row->master_file_id }}"
+                        data-oi="{{ $row->outdoor_item_id }}"
+                        data-field="collection_printer"
+                        data-scope="{{ $scope }}" />
+                    </div>
+                    </td>
 
-{{-- INSTALL (note + date) --}}
-<td class="px-4 py-4 hairline border-b align-top">
-  <div class="space-y-2 w-44">
-    <input
-      type="text"
-      class="field-input w-44 outdoor-field"
-      value="{{ $row->installation_note ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
-      data-field="installation_note"
-      data-scope="{{ $scope }}"
-      placeholder="note..." />
-    <input
-      type="date"
-      class="field-input w-44 tabular-nums outdoor-field"
-      value="{{ $row->installation ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
-      data-field="installation"
-      data-scope="{{ $scope }}" />
-  </div>
-</td>
+                    {{-- INSTALL (note + date) --}}
+                    <td class="px-4 py-4 hairline border-b align-top">
+                    <div class="space-y-2 w-44">
+                        <input
+                        type="text"
+                        class="field-input w-44 outdoor-field"
+                        value="{{ $row->installation_note ?? '' }}"
+                        data-id="{{ $trackingId }}"
+                        data-mf="{{ $row->master_file_id }}"
+                        data-oi="{{ $row->outdoor_item_id }}"
+                        data-field="installation_note"
+                        data-scope="{{ $scope }}"
+                        placeholder="note..." />
+                        <input
+                        type="date"
+                        class="field-input w-44 tabular-nums outdoor-field"
+                        value="{{ $row->installation ?? '' }}"
+                        data-id="{{ $trackingId }}"
+                        data-mf="{{ $row->master_file_id }}"
+                        data-oi="{{ $row->outdoor_item_id }}"
+                        data-field="installation"
+                        data-scope="{{ $scope }}" />
+                    </div>
+                    </td>
 
-{{-- DISMANTLE (note + date) --}}
-<td class="px-4 py-4 hairline border-b align-top">
-  <div class="space-y-2 w-44">
-    <input
-      type="text"
-      class="field-input w-44 outdoor-field"
-      value="{{ $row->dismantle_note ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
-      data-field="dismantle_note"
-      data-scope="{{ $scope }}"
-      placeholder="note..." />
-    <input
-      type="date"
-      class="field-input w-44 tabular-nums outdoor-field"
-      value="{{ $row->dismantle ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
-      data-field="dismantle"
-      data-scope="{{ $scope }}" />
-  </div>
-</td>
+                    {{-- DISMANTLE (note + date) --}}
+                    <td class="px-4 py-4 hairline border-b align-top">
+                    <div class="space-y-2 w-44">
+                        <input
+                        type="text"
+                        class="field-input w-44 outdoor-field"
+                        value="{{ $row->dismantle_note ?? '' }}"
+                        data-id="{{ $trackingId }}"
+                        data-mf="{{ $row->master_file_id }}"
+                        data-oi="{{ $row->outdoor_item_id }}"
+                        data-field="dismantle_note"
+                        data-scope="{{ $scope }}"
+                        placeholder="note..." />
+                        <input
+                        type="date"
+                        class="field-input w-44 tabular-nums outdoor-field"
+                        value="{{ $row->dismantle ?? '' }}"
+                        data-id="{{ $trackingId }}"
+                        data-mf="{{ $row->master_file_id }}"
+                        data-oi="{{ $row->outdoor_item_id }}"
+                        data-field="dismantle"
+                        data-scope="{{ $scope }}" />
+                    </div>
+                    </td>
                 </tr>
                   @endforeach
 
