@@ -160,8 +160,8 @@ class OutdoorWhiteboardController extends Controller
         DB::raw('mf.date as mf_date'),
         DB::raw('mf.date_finish as mf_date_finish'),
 
-        'oi.start_date as installation',
-        'oi.end_date as dismantle',
+        DB::raw('mf.date as installation'),
+        DB::raw('mf.date_finish as dismantle'),
 
         // from outdoor_whiteboards (latest active wb)
         DB::raw('COALESCE(wb.created_at, oi.created_at, mf.created_at) as created'),

@@ -471,6 +471,7 @@ private function applyMonthFilterForJoinedQuery($query, $rawMonth)
         'invoice_number'   => ['sometimes','nullable','string','max:255'],
         'location'         => ['sometimes','nullable','string','max:255'],
         'remarks'          => ['sometimes','nullable','string'],
+        'sales_person'      => ['nullable','string','max:255'],
 
         // KLTG-only (all optional)
         'kltg_industry'      => ['nullable','string','max:255'],
@@ -1476,7 +1477,7 @@ public function inlineUpdate(\Illuminate\Http\Request $request)
         // Autocast dates (your Blade already formats YYYY-MM-DD, but keep this safe)
         $dateLike = ['date','date_finish','start_date','end_date','invoice_date'];
         if (in_array($col, $dateLike, true) && $val !== null && $val !== '') {
-            try { $val = \Carbon\Carbon::parse($val)->format('Y-m-d'); } catch (\Throwable $e) { /* ignore; store raw */ }
+            try { $val = Carbon::parse($val)->format('Y-m-d'); } catch (\Throwable $e) { /* ignore; store raw */ }
         }
 
         $changed = DB::table('master_files')

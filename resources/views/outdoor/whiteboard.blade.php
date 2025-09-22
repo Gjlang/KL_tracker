@@ -208,15 +208,16 @@
           </div>
         </td>
 
-        <!-- 9) Installation -->
+        <!-- 9) Installation (ambil dari master_files.date) -->
         <td class="px-4 py-3 text-sm column-data" data-column="9">
-          <div class="ink">{{ $item->start_date?->format('m/d/Y') }}</div>
+        <div class="ink">{{ $mf->date?->format('m/d/Y') }}</div>
         </td>
 
-        <!-- 10) Dismantle -->
+        <!-- 10) Dismantle (ambil dari master_files.date_finish) -->
         <td class="px-4 py-3 text-sm column-data" data-column="10">
-          <div class="ink">{{ $item->end_date?->format('m/d/Y') }}</div>
+        <div class="ink">{{ $mf->date_finish?->format('m/d/Y') }}</div>
         </td>
+
 
         <!-- 11) Supplier -->
         <td class="px-4 py-3 text-sm column-data" data-column="11">
