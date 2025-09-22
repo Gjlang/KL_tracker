@@ -1,7 +1,7 @@
-{{-- resources/views/calendar/_fullcalendar_embed.blade.php --}}
+
 <div id="ib-calendar" class="w-full"></div>
 
-@push('head')
+<?php $__env->startPush('head'); ?>
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
 <style>
   /* Enhanced badges with stronger colors */
@@ -138,9 +138,9 @@
     background-color: #FAFAFA !important;
   }
 </style>
-@endpush
+<?php $__env->stopPush(); ?>
 
-@php
+<?php
   // ---- Bangun data aman untuk di-JSON-kan (tanpa collect()->map())
   $__rows = [];
   foreach (($feeds ?? []) as $r) {
@@ -154,14 +154,14 @@
           'expected_finish_date' => optional($r->expected_finish_date)->format('Y-m-d'),
       ];
   }
-@endphp
+?>
 
-@push('scripts')
+<?php $__env->startPush('scripts'); ?>
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
 <script>
 (function() {
   // Data dari PHP → JS (pakai json_encode agar Blade gak bingung bracket [])
-  const rows = {!! json_encode($__rows, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) !!};
+  const rows = <?php echo json_encode($__rows, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); ?>;
 
   const today = new Date(); today.setHours(0,0,0,0);
 
@@ -349,4 +349,5 @@
   }
 })();
 </script>
-@endpush
+<?php $__env->stopPush(); ?>
+<?php /**PATH C:\Users\Gjlang\kl_guide_tracker\resources\views/calendar/_fullcalendar_embed.blade.php ENDPATH**/ ?>

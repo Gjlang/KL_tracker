@@ -18,7 +18,7 @@
     @yield('head')
     @stack('head')
 
-    {{-- FullCalendar CSS (optional global) --}}
+    {{-- FullCalendar CSS --}}
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet" />
 
     <style>[x-cloak]{display:none!important}</style>
@@ -26,12 +26,10 @@
 
 <body class="min-h-screen bg-[#F7F7F9] text-[#1C1E26] antialiased">
 @php
-  // Allow pages to override container width with:
-  // @section('container_class', 'w-screen max-w-none px-0')
+  // Default container, pages can override via @section('container_class')
   $containerClass = trim(View::yieldContent('container_class')) ?: 'max-w-7xl mx-auto sm:px-6 lg:px-8';
 @endphp
 
-{{-- Root Alpine untuk seluruh shell --}}
 <div x-data="sidebar()" x-init="init()" class="min-h-screen flex">
 
   {{-- Mobile Overlay --}}
@@ -46,59 +44,23 @@
        x-transition:leave-end="opacity-0">
   </div>
 
-  {{-- LEFT: Sidebar --}}
+  {{-- LEFT: Sidebar (one owner only) --}}
   <aside :class="isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'"
          class="fixed md:static inset-y-0 left-0 z-50 w-72 bg-white border-r border-neutral-200 transform transition-transform duration-300 ease-in-out md:transform-none overflow-y-auto">
-    {{-- Use your existing sidebar partial/component here --}}
     @includeIf('partials.sidebar')
-    {{-- If you don't have partials/sidebar.blade.php yet, create it
-         and put your nav links inside. --}}
   </aside>
 
   {{-- RIGHT: Content column --}}
   <div class="flex-1 flex flex-col min-h-screen min-w-0">
 
-    {{-- Header --}}
-    <header class="sticky top-0 z-30 bg-white border-b border-neutral-200">
-      <div class="h-14 px-6 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          {{-- Tombol toggle untuk mobile --}}
-          <button class="md:hidden p-2 rounded border border-neutral-300 hover:bg-neutral-50"
-                  @click="toggle()"
-                  aria-label="Toggle sidebar">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-            </svg>
-          </button>
-
-          {{-- App Title/Logo --}}
-          <a href="{{ route('dashboard') }}" class="font-medium text-lg">
-            KL Guide Tracker
-          </a>
-        </div>
-
-        <div class="flex items-center gap-2">
-          @auth
-            <form method="POST" action="{{ route('logout') }}">
-              @csrf
-              <button class="px-3 py-2 rounded-full bg-[#22255b] text-white hover:bg-[#1a1e4a] focus:ring-2 focus:ring-[#4bbbed] transition-colors">
-                Logout
-              </button>
-            </form>
-          @endauth
-        </div>
-      </div>
-    </header>
-
-    {{-- PAGE CONTENT --}}
     <main class="py-6 flex-1 min-h-0">
       <div class="{{ $containerClass }}">
+        {{-- Flash messages --}}
         @if (session('success'))
           <div class="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
             {{ session('success') }}
           </div>
         @endif
-
         @if (session('error'))
           <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
             {{ session('error') }}
@@ -114,42 +76,38 @@
   </div>
 </div>
 
-{{-- (Optional) FullCalendar JS global --}}
+{{-- FullCalendar JS --}}
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 
-{{-- Alpine.js CDN (if not included in Vite bundle) --}}
+{{-- Alpine.js --}}
 <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
-{{-- Global helpers --}}
+{{-- Alpine sidebar controller --}}
 <script>
-  // Alpine.js Controller untuk buka/tutup sidebar
   function sidebar() {
     return {
       isOpen: false,
       init() {
-        // Pinned di desktop (>= md breakpoint)
         this.isOpen = window.matchMedia('(min-width: 768px)').matches;
-
-        // Sinkron saat resize window
         window.addEventListener('resize', () => {
           this.isOpen = window.matchMedia('(min-width: 768px)').matches;
         });
       },
-      open() {
-        this.isOpen = true;
-      },
-      close() {
-        this.isOpen = false;
-      },
-      toggle() {
-        this.isOpen = !this.isOpen;
-      }
+      open() { this.isOpen = true; },
+      close() { this.isOpen = false; },
+      toggle() { this.isOpen = !this.isOpen; }
     }
   }
 
-  // Legacy modal functions (keep for backward compatibility)
-  function openModal(id){document.getElementById(id)?.classList.remove('hidden');document.body.classList.add('overflow-hidden');}
-  function closeModal(id){document.getElementById(id)?.classList.add('hidden');document.body.classList.remove('overflow-hidden');}
+  // Legacy modal helpers
+  function openModal(id){
+    document.getElementById(id)?.classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+  }
+  function closeModal(id){
+    document.getElementById(id)?.classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+  }
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));

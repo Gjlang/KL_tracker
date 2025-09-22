@@ -801,26 +801,26 @@ public function upsert(Request $request)
 
         // Two-stack headers structure
         $headerStructure = [
-    [
-        'NO',
-        'Company',
-        'Person In Charge',
-        'Product',
-        'Site',
-        'Payment',
-        'Material Received',
-        'Artwork Done',
-        'Received Approval',
-        'Sent to Printer',
-        'Collection Printer',
-        'Installation',
-        'Dismantle',
-        'Next Follow Up',
-        'Status',
-    ],
-    // baris header ke-2 (kosong, hanya untuk label notes)
-    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-];
+            [
+                'NO',
+                'Company',
+                'Person In Charge',
+                'Product',
+                'Site',
+                'Payment',
+                'Material Received',
+                'Artwork Done',
+                'Received Approval',
+                'Sent to Printer',
+                'Collection Printer',
+                'Installation',
+                'Dismantle',
+                'Next Follow Up',
+                'Status',
+            ],
+            // baris header ke-2 (kosong, hanya untuk label notes)
+            ['', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        ];
 
 
         $colCount = count($headerStructure[0]);
@@ -900,40 +900,40 @@ public function upsert(Request $request)
             foreach ($rows as $row) {
                 // First data row (main data + dates)
                 $sheet->setCellValue('A'.$currentRow, $globalRowNo);                  // NO
-$sheet->setCellValue('B'.$currentRow, $row->company ?? '');           // Company (mf.company)
-$sheet->setCellValue('C'.$currentRow, $row->person_in_charge ?? '');  // Person In Charge (alias)
-$sheet->setCellValue('D'.$currentRow, $row->product ?? '');           // Product (mf.product)
-$sheet->setCellValue('E'.$currentRow, $row->site ?? '');              // Site (oi.site)
-$sheet->setCellValue('F'.$currentRow, $this->formatDate($row->payment_date));
-$sheet->setCellValue('G'.$currentRow, $this->formatDate($row->material_date));
-$sheet->setCellValue('H'.$currentRow, $this->formatDate($row->artwork_date));
-$sheet->setCellValue('I'.$currentRow, $this->formatDate($row->received_approval));
-$sheet->setCellValue('J'.$currentRow, $this->formatDate($row->sent_to_printer));
-$sheet->setCellValue('K'.$currentRow, $this->formatDate($row->collection_printer));
-$sheet->setCellValue('L'.$currentRow, $this->formatDate($row->installation));
-$sheet->setCellValue('M'.$currentRow, $this->formatDate($row->dismantle));
-$sheet->setCellValue('N'.$currentRow, $this->formatDate($row->next_follow_up));
-$sheet->setCellValue('O'.$currentRow, $row->status ?? '');
-$currentRow++;
+                $sheet->setCellValue('B'.$currentRow, $row->company ?? '');           // Company (mf.company)
+                $sheet->setCellValue('C'.$currentRow, $row->person_in_charge ?? '');  // Person In Charge (alias)
+                $sheet->setCellValue('D'.$currentRow, $row->product ?? '');           // Product (mf.product)
+                $sheet->setCellValue('E'.$currentRow, $row->site ?? '');              // Site (oi.site)
+                $sheet->setCellValue('F'.$currentRow, $this->formatDate($row->payment_date));
+                $sheet->setCellValue('G'.$currentRow, $this->formatDate($row->material_date));
+                $sheet->setCellValue('H'.$currentRow, $this->formatDate($row->artwork_date));
+                $sheet->setCellValue('I'.$currentRow, $this->formatDate($row->received_approval));
+                $sheet->setCellValue('J'.$currentRow, $this->formatDate($row->sent_to_printer));
+                $sheet->setCellValue('K'.$currentRow, $this->formatDate($row->collection_printer));
+                $sheet->setCellValue('L'.$currentRow, $this->formatDate($row->installation));
+                $sheet->setCellValue('M'.$currentRow, $this->formatDate($row->dismantle));
+                $sheet->setCellValue('N'.$currentRow, $this->formatDate($row->next_follow_up));
+                $sheet->setCellValue('O'.$currentRow, $row->status ?? '');
+                $currentRow++;
                 // Second data row (notes)
                 $sheet->setCellValue('A'.$currentRow, ''); // NO
-$sheet->setCellValue('B'.$currentRow, ''); // Company
-$sheet->setCellValue('C'.$currentRow, ''); // Person In Charge
-$sheet->setCellValue('D'.$currentRow, ''); // Product
-$sheet->setCellValue('E'.$currentRow, ''); // Site
-$sheet->setCellValue('F'.$currentRow, $row->payment ?? '');
-$sheet->setCellValue('G'.$currentRow, $row->material ?? '');
-$sheet->setCellValue('H'.$currentRow, $row->artwork ?? '');
-$sheet->setCellValue('I'.$currentRow, $row->received_approval_note ?? '');
-$sheet->setCellValue('J'.$currentRow, $row->sent_to_printer_note ?? '');
-$sheet->setCellValue('K'.$currentRow, $row->collection_printer_note ?? '');
-$sheet->setCellValue('L'.$currentRow, $row->installation_note ?? '');
-$sheet->setCellValue('M'.$currentRow, $row->dismantle_note ?? '');
-$sheet->setCellValue('N'.$currentRow, $row->next_follow_up_note ?? '');
-$sheet->setCellValue('O'.$currentRow, ''); // Status (tidak ada notes)
-$currentRow++;
+                $sheet->setCellValue('B'.$currentRow, ''); // Company
+                $sheet->setCellValue('C'.$currentRow, ''); // Person In Charge
+                $sheet->setCellValue('D'.$currentRow, ''); // Product
+                $sheet->setCellValue('E'.$currentRow, ''); // Site
+                $sheet->setCellValue('F'.$currentRow, $row->payment ?? '');
+                $sheet->setCellValue('G'.$currentRow, $row->material ?? '');
+                $sheet->setCellValue('H'.$currentRow, $row->artwork ?? '');
+                $sheet->setCellValue('I'.$currentRow, $row->received_approval_note ?? '');
+                $sheet->setCellValue('J'.$currentRow, $row->sent_to_printer_note ?? '');
+                $sheet->setCellValue('K'.$currentRow, $row->collection_printer_note ?? '');
+                $sheet->setCellValue('L'.$currentRow, $row->installation_note ?? '');
+                $sheet->setCellValue('M'.$currentRow, $row->dismantle_note ?? '');
+                $sheet->setCellValue('N'.$currentRow, $row->next_follow_up_note ?? '');
+                $sheet->setCellValue('O'.$currentRow, ''); // Status (tidak ada notes)
+                $currentRow++;
 
-$globalRowNo++;
+                $globalRowNo++;
             }
 
             // Empty row between categories
