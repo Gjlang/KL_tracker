@@ -341,7 +341,7 @@ class OutdoorWhiteboardController extends Controller
     {
         if (empty($v)) return '';
         try {
-            return Carbon::parse($v)->format('m/d/Y'); // mm/dd/yyyy
+            return Carbon::parse($v)->format('d/m/Y'); // dd/mm/yyyy
         } catch (\Throwable) {
             return '';
         }
