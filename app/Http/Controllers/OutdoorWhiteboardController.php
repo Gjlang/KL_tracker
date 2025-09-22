@@ -149,32 +149,40 @@ class OutdoorWhiteboardController extends Controller
         ->orderBy('mf.product')
         ->orderBy('mf.company')
         ->orderBy('oi.site')
-        ->get([
-            'oi.id as outdoor_item_id',
-            'mf.product',
-            'mf.company',
-            DB::raw('COALESCE(oi.site, mf.location) as location'),
-            'oi.start_date as installation',
-            'oi.end_date as dismantle',
+            ->get([
+        'oi.id as outdoor_item_id',
+        'mf.product',
+        'mf.company',
+        DB::raw('COALESCE(oi.site, mf.location) as location'),
 
-            // from outdoor_whiteboards (latest active wb)
-            'wb.created_at as created',
+        // duration sources from master_files
+        DB::raw('mf.duration as mf_duration'),
+        DB::raw('mf.date as mf_date'),
+        DB::raw('mf.date_finish as mf_date_finish'),
 
-            // INV Number => client_text
-            DB::raw('wb.client_text as inv_number'),
+        'oi.start_date as installation',
+        'oi.end_date as dismantle',
 
-            // Purchase Order
-            DB::raw('wb.po_text as po_text'),
-            DB::raw('wb.po_date as po_date'),
+        // from outdoor_whiteboards (latest active wb)
+        DB::raw('COALESCE(wb.created_at, oi.created_at, mf.created_at) as created'),
 
-            // Supplier note/date
-            DB::raw('wb.supplier_text as supplier_text'),
-            DB::raw('wb.supplier_date as supplier_date'),
 
-            // Storage note/date
-            DB::raw('wb.storage_text as storage_text'),
-            DB::raw('wb.storage_date as storage_date'),
-        ]);
+        // INV Number => client_text
+        DB::raw('wb.client_text as inv_number'),
+
+        // Purchase Order
+        DB::raw('wb.po_text as po_text'),
+        DB::raw('wb.po_date as po_date'),
+
+        // Supplier note/date
+        DB::raw('wb.supplier_text as supplier_text'),
+        DB::raw('wb.supplier_date as supplier_date'),
+
+        // Storage note/date
+        DB::raw('wb.storage_text as storage_text'),
+        DB::raw('wb.storage_date as storage_date'),
+    ]);
+
 
     // Group by product
     $byProduct = collect($rows)->groupBy(fn ($r) => (string)($r->product ?? '—'));
@@ -188,12 +196,13 @@ class OutdoorWhiteboardController extends Controller
         'Product',
         'Company',
         'Location',
+        'Duration',
         'Installation',
         'Dismantle',
         'Supplier',
         'Storage',
     ];
-    $lastCol = 'K'; // 11 cols
+    $lastCol = 'L'; // 11 cols
 
     $ss = new Spreadsheet();
     $sheet = $ss->getActiveSheet();
@@ -212,16 +221,18 @@ class OutdoorWhiteboardController extends Controller
     $sheet->getColumnDimension('I')->setWidth(12);
     $sheet->getColumnDimension('J')->setWidth(20);
     $sheet->getColumnDimension('K')->setWidth(20);
+    $sheet->getColumnDimension('L')->setWidth(20);
 
     // Wrap Purchase Order + Supplier + Storage
-    foreach (['D', 'J', 'K'] as $col) {
+    foreach (['D', 'K', 'L'] as $col) {
         $sheet->getStyle("{$col}:{$col}")->getAlignment()->setWrapText(true);
     }
 
     // Title row
-    $sheet->mergeCells('A1:K1');
+    $sheet->mergeCells('A1:L1');
     $sheet->setCellValue('A1', 'TITLE (OUTDOOR WHITEBOARD)');
-    $sheet->getStyle('A1:K1')->applyFromArray([
+    $sheet->getStyle('A1:L1')->applyFromArray([
+
         'font' => [
             'bold' => true,
             'size' => 14,
@@ -284,6 +295,12 @@ class OutdoorWhiteboardController extends Controller
         // Data rows
         $i = 1;
         foreach ($items as $r) {
+
+            $durationText = $this->durationText(
+            $r->mf_duration ?? null,
+            $r->mf_date ?? null,
+            $r->mf_date_finish ?? null
+        );
             $sheet->fromArray([[
                 $i,
                 $this->fmtDate($r->created ?? null),
@@ -292,6 +309,7 @@ class OutdoorWhiteboardController extends Controller
                 $this->blank($r->product ?? null),
                 $this->blank($r->company ?? null),
                 $this->blank($r->location ?? null),
+                $durationText,
                 $this->fmtDate($r->installation ?? null),
                 $this->fmtDate($r->dismantle ?? null),
                 $this->stack($r->supplier_text ?? null, $r->supplier_date ?? null),
@@ -331,6 +349,31 @@ class OutdoorWhiteboardController extends Controller
     ]);
 }
 
+// put this below fmtDate() / stack(), but still inside the class
+private function durationText($raw, $startDate, $endDate): string
+{
+    // If master_files.duration exists and has a value
+    if (isset($raw) && $raw !== '') {
+        return is_numeric($raw) ? ($raw . ' days') : (string)$raw;
+    }
+
+    // Else compute from master_files.date → date_finish
+    if (!empty($startDate) && !empty($endDate)) {
+        try {
+            $start = Carbon::parse($startDate);
+            $end   = Carbon::parse($endDate);
+            if ($end->greaterThanOrEqualTo($start)) {
+                $days = $start->diffInDays($end) + 1; // inclusive
+                return $days . ' days';
+            }
+        } catch (\Throwable $e) {
+            // fall through
+        }
+    }
+    return '';
+}
+
+
     // ===== helpers =====
     private function blank($v): string
     {
@@ -341,7 +384,7 @@ class OutdoorWhiteboardController extends Controller
     {
         if (empty($v)) return '';
         try {
-            return Carbon::parse($v)->format('d/m/Y'); // dd/mm/yyyy
+            return Carbon::parse($v)->format('d/m/Y'); // mm/dd/yyyy
         } catch (\Throwable) {
             return '';
         }

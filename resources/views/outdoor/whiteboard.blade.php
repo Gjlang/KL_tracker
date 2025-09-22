@@ -119,121 +119,139 @@
                 <tr id="tableHeader"></tr>
               </thead>
               <tbody class="divide-y hairline" id="tableBody">
-                @php $row = 1; @endphp
-                @foreach ($masterFiles as $mf)
-                    @foreach ($mf->outdoorItems as $item)
-                        @php
-                        $wb = $existing->get($item->id);
-                        $poDate = '';
-                        if ($wb?->po_date) {
-                            $poDate = $wb->po_date instanceof \Carbon\Carbon
-                            ? $wb->po_date->format('Y-m-d')
-                            : $wb->po_date;
-                        }
+  @php $row = 1; @endphp
+  @foreach ($masterFiles as $mf)
+    @foreach ($mf->outdoorItems as $item)
+      @php
+        $wb = $existing->get($item->id);
 
-                        $supplierDate = '';
-                        if ($wb?->supplier_date) {
-                            $supplierDate = $wb->supplier_date instanceof \Carbon\Carbon
-                            ? $wb->supplier_date->format('Y-m-d')
-                            : $wb->supplier_date;
-                        }
+        $poDate = '';
+        if ($wb?->po_date) {
+            $poDate = $wb->po_date instanceof \Carbon\Carbon ? $wb->po_date->format('Y-m-d') : $wb->po_date;
+        }
 
-                        $storageDate = '';
-                        if ($wb?->storage_date) {
-                            $storageDate = $wb->storage_date instanceof \Carbon\Carbon
-                            ? $wb->storage_date->format('Y-m-d')
-                            : $wb->storage_date;
-                        }
-                        @endphp
+        $supplierDate = '';
+        if ($wb?->supplier_date) {
+            $supplierDate = $wb->supplier_date instanceof \Carbon\Carbon ? $wb->supplier_date->format('Y-m-d') : $wb->supplier_date;
+        }
 
-                        <tr class="hover:bg-neutral-50 hover:shadow-sm transition-all duration-150 group"
-                        data-item="{{ $item->id }}"
-                        data-master="{{ $mf->id }}"
-                        data-updated="{{ optional($wb?->updated_at)->timestamp ?? 0 }}">
+        $storageDate = '';
+        if ($wb?->storage_date) {
+            $storageDate = $wb->storage_date instanceof \Carbon\Carbon ? $wb->storage_date->format('Y-m-d') : $wb->storage_date;
+        }
+      @endphp
 
-                        <!-- 1) No. -->
-                        <td class="px-4 py-3 text-sm column-data" data-column="1">
-                            <div class="ink font-medium">{{ $row }}</div>
-                        </td>
+      <tr class="hover:bg-neutral-50 hover:shadow-sm transition-all duration-150 group"
+          data-item="{{ $item->id }}"
+          data-master="{{ $mf->id }}"
+          data-updated="{{ optional($wb?->updated_at)->timestamp ?? 0 }}">
 
-                        <!-- 2) Created -->
-                        <td class="px-4 py-3 text-sm column-data" data-column="2">
-                            <div class="ink font-medium">{{ $mf->created_at?->format('m/d/Y') }}</div>
-                        </td>
+        <!-- 1) No. -->
+        <td class="px-4 py-3 text-sm column-data" data-column="1">
+          <div class="ink font-medium">{{ $row }}</div>
+        </td>
 
-                        <!-- 3) INV number -->
-                        <td class="px-4 py-3 text-sm column-data" data-column="3">
-                            <div class="ink truncate max-w-[140px]" title="{{ $mf->invoice_number ?? $mf->inv_number }}">
-                            {{ $mf->invoice_number ?? $mf->inv_number }}
-                            </div>
-                        </td>
+        <!-- 2) Created -->
+        <td class="px-4 py-3 text-sm column-data" data-column="2">
+          <div class="ink font-medium">{{ $mf->created_at?->format('m/d/Y') }}</div>
+        </td>
 
-                        <!-- 4) PO -->
-                        <td class="px-4 py-3 text-sm column-data" data-column="4">
-                            <div class="space-y-2">
-                            <input type="text" name="po_text" class="wb-field ledger-input w-36" placeholder="PO note..." value="{{ old('po_text', $wb?->po_text) }}">
-                            <input type="date" name="po_date" class="wb-field ledger-input w-36" value="{{ old('po_date', $poDate) }}">
-                            </div>
-                        </td>
+        <!-- 3) INV number -->
+        <td class="px-4 py-3 text-sm column-data" data-column="3">
+          <div class="ink truncate max-w-[140px]" title="{{ $mf->invoice_number ?? $mf->inv_number }}">
+            {{ $mf->invoice_number ?? $mf->inv_number }}
+          </div>
+        </td>
 
-                        <!-- 5) Company -->
-                        <td class="px-4 py-3 text-sm column-data" data-column="5">
-                            <div class="ink font-medium truncate max-w-[180px]" title="{{ $mf->company }}">{{ $mf->company }}</div>
-                        </td>
+        <!-- 4) Purchase Order -->
+        <td class="px-4 py-3 text-sm column-data" data-column="4">
+          <div class="space-y-2">
+            <input type="text" name="po_text" class="wb-field ledger-input w-36" placeholder="PO note..." value="{{ old('po_text', $wb?->po_text) }}">
+            <input type="date" name="po_date" class="wb-field ledger-input w-36" value="{{ old('po_date', $poDate) }}">
+          </div>
+        </td>
 
-                        <!-- 6) Product -->
-                        <td class="px-4 py-3 text-sm column-data" data-column="6">
-                            <div class="ink truncate max-w-[140px]" title="{{ $mf->product }}">{{ $mf->product }}</div>
-                        </td>
+        <!-- 5) Company -->
+        <td class="px-4 py-3 text-sm column-data" data-column="5">
+          <div class="ink font-medium truncate max-w-[180px]" title="{{ $mf->company }}">{{ $mf->company }}</div>
+        </td>
 
-                        <!-- 7) Location -->
-                        <td class="px-4 py-3 text-sm column-data" data-column="7">
-                            <div class="ink truncate max-w-[180px]" title="{{ $item->site }}">{{ $item->site }}</div>
-                        </td>
+        <!-- 6) Product -->
+        <td class="px-4 py-3 text-sm column-data" data-column="6">
+          <div class="ink truncate max-w-[140px]" title="{{ $mf->product }}">{{ $mf->product }}</div>
+        </td>
 
-                        <!-- 8) Installation -->
-                        <td class="px-4 py-3 text-sm column-data" data-column="8">
-                            <div class="ink">{{ $item->start_date?->format('m/d/Y') }}</div>
-                        </td>
+        <!-- 7) Location -->
+        <td class="px-4 py-3 text-sm column-data" data-column="7">
+          <div class="ink truncate max-w-[180px]" title="{{ $item->site }}">{{ $item->site }}</div>
+        </td>
 
-                        <!-- 9) Dismantle -->
-                        <td class="px-4 py-3 text-sm column-data" data-column="9">
-                            <div class="ink">{{ $item->end_date?->format('m/d/Y') }}</div>
-                        </td>
+        <!-- 8) Duration (from master_files) -->
+        <td class="px-4 py-3 text-sm column-data" data-column="8">
+          <div class="ink">
+            @if(!empty($mf->duration_text))
+              {{ $mf->duration_text }}
+            @elseif(!empty($mf->duration))
+              {{ is_numeric($mf->duration) ? ($mf->duration.' days') : $mf->duration }}
+            @elseif(!empty($mf->date) && !empty($mf->date_finish))
+              @php
+                try {
+                  $s = \Carbon\Carbon::parse($mf->date);
+                  $e = \Carbon\Carbon::parse($mf->date_finish);
+                  $dur = $e->greaterThanOrEqualTo($s) ? ($s->diffInDays($e)+1).' days' : '—';
+                } catch (\Throwable $th) { $dur = '—'; }
+              @endphp
+              {{ $dur }}
+            @else
+              —
+            @endif
+          </div>
+        </td>
 
-                        <!-- 10) Supplier -->
-                        <td class="px-4 py-3 text-sm column-data" data-column="10">
-                            <div class="space-y-2">
-                            <input type="text" name="supplier_text" class="wb-field ledger-input w-36" placeholder="Supplier note..." value="{{ old('supplier_text', $wb?->supplier_text) }}">
-                            <input type="date" name="supplier_date" class="wb-field ledger-input w-36" value="{{ old('supplier_date', $supplierDate) }}">
-                            </div>
-                        </td>
+        <!-- 9) Installation -->
+        <td class="px-4 py-3 text-sm column-data" data-column="9">
+          <div class="ink">{{ $item->start_date?->format('m/d/Y') }}</div>
+        </td>
 
-                        <!-- 11) Storage -->
-                        <td class="px-4 py-3 text-sm column-data" data-column="11">
-                            <div class="space-y-2">
-                            <input type="text" name="storage_text" class="wb-field ledger-input w-36" placeholder="Storage note..." value="{{ old('storage_text', $wb?->storage_text) }}">
-                            <input type="date" name="storage_date" class="wb-field ledger-input w-36" value="{{ old('storage_date', $storageDate) }}">
-                            </div>
-                        </td>
+        <!-- 10) Dismantle -->
+        <td class="px-4 py-3 text-sm column-data" data-column="10">
+          <div class="ink">{{ $item->end_date?->format('m/d/Y') }}</div>
+        </td>
 
-                        <!-- 12) Actions -->
-                        <td class="px-4 py-3 text-sm column-data text-center" data-column="12">
-                            <div class="space-y-2">
-                            <div class="text-xs">
-                                <span class="save-state text-neutral-500">Idle</span>
-                            </div>
-                            <button type="button"
-                                class="complete-btn text-xs px-3 py-1.5 rounded-full bg-[#22255b] text-white hover:bg-[#1a1e4a]">
-                                Mark Completed
-                            </button>
-                            </div>
-                        </td>
-                        </tr>
-                        @php $row++; @endphp
-                    @endforeach
-                @endforeach
-              </tbody>
+        <!-- 11) Supplier -->
+        <td class="px-4 py-3 text-sm column-data" data-column="11">
+          <div class="space-y-2">
+            <input type="text" name="supplier_text" class="wb-field ledger-input w-36" placeholder="Supplier note..." value="{{ old('supplier_text', $wb?->supplier_text) }}">
+            <input type="date" name="supplier_date" class="wb-field ledger-input w-36" value="{{ old('supplier_date', $supplierDate) }}">
+          </div>
+        </td>
+
+        <!-- 12) Storage -->
+        <td class="px-4 py-3 text-sm column-data" data-column="12">
+          <div class="space-y-2">
+            <input type="text" name="storage_text" class="wb-field ledger-input w-36" placeholder="Storage note..." value="{{ old('storage_text', $wb?->storage_text) }}">
+            <input type="date" name="storage_date" class="wb-field ledger-input w-36" value="{{ old('storage_date', $storageDate) }}">
+          </div>
+        </td>
+
+        <!-- 13) Actions -->
+        <td class="px-4 py-3 text-sm column-data text-center" data-column="13">
+          <div class="space-y-2">
+            <div class="text-xs">
+              <span class="save-state text-neutral-500">Idle</span>
+            </div>
+            <button type="button"
+              class="complete-btn text-xs px-3 py-1.5 rounded-full bg-[#22255b] text-white hover:bg-[#1a1e4a]">
+              Mark Completed
+            </button>
+          </div>
+        </td>
+      </tr>
+      @php $row++; @endphp
+    @endforeach
+  @endforeach
+</tbody>
+
             </table>
           </div>
         </div>
@@ -256,7 +274,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
   // ===== Column pagination =====
-  const COLUMNS_PER_PAGE = 12;
+  const COLUMNS_PER_PAGE = 13;
   let currentColumnPage = 1;
 
   const columnHeaders = [
@@ -267,6 +285,7 @@ document.addEventListener('DOMContentLoaded', function () {
     { title: 'Company', key: 'company' },
     { title: 'Product', key: 'product' },
     { title: 'Location', key: 'location' },
+    { title: 'Duration', key: 'duration' },
     { title: 'Installation', key: 'installation' },
     { title: 'Dismantle', key: 'dismantle' },
     { title: 'Supplier', key: 'supplier' },

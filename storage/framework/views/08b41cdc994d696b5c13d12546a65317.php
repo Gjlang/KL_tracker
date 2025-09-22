@@ -117,122 +117,143 @@
                 <tr id="tableHeader"></tr>
               </thead>
               <tbody class="divide-y hairline" id="tableBody">
-                <?php $row = 1; ?>
-                <?php $__currentLoopData = $masterFiles; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $mf): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                    <?php $__currentLoopData = $mf->outdoorItems; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                        <?php
-                        $wb = $existing->get($item->id);
-                        $poDate = '';
-                        if ($wb?->po_date) {
-                            $poDate = $wb->po_date instanceof \Carbon\Carbon
-                            ? $wb->po_date->format('Y-m-d')
-                            : $wb->po_date;
-                        }
+  <?php $row = 1; ?>
+  <?php $__currentLoopData = $masterFiles; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $mf): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+    <?php $__currentLoopData = $mf->outdoorItems; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+      <?php
+        $wb = $existing->get($item->id);
 
-                        $supplierDate = '';
-                        if ($wb?->supplier_date) {
-                            $supplierDate = $wb->supplier_date instanceof \Carbon\Carbon
-                            ? $wb->supplier_date->format('Y-m-d')
-                            : $wb->supplier_date;
-                        }
+        $poDate = '';
+        if ($wb?->po_date) {
+            $poDate = $wb->po_date instanceof \Carbon\Carbon ? $wb->po_date->format('Y-m-d') : $wb->po_date;
+        }
 
-                        $storageDate = '';
-                        if ($wb?->storage_date) {
-                            $storageDate = $wb->storage_date instanceof \Carbon\Carbon
-                            ? $wb->storage_date->format('Y-m-d')
-                            : $wb->storage_date;
-                        }
-                        ?>
+        $supplierDate = '';
+        if ($wb?->supplier_date) {
+            $supplierDate = $wb->supplier_date instanceof \Carbon\Carbon ? $wb->supplier_date->format('Y-m-d') : $wb->supplier_date;
+        }
 
-                        <tr class="hover:bg-neutral-50 hover:shadow-sm transition-all duration-150 group"
-                        data-item="<?php echo e($item->id); ?>"
-                        data-master="<?php echo e($mf->id); ?>"
-                        data-updated="<?php echo e(optional($wb?->updated_at)->timestamp ?? 0); ?>">
+        $storageDate = '';
+        if ($wb?->storage_date) {
+            $storageDate = $wb->storage_date instanceof \Carbon\Carbon ? $wb->storage_date->format('Y-m-d') : $wb->storage_date;
+        }
+      ?>
 
-                        <!-- 1) No. -->
-                        <td class="px-4 py-3 text-sm column-data" data-column="1">
-                            <div class="ink font-medium"><?php echo e($row); ?></div>
-                        </td>
+      <tr class="hover:bg-neutral-50 hover:shadow-sm transition-all duration-150 group"
+          data-item="<?php echo e($item->id); ?>"
+          data-master="<?php echo e($mf->id); ?>"
+          data-updated="<?php echo e(optional($wb?->updated_at)->timestamp ?? 0); ?>">
 
-                        <!-- 2) Created -->
-                        <td class="px-4 py-3 text-sm column-data" data-column="2">
-                            <div class="ink font-medium"><?php echo e($mf->created_at?->format('m/d/Y')); ?></div>
-                        </td>
+        <!-- 1) No. -->
+        <td class="px-4 py-3 text-sm column-data" data-column="1">
+          <div class="ink font-medium"><?php echo e($row); ?></div>
+        </td>
 
-                        <!-- 3) INV number -->
-                        <td class="px-4 py-3 text-sm column-data" data-column="3">
-                            <div class="ink truncate max-w-[140px]" title="<?php echo e($mf->invoice_number ?? $mf->inv_number); ?>">
-                            <?php echo e($mf->invoice_number ?? $mf->inv_number); ?>
+        <!-- 2) Created -->
+        <td class="px-4 py-3 text-sm column-data" data-column="2">
+          <div class="ink font-medium"><?php echo e($mf->created_at?->format('m/d/Y')); ?></div>
+        </td>
 
-                            </div>
-                        </td>
+        <!-- 3) INV number -->
+        <td class="px-4 py-3 text-sm column-data" data-column="3">
+          <div class="ink truncate max-w-[140px]" title="<?php echo e($mf->invoice_number ?? $mf->inv_number); ?>">
+            <?php echo e($mf->invoice_number ?? $mf->inv_number); ?>
 
-                        <!-- 4) PO -->
-                        <td class="px-4 py-3 text-sm column-data" data-column="4">
-                            <div class="space-y-2">
-                            <input type="text" name="po_text" class="wb-field ledger-input w-36" placeholder="PO note..." value="<?php echo e(old('po_text', $wb?->po_text)); ?>">
-                            <input type="date" name="po_date" class="wb-field ledger-input w-36" value="<?php echo e(old('po_date', $poDate)); ?>">
-                            </div>
-                        </td>
+          </div>
+        </td>
 
-                        <!-- 5) Company -->
-                        <td class="px-4 py-3 text-sm column-data" data-column="5">
-                            <div class="ink font-medium truncate max-w-[180px]" title="<?php echo e($mf->company); ?>"><?php echo e($mf->company); ?></div>
-                        </td>
+        <!-- 4) Purchase Order -->
+        <td class="px-4 py-3 text-sm column-data" data-column="4">
+          <div class="space-y-2">
+            <input type="text" name="po_text" class="wb-field ledger-input w-36" placeholder="PO note..." value="<?php echo e(old('po_text', $wb?->po_text)); ?>">
+            <input type="date" name="po_date" class="wb-field ledger-input w-36" value="<?php echo e(old('po_date', $poDate)); ?>">
+          </div>
+        </td>
 
-                        <!-- 6) Product -->
-                        <td class="px-4 py-3 text-sm column-data" data-column="6">
-                            <div class="ink truncate max-w-[140px]" title="<?php echo e($mf->product); ?>"><?php echo e($mf->product); ?></div>
-                        </td>
+        <!-- 5) Company -->
+        <td class="px-4 py-3 text-sm column-data" data-column="5">
+          <div class="ink font-medium truncate max-w-[180px]" title="<?php echo e($mf->company); ?>"><?php echo e($mf->company); ?></div>
+        </td>
 
-                        <!-- 7) Location -->
-                        <td class="px-4 py-3 text-sm column-data" data-column="7">
-                            <div class="ink truncate max-w-[180px]" title="<?php echo e($item->site); ?>"><?php echo e($item->site); ?></div>
-                        </td>
+        <!-- 6) Product -->
+        <td class="px-4 py-3 text-sm column-data" data-column="6">
+          <div class="ink truncate max-w-[140px]" title="<?php echo e($mf->product); ?>"><?php echo e($mf->product); ?></div>
+        </td>
 
-                        <!-- 8) Installation -->
-                        <td class="px-4 py-3 text-sm column-data" data-column="8">
-                            <div class="ink"><?php echo e($item->start_date?->format('m/d/Y')); ?></div>
-                        </td>
+        <!-- 7) Location -->
+        <td class="px-4 py-3 text-sm column-data" data-column="7">
+          <div class="ink truncate max-w-[180px]" title="<?php echo e($item->site); ?>"><?php echo e($item->site); ?></div>
+        </td>
 
-                        <!-- 9) Dismantle -->
-                        <td class="px-4 py-3 text-sm column-data" data-column="9">
-                            <div class="ink"><?php echo e($item->end_date?->format('m/d/Y')); ?></div>
-                        </td>
+        <!-- 8) Duration (from master_files) -->
+        <td class="px-4 py-3 text-sm column-data" data-column="8">
+          <div class="ink">
+            <?php if(!empty($mf->duration_text)): ?>
+              <?php echo e($mf->duration_text); ?>
 
-                        <!-- 10) Supplier -->
-                        <td class="px-4 py-3 text-sm column-data" data-column="10">
-                            <div class="space-y-2">
-                            <input type="text" name="supplier_text" class="wb-field ledger-input w-36" placeholder="Supplier note..." value="<?php echo e(old('supplier_text', $wb?->supplier_text)); ?>">
-                            <input type="date" name="supplier_date" class="wb-field ledger-input w-36" value="<?php echo e(old('supplier_date', $supplierDate)); ?>">
-                            </div>
-                        </td>
+            <?php elseif(!empty($mf->duration)): ?>
+              <?php echo e(is_numeric($mf->duration) ? ($mf->duration.' days') : $mf->duration); ?>
 
-                        <!-- 11) Storage -->
-                        <td class="px-4 py-3 text-sm column-data" data-column="11">
-                            <div class="space-y-2">
-                            <input type="text" name="storage_text" class="wb-field ledger-input w-36" placeholder="Storage note..." value="<?php echo e(old('storage_text', $wb?->storage_text)); ?>">
-                            <input type="date" name="storage_date" class="wb-field ledger-input w-36" value="<?php echo e(old('storage_date', $storageDate)); ?>">
-                            </div>
-                        </td>
+            <?php elseif(!empty($mf->date) && !empty($mf->date_finish)): ?>
+              <?php
+                try {
+                  $s = \Carbon\Carbon::parse($mf->date);
+                  $e = \Carbon\Carbon::parse($mf->date_finish);
+                  $dur = $e->greaterThanOrEqualTo($s) ? ($s->diffInDays($e)+1).' days' : '—';
+                } catch (\Throwable $th) { $dur = '—'; }
+              ?>
+              <?php echo e($dur); ?>
 
-                        <!-- 12) Actions -->
-                        <td class="px-4 py-3 text-sm column-data text-center" data-column="12">
-                            <div class="space-y-2">
-                            <div class="text-xs">
-                                <span class="save-state text-neutral-500">Idle</span>
-                            </div>
-                            <button type="button"
-                                class="complete-btn text-xs px-3 py-1.5 rounded-full bg-[#22255b] text-white hover:bg-[#1a1e4a]">
-                                Mark Completed
-                            </button>
-                            </div>
-                        </td>
-                        </tr>
-                        <?php $row++; ?>
-                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-              </tbody>
+            <?php else: ?>
+              —
+            <?php endif; ?>
+          </div>
+        </td>
+
+        <!-- 9) Installation -->
+        <td class="px-4 py-3 text-sm column-data" data-column="9">
+          <div class="ink"><?php echo e($item->start_date?->format('m/d/Y')); ?></div>
+        </td>
+
+        <!-- 10) Dismantle -->
+        <td class="px-4 py-3 text-sm column-data" data-column="10">
+          <div class="ink"><?php echo e($item->end_date?->format('m/d/Y')); ?></div>
+        </td>
+
+        <!-- 11) Supplier -->
+        <td class="px-4 py-3 text-sm column-data" data-column="11">
+          <div class="space-y-2">
+            <input type="text" name="supplier_text" class="wb-field ledger-input w-36" placeholder="Supplier note..." value="<?php echo e(old('supplier_text', $wb?->supplier_text)); ?>">
+            <input type="date" name="supplier_date" class="wb-field ledger-input w-36" value="<?php echo e(old('supplier_date', $supplierDate)); ?>">
+          </div>
+        </td>
+
+        <!-- 12) Storage -->
+        <td class="px-4 py-3 text-sm column-data" data-column="12">
+          <div class="space-y-2">
+            <input type="text" name="storage_text" class="wb-field ledger-input w-36" placeholder="Storage note..." value="<?php echo e(old('storage_text', $wb?->storage_text)); ?>">
+            <input type="date" name="storage_date" class="wb-field ledger-input w-36" value="<?php echo e(old('storage_date', $storageDate)); ?>">
+          </div>
+        </td>
+
+        <!-- 13) Actions -->
+        <td class="px-4 py-3 text-sm column-data text-center" data-column="13">
+          <div class="space-y-2">
+            <div class="text-xs">
+              <span class="save-state text-neutral-500">Idle</span>
+            </div>
+            <button type="button"
+              class="complete-btn text-xs px-3 py-1.5 rounded-full bg-[#22255b] text-white hover:bg-[#1a1e4a]">
+              Mark Completed
+            </button>
+          </div>
+        </td>
+      </tr>
+      <?php $row++; ?>
+    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+  <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+</tbody>
+
             </table>
           </div>
         </div>
@@ -256,7 +277,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
   // ===== Column pagination =====
-  const COLUMNS_PER_PAGE = 12;
+  const COLUMNS_PER_PAGE = 13;
   let currentColumnPage = 1;
 
   const columnHeaders = [
@@ -267,6 +288,7 @@ document.addEventListener('DOMContentLoaded', function () {
     { title: 'Company', key: 'company' },
     { title: 'Product', key: 'product' },
     { title: 'Location', key: 'location' },
+    { title: 'Duration', key: 'duration' },
     { title: 'Installation', key: 'installation' },
     { title: 'Dismantle', key: 'dismantle' },
     { title: 'Supplier', key: 'supplier' },
