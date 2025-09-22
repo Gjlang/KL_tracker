@@ -131,6 +131,7 @@ public function index(Request $request)
     $q->select([
         'mf.id as master_file_id',
         'mf.company as company',
+        'mf.client as client',
         'mf.product as product',
         'mf.product_category as product_category',
         DB::raw('oi.id as outdoor_item_id'),

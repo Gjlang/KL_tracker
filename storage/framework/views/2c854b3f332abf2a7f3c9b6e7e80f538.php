@@ -1,7 +1,5 @@
-@extends('layouts.app')
-
-@push('head')
-<meta name="csrf-token" content="{{ csrf_token() }}">
+<?php $__env->startPush('head'); ?>
+<meta name="csrf-token" content="<?php echo e(csrf_token()); ?>">
 <style>
 /* Style Tokens */
 .ink { color: #1C1E26; }
@@ -50,13 +48,13 @@
   @apply bg-neutral-50 text-neutral-700 rounded-lg px-3 py-2 text-sm;
 }
 </style>
-@endpush
+<?php $__env->stopPush(); ?>
 
-@section('content')
+<?php $__env->startSection('content'); ?>
 <div class="min-h-screen bg-[#F7F7F9]">
   <div class="p-6 md:p-8 max-w-full mx-auto">
 
-    {{-- Header Section --}}
+    
     <div class="mb-8">
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <div>
@@ -64,7 +62,7 @@
           <p class="sans text-neutral-600">Track progress across all outdoor advertising projects</p>
         </div>
         <div>
-          <a href="{{ route('dashboard.outdoor') }}" class="btn-ghost">
+          <a href="<?php echo e(route('dashboard.outdoor')); ?>" class="btn-ghost">
             <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
             </svg>
@@ -73,94 +71,97 @@
         </div>
       </div>
 
-      {{-- Flash Messages --}}
-      @if(session('success'))
+      
+      <?php if(session('success')): ?>
         <div class="mb-6 p-4 card bg-green-50 border-green-200 text-green-800">
           <div class="flex items-center">
             <svg class="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
             </svg>
-            {{ session('success') }}
+            <?php echo e(session('success')); ?>
+
           </div>
         </div>
-      @endif
+      <?php endif; ?>
 
-      @if(session('info'))
+      <?php if(session('info')): ?>
         <div class="mb-6 p-4 card bg-blue-50 border-blue-200 text-blue-800">
           <div class="flex items-center">
             <svg class="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
             </svg>
-            {{ session('info') }}
+            <?php echo e(session('info')); ?>
+
           </div>
         </div>
-      @endif
+      <?php endif; ?>
     </div>
 
-    {{-- Filter Panel --}}
+    
     <div class="mb-6 card">
       <div class="p-6">
-        <form method="GET" action="{{ route('coordinator.outdoor.index') }}">
+        <form method="GET" action="<?php echo e(route('coordinator.outdoor.index')); ?>">
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-            {{-- Left Column: Filters --}}
+            
             <div class="md:col-span-2 space-y-4">
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                {{-- Month Filter --}}
+                
                 <div class="space-y-2">
                   <label for="filterMonth" class="sans table-header">Month</label>
                   <select name="month" id="filterMonth" class="w-full input sans">
                     <option value="">All Months</option>
-                    @foreach(($months ?? []) as $m)
-                      <option value="{{ $m['value'] }}" @selected((int)($month ?? 0) === (int)$m['value'])>
-                        {{ $m['label'] }}
+                    <?php $__currentLoopData = ($months ?? []); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $m): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                      <option value="<?php echo e($m['value']); ?>" <?php if((int)($month ?? 0) === (int)$m['value']): echo 'selected'; endif; ?>>
+                        <?php echo e($m['label']); ?>
+
                       </option>
-                    @endforeach
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                   </select>
                 </div>
-                {{-- Year Filter --}}
+                
                 <div class="space-y-2">
                   <label for="filterYear" class="sans table-header">Year</label>
                   <input type="number" id="filterYear" name="year"
-                         value="{{ (int)($year ?? now()->year) }}"
-                         min="2000" max="{{ now()->year + 1 }}"
+                         value="<?php echo e((int)($year ?? now()->year)); ?>"
+                         min="2000" max="<?php echo e(now()->year + 1); ?>"
                          class="w-full input sans tabular-nums">
                 </div>
               </div>
 
-              {{-- Show only active this month --}}
+              
               <div class="flex items-center space-x-2">
                 <input type="checkbox"
                        id="toggleActive"
                        name="active"
                        value="1"
-                       @checked(request('active'))
-                       @disabled(!request('month'))
+                       <?php if(request('active')): echo 'checked'; endif; ?>
+                       <?php if(!request('month')): echo 'disabled'; endif; ?>
                        class="rounded border-neutral-300 text-[#22255b] focus:ring-[#4bbbed]">
                 <label for="toggleActive" class="sans text-sm text-neutral-700">
                   Show only active this month
                 </label>
               </div>
 
-              {{-- Action Buttons --}}
+              
               <div class="flex flex-col sm:flex-row gap-3 pt-2">
                 <button type="submit" class="btn-primary flex-1 sm:flex-none">
                   Apply Filters
                 </button>
-                <a href="{{ route('coordinator.outdoor.index') }}" class="btn-secondary flex-1 sm:flex-none text-center">
+                <a href="<?php echo e(route('coordinator.outdoor.index')); ?>" class="btn-secondary flex-1 sm:flex-none text-center">
                   Reset
                 </a>
               </div>
             </div>
 
-            {{-- Right Column: Export --}}
+            
             <div class="flex flex-col justify-end">
-              <a href="{{ route('coordinator.outdoor.export', [
+              <a href="<?php echo e(route('coordinator.outdoor.export', [
                    'month' => request('month'),
                    'year'  => request('year'),
                    'search' => request('search'),
-                 ]) }}"
+                 ])); ?>"
                  class="btn-secondary text-center">
                 Export XLSX
               </a>
@@ -170,10 +171,10 @@
       </div>
     </div>
 
-    {{-- Table Section --}}
+    
     <div class="card overflow-hidden">
 
-      {{-- Table Header --}}
+      
       <div class="px-6 py-4 hairline border-b">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -187,8 +188,8 @@
         </div>
       </div>
 
-      {{-- Mini pager (shows only if >15 rows) --}}
-      @if(($rows ?? collect())->count() > 15)
+      
+      <?php if(($rows ?? collect())->count() > 15): ?>
         <div class="flex items-center justify-between px-4 py-2 border-b border-neutral-200 bg-neutral-50/50">
           <span class="text-xs text-neutral-600 sans">
             Showing <span id="rowsPerPage">15</span> rows per page
@@ -204,12 +205,12 @@
             </button>
           </div>
         </div>
-      @endif
+      <?php endif; ?>
 
-      {{-- Table Content --}}
+      
       <div class="overflow-x-auto">
         <table id="outdoorTable" class="min-w-full">
-          {{-- Table Headers --}}
+          
           <thead class="bg-neutral-50 sticky top-0 z-10">
             <tr class="hairline border-b">
                 <th class="px-4 py-4 table-header text-center min-w-[80px] w-[80px]">ID</th>
@@ -228,11 +229,11 @@
             </tr>
             </thead>
 
-          {{-- Table Body --}}
+          
           <tbody id="outdoorTbody" class="bg-white divide-y divide-neutral-200">
-            @if(isset($rows) && $rows->count() > 0)
-              @foreach($rows as $i => $row)
-                @php
+            <?php if(isset($rows) && $rows->count() > 0): ?>
+              <?php $__currentLoopData = $rows; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $i => $row): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                <?php
                   // Determine scope based on whether month is selected
                   $isMonth = isset($month) && $month !== '' && (int)$month >= 1 && (int)$month <= 12;
                   $scope = $isMonth ? 'omd' : 'oct';
@@ -243,256 +244,261 @@
                   // Define editable columns and date fields
                   $editableCols = ['payment','material','artwork','received_approval','sent_to_printer','collection_printer','installation','dismantle'];
                   $dateCols = ['received_approval','sent_to_printer','collection_printer','installation','dismantle'];
-                @endphp
+                ?>
 
                <tr class="hover:bg-neutral-50 hover-lift transition-all duration-150"
-                data-idx="{{ $loop->index }}"
-                data-scope="{{ $scope }}"
-                data-id="{{ $row->tracking_id ?? '' }}"
-                data-mf="{{ $row->master_file_id }}"
-                data-oi="{{ $row->outdoor_item_id }}"
-                data-year="{{ (int)($year ?? now()->year) }}"
-                data-month="{{ $isMonth ? (int)$month : '' }}">
+                data-idx="<?php echo e($loop->index); ?>"
+                data-scope="<?php echo e($scope); ?>"
+                data-id="<?php echo e($row->tracking_id ?? ''); ?>"
+                data-mf="<?php echo e($row->master_file_id); ?>"
+                data-oi="<?php echo e($row->outdoor_item_id); ?>"
+                data-year="<?php echo e((int)($year ?? now()->year)); ?>"
+                data-month="<?php echo e($isMonth ? (int)$month : ''); ?>">
 
-                {{-- ID --}}
+                
                 <td class="bg-white hairline border-r px-4 py-4 text-center ink font-medium tabular-nums min-w-[80px] w-[80px]">
-                    {{ $rows->firstItem() + $i }}
+                    <?php echo e($rows->firstItem() + $i); ?>
+
                 </td>
 
-                {{-- Company --}}
+                
                 <td class="bg-white hairline border-r px-4 py-4 min-w-[200px] w-[200px]">
                     <div class="field-readonly font-medium truncate">
-                    {{ $row->company ?? '—' }}
+                    <?php echo e($row->company ?? '—'); ?>
+
                     </div>
                 </td>
 
-                {{-- Person In Charge --}}
+                
                 <td class="bg-white hairline border-r px-4 py-4 min-w-[200px] w-[200px]">
                     <div class="field-readonly truncate">
-                    {{ $row->client ?? '—' }}
+                    <?php echo e($row->client ?? '—'); ?>
+
                     </div>
                 </td>
 
-                {{-- Product --}}
+                
                 <td class="bg-white hairline border-r px-4 py-4 min-w-[180px] w-[180px]">
                     <div class="field-readonly truncate">
-                    {{ $row->product ?? '—' }}
+                    <?php echo e($row->product ?? '—'); ?>
+
                     </div>
                 </td>
 
-                {{-- Site --}}
+                
                 <td class="bg-white hairline border-r px-4 py-4 min-w-[180px] w-[180px]">
                     <div class="field-readonly truncate">
-                    {{ $row->site ?? '—' }}
+                    <?php echo e($row->site ?? '—'); ?>
+
                     </div>
                 </td>
 
-                  {{-- PAYMENT (text + date) --}}
+                  
 <td class="px-4 py-4 hairline border-b align-top">
   <div class="space-y-2 w-44">
-    {{-- text --}}
+    
     <input
       type="text"
       class="field-input w-44 outdoor-field"
-      value="{{ $row->payment ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
+      value="<?php echo e($row->payment ?? ''); ?>"
+      data-id="<?php echo e($trackingId); ?>"
+      data-mf="<?php echo e($row->master_file_id); ?>"
+      data-oi="<?php echo e($row->outdoor_item_id); ?>"
       data-field="payment"
-      data-scope="{{ $scope }}"
+      data-scope="<?php echo e($scope); ?>"
       placeholder="note..." />
-    {{-- date --}}
+    
     <input
       type="date"
       class="field-input w-44 tabular-nums outdoor-field"
-      value="{{ $row->payment_date ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
+      value="<?php echo e($row->payment_date ?? ''); ?>"
+      data-id="<?php echo e($trackingId); ?>"
+      data-mf="<?php echo e($row->master_file_id); ?>"
+      data-oi="<?php echo e($row->outdoor_item_id); ?>"
       data-field="payment_date"
-      data-scope="{{ $scope }}" />
+      data-scope="<?php echo e($scope); ?>" />
   </div>
 </td>
 
-{{-- MATERIAL (text + date) --}}
+
 <td class="px-4 py-4 hairline border-b align-top">
   <div class="space-y-2 w-44">
     <input
       type="text"
       class="field-input w-44 outdoor-field"
-      value="{{ $row->material ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
+      value="<?php echo e($row->material ?? ''); ?>"
+      data-id="<?php echo e($trackingId); ?>"
+      data-mf="<?php echo e($row->master_file_id); ?>"
+      data-oi="<?php echo e($row->outdoor_item_id); ?>"
       data-field="material"
-      data-scope="{{ $scope }}"
+      data-scope="<?php echo e($scope); ?>"
       placeholder="note..." />
     <input
       type="date"
       class="field-input w-44 tabular-nums outdoor-field"
-      value="{{ $row->material_date ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
+      value="<?php echo e($row->material_date ?? ''); ?>"
+      data-id="<?php echo e($trackingId); ?>"
+      data-mf="<?php echo e($row->master_file_id); ?>"
+      data-oi="<?php echo e($row->outdoor_item_id); ?>"
       data-field="material_date"
-      data-scope="{{ $scope }}" />
+      data-scope="<?php echo e($scope); ?>" />
   </div>
 </td>
 
-{{-- ARTWORK (text + date) --}}
+
 <td class="px-4 py-4 hairline border-b align-top">
   <div class="space-y-2 w-44">
     <input
       type="text"
       class="field-input w-44 outdoor-field"
-      value="{{ $row->artwork ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
+      value="<?php echo e($row->artwork ?? ''); ?>"
+      data-id="<?php echo e($trackingId); ?>"
+      data-mf="<?php echo e($row->master_file_id); ?>"
+      data-oi="<?php echo e($row->outdoor_item_id); ?>"
       data-field="artwork"
-      data-scope="{{ $scope }}"
+      data-scope="<?php echo e($scope); ?>"
       placeholder="note..." />
     <input
       type="date"
       class="field-input w-44 tabular-nums outdoor-field"
-      value="{{ $row->artwork_date ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
+      value="<?php echo e($row->artwork_date ?? ''); ?>"
+      data-id="<?php echo e($trackingId); ?>"
+      data-mf="<?php echo e($row->master_file_id); ?>"
+      data-oi="<?php echo e($row->outdoor_item_id); ?>"
       data-field="artwork_date"
-      data-scope="{{ $scope }}" />
+      data-scope="<?php echo e($scope); ?>" />
   </div>
 </td>
 
-{{-- APPROVAL (note + date) --}}
+
 <td class="px-4 py-4 hairline border-b align-top">
   <div class="space-y-2 w-44">
     <input
       type="text"
       class="field-input w-44 outdoor-field"
-      value="{{ $row->received_approval_note ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
+      value="<?php echo e($row->received_approval_note ?? ''); ?>"
+      data-id="<?php echo e($trackingId); ?>"
+      data-mf="<?php echo e($row->master_file_id); ?>"
+      data-oi="<?php echo e($row->outdoor_item_id); ?>"
       data-field="received_approval_note"
-      data-scope="{{ $scope }}"
+      data-scope="<?php echo e($scope); ?>"
       placeholder="note..." />
     <input
       type="date"
       class="field-input w-44 tabular-nums outdoor-field"
-      value="{{ $row->received_approval ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
+      value="<?php echo e($row->received_approval ?? ''); ?>"
+      data-id="<?php echo e($trackingId); ?>"
+      data-mf="<?php echo e($row->master_file_id); ?>"
+      data-oi="<?php echo e($row->outdoor_item_id); ?>"
       data-field="received_approval"
-      data-scope="{{ $scope }}" />
+      data-scope="<?php echo e($scope); ?>" />
   </div>
 </td>
 
-{{-- SENT (note + date) --}}
+
 <td class="px-4 py-4 hairline border-b align-top">
   <div class="space-y-2 w-44">
     <input
       type="text"
       class="field-input w-44 outdoor-field"
-      value="{{ $row->sent_to_printer_note ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
+      value="<?php echo e($row->sent_to_printer_note ?? ''); ?>"
+      data-id="<?php echo e($trackingId); ?>"
+      data-mf="<?php echo e($row->master_file_id); ?>"
+      data-oi="<?php echo e($row->outdoor_item_id); ?>"
       data-field="sent_to_printer_note"
-      data-scope="{{ $scope }}"
+      data-scope="<?php echo e($scope); ?>"
       placeholder="note..." />
     <input
       type="date"
       class="field-input w-44 tabular-nums outdoor-field"
-      value="{{ $row->sent_to_printer ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
+      value="<?php echo e($row->sent_to_printer ?? ''); ?>"
+      data-id="<?php echo e($trackingId); ?>"
+      data-mf="<?php echo e($row->master_file_id); ?>"
+      data-oi="<?php echo e($row->outdoor_item_id); ?>"
       data-field="sent_to_printer"
-      data-scope="{{ $scope }}" />
+      data-scope="<?php echo e($scope); ?>" />
   </div>
 </td>
 
-{{-- COLLECTED (note + date) --}}
+
 <td class="px-4 py-4 hairline border-b align-top">
   <div class="space-y-2 w-44">
     <input
       type="text"
       class="field-input w-44 outdoor-field"
-      value="{{ $row->collection_printer_note ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
+      value="<?php echo e($row->collection_printer_note ?? ''); ?>"
+      data-id="<?php echo e($trackingId); ?>"
+      data-mf="<?php echo e($row->master_file_id); ?>"
+      data-oi="<?php echo e($row->outdoor_item_id); ?>"
       data-field="collection_printer_note"
-      data-scope="{{ $scope }}"
+      data-scope="<?php echo e($scope); ?>"
       placeholder="note..." />
     <input
       type="date"
       class="field-input w-44 tabular-nums outdoor-field"
-      value="{{ $row->collection_printer ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
+      value="<?php echo e($row->collection_printer ?? ''); ?>"
+      data-id="<?php echo e($trackingId); ?>"
+      data-mf="<?php echo e($row->master_file_id); ?>"
+      data-oi="<?php echo e($row->outdoor_item_id); ?>"
       data-field="collection_printer"
-      data-scope="{{ $scope }}" />
+      data-scope="<?php echo e($scope); ?>" />
   </div>
 </td>
 
-{{-- INSTALL (note + date) --}}
+
 <td class="px-4 py-4 hairline border-b align-top">
   <div class="space-y-2 w-44">
     <input
       type="text"
       class="field-input w-44 outdoor-field"
-      value="{{ $row->installation_note ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
+      value="<?php echo e($row->installation_note ?? ''); ?>"
+      data-id="<?php echo e($trackingId); ?>"
+      data-mf="<?php echo e($row->master_file_id); ?>"
+      data-oi="<?php echo e($row->outdoor_item_id); ?>"
       data-field="installation_note"
-      data-scope="{{ $scope }}"
+      data-scope="<?php echo e($scope); ?>"
       placeholder="note..." />
     <input
       type="date"
       class="field-input w-44 tabular-nums outdoor-field"
-      value="{{ $row->installation ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
+      value="<?php echo e($row->installation ?? ''); ?>"
+      data-id="<?php echo e($trackingId); ?>"
+      data-mf="<?php echo e($row->master_file_id); ?>"
+      data-oi="<?php echo e($row->outdoor_item_id); ?>"
       data-field="installation"
-      data-scope="{{ $scope }}" />
+      data-scope="<?php echo e($scope); ?>" />
   </div>
 </td>
 
-{{-- DISMANTLE (note + date) --}}
+
 <td class="px-4 py-4 hairline border-b align-top">
   <div class="space-y-2 w-44">
     <input
       type="text"
       class="field-input w-44 outdoor-field"
-      value="{{ $row->dismantle_note ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
+      value="<?php echo e($row->dismantle_note ?? ''); ?>"
+      data-id="<?php echo e($trackingId); ?>"
+      data-mf="<?php echo e($row->master_file_id); ?>"
+      data-oi="<?php echo e($row->outdoor_item_id); ?>"
       data-field="dismantle_note"
-      data-scope="{{ $scope }}"
+      data-scope="<?php echo e($scope); ?>"
       placeholder="note..." />
     <input
       type="date"
       class="field-input w-44 tabular-nums outdoor-field"
-      value="{{ $row->dismantle ?? '' }}"
-      data-id="{{ $trackingId }}"
-      data-mf="{{ $row->master_file_id }}"
-      data-oi="{{ $row->outdoor_item_id }}"
+      value="<?php echo e($row->dismantle ?? ''); ?>"
+      data-id="<?php echo e($trackingId); ?>"
+      data-mf="<?php echo e($row->master_file_id); ?>"
+      data-oi="<?php echo e($row->outdoor_item_id); ?>"
       data-field="dismantle"
-      data-scope="{{ $scope }}" />
+      data-scope="<?php echo e($scope); ?>" />
   </div>
 </td>
                 </tr>
-                  @endforeach
+                  <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 
-            @else
-              {{-- Empty State --}}
+            <?php else: ?>
+              
               <tr>
                 <td colspan="13" class="px-6 py-16 text-center">
                   <div class="flex flex-col items-center max-w-sm mx-auto">
@@ -504,24 +510,25 @@
                   </div>
                 </td>
               </tr>
-            @endif
+            <?php endif; ?>
           </tbody>
         </table>
       </div>
 
-      {{-- Pagination --}}
-      @if(isset($rows) && method_exists($rows, 'links') && $rows->hasPages())
+      
+      <?php if(isset($rows) && method_exists($rows, 'links') && $rows->hasPages()): ?>
         <div class="px-6 py-4 hairline border-t">
-          {{ $rows->links() }}
+          <?php echo e($rows->links()); ?>
+
         </div>
-      @endif
+      <?php endif; ?>
     </div>
 
   </div>
 </div>
-@endsection
+<?php $__env->stopSection(); ?>
 
-@push('scripts')
+<?php $__env->startPush('scripts'); ?>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -665,7 +672,7 @@ document.addEventListener('DOMContentLoaded', function () {
     showSaveIndicator(element, 'loading');
 
     try {
-      const res = await fetch(`{{ route('coordinator.outdoor.upsert') }}`, {
+      const res = await fetch(`<?php echo e(route('coordinator.outdoor.upsert')); ?>`, {
         method: 'POST',
         headers: {
           'X-CSRF-TOKEN': token,
@@ -804,4 +811,6 @@ document.addEventListener('DOMContentLoaded', function () {
   })();
 });
 </script>
-@endpush
+<?php $__env->stopPush(); ?>
+
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\Gjlang\kl_guide_tracker\resources\views/coordinators/outdoor.blade.php ENDPATH**/ ?>

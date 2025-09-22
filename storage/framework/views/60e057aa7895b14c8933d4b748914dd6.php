@@ -1,6 +1,6 @@
-@php use Illuminate\Support\Str; @endphp
+<?php use Illuminate\Support\Str; ?>
 
-@php
+<?php
     /** @var \Illuminate\Support\Collection $existing */
     $existing = isset($existing) && $existing ? collect($existing) : collect();
 
@@ -41,10 +41,10 @@
             return ''; // or return (string)$v;
         }
     }
-@endphp
+?>
 
-@push('head')
-<meta name="csrf-token" content="{{ csrf_token() }}">
+<?php $__env->startPush('head'); ?>
+<meta name="csrf-token" content="<?php echo e(csrf_token()); ?>">
 <style>
 /* Style Tokens */
 .ink { color: #1C1E26; }
@@ -87,15 +87,24 @@
   @apply ring-1 ring-[#4bbbed]/20;
 }
 </style>
-@endpush
+<?php $__env->stopPush(); ?>
 
-<x-app-layout>
+<?php if (isset($component)) { $__componentOriginal4619374cef299e94fd7263111d0abc69 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal4619374cef299e94fd7263111d0abc69 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.app-layout','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('app-layout'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
   <div class="min-h-screen bg-[#F7F7F9]">
-    @include('partials.sidebar')
+    <?php echo $__env->make('partials.sidebar', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
     <main class="flex-1 overflow-y-auto">
       <div class="p-6 md:p-8 max-w-full">
 
-        {{-- Header Section --}}
+        
         <div class="mb-8">
           <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div>
@@ -103,7 +112,7 @@
               <p class="sans text-neutral-600">Manage and track outdoor advertising campaigns</p>
             </div>
             <div>
-              <a href="{{ route('dashboard') }}" class="btn-ghost">
+              <a href="<?php echo e(route('dashboard')); ?>" class="btn-ghost">
                 <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"/>
                 </svg>
@@ -112,30 +121,31 @@
             </div>
           </div>
 
-          {{-- Flash Messages --}}
-          @if(session('status'))
+          
+          <?php if(session('status')): ?>
             <div class="mb-6 p-4 card bg-green-50 border-green-200 text-green-800">
               <div class="flex items-center">
                 <svg class="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
                 </svg>
-                {{ session('status') }}
+                <?php echo e(session('status')); ?>
+
               </div>
             </div>
-          @endif
+          <?php endif; ?>
         </div>
-        {{-- Filters Panel --}}
+        
 <div class="mb-6 card">
   <div class="p-6">
-    <form method="GET" action="{{ url()->current() }}">
+    <form method="GET" action="<?php echo e(url()->current()); ?>">
 
-      {{-- Preserve cross-page filters if you need them --}}
-      <input type="hidden" name="status" value="{{ request('status') }}">
-      {{-- Keep section category "Outdoor" locked (do NOT reuse this name for subproduct) --}}
+      
+      <input type="hidden" name="status" value="<?php echo e(request('status')); ?>">
+      
       <input type="hidden" name="category" value="Outdoor">
 
       <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-        {{-- Category (locked) --}}
+        
         <div class="space-y-2">
           <label class="sans table-header">Category</label>
           <div class="h-11 flex items-center">
@@ -143,54 +153,54 @@
           </div>
         </div>
 
-        {{-- Year --}}
+        
         <div class="space-y-2">
           <label for="year" class="sans table-header">Year</label>
-          @php
+          <?php
             $currentYear = (int) ($year ?? now()->year);
-          @endphp
+          ?>
           <select id="year" name="year" class="w-full h-11 sans rounded border border-neutral-200 focus-ring px-3">
-            @foreach(($years ?? [now()->year]) as $y)
-              <option value="{{ (int)$y }}" @selected((int)$y === $currentYear)>{{ (int)$y }}</option>
-            @endforeach
+            <?php $__currentLoopData = ($years ?? [now()->year]); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $y): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+              <option value="<?php echo e((int)$y); ?>" <?php if((int)$y === $currentYear): echo 'selected'; endif; ?>><?php echo e((int)$y); ?></option>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
           </select>
         </div>
 
-        {{-- Month --}}
+        
         <div class="space-y-2">
           <label for="month" class="sans table-header">Month</label>
-          @php
+          <?php
             $mSel = (int) (request('month') ?? 0);
             $monthNames = [1=>'Jan',2=>'Feb',3=>'Mar',4=>'Apr',5=>'May',6=>'Jun',7=>'Jul',8=>'Aug',9=>'Sep',10=>'Oct',11=>'Nov',12=>'Dec'];
-          @endphp
+          ?>
           <select id="month" name="month" class="w-full h-11 sans rounded border border-neutral-200 focus-ring px-3">
             <option value="0">All months</option>
-            @foreach($monthNames as $mi => $mn)
-              <option value="{{ $mi }}" @selected($mSel === $mi)>{{ $mn }}</option>
-            @endforeach
+            <?php $__currentLoopData = $monthNames; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $mi => $mn): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+              <option value="<?php echo e($mi); ?>" <?php if($mSel === $mi): echo 'selected'; endif; ?>><?php echo e($mn); ?></option>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
           </select>
         </div>
 
-        {{-- Subproduct (NEW) --}}
+        
         <div class="space-y-2">
           <label for="product_category" class="sans table-header">Subproduct</label>
-          @php
+          <?php
             $subproducts = ['BB','TB','Newspaper','Bunting','Flyers','Star','Signages'];
             $pc = (string) request('product_category', '');
-          @endphp
+          ?>
           <select id="product_category" name="product_category" class="w-full h-11 sans rounded border border-neutral-200 focus-ring px-3">
             <option value="">All</option>
-            @foreach ($subproducts as $opt)
-              <option value="{{ $opt }}" @selected($pc === $opt)>{{ $opt }}</option>
-            @endforeach
+            <?php $__currentLoopData = $subproducts; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $opt): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+              <option value="<?php echo e($opt); ?>" <?php if($pc === $opt): echo 'selected'; endif; ?>><?php echo e($opt); ?></option>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
           </select>
         </div>
 
-        {{-- Search --}}
+        
         <div class="space-y-2">
           <label for="search" class="sans table-header">Search</label>
           <input id="search" name="search" type="text"
-                 value="{{ request('search') }}"
+                 value="<?php echo e(request('search')); ?>"
                  class="w-full h-11 input sans"
                  placeholder="Company / product / site…">
         </div>
@@ -198,93 +208,93 @@
 
       <div class="mt-4 flex flex-wrap gap-3">
         <button type="submit" class="btn-primary h-11">Apply Filters</button>
-        <a href="{{ url()->current() }}" class="btn-secondary h-11">Clear All</a>
+        <a href="<?php echo e(url()->current()); ?>" class="btn-secondary h-11">Clear All</a>
       </div>
 
-      {{-- Active filter chips with clear links --}}
-      @php
+      
+      <?php
         $hasYear      = request()->filled('year');
         $hasMonth     = request()->filled('month') && (int)request('month') !== 0;
         $hasSearch    = trim((string)request('search')) !== '';
         $hasSubprod   = trim((string)request('product_category')) !== '';
-      @endphp
+      ?>
 
-      @if($hasYear || $hasMonth || $hasSearch || $hasSubprod)
+      <?php if($hasYear || $hasMonth || $hasSearch || $hasSubprod): ?>
         <div class="mt-4 flex flex-wrap items-center gap-2">
           <span class="sans text-sm text-neutral-600">Active:</span>
 
-          <a class="chip" href="{{ request()->fullUrlWithQuery([
+          <a class="chip" href="<?php echo e(request()->fullUrlWithQuery([
                 'search'=>request('search'),
                 'month'=>request('month'),
                 'year'=>request('year'),
                 'product_category'=>request('product_category'),
-            ]) }}">
+            ])); ?>">
             CATEGORY: OUTDOOR
           </a>
 
-          @if($hasYear)
-            <a class="chip" href="{{ request()->fullUrlWithQuery(['year'=>null]) }}">
-              YEAR: {{ (int)request('year') }} <span class="ml-1">×</span>
+          <?php if($hasYear): ?>
+            <a class="chip" href="<?php echo e(request()->fullUrlWithQuery(['year'=>null])); ?>">
+              YEAR: <?php echo e((int)request('year')); ?> <span class="ml-1">×</span>
             </a>
-          @endif
+          <?php endif; ?>
 
-          @if($hasMonth)
-            <a class="chip" href="{{ request()->fullUrlWithQuery(['month'=>0]) }}">
-              MONTH: {{ $monthNames[(int)request('month')] ?? '' }} <span class="ml-1">×</span>
+          <?php if($hasMonth): ?>
+            <a class="chip" href="<?php echo e(request()->fullUrlWithQuery(['month'=>0])); ?>">
+              MONTH: <?php echo e($monthNames[(int)request('month')] ?? ''); ?> <span class="ml-1">×</span>
             </a>
-          @endif
+          <?php endif; ?>
 
-          @if($hasSubprod)
-            <a class="chip" href="{{ request()->fullUrlWithQuery(['product_category'=>null]) }}">
-              SUBPRODUCT: {{ request('product_category') }} <span class="ml-1">×</span>
+          <?php if($hasSubprod): ?>
+            <a class="chip" href="<?php echo e(request()->fullUrlWithQuery(['product_category'=>null])); ?>">
+              SUBPRODUCT: <?php echo e(request('product_category')); ?> <span class="ml-1">×</span>
             </a>
-          @endif
+          <?php endif; ?>
 
-          @if($hasSearch)
-            <a class="chip" href="{{ request()->fullUrlWithQuery(['search'=>null]) }}">
-              SEARCH: "{{ Str::limit(request('search'), 20) }}" <span class="ml-1">×</span>
+          <?php if($hasSearch): ?>
+            <a class="chip" href="<?php echo e(request()->fullUrlWithQuery(['search'=>null])); ?>">
+              SEARCH: "<?php echo e(Str::limit(request('search'), 20)); ?>" <span class="ml-1">×</span>
             </a>
-          @endif
+          <?php endif; ?>
         </div>
-      @endif
+      <?php endif; ?>
     </form>
 
-    {{-- Clone structure button (OUTSIDE the filter form; show only when there is no data) --}}
-    @if(($existing ?? collect())->isEmpty())
-      <form method="POST" action="{{ route('coordinator.outdoor.cloneYear') }}" class="mt-3">
-        @csrf
-        <input type="hidden" name="to_year" value="{{ (int)($year ?? now()->year) }}">
-        <input type="hidden" name="from_year" value="{{ (int)($year ?? now()->year) - 1 }}">
+    
+    <?php if(($existing ?? collect())->isEmpty()): ?>
+      <form method="POST" action="<?php echo e(route('coordinator.outdoor.cloneYear')); ?>" class="mt-3">
+        <?php echo csrf_field(); ?>
+        <input type="hidden" name="to_year" value="<?php echo e((int)($year ?? now()->year)); ?>">
+        <input type="hidden" name="from_year" value="<?php echo e((int)($year ?? now()->year) - 1); ?>">
         <button type="submit" class="btn btn-soft">
           Clone previous year's structure (no values)
         </button>
       </form>
-    @endif
+    <?php endif; ?>
   </div>
 </div>
 
         </div>
-        {{-- Action Bar --}}
+        
         <div class="mb-6 card">
           <div class="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <a href="{{ route('coordinator.outdoor.index') }}" class="btn-secondary">
+            <a href="<?php echo e(route('coordinator.outdoor.index')); ?>" class="btn-secondary">
               Outdoor Coordinator List
             </a>
 
-             <a href="{{ route('outdoor.whiteboard.index') }}"
+             <a href="<?php echo e(route('outdoor.whiteboard.index')); ?>"
                 class="inline-flex items-center px-4 py-2 rounded-lg bg-[#22255b] text-white hover:opacity-90">
                 OUTDOOR Whiteboard
                 </a>
-            <a href="{{ route('coordinator.outdoor.exportMatrix', ['year' => $year]) }}" class="btn-primary">
+            <a href="<?php echo e(route('coordinator.outdoor.exportMatrix', ['year' => $year])); ?>" class="btn-primary">
               Export CSV
             </a>
           </div>
         </div>
 
-        {{-- Data Table --}}
+        
         <div class="card overflow-hidden">
-          @if(($rows ?? [])->count() > 0)
-            {{-- Small pager control bar --}}
+          <?php if(($rows ?? [])->count() > 0): ?>
+            
             <div class="flex items-center justify-between px-4 py-2 hairline border-b">
               <span class="text-xs text-neutral-600">Showing <span id="rowsPerPage">15</span> rows per page</span>
               <div class="flex items-center gap-2">
@@ -320,95 +330,103 @@
                     <th class="px-4 py-4 text-left table-header" style="min-width:120px;">
                       End Date
                     </th>
-                    @php
+                    <?php
                         $monthLabels = [1=>'January',2=>'February',3=>'March',4=>'April',5=>'May',6=>'June',
                                         7=>'July',8=>'August',9=>'September',10=>'October',11=>'November',12=>'December'];
-                    @endphp
-                    @foreach($monthLabels as $mNum => $mName)
+                    ?>
+                    <?php $__currentLoopData = $monthLabels; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $mNum => $mName): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                       <th class="px-3 py-4 text-left table-header bg-neutral-100" style="min-width:180px;">
-                        {{ $mName }}
+                        <?php echo e($mName); ?>
+
                       </th>
-                    @endforeach
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                   </tr>
                 </thead>
                 <tbody id="outdoorTbody" class="bg-white divide-y divide-neutral-200">
-                  @foreach($rows as $index => $row)
-                    @php
+                  <?php $__currentLoopData = $rows; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $row): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <?php
                         $company = $row->company ?? $row->client;
                         $start   = $row->start_date ?? $row->date ?? null;
                         $end     = $row->date_finish ?? $row->end_date ?? null;
                         $startDisp = df($start);
                         $endDisp   = df($end);
-                    @endphp
-                    <tr class="hover:bg-neutral-50 hover-lift transition-all duration-150" data-idx="{{ $loop->index }}">
-                    <td class="px-3 py-2 text-right tabular-nums">{{ $loop->iteration }}</td>
+                    ?>
+                    <tr class="hover:bg-neutral-50 hover-lift transition-all duration-150" data-idx="<?php echo e($loop->index); ?>">
+                    <td class="px-3 py-2 text-right tabular-nums"><?php echo e($loop->iteration); ?></td>
                       <td class="px-4 py-3 sans text-sm text-neutral-600 tabular-nums">
-                        {{ df($row->created_at) }}
+                        <?php echo e(df($row->created_at)); ?>
+
                       </td>
                       <td class="px-4 py-3 sans text-sm font-medium ink">
-                        <div class="max-w-[200px] truncate" title="{{ $company }}">
-                          {{ $company }}
+                        <div class="max-w-[200px] truncate" title="<?php echo e($company); ?>">
+                          <?php echo e($company); ?>
+
                         </div>
                       </td>
                       <td class="px-4 py-3 sans text-sm text-neutral-700">
-                        {{ $row->product }}
+                        <?php echo e($row->product); ?>
+
                       </td>
                       <td class="px-4 py-3 sans text-sm text-neutral-700">
-                        {{ $row->site ?? '—' }}
+                        <?php echo e($row->site ?? '—'); ?>
+
                       </td>
                       <td class="px-4 py-3">
                         <span class="chip text-[#22255b] bg-[#22255b]/10">
-                          {{ $row->product_category ?? 'Outdoor' }}
+                          <?php echo e($row->product_category ?? 'Outdoor'); ?>
+
                         </span>
                       </td>
                       <td class="px-4 py-3 sans text-sm text-neutral-700 tabular-nums">
-                        {{ $startDisp }}
+                        <?php echo e($startDisp); ?>
+
                       </td>
                       <td class="px-4 py-3 sans text-sm text-[#d33831] tabular-nums font-medium">
-                        {{ $endDisp }}
+                        <?php echo e($endDisp); ?>
+
                       </td>
 
-                      {{-- Month cells --}}
-                      @foreach($monthLabels as $mNum => $mName)
+                      
+                      <?php $__currentLoopData = $monthLabels; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $mNum => $mName): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
 
-                        @php
+                        <?php
                           $savedStatus = omd($existing, $row->outdoor_item_id, $mNum, 'status', 'text');
                           $savedDate   = omd($existing, $row->outdoor_item_id, $mNum, 'installed_on', 'date');
-                        @endphp
+                        ?>
                         <td class="px-3 py-3 bg-neutral-50/50">
                           <div class="space-y-2">
                             <!-- Status dropdown -->
                             <select
                               class="status-dropdown w-full monthly-input text-xs"
-                              data-master="{{ $row->id }}"
-                              data-item="{{ $row->outdoor_item_id }}"
-                              data-year="{{ $year }}"
-                              data-month="{{ $mNum }}"
+                              data-master="<?php echo e($row->id); ?>"
+                              data-item="<?php echo e($row->outdoor_item_id); ?>"
+                              data-year="<?php echo e($year); ?>"
+                              data-month="<?php echo e($mNum); ?>"
                               data-kind="text"
-                              name="status_{{ $row->id }}_{{ $year }}_{{ $mNum }}"
+                              name="status_<?php echo e($row->id); ?>_<?php echo e($year); ?>_<?php echo e($mNum); ?>"
                               onchange="saveOutdoorCell(this); setDropdownColor(this);">
                                 <option value="">Select status...</option>
-                                <option value="Installation" {{ $savedStatus==='Installation' ? 'selected' : '' }}>Installation</option>
-                                <option value="Dismantle"   {{ $savedStatus==='Dismantle'   ? 'selected' : '' }}>Dismantle</option>
-                                <option value="Artwork"     {{ $savedStatus==='Artwork'     ? 'selected' : '' }}>Artwork</option>
-                                <option value="Payment"     {{ $savedStatus==='Payment'     ? 'selected' : '' }}>Payment</option>
-                                <option value="Ongoing"     {{ $savedStatus==='Ongoing'     ? 'selected' : '' }}>Ongoing</option>
-                                <option value="Renewal"     {{ $savedStatus==='Renewal'     ? 'selected' : '' }}>Renewal</option>
-                                <option value="Completed"   {{ $savedStatus==='Completed'   ? 'selected' : '' }}>Completed</option>
-                                <option value="Material"    {{ $savedStatus==='Material'    ? 'selected' : '' }}>Material</option>
+                                <option value="Installation" <?php echo e($savedStatus==='Installation' ? 'selected' : ''); ?>>Installation</option>
+                                <option value="Dismantle"   <?php echo e($savedStatus==='Dismantle'   ? 'selected' : ''); ?>>Dismantle</option>
+                                <option value="Artwork"     <?php echo e($savedStatus==='Artwork'     ? 'selected' : ''); ?>>Artwork</option>
+                                <option value="Payment"     <?php echo e($savedStatus==='Payment'     ? 'selected' : ''); ?>>Payment</option>
+                                <option value="Ongoing"     <?php echo e($savedStatus==='Ongoing'     ? 'selected' : ''); ?>>Ongoing</option>
+                                <option value="Renewal"     <?php echo e($savedStatus==='Renewal'     ? 'selected' : ''); ?>>Renewal</option>
+                                <option value="Completed"   <?php echo e($savedStatus==='Completed'   ? 'selected' : ''); ?>>Completed</option>
+                                <option value="Material"    <?php echo e($savedStatus==='Material'    ? 'selected' : ''); ?>>Material</option>
                             </select>
 
                             <!-- Date input -->
                             <input
                               type="date"
-                              value="{{ $savedDate }}"
+                              value="<?php echo e($savedDate); ?>"
                               class="w-full monthly-input text-xs tabular-nums"
-                              data-master="{{ $row->id }}"
-                              data-item="{{ $row->outdoor_item_id }}"
-                              data-year="{{ $year }}"
-                              data-month="{{ $mNum }}"
+                              data-master="<?php echo e($row->id); ?>"
+                              data-item="<?php echo e($row->outdoor_item_id); ?>"
+                              data-year="<?php echo e($year); ?>"
+                              data-month="<?php echo e($mNum); ?>"
                               data-kind="date"
-                              name="date_{{ $row->id }}_{{ $year }}_{{ $mNum }}"
+                              name="date_<?php echo e($row->id); ?>_<?php echo e($year); ?>_<?php echo e($mNum); ?>"
                               onblur="saveOutdoorCell(this)">
 
                             <!-- Status indicators -->
@@ -418,21 +436,21 @@
                             </div>
                           </div>
                         </td>
-                      @endforeach
+                      <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                     </tr>
-                  @endforeach
+                  <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                 </tbody>
               </table>
             </div>
-          @else
-            {{-- Empty State --}}
+          <?php else: ?>
+            
             <div class="px-6 py-16 text-center">
               <svg class="w-12 h-12 text-neutral-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
               </svg>
               <p class="serif text-lg text-neutral-600 mb-2">No ongoing jobs found</p>
               <p class="sans text-sm text-neutral-500 mb-4">Try adjusting your filters or create new outdoor campaigns</p>
-              <a href="{{ route('coordinator.outdoor.index') }}" class="btn-secondary">
+              <a href="<?php echo e(route('coordinator.outdoor.index')); ?>" class="btn-secondary">
                 Outdoor Coordinator List
               </a>
 
@@ -441,7 +459,7 @@
 
 
 
-          @endif
+          <?php endif; ?>
         </div>
 
       </div>
@@ -449,12 +467,21 @@
   </div>
 
 
-</x-app-layout>
+ <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal4619374cef299e94fd7263111d0abc69)): ?>
+<?php $attributes = $__attributesOriginal4619374cef299e94fd7263111d0abc69; ?>
+<?php unset($__attributesOriginal4619374cef299e94fd7263111d0abc69); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal4619374cef299e94fd7263111d0abc69)): ?>
+<?php $component = $__componentOriginal4619374cef299e94fd7263111d0abc69; ?>
+<?php unset($__componentOriginal4619374cef299e94fd7263111d0abc69); ?>
+<?php endif; ?>
 
 <script>
 // ------- Small helpers -------
 const getCsrf = () =>
-  document.querySelector('meta[name="csrf-token"]')?.content || "{{ csrf_token() }}";
+  document.querySelector('meta[name="csrf-token"]')?.content || "<?php echo e(csrf_token()); ?>";
 
 const toInt = (v) => {
   const n = Number(v);
@@ -507,7 +534,7 @@ async function saveOutdoorCell(el) {
   if (errorBadge) { errorBadge.classList.add('hidden'); errorBadge.textContent = ''; }
 
   try {
-    const res = await fetch("{{ route('outdoor.monthly.upsert') }}", {
+    const res = await fetch("<?php echo e(route('outdoor.monthly.upsert')); ?>", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -644,3 +671,4 @@ document.addEventListener('DOMContentLoaded', function() {
   render();
 })();
 </script>
+<?php /**PATH C:\Users\Gjlang\kl_guide_tracker\resources\views/dashboard/outdoor.blade.php ENDPATH**/ ?>
