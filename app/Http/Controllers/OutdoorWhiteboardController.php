@@ -149,40 +149,39 @@ class OutdoorWhiteboardController extends Controller
         ->orderBy('mf.product')
         ->orderBy('mf.company')
         ->orderBy('oi.site')
-            ->get([
-        'oi.id as outdoor_item_id',
-        'mf.product',
-        'mf.company',
-        DB::raw('COALESCE(oi.site, mf.location) as location'),
+        ->get([
+            'oi.id as outdoor_item_id',
+            'mf.product',
+            'mf.company',
+            DB::raw('COALESCE(oi.site, mf.location) as location'),
 
-        // duration sources from master_files
-        DB::raw('mf.duration as mf_duration'),
-        DB::raw('mf.date as mf_date'),
-        DB::raw('mf.date_finish as mf_date_finish'),
+            // duration sources from master_files
+            DB::raw('mf.duration as mf_duration'),
+            DB::raw('mf.date as mf_date'),
+            DB::raw('mf.date_finish as mf_date_finish'),
 
-        DB::raw('mf.date as installation'),
-        DB::raw('mf.date_finish as dismantle'),
+            // show from master_files
+            DB::raw('mf.date as installation'),
+            DB::raw('mf.date_finish as dismantle'),
 
-        // from outdoor_whiteboards (latest active wb)
-        DB::raw('COALESCE(wb.created_at, oi.created_at, mf.created_at) as created'),
+            // from outdoor_whiteboards (latest active wb)
+            DB::raw('COALESCE(wb.created_at, oi.created_at, mf.created_at) as created'),
 
+            // INV Number => client_text
+            DB::raw('wb.client_text as inv_number'),
 
-        // INV Number => client_text
-        DB::raw('wb.client_text as inv_number'),
+            // Purchase Order (note/date)
+            DB::raw('wb.po_text as po_text'),
+            DB::raw('wb.po_date as po_date'),
 
-        // Purchase Order
-        DB::raw('wb.po_text as po_text'),
-        DB::raw('wb.po_date as po_date'),
+            // Supplier (note/date)
+            DB::raw('wb.supplier_text as supplier_text'),
+            DB::raw('wb.supplier_date as supplier_date'),
 
-        // Supplier note/date
-        DB::raw('wb.supplier_text as supplier_text'),
-        DB::raw('wb.supplier_date as supplier_date'),
-
-        // Storage note/date
-        DB::raw('wb.storage_text as storage_text'),
-        DB::raw('wb.storage_date as storage_date'),
-    ]);
-
+            // Storage (note/date)
+            DB::raw('wb.storage_text as storage_text'),
+            DB::raw('wb.storage_date as storage_date'),
+        ]);
 
     // Group by product
     $byProduct = collect($rows)->groupBy(fn ($r) => (string)($r->product ?? '—'));
@@ -192,38 +191,38 @@ class OutdoorWhiteboardController extends Controller
         'No.',
         'Created',
         'INV Number',
-        'Purchase Order',
+        'Purchase Order',      // SINGLE kolom (note + date ditumpuk)
         'Product',
         'Company',
         'Location',
         'Duration',
         'Installation',
         'Dismantle',
-        'Supplier',
-        'Storage',
+        'Supplier',            // SINGLE kolom (note + date ditumpuk)
+        'Storage',             // SINGLE kolom (note + date ditumpuk)
     ];
-    $lastCol = 'L'; // 11 cols
+    $lastCol = 'L'; // 12 cols (A..L)
 
     $ss = new Spreadsheet();
     $sheet = $ss->getActiveSheet();
     $sheet->setTitle('Outdoor Whiteboard');
     $ss->getDefaultStyle()->getFont()->setName('Calibri')->setSize(11);
 
-    // Column widths (plus autosize feel)
+    // Column widths
     $sheet->getColumnDimension('A')->setWidth(5);
     $sheet->getColumnDimension('B')->setWidth(12);
     $sheet->getColumnDimension('C')->setWidth(18);
-    $sheet->getColumnDimension('D')->setWidth(20);
+    $sheet->getColumnDimension('D')->setWidth(20); // Purchase Order (stacked)
     $sheet->getColumnDimension('E')->setWidth(12);
     $sheet->getColumnDimension('F')->setWidth(22);
     $sheet->getColumnDimension('G')->setWidth(22);
     $sheet->getColumnDimension('H')->setWidth(12);
     $sheet->getColumnDimension('I')->setWidth(12);
-    $sheet->getColumnDimension('J')->setWidth(20);
-    $sheet->getColumnDimension('K')->setWidth(20);
-    $sheet->getColumnDimension('L')->setWidth(20);
+    $sheet->getColumnDimension('J')->setWidth(12);
+    $sheet->getColumnDimension('K')->setWidth(20); // Supplier (stacked)
+    $sheet->getColumnDimension('L')->setWidth(20); // Storage (stacked)
 
-    // Wrap Purchase Order + Supplier + Storage
+    // Wrap untuk kolom yang ditumpuk (NOTE + DATE)
     foreach (['D', 'K', 'L'] as $col) {
         $sheet->getStyle("{$col}:{$col}")->getAlignment()->setWrapText(true);
     }
@@ -232,18 +231,14 @@ class OutdoorWhiteboardController extends Controller
     $sheet->mergeCells('A1:L1');
     $sheet->setCellValue('A1', 'TITLE (OUTDOOR WHITEBOARD)');
     $sheet->getStyle('A1:L1')->applyFromArray([
-
-        'font' => [
-            'bold' => true,
-            'size' => 14,
-        ],
+        'font' => ['bold' => true, 'size' => 14],
         'alignment' => [
             'horizontal' => Alignment::HORIZONTAL_CENTER,
             'vertical' => Alignment::VERTICAL_CENTER,
         ],
         'fill' => [
             'fillType' => Fill::FILL_SOLID,
-            'startColor' => ['rgb' => 'FFFF00'], // bright yellow
+            'startColor' => ['rgb' => 'FFFF00'],
         ],
     ]);
 
@@ -251,13 +246,13 @@ class OutdoorWhiteboardController extends Controller
 
     // === 3) WRITE SECTIONS ===
     foreach ($byProduct as $product => $items) {
-        // Section bar (green)
+        // Section bar
         $sheet->mergeCells("A{$rowIdx}:{$lastCol}{$rowIdx}");
         $sheet->setCellValue("A{$rowIdx}", "Product: {$product}");
         $sheet->getStyle("A{$rowIdx}:{$lastCol}{$rowIdx}")->applyFromArray([
             'fill' => [
                 'fillType' => Fill::FILL_SOLID,
-                'startColor' => ['rgb' => '92D050'], // green
+                'startColor' => ['rgb' => '92D050'],
             ],
             'font' => ['bold' => true],
             'alignment' => [
@@ -267,7 +262,7 @@ class OutdoorWhiteboardController extends Controller
         ]);
         $rowIdx++;
 
-        // Table header (light yellow)
+        // Table header
         $col = 'A';
         foreach ($headers as $h) {
             $sheet->setCellValue("{$col}{$rowIdx}", $h);
@@ -277,12 +272,12 @@ class OutdoorWhiteboardController extends Controller
             'font' => ['bold' => true],
             'fill' => [
                 'fillType' => Fill::FILL_SOLID,
-                'startColor' => ['rgb' => 'FFF2CC'], // light yellow
+                'startColor' => ['rgb' => 'FFF2CC'],
             ],
             'borders' => [
                 'allBorders' => [
-                    'borderStyle' => Border::BORDER_THIN,
-                    'color' => ['rgb' => 'EAEAEA'],
+                    'borderStyle' => Border::BORDER_MEDIUM,
+                    'color' => ['rgb' => '000000'],
                 ],
             ],
             'alignment' => [
@@ -295,38 +290,57 @@ class OutdoorWhiteboardController extends Controller
         // Data rows
         $i = 1;
         foreach ($items as $r) {
-
             $durationText = $this->durationText(
-            $r->mf_duration ?? null,
-            $r->mf_date ?? null,
-            $r->mf_date_finish ?? null
-        );
+                $r->mf_duration ?? null,
+                $r->mf_date ?? null,
+                $r->mf_date_finish ?? null
+            );
+
             $sheet->fromArray([[
                 $i,
                 $this->fmtDate($r->created ?? null),
                 $this->blank($r->inv_number ?? null),
-                $this->stack($r->po_text ?? null, $r->po_date ?? null),
+
+                // Purchase Order (NOTE + DATE ditumpuk dalam 1 sel)
+                ($r->po_text || $r->po_date)
+                    ? trim(($r->po_text ?? '')
+                        . ($r->po_date ? "\n" . $this->fmtDate($r->po_date) : '')
+                      )
+                    : '',
+
                 $this->blank($r->product ?? null),
                 $this->blank($r->company ?? null),
                 $this->blank($r->location ?? null),
                 $durationText,
                 $this->fmtDate($r->installation ?? null),
                 $this->fmtDate($r->dismantle ?? null),
-                $this->stack($r->supplier_text ?? null, $r->supplier_date ?? null),
-                $this->stack($r->storage_text ?? null,  $r->storage_date ?? null),
+
+                // Supplier (NOTE + DATE ditumpuk dalam 1 sel)
+                ($r->supplier_text || $r->supplier_date)
+                    ? trim(($r->supplier_text ?? '')
+                        . ($r->supplier_date ? "\n" . $this->fmtDate($r->supplier_date) : '')
+                      )
+                    : '',
+
+                // Storage (NOTE + DATE ditumpuk dalam 1 sel)
+                ($r->storage_text || $r->storage_date)
+                    ? trim(($r->storage_text ?? '')
+                        . ($r->storage_date ? "\n" . $this->fmtDate($r->storage_date) : '')
+                      )
+                    : '',
             ]], null, "A{$rowIdx}");
-            // Borders + vertical top for this row
+
+            // Borders yang lebih tegas + vertical top
             $sheet->getStyle("A{$rowIdx}:{$lastCol}{$rowIdx}")->applyFromArray([
                 'borders' => [
                     'allBorders' => [
-                        'borderStyle' => Border::BORDER_THIN,
-                        'color' => ['rgb' => 'EAEAEA'],
+                        'borderStyle' => Border::BORDER_MEDIUM,
+                        'color' => ['rgb' => '000000'],
                     ],
                 ],
-                'alignment' => [
-                    'vertical' => Alignment::VERTICAL_TOP,
-                ],
+                'alignment' => ['vertical' => Alignment::VERTICAL_TOP],
             ]);
+
             $i++;
             $rowIdx++;
         }
@@ -335,7 +349,7 @@ class OutdoorWhiteboardController extends Controller
         $rowIdx++;
     }
 
-    // Optional: freeze top left-ish (not per-section)
+    // Freeze header
     $sheet->freezePane('A3');
 
     // === 4) Stream XLSX download ===

@@ -397,8 +397,8 @@
                                 <td class="px-6 py-4 text-sm ink"><?php echo e($file->contact_number ?? '-'); ?></td>
                                 <td class="px-6 py-4 text-sm ink"><?php echo e($file->product ?? '-'); ?></td>
                                 <td class="px-6 py-4 text-sm ink"><?php echo e($file->month ?? '-'); ?></td>
-                                <td class="px-6 py-4 text-sm ink"><?php echo e($file->date ? \Carbon\Carbon::parse($file->date)->format('M d, Y') : '-'); ?></td>
-                                <td class="px-6 py-4 text-sm ink"><?php echo e($file->date_finish ? \Carbon\Carbon::parse($file->end_date)->format('M d, Y') : '-'); ?></td>
+                                <td class="px-6 py-4 text-sm ink"><?php echo e($file->date ? \Carbon\Carbon::parse($file->date)->format('d/m/Y') : '-'); ?></td>
+                                <td class="px-6 py-4 text-sm ink"><?php echo e($file->date_finish ? \Carbon\Carbon::parse($file->date_finish)->format('d/m/Y') : '-'); ?></td>
                                 <td class="px-6 py-4 text-sm ink"><?php echo e($file->duration ?? '-'); ?></td>
                                 <td class="px-6 py-4 text-sm">
                                     <span class="inline-flex px-3 py-1 text-xs font-semibold rounded-full
