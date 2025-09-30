@@ -1,0 +1,1 @@
+<?php /**PATH D:\Projects\Laravel\KL_tracker\resources\views\components\card.blade.php ENDPATH**/ ?>
