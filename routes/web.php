@@ -27,6 +27,15 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Report\SummaryReportController;
 use App\Http\Controllers\OutdoorWhiteboardController;
 use App\Http\Controllers\CoordinatorCalendarController;
+use App\Http\Controllers\LocationController;
+use App\Http\Controllers\BillboardController;
+use App\Http\Controllers\BillboardAvailabilityController;
+use App\Http\Controllers\ClientsController;
+use App\Http\Controllers\ClientCompanyController;
+use App\Http\Controllers\ContractorController;
+use App\Http\Controllers\StockInventoryController;
+
+
 
 
 
@@ -36,7 +45,7 @@ use App\Http\Controllers\CoordinatorCalendarController;
 // ===============================================
 
 // Root route - redirect to dashboard for authenticated users
-Route::get('/', fn () => redirect()->route('dashboard'))
+Route::get('/', fn() => redirect()->route('dashboard'))
     ->middleware(['web', 'auth', 'permission:dashboard.view'])
     ->name('home');
 
@@ -80,8 +89,8 @@ Route::middleware(['web', 'auth', 'permission:dashboard.view'])->group(function 
     Route::get('/dashboard/outdoor', [OutdoorOngoingJobController::class, 'index'])->name('dashboard.outdoor');
 
     // Legacy dashboard redirects
-    Route::get('/media-jobs', fn () => redirect()->route('dashboard.media'))->name('dashboard.media.jobs');
-    Route::get('/outdoor-jobs', fn () => redirect()->route('dashboard.outdoor'))->name('dashboard.outdoor.legacy');
+    Route::get('/media-jobs', fn() => redirect()->route('dashboard.media'))->name('dashboard.media.jobs');
+    Route::get('/outdoor-jobs', fn() => redirect()->route('dashboard.outdoor'))->name('dashboard.outdoor.legacy');
 });
 
 // Dashboard specific updates
@@ -358,6 +367,89 @@ Route::prefix('coordinator')->middleware(['auth', 'permission:coordinator.view']
 });
 
 // ===============================================
+// BILLBOARD ROUTES
+// ===============================================
+
+Route::group(['middleware' => ['auth']], function () {
+
+    // Location
+    Route::get('/location/all-districts', [LocationController::class, 'getAllDistricts'])->name('location.getAllDistricts');
+    Route::post('/get-districts', [LocationController::class, 'getDistrictsByState'])->name('location.getDistricts');
+    Route::post('/get-councils', [LocationController::class, 'getCouncils'])->name('location.getCouncils');
+    Route::post('/get-locations', [LocationController::class, 'getLocationsByDistrict'])->name('location.getLocations');
+
+    // Billboard
+    Route::get('/billboard', [BillboardController::class, 'index'])->name('billboard.index');
+    Route::post('/billboard/list', [BillboardController::class, 'list'])->name('billboard.list');
+    Route::post('/billboard/create', [BillboardController::class, 'create'])->name('billboard.create');
+    Route::post('/billboard/delete', [BillboardController::class, 'delete'])->name('billboard.delete');
+    Route::post('/billboard/update', [BillboardController::class, 'update'])->name('billboard.update');
+    // Route::get('/notification', [PushNotificationController::class, 'notificationHistory']);
+    Route::get('/billboards/export/pdf', [BillboardController::class, 'exportListPdf'])->name('billboards.export.pdf');
+    Route::get('/billboards/export/pdf/client', [BillboardController::class, 'exportListPdfClient'])->name('billboards.export.pdf.client');
+    Route::post('/billboards/export', [BillboardController::class, 'exportExcel'])->name('billboards.export');
+
+    // Billboard Detail
+    Route::get('/billboardDetail/{id}', [BillboardController::class, 'redirectNewTab'])->name('billboard.detail');
+    Route::post('/billboardDetail/upload-img', [BillboardController::class, 'uploadImage'])->name('billboard.uploadImage');
+    Route::post('/billboardDetail/delete-img', [BillboardController::class, 'deleteImage'])->name('billboard.deleteImage');
+
+    Route::get('/billboard/{id}/download', [BillboardController::class, 'downloadPdf'])->name('billboard.download');
+    Route::get('/billboard/{id}/download/client', [BillboardController::class, 'downloadPdfClient'])->name('billboard.download.client');
+
+    // Billboard Availability
+    Route::get('/billboardAvailability', [BillboardAvailabilityController::class, 'index'])->name('billboard.availability.index');
+    Route::post('/billboardAvailability/list', [BillboardAvailabilityController::class, 'list'])->name('billboard.booking.list');
+    Route::post('/billboardAvailability', [BillboardAvailabilityController::class, 'update'])->name('billboard.availability.update');
+    Route::post('/booking/availability', [BillboardAvailabilityController::class, 'getBillboardAvailability'])->name('billboard.checkAvailability');
+    Route::get('/billboard/monthly-availability', [BillboardAvailabilityController::class, 'getMonthlyBookingAvailability'])->name('billboard.monthly.availability');
+    Route::post('/billboard/update-status', [BillboardAvailabilityController::class, 'updateStatus'])->name('billboard.update.status');
+
+    // Clients
+    Route::get('/clients', [ClientsController::class, 'index'])->name('clients.index');
+    Route::post('/clients/list', [ClientsController::class, 'list'])->name('clients.list');
+    Route::post('/clients/create', [ClientsController::class, 'create'])->name('clients.create');
+    Route::post('/clients/edit', [ClientsController::class, 'edit'])->name('clients.edit');
+    Route::post('/clients/delete', [ClientsController::class, 'delete'])->name('clients.delete');
+
+    // Client Company
+    Route::get('/client-company', [ClientCompanyController::class, 'index'])->name('client-company.index');
+    Route::post('/client-company/list', [ClientCompanyController::class, 'list'])->name('client-company.list');
+    Route::post('/client-company/create', [ClientCompanyController::class, 'create'])->name('client-company.create');
+    Route::post('/client-company/edit', [ClientCompanyController::class, 'edit'])->name('client-company.edit');
+    Route::post('/client-company/delete', [ClientCompanyController::class, 'delete'])->name('client-company.delete');
+    Route::post('/client-company/pics', [ClientCompanyController::class, 'getPICs'])->name('client-company.pics');
+    Route::post('/client-company/pic/create', [ClientCompanyController::class, 'picCreate'])->name('client-company.pic.create');
+    Route::post('/client-company/pic/update', [ClientCompanyController::class, 'picUpdate'])->name('client-company.pic.update');
+    Route::post('/client-company/pic/delete', [ClientCompanyController::class, 'picDelete'])->name('client-company.pic.delete');
+
+
+
+    // Contractors
+    Route::get('/contractors', [ContractorController::class, 'index'])->name('contractors.index');
+    Route::post('/contractors/list', [ContractorController::class, 'list'])->name('contractors.list');
+    Route::post('/contractors/create', [ContractorController::class, 'create'])->name('contractors.create');
+    Route::post('/contractors/edit', [ContractorController::class, 'edit'])->name('contractors.edit');
+    Route::post('/contractors/delete', [ContractorController::class, 'delete'])->name('contractors.delete');
+
+    // Stock Inventory
+    Route::get('/inventory', [StockInventoryController::class, 'index'])->name('stockInventory.index');
+    Route::post('/inventory/list', [StockInventoryController::class, 'list'])->name('stockInventory.list');
+    Route::post('/inventory/create', [StockInventoryController::class, 'create'])->name('stockInventory.create');
+    Route::post('/inventory/edit', [StockInventoryController::class, 'edit'])->name('stockInventory.edit');
+    Route::get('/inventory/{transaction}/edit', [StockInventoryController::class, 'editData']);
+    Route::post('/inventory/delete', [StockInventoryController::class, 'delete'])->name('stockInventory.delete');
+
+});
+
+
+
+
+
+
+
+
+// ===============================================
 // OUTDOOR ONGOING JOB ROUTES
 // ===============================================
 
@@ -492,9 +584,9 @@ Route::prefix('jobs')->middleware(['auth', 'permission:dashboard.view'])->name('
 
 Route::get('/monthly', function () {
     $jobs = Job::whereMonth('created_at', now()->month)
-             ->whereYear('created_at', now()->year)
-             ->orderBy('created_at', 'desc')
-             ->get();
+        ->whereYear('created_at', now()->year)
+        ->orderBy('created_at', 'desc')
+        ->get();
     return view('jobs.monthly', compact('jobs'));
 })->middleware(['auth', 'permission:dashboard.view'])->name('jobs.monthly');
 
@@ -552,11 +644,11 @@ Route::post('/clientele/bulk-inline-update', [ClienteleController::class, 'bulkI
     ->middleware(['auth', 'permission:clientele.edit'])
     ->name('clientele.bulk.inline.update');
 
-Route::middleware(['auth','permission:report.summary.view'])
+Route::middleware(['auth', 'permission:report.summary.view'])
     ->get('/report/summary', [SummaryReportController::class, 'index'])
     ->name('report.summary');
 
-Route::middleware(['auth','permission:report.summary.export'])
+Route::middleware(['auth', 'permission:report.summary.export'])
     ->get('/report/summary.pdf', [SummaryReportController::class, 'pdf'])
     ->name('report.summary.pdf');
 
@@ -572,8 +664,8 @@ Route::prefix('outdoor/whiteboard')->name('outdoor.whiteboard.')->group(function
     Route::post('/mark-completed', [OutdoorWhiteboardController::class, 'markCompleted'])->name('markCompleted');
     Route::post('/restore',        [OutdoorWhiteboardController::class, 'restore'])->name('restore');
     // Export
-    Route::get('/export/ledger',[OutdoorWhiteboardController::class, 'exportLedgerXlsx'])->name('export.ledger');
-     // Danger zone
+    Route::get('/export/ledger', [OutdoorWhiteboardController::class, 'exportLedgerXlsx'])->name('export.ledger');
+    // Danger zone
     Route::delete('/{whiteboard}', [OutdoorWhiteboardController::class, 'destroy'])->name('destroy');
 });
 

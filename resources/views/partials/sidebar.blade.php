@@ -105,6 +105,16 @@
            x-transition:leave="transition ease-in duration-150"
            x-transition:leave-start="opacity-100 transform scale-100"
            x-transition:leave-end="opacity-0 transform scale-95">
+        <a href="{{ route('billboard.index') }}"
+           @click="if (window.matchMedia('(max-width: 767px)').matches) close()"
+           class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('dashboard.outdoor') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
+          Billboard Stock inventory
+        </a>
+        <a href="{{ route('dashboard.outdoor') }}"
+           @click="if (window.matchMedia('(max-width: 767px)').matches) close()"
+           class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('dashboard.outdoor') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
+          Billboard Availability
+        </a>
         <a href="{{ route('dashboard.outdoor') }}"
            @click="if (window.matchMedia('(max-width: 767px)').matches) close()"
            class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('dashboard.outdoor') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
@@ -124,6 +134,44 @@
           Outdoor Whiteboard
         </a>
         @endif
+        <a href="{{ route('dashboard.outdoor') }}"
+           @click="if (window.matchMedia('(max-width: 767px)').matches) close()"
+           class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('dashboard.outdoor') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
+          Vendor Stock Inventory
+        </a>
+      </div>
+    </div>
+
+    {{-- Management --}}
+    <div class="px-3 mt-2">
+      <button @click="toggle('outdoor')" class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-neutral-50">
+        <span class="font-medium">Management</span>
+        <svg class="w-4 h-4 transition-transform duration-200" :class="open.outdoor ? 'rotate-180' : ''" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path stroke-linecap="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+      </button>
+      <div x-show="open.outdoor"
+           x-transition:enter="transition ease-out duration-200"
+           x-transition:enter-start="opacity-0 transform scale-95"
+           x-transition:enter-end="opacity-100 transform scale-100"
+           x-transition:leave="transition ease-in duration-150"
+           x-transition:leave-start="opacity-100 transform scale-100"
+           x-transition:leave-end="opacity-0 transform scale-95">
+        <a href="{{ route('dashboard.outdoor') }}"
+           @click="if (window.matchMedia('(max-width: 767px)').matches) close()"
+           class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('dashboard.outdoor') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
+          Users
+        </a>
+        <a href="{{ route('dashboard.outdoor') }}"
+           @click="if (window.matchMedia('(max-width: 767px)').matches) close()"
+           class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('dashboard.outdoor') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
+          Clients
+        </a>
+        <a href="{{ route('dashboard.outdoor') }}"
+           @click="if (window.matchMedia('(max-width: 767px)').matches) close()"
+           class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('dashboard.outdoor') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
+          Contractors
+        </a>
       </div>
     </div>
 

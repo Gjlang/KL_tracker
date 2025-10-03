@@ -8,18 +8,27 @@
     <title><?php echo e(config('app.name', 'Job Tracking System')); ?></title>
 
     
-    <link rel="preconnect" href="https://fonts.bunny.net">
+    <link rel="preconnect" href="https://fonts.bunny.net  ">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
     
-    <?php echo app('Illuminate\Foundation\Vite')(['resources/css/app.css', 'resources/js/app.js']); ?>
+    
+    <?php echo app('Illuminate\Foundation\Vite')(['resources/css/app.css']); ?>
 
     
     <?php echo $__env->yieldContent('head'); ?>
     <?php echo $__env->yieldPushContent('head'); ?>
 
     
-    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet" />
+    <link href="  https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css  " rel="stylesheet" />
+
+    
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css  " rel="stylesheet" />
+
+    
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css">
+    
+    
 
     <style>[x-cloak]{display:none!important}</style>
 </head>
@@ -79,10 +88,36 @@
 </div>
 
 
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+
+<?php echo app('Illuminate\Foundation\Vite')(['resources/js/app.js']); ?>
 
 
-<script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js  " integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+
+
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js  "></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js  "></script> <!-- If using Bootstrap theme -->
+
+
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha512-Xf/tPwC9z3TvP1x/8j2pLgltKZI2HvZPMqkYz3a3WfV4RfF+8Jg2JLqjZ+9yT578Z8ZJ9Lc+YUI0Bp5f8b7OvQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js" integrity="sha512-5y5Vw1f5z7Hk20wZg9qyEo+7+Hx4lgxYJLnWJkQo4UAb36BXEGrnU+aS7LfMnJFyL0pUqV0mL6pGF4Ud3Kg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js" integrity="sha512-5y5Vw1f5z7Hk20wZg9qyEo+7+Hx4lgxYJLnWJkQo4UAb36BXEGrnU+aS7LfMnJFyL0pUqV0mL6pGF4Ud3Kg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js  "></script>
+
+
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js  "></script>
+
+
+<script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js  "></script>
 
 
 <script>
@@ -119,8 +154,8 @@
 </script>
 
 
+
 <?php echo $__env->yieldContent('scripts'); ?>
 <?php echo $__env->yieldPushContent('scripts'); ?>
 </body>
-</html>
-<?php /**PATH D:\Projects\Laravel\KL_tracker\resources\views\layouts\app.blade.php ENDPATH**/ ?>
+</html><?php /**PATH D:\Projects\Laravel\KL_tracker\resources\views\layouts\app.blade.php ENDPATH**/ ?>
