@@ -85,8 +85,6 @@ class BillboardController extends Controller
     {
         $user = Auth::user();
 
-        logger('masuk sinini');
-
         // Get user roles
         // $role = $user->roles->pluck('name')[0];
 
@@ -485,7 +483,8 @@ class BillboardController extends Controller
             DB::commit();
 
             return response()->json([
-                "success"   => "success",
+                'success' => true,
+                'message' => 'Billboard created successfully.', 
             ], 200);
         } catch (\Exception $e) {
             // If any queries fail, undo all changes
@@ -969,13 +968,15 @@ class BillboardController extends Controller
             $siteNumber = $request->input('site_number'); 
             $extension = 'png';
 
-            $directory = 'public/billboards';
-            if (!Storage::exists($directory)) {
-                Storage::makeDirectory($directory);
+            $directory = 'billboards';
+
+            // ✅ Ensure directory exists on "public" disk
+            if (!Storage::disk('public')->exists($directory)) {
+                Storage::disk('public')->makeDirectory($directory);
             }
 
-            // Limit to 2 images
-            $existingFiles = Storage::files($directory);
+            // ✅ Get existing files from "public" disk
+            $existingFiles = Storage::disk('public')->files($directory);
             $siteFiles = array_filter($existingFiles, fn($f) => str_starts_with(basename($f), $siteNumber . '_'));
 
             if (count($siteFiles) >= 2) {
@@ -985,7 +986,6 @@ class BillboardController extends Controller
             }
 
             // Sequence number
-            // Find available slot (1 or 2)
             $usedNumbers = [];
             foreach ($siteFiles as $f) {
                 if (preg_match('/_(\d+)\.png$/', $f, $m)) {
@@ -1009,35 +1009,35 @@ class BillboardController extends Controller
 
             $filename = $siteNumber . '_' . $sequence . '.' . $extension;
 
-            $path = storage_path('app/' . $directory . '/' . $filename);
-
-            // Check original file size in bytes
+            // Check file size
             $fileSize = $file->getSize(); 
             $imageData = null;
 
             if ($fileSize > 1024 * 1024) { 
-                // > 1 MB → compress/resize
+                // compress/resize if >1MB
                 $imageData = (string) Image::read($file)
-                    ->scale(width: 400)   // resize if large
+                    ->scale(width: 400)
                     ->toPng();
             } else {
-                // <= 1 MB → keep as-is
                 $imageData = file_get_contents($file->getRealPath());
             }
 
-            // Save image
-            file_put_contents($path, $imageData);
+            // ✅ Save file to "public" disk
+            Storage::disk('public')->put($directory . '/' . $filename, $imageData);
 
-            // Optimize PNG (optional, can skip if already small)
+            // ✅ Get absolute file path for optimizer
+            $fullPath = Storage::disk('public')->path($directory . '/' . $filename);
+
+            // Optimize PNG
             try {
                 $optimizer = OptimizerChainFactory::create();
-                $optimizer->optimize($path);
+                $optimizer->optimize($fullPath);
             } catch (\Throwable $e) {
                 \Log::warning("PNG optimization skipped: " . $e->getMessage());
             }
 
-            // Public URL
-            $url = Storage::url($directory . '/' . $filename);
+            // ✅ Public URL
+            $url = Storage::disk('public')->url($directory . '/' . $filename);
 
             return response()->json([
                 'message'  => 'File uploaded successfully',
@@ -1049,14 +1049,16 @@ class BillboardController extends Controller
         return response()->json(['message' => 'No file uploaded'], 400);
     }
 
+
+
+
     public function deleteImage(Request $request)
     {
         $filename = $request->input('filename');
-        $directory = 'public/billboards';
-        $path = $directory . '/' . $filename;
+        $path = 'billboards/' . $filename; // ✅ Correct path relative to 'public' disk
 
-        if (Storage::exists($path)) {
-            Storage::delete($path);
+        if (Storage::disk('public')->exists($path)) { // ✅ Use 'public' disk
+            Storage::disk('public')->delete($path);   // ✅ Use 'public' disk
             return response()->json(['message' => 'Image deleted successfully'], 200);
         }
 

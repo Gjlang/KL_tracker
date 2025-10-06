@@ -1,10 +1,8 @@
-@extends('layouts.app')
-
-@section('title')
+<?php $__env->startSection('title'); ?>
 <title>BGOC Outdoor System - Billboard Details</title>
-@endsection
+<?php $__env->stopSection(); ?>
 
-@section('content')
+<?php $__env->startSection('content'); ?>
 <style>
     .dz-remove {
         display: inline-block;
@@ -40,22 +38,22 @@
             Billboard Detail
         </h2>
         <div class="mt-4 sm:mt-0">
-            <a href="{{ route('billboard.download', $billboard_detail->id) }}" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200 mr-2">
+            <a href="<?php echo e(route('billboard.download', $billboard_detail->id)); ?>" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200 mr-2">
                 <i class="fas fa-download mr-2"></i> Download PDF [INTERNAL]
             </a>
-            <a href="{{ route('billboard.download.client', $billboard_detail->id) }}" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition duration-200 mr-2">
+            <a href="<?php echo e(route('billboard.download.client', $billboard_detail->id)); ?>" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition duration-200 mr-2">
                 <i class="fas fa-download mr-2"></i> Download PDF [CLIENT]
             </a>
-            @php
+            <?php
                 $mapUrl = !empty($billboard_detail->gps_url)
                     ? $billboard_detail->gps_url
                     : "https://www.google.com/maps?q={$billboard_detail->gps_latitude},{$billboard_detail->gps_longitude}";
-            @endphp
-            <a href="{{ $mapUrl }}" target="_blank" rel="noopener noreferrer" 
+            ?>
+            <a href="<?php echo e($mapUrl); ?>" target="_blank" rel="noopener noreferrer" 
             class="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-200 mr-2">
                 <i class="fas fa-map-marked-alt mr-2"></i> Show on Maps
             </a>
-            <a href="javascript:void(0)" onclick="populateBillboardEditModal({{ json_encode($billboard_detail) }})" class="inline-flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition duration-200">
+            <a href="javascript:void(0)" onclick="populateBillboardEditModal(<?php echo e(json_encode($billboard_detail)); ?>)" class="inline-flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition duration-200">
                 <i class="fas fa-edit mr-2"></i> Edit
             </a>
         </div>
@@ -69,23 +67,23 @@
                 <ul class="space-y-2">
                     <li class="flex">
                         <span class="w-48 font-medium text-gray-600">Site Number:</span>
-                        <span class="text-gray-800">{{ $billboard_detail->site_number }}</span>
+                        <span class="text-gray-800"><?php echo e($billboard_detail->site_number); ?></span>
                     </li>
                     <li class="flex">
                         <span class="w-48 font-medium text-gray-600">Location:</span>
-                        <span class="text-gray-800">{{ $billboard_detail->location_name }}</span>
+                        <span class="text-gray-800"><?php echo e($billboard_detail->location_name); ?></span>
                     </li>
                     <li class="flex">
                         <span class="w-48 font-medium text-gray-600">District/State:</span>
-                        <span class="text-gray-800">{{ $billboard_detail->district_name }}, {{ $billboard_detail->state_name }}</span>
+                        <span class="text-gray-800"><?php echo e($billboard_detail->district_name); ?>, <?php echo e($billboard_detail->state_name); ?></span>
                     </li>
                     <li class="flex">
                         <span class="w-48 font-medium text-gray-600">Council:</span>
-                        <span class="text-gray-800">{{ $billboard_detail->council_abbrv }} - {{ $billboard_detail->council_name }}</span>
+                        <span class="text-gray-800"><?php echo e($billboard_detail->council_abbrv); ?> - <?php echo e($billboard_detail->council_name); ?></span>
                     </li>
                     <li class="flex">
                         <span class="w-48 font-medium text-gray-600">GPS Coordinate:</span>
-                        <span class="text-gray-800">{{ $billboard_detail->gps_latitude }}, {{ $billboard_detail->gps_longitude }}</span>
+                        <span class="text-gray-800"><?php echo e($billboard_detail->gps_latitude); ?>, <?php echo e($billboard_detail->gps_longitude); ?></span>
                     </li>
                 </ul>
             </div>
@@ -94,23 +92,23 @@
                 <ul class="space-y-2">
                     <li class="flex">
                         <span class="w-48 font-medium text-gray-600">Traffic Volume:</span>
-                        <span class="text-gray-800">{{ $billboard_detail->traffic_volume }}</span>
+                        <span class="text-gray-800"><?php echo e($billboard_detail->traffic_volume); ?></span>
                     </li>
                     <li class="flex">
                         <span class="w-48 font-medium text-gray-600">Billboard Type:</span>
-                        <span class="text-gray-800">{{ $billboard_detail->prefix }} - {{ $billboard_detail->type }}</span>
+                        <span class="text-gray-800"><?php echo e($billboard_detail->prefix); ?> - <?php echo e($billboard_detail->type); ?></span>
                     </li>
                     <li class="flex">
                         <span class="w-48 font-medium text-gray-600">Size:</span>
-                        <span class="text-gray-800">{{ $billboard_detail->size }}</span>
+                        <span class="text-gray-800"><?php echo e($billboard_detail->size); ?></span>
                     </li>
                     <li class="flex">
                         <span class="w-48 font-medium text-gray-600">Lighting:</span>
-                        <span class="text-gray-800">{{ $billboard_detail->lighting }}</span>
+                        <span class="text-gray-800"><?php echo e($billboard_detail->lighting); ?></span>
                     </li>
                     <li class="flex">
                         <span class="w-48 font-medium text-gray-600">Status:</span>
-                        <span class="text-gray-800">{{ $billboard_detail->site_type ? strtoupper($billboard_detail->site_type) : '-' }}</span>
+                        <span class="text-gray-800"><?php echo e($billboard_detail->site_type ? strtoupper($billboard_detail->site_type) : '-'); ?></span>
                     </li>
                 </ul>
             </div>
@@ -123,57 +121,57 @@
             Billboard Site Images
         </h2>
 
-        @php
+        <?php
             $image1Exists = Storage::disk('public')->exists('billboards/' . $billboard_detail->site_number . '_1.png');
             $image2Exists = Storage::disk('public')->exists('billboards/' . $billboard_detail->site_number . '_2.png');
-        @endphp
+        ?>
 
         <div class="intro-y mt-6">
             <div class="flex flex-col md:flex-row gap-6">
                 <!-- Image 1 Slot -->
                 <div id="image-slot-1" class="flex-1 relative group h-86 overflow-hidden rounded-lg shadow bg-gray-100 border border-gray-200">
-                    @if($image1Exists)
+                    <?php if($image1Exists): ?>
                         <div class="absolute inset-0 flex items-center justify-center">
-                            <img src="{{ asset('storage/billboards/' . $billboard_detail->site_number . '_1.png') }}" 
+                            <img src="<?php echo e(asset('storage/billboards/' . $billboard_detail->site_number . '_1.png')); ?>" 
                                 class="w-full h-full object-contain max-h-96"
                                 alt="Billboard Image 1">
                         </div>
                         <!-- Delete Button - Hidden by default, shown on hover -->
                         <button 
-                            onclick="deleteImage('{{ $billboard_detail->site_number }}_1.png', this)"
+                            onclick="deleteImage('<?php echo e($billboard_detail->site_number); ?>_1.png', this)"
                             class="absolute top-2 right-2 text-white bg-red-500 hover:bg-red-600 px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-200 ease-in-out"
                             aria-label="Delete Image 1">
                             <i class="fas fa-trash"></i>
                         </button>
-                    @else
+                    <?php else: ?>
                         <div class="flex flex-col items-center justify-center h-full p-4 text-center text-gray-500 bg-gray-50">
                             <i class="fas fa-image text-4xl mb-2"></i>
                             <p>No Image 1 Uploaded</p>
                         </div>
-                    @endif
+                    <?php endif; ?>
                 </div>
 
                 <!-- Image 2 Slot -->
                 <div id="image-slot-2" class="flex-1 relative group h-86 overflow-hidden rounded-lg shadow bg-gray-100 border border-gray-200">
-                    @if($image2Exists)
+                    <?php if($image2Exists): ?>
                         <div class="absolute inset-0 flex items-center justify-center">
-                            <img src="{{ asset('storage/billboards/' . $billboard_detail->site_number . '_2.png') }}" 
+                            <img src="<?php echo e(asset('storage/billboards/' . $billboard_detail->site_number . '_2.png')); ?>" 
                                 class="w-full h-full object-contain max-h-96"
                                 alt="Billboard Image 2">
                         </div>
                         <!-- Delete Button - Hidden by default, shown on hover -->
                         <button 
-                            onclick="deleteImage('{{ $billboard_detail->site_number }}_2.png', this)"
+                            onclick="deleteImage('<?php echo e($billboard_detail->site_number); ?>_2.png', this)"
                             class="absolute top-2 right-2 text-white bg-red-500 hover:bg-red-600 px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-200 ease-in-out"
                             aria-label="Delete Image 2">
                             <i class="fas fa-trash"></i>
                         </button>
-                    @else
+                    <?php else: ?>
                         <div class="flex flex-col items-center justify-center h-full p-4 text-center text-gray-500 bg-gray-50">
                             <i class="fas fa-image text-4xl mb-2"></i>
                             <p>No Image 2 Uploaded</p>
                         </div>
-                    @endif
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -183,9 +181,9 @@
             <div class="border border-dashed border-gray-300 rounded-lg p-6 bg-gray-50">
                 <h3 class="text-lg font-medium text-gray-800 mb-4">Upload New Images</h3>
                 <p class="text-gray-600 mb-4">Drag & drop images here or click to browse. Maximum 2 images allowed.</p>
-                <form id="fileUploadForm" action="{{ route('billboard.uploadImage') }}" method="POST" enctype="multipart/form-data" class="dropzone border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                    @csrf
-                    <input type="hidden" name="site_number" value="{{ $billboard_detail->site_number }}">
+                <form id="fileUploadForm" action="<?php echo e(route('billboard.uploadImage')); ?>" method="POST" enctype="multipart/form-data" class="dropzone border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                    <?php echo csrf_field(); ?>
+                    <input type="hidden" name="site_number" value="<?php echo e($billboard_detail->site_number); ?>">
                     <!-- <div class="fallback">
                         <input name="files[]" id="fileInput" type="file" multiple accept="image/*" />
                     </div> -->
@@ -213,9 +211,9 @@
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        <form id="billboardEditForm" action="{{ route('billboard.update') }}" method="POST">
-            @csrf
-            @method('POST')
+        <form id="billboardEditForm" action="<?php echo e(route('billboard.update')); ?>" method="POST">
+            <?php echo csrf_field(); ?>
+            <?php echo method_field('POST'); ?>
             <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[70vh] overflow-y-auto">
                 <div class="md:col-span-2">
                     <input type="hidden" id="editBillboardModalId" name="id">
@@ -261,9 +259,9 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">State <span class="text-red-500">*</span></label>
                     <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-gray-100 cursor-not-allowed" id="editBillboardState" name="state_id" disabled>
                         <option value="">-- Select State --</option>
-                        @foreach ($states as $state)
-                            <option value="{{ $state->id }}">{{ $state->name }}</option>
-                        @endforeach
+                        <?php $__currentLoopData = $states; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $state): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                            <option value="<?php echo e($state->id); ?>"><?php echo e($state->name); ?></option>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                     </select>
                     <input type="hidden" id="editBillboardStateHidden" name="state_id" value="">
                 </div>
@@ -356,10 +354,10 @@
     </div>
 </div>
 <!-- Edit Modal End -->
- @endsection
+ <?php $__env->stopSection(); ?>
 
 
-@section('scripts')
+<?php $__env->startSection('scripts'); ?>
 <!-- Add these CDN links before your script -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/dropzone.min.css">
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -374,11 +372,11 @@
     function deleteImage(filename, button) {
         if(!confirm('Are you sure you want to delete this image?')) return;
 
-        fetch('{{ route("billboard.deleteImage") }}', {
+        fetch('<?php echo e(route("billboard.deleteImage")); ?>', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                'X-CSRF-TOKEN': '<?php echo e(csrf_token()); ?>'
             },
             body: JSON.stringify({ filename: filename })
         })
@@ -473,8 +471,8 @@
         $('#editBillboardState').val(stateID).trigger('change');
 
         // Load Districts
-        $.post('{{ route("location.getDistricts") }}', {
-            _token: '{{ csrf_token() }}',
+        $.post('<?php echo e(route("location.getDistricts")); ?>', {
+            _token: '<?php echo e(csrf_token()); ?>',
             state_id: stateID
         }, function (districts) {
             $('#editBillboardDistrict').empty().append(`<option value="">-- Select District --</option>`);
@@ -485,8 +483,8 @@
             $('#editBillboardDistrict').trigger('select2:select'); // Refresh Select2
 
             // Load Councils
-            $.post('{{ route("location.getCouncils") }}', {
-                _token: '{{ csrf_token() }}',
+            $.post('<?php echo e(route("location.getCouncils")); ?>', {
+                _token: '<?php echo e(csrf_token()); ?>',
                 state_id: stateID
             }, function (councils) {
                 $('#editBillboardCouncil').empty().append(`<option value="">-- Select Council --</option>`);
@@ -511,7 +509,7 @@
         }
 
         $.ajax({
-            url: '{{ route("billboard.update") }}',
+            url: '<?php echo e(route("billboard.update")); ?>',
             method: 'POST',
             data: $('#billboardEditForm').serialize(),
             success: function(response) {
@@ -636,12 +634,12 @@
 
                     // Preload existing images
                     let existingImages = [
-                        @if($image1Exists)
-                            { name: "{{ $billboard_detail->site_number }}_1.png", size: 12345, url: "{{ asset('storage/billboards/' . $billboard_detail->site_number . '_1.png') }}" },
-                        @endif
-                        @if($image2Exists)
-                            { name: "{{ $billboard_detail->site_number }}_2.png", size: 12345, url: "{{ asset('storage/billboards/' . $billboard_detail->site_number . '_2.png') }}" }
-                        @endif
+                        <?php if($image1Exists): ?>
+                            { name: "<?php echo e($billboard_detail->site_number); ?>_1.png", size: 12345, url: "<?php echo e(asset('storage/billboards/' . $billboard_detail->site_number . '_1.png')); ?>" },
+                        <?php endif; ?>
+                        <?php if($image2Exists): ?>
+                            { name: "<?php echo e($billboard_detail->site_number); ?>_2.png", size: 12345, url: "<?php echo e(asset('storage/billboards/' . $billboard_detail->site_number . '_2.png')); ?>" }
+                        <?php endif; ?>
                     ];
 
                     existingImages.forEach(function(file) {
@@ -664,11 +662,11 @@
                     dz.on("removedfile", function(file) {
                         if (!file.url) return; // skip new uploads
 
-                        fetch("{{ route('billboard.deleteImage') }}", {
+                        fetch("<?php echo e(route('billboard.deleteImage')); ?>", {
                             method: "POST",
                             headers: {
                                 "Content-Type": "application/json",
-                                "X-CSRF-TOKEN": "{{ csrf_token() }}"
+                                "X-CSRF-TOKEN": "<?php echo e(csrf_token()); ?>"
                             },
                             body: JSON.stringify({ filename: file.name })
                         })
@@ -683,8 +681,8 @@
                 },
 
                 sending: function(file, xhr, formData) {
-                    formData.append("_token", "{{ csrf_token() }}");
-                    formData.append("site_number", "{{ $billboard_detail->site_number }}");
+                    formData.append("_token", "<?php echo e(csrf_token()); ?>");
+                    formData.append("site_number", "<?php echo e($billboard_detail->site_number); ?>");
                 },
                 success: function(file, response) {
                     // Determine which slot (1 or 2) based on filename
@@ -722,4 +720,5 @@
         }
     });
 </script>
-@endsection
+<?php $__env->stopSection(); ?>
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH D:\Projects\Laravel\KL_tracker\resources\views/billboard/detail.blade.php ENDPATH**/ ?>

@@ -2,127 +2,197 @@
 <title>BGOC Outdoor System - Billboard Details</title>
 <?php $__env->stopSection(); ?>
 
-<?php $__env->startSection('app_content'); ?>
+<?php $__env->startSection('content'); ?>
 <style>
-  .dz-remove {
-    display: inline-block;
-    margin-top: 0.5rem;
-    font-size: 0.875rem;
-    color: #f87171;
-    cursor: pointer;
-  }
-  .dz-remove:hover {
-    color: #b91c1c;
-  }
+    .dz-remove {
+        display: inline-block;
+        margin-top: 0.5rem;
+        font-size: 0.875rem;
+        color: #f87171;
+        cursor: pointer;
+    }
+    .dz-remove:hover {
+        color: #b91c1c;
+    }
+    .dropzone {
+        cursor: pointer;
+    }
+
+    .dropzone:hover {
+        border-color: #3b82f6;
+        background-color: #ebf5ff;
+    }
+
+    .dropzone.dragover {
+        border-color: #10b981 !important;
+        background-color: #ecfdf5 !important;
+    }
 </style>
 
-<div class="intro-y flex flex-col sm:flex-row items-center mt-8">
-    <h2 class="text-lg font-medium mr-auto">
-        Billboard Detail
-    </h2>
-</div>
-
-<!-- BEGIN: Profile Info -->
-<div class="intro-y box px-5 pt-5 mt-5">
-    <div class="flex flex-col lg:flex-row border-b border-gray-200 dark:border-dark-5 pb-5 -mx-5">
-
-        <!-- Billboard Details -->
-        <div class="mt-6 lg:mt-0 flex-1 dark:text-gray-300 px-5 border-l border-r border-gray-200 dark:border-dark-5 border-t lg:border-t-0 pt-5 lg:pt-0">
-            <div class="text-center lg:text-left" id="billboard" data-id="<?php echo e($billboard_detail->id); ?>">
-                <div class="font-bold text-2xl mt-5">Billboard Details</div><br>
-                <div class="text-gray-600">Site Number: <?php echo e($billboard_detail->site_number); ?> </div>
-                <div class="text-gray-600">Location: <?php echo e($billboard_detail->location_name); ?> </div>
-                <div class="text-gray-600">District/State: <?php echo e($billboard_detail->district_name); ?>, <?php echo e($billboard_detail->state_name); ?> </div>
-                <div class="text-gray-600">Council: <?php echo e($billboard_detail->council_abbrv); ?> - <?php echo e($billboard_detail->council_name); ?> </div>
-                <div class="text-gray-600">GPS Coordinate: <?php echo e($billboard_detail->gps_latitude); ?>, <?php echo e($billboard_detail->gps_longitude); ?></div>
-                <div class="text-gray-600">Traffic Volume: <?php echo e($billboard_detail->traffic_volume); ?> </div>
-                <div class="text-gray-600">Billboard Type: <?php echo e($billboard_detail->prefix); ?> - <?php echo e($billboard_detail->type); ?> </div>
-                <div class="text-gray-600">Size: <?php echo e($billboard_detail->size); ?> </div>
-                <div class="text-gray-600">Lighting: <?php echo e($billboard_detail->lighting); ?> </div>
-                <div class="text-gray-600">Status: <?php echo e($billboard_detail->site_type ? strtoupper($billboard_detail->site_type) : '-'); ?> </div>
-            </div>
-            <br>
-            <div class="mt-2 xl:mt-0">
-                <a href="<?php echo e(route('billboard.download', $billboard_detail->id)); ?>" class="button bg-theme-9 text-black">Download PDF [INTERNAL]</a>
-                <a href="<?php echo e(route('billboard.download.client', $billboard_detail->id)); ?>" class="button bg-theme-12 text-black">Download PDF [CLIENT]</a>
-                <?php
-                    $mapUrl = !empty($billboard_detail->gps_url)
-                        ? $billboard_detail->gps_url
-                        : "https://www.google.com/maps?q={$billboard_detail->gps_latitude},{$billboard_detail->gps_longitude}";
-                ?>
-
-                <a href="<?php echo e($mapUrl); ?>" target="_blank" rel="noopener noreferrer" 
-                class="button bg-theme-1 text-white">Show on Maps</a>
-                <a href="javascript:void(0)" onclick="populateBillboardEditModal(<?php echo e(json_encode($billboard_detail)); ?>)" class="button bg-theme-1 text-white">Edit</a>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="intro-y box px-5 pt-5 mt-5">
-    <h2 class="intro-y font-medium text-xl sm:text-2xl">
-        Billboard Site Images
-    </h2>
-    <?php
-        $image1Exists = Storage::exists('public/billboards/' . $billboard_detail->site_number . '_1.png');
-        $image2Exists = Storage::exists('public/billboards/' . $billboard_detail->site_number . '_2.png');
-    ?>
-
-            
-
-    <div class="intro-y mt-6">
-        <div class="flex gap-4">
-            <!-- Image 1 Slot -->
-            <div class="flex-1 relative group h-86 overflow-hidden rounded-lg shadow bg-gray-100">
-                <?php if($image1Exists): ?>
-                    <button 
-                        onclick="deleteImage('<?php echo e($billboard_detail->site_number); ?>_1.png', this)" 
-                        class="absolute top-2 right-2 text-white bg-theme-6 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition">
-                        X
-                    </button>
-                    <img src="<?php echo e(asset('storage/billboards/' . $billboard_detail->site_number . '_1.png')); ?>" 
-                        alt="<?php echo e($billboard_detail->location_name); ?>" 
-                        class="w-full h-full object-cover">
-                <?php endif; ?>
-            </div>
-
-            <!-- Image 2 Slot -->
-            <div class="flex-1 relative group h-86 overflow-hidden rounded-lg shadow bg-gray-100">
-                <?php if($image2Exists): ?>
-                    <button 
-                        onclick="deleteImage('<?php echo e($billboard_detail->site_number); ?>_2.png', this)" 
-                        class="absolute top-2 right-2 text-white bg-theme-6 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition">
-                        X
-                    </button>
-                    <img src="<?php echo e(asset('storage/billboards/' . $billboard_detail->site_number . '_2.png')); ?>" 
-                        alt="<?php echo e($billboard_detail->location_name); ?>" 
-                        class="w-full h-full object-cover">
-                <?php endif; ?>
-            </div>
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="intro-y flex flex-col sm:flex-row items-center justify-between mb-8">
+        <h2 class="text-2xl font-bold text-gray-800">
+            Billboard Detail
+        </h2>
+        <div class="mt-4 sm:mt-0">
+            <a href="<?php echo e(route('billboard.download', $billboard_detail->id)); ?>" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200 mr-2">
+                <i class="fas fa-download mr-2"></i> Download PDF [INTERNAL]
+            </a>
+            <a href="<?php echo e(route('billboard.download.client', $billboard_detail->id)); ?>" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition duration-200 mr-2">
+                <i class="fas fa-download mr-2"></i> Download PDF [CLIENT]
+            </a>
+            <?php
+                $mapUrl = !empty($billboard_detail->gps_url)
+                    ? $billboard_detail->gps_url
+                    : "https://www.google.com/maps?q={$billboard_detail->gps_latitude},{$billboard_detail->gps_longitude}";
+            ?>
+            <a href="<?php echo e($mapUrl); ?>" target="_blank" rel="noopener noreferrer" 
+            class="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-200 mr-2">
+                <i class="fas fa-map-marked-alt mr-2"></i> Show on Maps
+            </a>
+            <a href="javascript:void(0)" onclick="populateBillboardEditModal(<?php echo e(json_encode($billboard_detail)); ?>)" class="inline-flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition duration-200">
+                <i class="fas fa-edit mr-2"></i> Edit
+            </a>
         </div>
     </div>
 
+    <!-- Billboard Details Card -->
+    <div class="intro-y box bg-white rounded-xl shadow-lg p-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <h3 class="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Billboard Information</h3>
+                <ul class="space-y-2">
+                    <li class="flex">
+                        <span class="w-48 font-medium text-gray-600">Site Number:</span>
+                        <span class="text-gray-800"><?php echo e($billboard_detail->site_number); ?></span>
+                    </li>
+                    <li class="flex">
+                        <span class="w-48 font-medium text-gray-600">Location:</span>
+                        <span class="text-gray-800"><?php echo e($billboard_detail->location_name); ?></span>
+                    </li>
+                    <li class="flex">
+                        <span class="w-48 font-medium text-gray-600">District/State:</span>
+                        <span class="text-gray-800"><?php echo e($billboard_detail->district_name); ?>, <?php echo e($billboard_detail->state_name); ?></span>
+                    </li>
+                    <li class="flex">
+                        <span class="w-48 font-medium text-gray-600">Council:</span>
+                        <span class="text-gray-800"><?php echo e($billboard_detail->council_abbrv); ?> - <?php echo e($billboard_detail->council_name); ?></span>
+                    </li>
+                    <li class="flex">
+                        <span class="w-48 font-medium text-gray-600">GPS Coordinate:</span>
+                        <span class="text-gray-800"><?php echo e($billboard_detail->gps_latitude); ?>, <?php echo e($billboard_detail->gps_longitude); ?></span>
+                    </li>
+                </ul>
+            </div>
+            <div>
+                <h3 class="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Specifications</h3>
+                <ul class="space-y-2">
+                    <li class="flex">
+                        <span class="w-48 font-medium text-gray-600">Traffic Volume:</span>
+                        <span class="text-gray-800"><?php echo e($billboard_detail->traffic_volume); ?></span>
+                    </li>
+                    <li class="flex">
+                        <span class="w-48 font-medium text-gray-600">Billboard Type:</span>
+                        <span class="text-gray-800"><?php echo e($billboard_detail->prefix); ?> - <?php echo e($billboard_detail->type); ?></span>
+                    </li>
+                    <li class="flex">
+                        <span class="w-48 font-medium text-gray-600">Size:</span>
+                        <span class="text-gray-800"><?php echo e($billboard_detail->size); ?></span>
+                    </li>
+                    <li class="flex">
+                        <span class="w-48 font-medium text-gray-600">Lighting:</span>
+                        <span class="text-gray-800"><?php echo e($billboard_detail->lighting); ?></span>
+                    </li>
+                    <li class="flex">
+                        <span class="w-48 font-medium text-gray-600">Status:</span>
+                        <span class="text-gray-800"><?php echo e($billboard_detail->site_type ? strtoupper($billboard_detail->site_type) : '-'); ?></span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
 
+    <!-- Billboard Images Card -->
+    <div class="intro-y box bg-white rounded-xl shadow-lg p-6">
+        <h2 class="intro-y font-bold text-xl sm:text-2xl text-gray-800 mb-6">
+            Billboard Site Images
+        </h2>
 
-    <div class="intro-y mt-5 pt-5 border-t border-gray-200 dark:border-dark-5">
-        <div class="border border-gray-200 dark:border-dark-5 rounded-md p-5 mt-5" id="fileUpload">
-            <div class="mt-5">
-                <div class="mt-3">
-                    <div class="flex items-center">
-                        <label class="font-medium">Upload Image</label>
-                    </div>
-                    <form id="fileUploadForm" action="<?php echo e(route('billboard.uploadImage')); ?>" method="POST" enctype="multipart/form-data" class="dropzone border-gray-200 border-dashed">
-                        <?php echo csrf_field(); ?>
-                        <input type="hidden" name="site_number" value="<?php echo e($billboard_detail->site_number); ?>">
-                        <div class="fallback">
-                            <input name="files[]" id="fileInput" type="file" multiple />
+        <?php
+            $image1Exists = Storage::disk('public')->exists('billboards/' . $billboard_detail->site_number . '_1.png');
+            $image2Exists = Storage::disk('public')->exists('billboards/' . $billboard_detail->site_number . '_2.png');
+        ?>
+
+        <div class="intro-y mt-6">
+            <div class="flex flex-col md:flex-row gap-6">
+                <!-- Image 1 Slot -->
+                <div id="image-slot-1" class="flex-1 relative group h-86 overflow-hidden rounded-lg shadow bg-gray-100 border border-gray-200">
+                    <?php if($image1Exists): ?>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <img src="<?php echo e(asset('storage/billboards/' . $billboard_detail->site_number . '_1.png')); ?>" 
+                                class="w-full h-full object-contain max-h-96"
+                                alt="Billboard Image 1">
                         </div>
-                        <div class="dz-message" data-dz-message>
-                            <div class="text-lg font-medium">Drop files here or click to upload.</div>
-                            <div class="text-gray-600">Only 2 images per site are allowed.</div>
+                        <!-- Delete Button - Hidden by default, shown on hover -->
+                        <button 
+                            onclick="deleteImage('<?php echo e($billboard_detail->site_number); ?>_1.png', this)"
+                            class="absolute top-2 right-2 text-white bg-red-500 hover:bg-red-600 px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-200 ease-in-out"
+                            aria-label="Delete Image 1">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    <?php else: ?>
+                        <div class="flex flex-col items-center justify-center h-full p-4 text-center text-gray-500 bg-gray-50">
+                            <i class="fas fa-image text-4xl mb-2"></i>
+                            <p>No Image 1 Uploaded</p>
                         </div>
-                    </form>
+                    <?php endif; ?>
                 </div>
+
+                <!-- Image 2 Slot -->
+                <div id="image-slot-2" class="flex-1 relative group h-86 overflow-hidden rounded-lg shadow bg-gray-100 border border-gray-200">
+                    <?php if($image2Exists): ?>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <img src="<?php echo e(asset('storage/billboards/' . $billboard_detail->site_number . '_2.png')); ?>" 
+                                class="w-full h-full object-contain max-h-96"
+                                alt="Billboard Image 2">
+                        </div>
+                        <!-- Delete Button - Hidden by default, shown on hover -->
+                        <button 
+                            onclick="deleteImage('<?php echo e($billboard_detail->site_number); ?>_2.png', this)"
+                            class="absolute top-2 right-2 text-white bg-red-500 hover:bg-red-600 px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-200 ease-in-out"
+                            aria-label="Delete Image 2">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    <?php else: ?>
+                        <div class="flex flex-col items-center justify-center h-full p-4 text-center text-gray-500 bg-gray-50">
+                            <i class="fas fa-image text-4xl mb-2"></i>
+                            <p>No Image 2 Uploaded</p>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+
+        <!-- File Upload Section -->
+        <div class="intro-y mt-8 pt-6 border-t border-gray-200">
+            <div class="border border-dashed border-gray-300 rounded-lg p-6 bg-gray-50">
+                <h3 class="text-lg font-medium text-gray-800 mb-4">Upload New Images</h3>
+                <p class="text-gray-600 mb-4">Drag & drop images here or click to browse. Maximum 2 images allowed.</p>
+                <form id="fileUploadForm" action="<?php echo e(route('billboard.uploadImage')); ?>" method="POST" enctype="multipart/form-data" class="dropzone border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                    <?php echo csrf_field(); ?>
+                    <input type="hidden" name="site_number" value="<?php echo e($billboard_detail->site_number); ?>">
+                    <!-- <div class="fallback">
+                        <input name="files[]" id="fileInput" type="file" multiple accept="image/*" />
+                    </div> -->
+                    <div class="dz-message" data-dz-message>
+                        <div class="text-lg font-medium text-gray-700">
+                            <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-2"></i><br>
+                            Drop files here or click to upload.
+                        </div>
+                        <div class="text-gray-500">Only PNG, JPG, JPEG files. Max 10MB each.</div>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -132,158 +202,165 @@
 
 <?php $__env->startSection('modal_content'); ?>
 <!-- Edit Billboard Modal -->
-<div class="row flex flex-col sm:flex-row sm:items-end xl:items-start mb-2">
-    <div class="modal" id="billboardEditModal">
-        <div class="modal__content">
-            <div class="flex items-center px-5 py-5 sm:py-3 border-b border-gray-200 dark:border-dark-5">
-                <h2 class="font-medium text-base mr-auto">Edit Billboard</h2>
-            </div>
-            <form id="billboardEditForm" action="<?php echo e(route('billboard.update')); ?>" method="POST">
-                <?php echo csrf_field(); ?>
-                <?php echo method_field('POST'); ?>
-                <div class="p-5 grid grid-cols-12 gap-4 gap-y-3">
-                    <div class="col-span-12 sm:col-span-12">
-                        <input type="hidden" id="editBillboardModalId" name="id">
-                        <label>Outdoor Type <span style="color: red;">*</span></label>
-                        <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="editBillboardType" name="type" disabled>
-                            <option value="">-- Select Outdoor Type --</option>
-                            <option value="BB">Billboard</option>
-                            <option value="TB">Tempboard</option>
-                            <option value="BU">Bunting</option>
-                            <option value="BN">Banner</option>
-                        </select>
-                        <input type="hidden" id="editBillboardTypeHidden" name="type" value="">
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>Billboard Size <span style="color: red;">*</span></label>
-                        <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="editBillboardSize" name="size" required>
-                            <option value="">-- Select Size --</option>
-                            <option value="10x10">10x10</option>
-                            <option value="15x10">15x10</option>
-                            <option value="30x20">30x20</option>
-                            <option value="10x40">10x40</option>
-                            <option value="6x3">6x3</option>
-                            <option value="7x3">7x3</option>
-                            <option value="8x3">8x3</option>
-                        </select>
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>Lighting <span style="color: red;">*</span></label>
-                        <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="editBillboardLighting" name="lighting" required>
-                            <option value="">-- Select Lighting --</option>
-                            <option value="None">None</option>
-                            <option value="TNB">TNB</option>
-                            <option value="SOLAR">SOLAR</option>
-                        </select>
-                    </div>
-
-                    <!-- Separator -->
-                    <div class="col-span-12">
-                        <hr class="my-6 border-t-1 border-gray-300">
-                    </div>
-
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>State <span style="color: red;">*</span></label>
-                        <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="editBillboardState" name="state_id" disabled>
-                            <option value="">-- Select State --</option>
-                            <?php $__currentLoopData = $states; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $state): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                <option value="<?php echo e($state->id); ?>"><?php echo e($state->name); ?></option>
-                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-                        </select>
-                        <!-- Hidden input to send state_id value -->
-                        <input type="hidden" id="editBillboardStateHidden" name="state_id" value="">
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>District <span style="color: red;">*</span></label>
-                        <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="editBillboardDistrict" name="district_id" required>
-                            <option value="">-- Select District --</option>
-                        </select>
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>Council <span style="color: red;">*</span></label>
-                        <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="editBillboardCouncil" name="council_id" disabled>
-                            <option value="">-- Select Council --</option>
-                        </select>
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>Location <span style="color: red;">*</span></label>
-                        <input type="text" class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="editBillboardLocation" name="location_name" placeholder="Enter location name">
-                    </div>
-
-                    <!-- Separator -->
-                    <div class="col-span-12">
-                        <hr class="my-6 border-t-1 border-gray-300">
-                    </div>
-
-                    <div class="col-span-12 sm:col-span-12">
-                        <label for="editGPSCoordinate" class="form-label">GPS Coordinate <span style="color: red;">*</span></label>
-                        <input 
-                            type="text" 
-                            class="input w-full border mt-2 flex-1" 
-                            id="editGPSCoordinate" 
-                            name="gps_coordinate"
-                            placeholder="e.g. 3.1390, 101.6869" 
-                            required
-                        >
-                        <small class="text-gray-500">Format: latitude, longitude</small>
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label for="editGPSUrl" class="form-label">GPS URL (Google Maps)</label>
-                        <input 
-                            type="url" 
-                            class="input w-full border mt-2 flex-1" 
-                            id="editGPSUrl" 
-                            name="gps_url"
-                            placeholder="https://maps.app.goo.gl/xyz123"
-                        >
-                        <small class="text-gray-500">Example: https://maps.app.goo.gl/xxxxx</small>
-                    </div>
-
-                    <!-- Separator -->
-                    <div class="col-span-12">
-                        <hr class="my-6 border-t-1 border-gray-300">
-                    </div>
-
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>Traffic Volume</label>
-                        <input type="text" class="input w-full border mt-2 flex-1" id="editBillboardTrafficVolume" name="traffic_volume" value="" required>
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>Site Type</label>
-                        <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="editBillboardSiteType" name="site_type">
-                            <option value="">-- Select option --</option>
-                            <option value="new">New</option>
-                            <option value="existing">Existing</option>
-                            <option value="rejected">Rejected</option>
-                            <option value="existing_1">Existing 1</option>
-                            <option value="existing_2">Existing 2</option>
-                            <option value="existing_3">Existing 3</option>
-                        </select>
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>Status</label>
-                        <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="editBillboardStatus" name="status">
-                            <option value="">-- Select option --</option>
-                            <option value="1">Active</option>
-                            <option value="0">Inactive</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="px-5 py-3 text-right border-t border-gray-200 dark:border-dark-5">
-                    <button type="submit" class="button w-20 bg-theme-1 text-white" id="billboardEditButton">Submit</button>
-                </div>
-            </form>
+<div class="fixed inset-0 z-50 flex items-center justify-center hidden bg-black bg-opacity-50 modal" id="billboardEditModal">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 overflow-hidden modal__content">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <h2 class="font-bold text-xl text-gray-800">Edit Billboard</h2>
+            <button type="button" onclick="closeAltEditorModal('#billboardEditModal')" class="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-full p-1">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
-    </div> 
+        <form id="billboardEditForm" action="<?php echo e(route('billboard.update')); ?>" method="POST">
+            <?php echo csrf_field(); ?>
+            <?php echo method_field('POST'); ?>
+            <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[70vh] overflow-y-auto">
+                <div class="md:col-span-2">
+                    <input type="hidden" id="editBillboardModalId" name="id">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Outdoor Type <span class="text-red-500">*</span></label>
+                    <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-gray-100 cursor-not-allowed" id="editBillboardType" name="type" disabled>
+                        <option value="">-- Select Outdoor Type --</option>
+                        <option value="BB">Billboard</option>
+                        <option value="TB">Tempboard</option>
+                        <option value="BU">Bunting</option>
+                        <option value="BN">Banner</option>
+                    </select>
+                    <input type="hidden" id="editBillboardTypeHidden" name="type" value="">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Billboard Size <span class="text-red-500">*</span></label>
+                    <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="editBillboardSize" name="size" required>
+                        <option value="">-- Select Size --</option>
+                        <option value="10x10">10x10</option>
+                        <option value="15x10">15x10</option>
+                        <option value="30x20">30x20</option>
+                        <option value="10x40">10x40</option>
+                        <option value="6x3">6x3</option>
+                        <option value="7x3">7x3</option>
+                        <option value="8x3">8x3</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Lighting <span class="text-red-500">*</span></label>
+                    <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="editBillboardLighting" name="lighting" required>
+                        <option value="">-- Select Lighting --</option>
+                        <option value="None">None</option>
+                        <option value="TNB">TNB</option>
+                        <option value="SOLAR">SOLAR</option>
+                    </select>
+                </div>
+
+                <!-- Separator -->
+                <div class="md:col-span-2 py-2">
+                    <hr class="border-t border-gray-300">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">State <span class="text-red-500">*</span></label>
+                    <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-gray-100 cursor-not-allowed" id="editBillboardState" name="state_id" disabled>
+                        <option value="">-- Select State --</option>
+                        <?php $__currentLoopData = $states; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $state): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                            <option value="<?php echo e($state->id); ?>"><?php echo e($state->name); ?></option>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                    </select>
+                    <input type="hidden" id="editBillboardStateHidden" name="state_id" value="">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">District <span class="text-red-500">*</span></label>
+                    <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="editBillboardDistrict" name="district_id" required>
+                        <option value="">-- Select District --</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Council <span class="text-red-500">*</span></label>
+                    <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-gray-100 cursor-not-allowed" id="editBillboardCouncil" name="council_id" disabled>
+                        <option value="">-- Select Council --</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Location <span class="text-red-500">*</span></label>
+                    <input type="text" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="editBillboardLocation" name="location_name" placeholder="Enter location name">
+                </div>
+
+                <!-- Separator -->
+                <div class="md:col-span-2 py-2">
+                    <hr class="border-t border-gray-300">
+                </div>
+
+                <div class="md:col-span-2">
+                    <label for="editGPSCoordinate" class="block text-sm font-medium text-gray-700 mb-1">GPS Coordinate <span class="text-red-500">*</span></label>
+                    <input
+                        type="text"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                        id="editGPSCoordinate"
+                        name="gps_coordinate"
+                        placeholder="e.g. 3.1390, 101.6869"
+                        required
+                    >
+                    <small class="text-gray-500">Format: latitude, longitude</small>
+                </div>
+                <div class="md:col-span-2">
+                    <label for="editGPSUrl" class="block text-sm font-medium text-gray-700 mb-1">GPS URL (Google Maps)</label>
+                    <input
+                        type="url"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                        id="editGPSUrl"
+                        name="gps_url"
+                        placeholder="  https://maps.app.goo.gl/xyz123    "
+                    >
+                    <small class="text-gray-500">Example: https://maps.app.goo.gl/xxxxx    </small>
+                </div>
+
+                <!-- Separator -->
+                <div class="md:col-span-2 py-2">
+                    <hr class="border-t border-gray-300">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Traffic Volume</label>
+                    <input type="text" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="editBillboardTrafficVolume" name="traffic_volume" value="" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Site Type</label>
+                    <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="editBillboardSiteType" name="site_type">
+                        <option value="">-- Select option --</option>
+                        <option value="new">New</option>
+                        <option value="existing">Existing</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="existing_1">Existing 1</option>
+                        <option value="existing_2">Existing 2</option>
+                        <option value="existing_3">Existing 3</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="editBillboardStatus" name="status">
+                        <option value="">-- Select option --</option>
+                        <option value="1">Active</option>
+                        <option value="0">Inactive</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="px-6 py-4 bg-gray-50 text-right border-t border-gray-200">
+                <button type="button" onclick="closeAltEditorModal('#billboardEditModal')" class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition mr-2">
+                    Cancel
+                </button>
+                <button type="submit" class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition" id="billboardEditButton">
+                    Submit
+                </button>
+            </div>
+        </form>
+    </div>
 </div>
 <!-- Edit Modal End -->
 <?php $__env->stopSection(); ?>
 
-<?php $__env->startSection('script'); ?>
+
+<?php $__env->startSection('scripts'); ?>
 <!-- Add these CDN links before your script -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/dropzone.min.css">
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
@@ -307,9 +384,45 @@
             throw new Error('File not found');
         })
         .then(data => {
-            button.closest('.flex-1').remove();
+            // Find the parent slot container
+            const slotContainer = button.closest('.flex-1'); // e.g., #image-slot-1 or #image-slot-2
+            if (!slotContainer) {
+                throw new Error("Slot container not found");
+            }
+
+            // Determine which slot it was to show the correct placeholder
+            const slotId = slotContainer.id;
+            let placeholderHtml = '';
+            if (slotId === 'image-slot-1') {
+                placeholderHtml = `
+                    <div class="flex flex-col items-center justify-center h-full p-4 text-center text-gray-500 bg-gray-50">
+                        <i class="fas fa-image text-4xl mb-2"></i>
+                        <p>No Image 1 Uploaded</p>
+                    </div>
+                `;
+            } else if (slotId === 'image-slot-2') {
+                placeholderHtml = `
+                    <div class="flex flex-col items-center justify-center h-full p-4 text-center text-gray-500 bg-gray-50">
+                        <i class="fas fa-image text-4xl mb-2"></i>
+                        <p>No Image 2 Uploaded</p>
+                    </div>
+                `;
+            } else {
+                // Fallback if slot ID doesn't match
+                placeholderHtml = `
+                    <div class="flex flex-col items-center justify-center h-full p-4 text-center text-gray-500 bg-gray-50">
+                        <i class="fas fa-image text-4xl mb-2"></i>
+                        <p>No Image Uploaded</p>
+                    </div>
+                `;
+            }
+
+            // Replace the content of the slot with the placeholder
+            slotContainer.innerHTML = placeholderHtml;
+
             alert(data.message);
-            window.location.reload(); // Refresh to update Dropzone state
+            // Optionally, you could reload the page here if you prefer
+            // window.location.reload();
         })
         .catch(err => {
             console.error(err);
@@ -317,36 +430,9 @@
         });
     }
 
-    // Fixed modal functions to prevent scrollbar error
-    function openAltEditorModal(element) {
-        // Ensure DOM is ready before opening modal
-        setTimeout(() => {
-            try {
-                cash(element).modal('show');
-            } catch (e) {
-                console.error('Modal error:', e);
-                // Fallback: manually show modal
-                document.querySelector(element).style.display = 'block';
-                document.querySelector(element).classList.add('show');
-            }
-        }, 100);
-    }
-    
-    function closeAltEditorModal(element) {
-        // Ensure DOM is ready before closing modal
-        setTimeout(() => {
-            try {
-                cash(element).modal('hide');
-            } catch (e) {
-                console.error('Modal close error:', e);
-                // Fallback: manually hide modal
-                document.querySelector(element).style.display = 'none';
-                document.querySelector(element).classList.remove('show');
-            }
-        }, 100);
-    }
-
     function populateBillboardEditModal(data) {
+
+        console.log("populateBillboardEditModal called with data:", data);
         // IDs
         let stateID    = data.state_id;
         let districtID = data.district_id;
@@ -413,8 +499,27 @@
         openAltEditorModal('#billboardEditModal');
     }
 
+    // Open modal
+    function openAltEditorModal(selector) {
+        const modal = document.querySelector(selector);
+        if (modal) {
+            modal.classList.remove('hidden'); // ✅ Remove 'hidden' class to show
+            // Prevent body scroll when modal is open
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    function closeAltEditorModal(selector) {
+        const modal = document.querySelector(selector);
+        if (modal) {
+            modal.classList.add('hidden'); // ✅ Add 'hidden' class to hide
+            // Re-enable body scroll
+            document.body.style.overflow = '';
+        }
+    }
+
     // Wait for document ready and Dropzone to be available
-    $(document).ready(function () {
+    $(document).ready(function () {        
         // Initialize Select2 for District field with tagging enabled
         $('#editBillboardDistrict').select2({
             tags: true,
@@ -424,13 +529,14 @@
         });
 
         // Check if Dropzone is available before initializing
+        Dropzone.autoDiscover = false;
+
         if (typeof Dropzone !== 'undefined') {
-            // Initialize Dropzone manually by targeting the form ID
-            Dropzone.options.fileUploadForm = {
+            var myDropzone = new Dropzone("#fileUploadForm", {
                 paramName: "file",
                 maxFiles: 2,
-                acceptedFiles: 'image/*',
-                maxFilesize: 10,
+                acceptedFiles: "image/*",
+                maxFilesize: 10, // MB
                 addRemoveLinks: true,
                 dictRemoveFile: "Remove",
                 dictMaxFilesExceeded: "You can only upload 2 images per site.",
@@ -438,68 +544,93 @@
                 init: function () {
                     let dz = this;
 
+                    // Preload existing images
                     let existingImages = [
                         <?php if($image1Exists): ?>
-                            { name: "<?php echo e($billboard_detail->site_number); ?>_1.png", url: "<?php echo e(asset('storage/billboards/' . $billboard_detail->site_number . '_1.png')); ?>" },
+                            { name: "<?php echo e($billboard_detail->site_number); ?>_1.png", size: 12345, url: "<?php echo e(asset('storage/billboards/' . $billboard_detail->site_number . '_1.png')); ?>" },
                         <?php endif; ?>
                         <?php if($image2Exists): ?>
-                            { name: "<?php echo e($billboard_detail->site_number); ?>_2.png", url: "<?php echo e(asset('storage/billboards/' . $billboard_detail->site_number . '_2.png')); ?>" }
+                            { name: "<?php echo e($billboard_detail->site_number); ?>_2.png", size: 12345, url: "<?php echo e(asset('storage/billboards/' . $billboard_detail->site_number . '_2.png')); ?>" }
                         <?php endif; ?>
                     ];
 
                     existingImages.forEach(function(file) {
                         dz.emit("addedfile", file);
                         dz.emit("thumbnail", file, file.url);
+                        dz.emit("success", file, { message: "Loaded" }); // ✅ mark as uploaded
                         dz.emit("complete", file);
+                        dz.files.push(file); 
                     });
 
-                    dz.options.maxFiles = dz.options.maxFiles - existingImages.length;
-
-                    dz.on("removedfile", function(file) {
-                        if (file.name) {
-                            axios.post("<?php echo e(route('billboard.deleteImage')); ?>", {
-                                filename: file.name,
-                                _token: "<?php echo e(csrf_token()); ?>"
-                            })
-                            .then(response => {
-                                alert(response.data.message);
-                                dz.options.maxFiles++; 
-                                window.location.reload();
-                            })
-                            .catch(error => {
-                                alert(error.response?.data?.message || "Failed to delete image");
-                            });
+                    // Prevent adding more files if 2 already exist
+                    dz.on("addedfile", function(file) {
+                        if (dz.files.length > 2) {
+                            dz.removeFile(file);
+                            alert("You can only upload 2 images per site.");
                         }
                     });
+
+                    // Handle remove
+                    dz.on("removedfile", function(file) {
+                        if (!file.url) return; // skip new uploads
+
+                        fetch("<?php echo e(route('billboard.deleteImage')); ?>", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-CSRF-TOKEN": "<?php echo e(csrf_token()); ?>"
+                            },
+                            body: JSON.stringify({ filename: file.name })
+                        })
+                        .then(r => r.json())
+                        .then(data => {
+                            alert(data.message);
+                            window.location.reload();
+                        })
+                        .catch(() => alert("Failed to delete image"));
+                    });
+
                 },
 
                 sending: function(file, xhr, formData) {
                     formData.append("_token", "<?php echo e(csrf_token()); ?>");
                     formData.append("site_number", "<?php echo e($billboard_detail->site_number); ?>");
                 },
-
                 success: function(file, response) {
-                    alert(response.message);
-
-                    // Update image directly without full reload
-                    let imgSelector = `img[src*='${response.filename.split('.')[0]}']`;
-                    let img = document.querySelector(imgSelector);
-
-                    if (img) {
-                        img.src = response.url; // already has ?v=timestamp
-                    } else {
-                        window.location.reload(); // fallback
+                    // Determine which slot (1 or 2) based on filename
+                    if (response.filename.endsWith("_1.png")) {
+                        let slot = document.querySelector("#image-slot-1");
+                        // Use the same structure and classes as the Blade version
+                        slot.innerHTML = `
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <img src="${response.url}" class="w-full h-full object-contain max-h-96" alt="Billboard Image 1">
+                            </div>
+                            <button onclick="deleteImage('${response.filename}', this)"
+                                    class="absolute top-2 right-2 text-white bg-red-500 hover:bg-red-600 px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-200 ease-in-out"
+                                    aria-label="Delete Image 1">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        `;
+                    } else if (response.filename.endsWith("_2.png")) {
+                        let slot = document.querySelector("#image-slot-2");
+                        // Use the same structure and classes as the Blade version
+                        slot.innerHTML = `
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <img src="${response.url}" class="w-full h-full object-contain max-h-96" alt="Billboard Image 2">
+                            </div>
+                            <button onclick="deleteImage('${response.filename}', this)"
+                                    class="absolute top-2 right-2 text-white bg-red-500 hover:bg-red-600 px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-200 ease-in-out"
+                                    aria-label="Delete Image 2">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        `;
                     }
-                },
-
-                error: function(file, response) {
-                    console.error("❌ Dropzone error:", response);
-                    this.removeFile(file);
                 }
-            };
+            });
         } else {
-            console.error('Dropzone library is not loaded');
+            console.error("Dropzone not loaded");
         }
+
 
         // Handle form submission when the submit button is clicked
         $(document).on('click', '#billboardEditButton', function (e) {

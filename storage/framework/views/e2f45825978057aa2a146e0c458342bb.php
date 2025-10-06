@@ -35,6 +35,29 @@
             border-radius: 0.375rem;
             font-weight: 600;
         }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            overflow: auto;
+        }
+        .modal.show {
+            display: block;
+        }
+        .modal__content {
+            background: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 8px;
+            max-width: 600px;
+            width: 90%;
+        }
     </style>
 
     <!-- Add jQuery CDN -->
@@ -63,52 +86,55 @@
         </p>
     </div>
     <!-- BEGIN: Billboard Filter-->
-    <div class="flex flex-col sm:flex-row sm:items-end xl:items-start">
-        <form class="xl:flex flex-col sm:mr-auto">
-            <div class="sm:flex items-center sm:mr-4 mb-2">
-                <label class="w-12 flex-none xl:w-auto xl:flex-initial mr-2">Status</label>
-                <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="filterBillboardStatus">
+    <div class="flex flex-col sm:flex-row sm:items-end xl:items-start gap-4 mb-4">
+        <form class="flex-1 flex flex-col sm:flex-row sm:flex-wrap gap-4">
+            <!-- Status Filter -->
+            <div class="flex flex-col">
+                <label for="filterBillboardStatus" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select class="w-full sm:w-40 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="filterBillboardStatus">
                     <option value="all">All</option>
                     <option value="1">Active</option>
                     <option value="0">Inactive</option>
                 </select>
             </div>
+
             <?php if(Auth::guard('web')->check() && Auth::guard('web')->user()->hasRole(['superadmin', 'admin'])): ?>
             <!-- Row 1: State & District -->
-            <div class="sm:flex items-center mb-2">
-                <div class="sm:flex items-center sm:mr-4">
-                    <label class="w-12 flex-none xl:w-auto xl:flex-initial mr-2">State</label>
-                    <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="filterBillboardState">
+            <div class="flex flex-col sm:flex-row gap-4">
+                <div class="flex flex-col">
+                    <label for="filterBillboardState" class="block text-sm font-medium text-gray-700 mb-1">State</label>
+                    <select class="w-full sm:w-40 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="filterBillboardState">
                         <option value="all">All</option>
                         <?php $__currentLoopData = $states; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $state): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                        <option value="<?php echo e($state->id); ?>"><?php echo e($state->name); ?></option>
+                            <option value="<?php echo e($state->id); ?>"><?php echo e($state->name); ?></option>
                         <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                     </select>
                 </div>
-                <div class="sm:flex items-center sm:mr-4">
-                    <label class="w-12 flex-none xl:w-auto xl:flex-initial mr-2">District</label>
-                    <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="filterBillboardDistrict">
+                <div class="flex flex-col">
+                    <label for="filterBillboardDistrict" class="block text-sm font-medium text-gray-700 mb-1">District</label>
+                    <select class="w-full sm:w-40 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="filterBillboardDistrict">
                         <option value="all">All</option>
                         <?php $__currentLoopData = $districts; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $district): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                        <option value="<?php echo e($district->id); ?>"><?php echo e($district->name); ?></option>
+                            <option value="<?php echo e($district->id); ?>"><?php echo e($district->name); ?></option>
                         <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                     </select>
                 </div>
             </div>
+
             <!-- Row 2: Type, New/Existing, Size -->
-            <div class="sm:flex items-center mb-2">
-                <div class="sm:flex items-center sm:mr-4 mb-2 sm:mb-0">
-                    <label class="w-12 flex-none xl:w-auto xl:flex-initial mr-2">Type</label>
-                    <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="filterBillboardType">
+            <div class="flex flex-col sm:flex-row gap-4">
+                <div class="flex flex-col">
+                    <label for="filterBillboardType" class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                    <select class="w-full sm:w-40 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="filterBillboardType">
                         <option value="all">All</option>
                         <?php $__currentLoopData = $billboardTypes; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $type): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                        <option value="<?php echo e($type); ?>"><?php echo e($type); ?></option>
+                            <option value="<?php echo e($type); ?>"><?php echo e($type); ?></option>
                         <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                     </select>
                 </div>
-                <div class="sm:flex items-center sm:mr-4 mb-2 sm:mb-0">
-                    <label class="w-12 flex-none xl:w-auto xl:flex-initial mr-2">New/Existing</label>
-                    <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="filterBillboardSiteType">
+                <div class="flex flex-col">
+                    <label for="filterBillboardSiteType" class="block text-sm font-medium text-gray-700 mb-1">New/Existing</label>
+                    <select class="w-full sm:w-40 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="filterBillboardSiteType">
                         <option value="all">All</option>
                         <option value="new">New</option>
                         <option value="existing">Existing</option>
@@ -118,53 +144,51 @@
                         <option value="existing_3">Existing 3</option>
                     </select>
                 </div>
-                <div class="sm:flex items-center sm:mr-4">
-                    <label class="w-12 flex-none xl:w-auto xl:flex-initial mr-2">Size</label>
-                    <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="filterBillboardSize">
+                <div class="flex flex-col">
+                    <label for="filterBillboardSize" class="block text-sm font-medium text-gray-700 mb-1">Size</label>
+                    <select class="w-full sm:w-40 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="filterBillboardSize">
                         <option value="all">All</option>
                         <?php $__currentLoopData = $billboardSize; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $size): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                        <option value="<?php echo e($size); ?>"><?php echo e($size); ?></option>
+                            <option value="<?php echo e($size); ?>"><?php echo e($size); ?></option>
                         <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                     </select>
                 </div>
             </div>
             <?php endif; ?>
         </form>
-        <div class="text-center">
-            <!-- Buttons remain the same -->
-            <a href="javascript:;" data-toggle="modal" data-target="#addBillboardModal" class="btn-secondary h-11 w-[200px] text-left">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather feather-plus w-4 h-4">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
+
+        <!-- Buttons Section -->
+        <div class="flex flex-col gap-2">
+            <!-- Add New Stock Button -->
+            <a href="javascript:;" data-toggle="modal" data-target="#addBillboardModal" class="flex items-center justify-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                 </svg>
                 Add New Stock
             </a>
-            <br>
-            <a href="<?php echo e(route('stockInventory.index')); ?>" class="btn-secondary h-11 w-[200px] text-left">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather feather-download w-4 h-4 mr-2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
+
+            <!-- Inventory Button -->
+            <a href="<?php echo e(route('stockInventory.index')); ?>" class="flex items-center justify-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
                 Inventory
             </a>
-            <br>
-            <a href="#" id="exportBtnClient" class="btn-secondary h-11 w-[200px] text-left" target="_blank">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather feather-download w-4 h-4 mr-2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
+
+            <!-- Download Details [CLIENT] Button -->
+            <a href="#" id="exportBtnClient" class="flex items-center justify-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition" target="_blank">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                Download Details [CLIENT]
+                Download [CLIENT]
             </a>
-            <br>
-            <a href="#" id="exportBtn" class="btn-secondary h-11 w-[200px] text-left" target="_blank">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather feather-download w-4 h-4 mr-2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
+
+            <!-- Download Details [INTERNAL] Button -->
+            <a href="#" id="exportBtn" class="flex items-center justify-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition" target="_blank">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                Download Details [INTERNAL]
+                Download [INTERNAL]
             </a>
         </div>
     </div>
@@ -185,7 +209,7 @@
                     <th class="px-4 py-4 table-header min-w-[200px] border-r border-neutral-300">District</th> <!-- Add border to header cell -->
                     <th class="px-4 py-4 table-header min-w-[160px] hidden border-r border-neutral-300">GPS Coordinate</th> <!-- Add border to header cell -->
                     <th class="px-4 py-4 table-header min-w-[200px] dt-exclude-export dt-no-sort border-r border-neutral-300">Show Detail</th> <!-- Add border to header cell -->
-                    <th class="px-4 py-4 table-header min-w-[160px] dt-exclude-export dt-no-sort">Actions</th> <!-- Last header cell, no right border if you don't want it -->
+                    <th class="px-4 py-4 table-header min-w-[100px] dt-exclude-export dt-no-sort">Actions</th> <!-- Last header cell, no right border if you don't want it -->
                 </tr>
             </thead>
             <tbody id="billboard_tbody" class="bg-white divide-y divide-neutral-200"> <!-- 'divide-y' adds borders between rows -->
@@ -200,296 +224,394 @@
 
 <!-- Modal content -->
 <!-- Create Billboard Modal -->
-<div class="row flex flex-col sm:flex-row sm:items-end xl:items-start mb-2">
-    <div class="modal" id="addBillboardModal">
-        <div class="modal__content">
-            <div class="flex items-center px-5 py-5 sm:py-3 border-b border-gray-200 dark:border-dark-5">
-                <h2 class="font-medium text-base mr-auto">Add New Stock</h2>
-            </div>
-            <form>
-                <div class="p-5 grid grid-cols-12 gap-4 gap-y-3">
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>Outdoor Type <span style="color: red;">*</span></label>
-                        <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="inputBillboardType" required>
-                            <option value="">-- Select Outdoor Type --</option>
-                            <option value="BB">Billboard</option>
-                            <option value="TB">Tempboard</option>
-                            <option value="BU">Bunting</option>
-                            <option value="BN">Banner</option>
-                        </select>
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>Size (H)'x(W)' <span style="color: red;">*</span></label>
-                        <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="inputBillboardSize" required>
-                            <option value="">-- Select Size --</option>
-                            <option value="10x10">10x10</option>
-                            <option value="15x10">15x10</option>
-                            <option value="30x20">30x20</option>
-                            <option value="10x40">10x40</option>
-                            <option value="6x3">6x3</option>
-                            <option value="7x3">7x3</option>
-                            <option value="8x3">8x3</option>
-                        </select>
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>Lighting <span style="color: red;">*</span></label>
-                        <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="inputBillboardLighting" required>
-                            <option value="">-- Select Lighting --</option>
-                            <option value="None">None</option>
-                            <option value="TNB">TNB</option>
-                            <option value="SOLAR">SOLAR</option>
-                        </select>
-                    </div>
-                    <!-- Separator -->
-                    <div class="col-span-12">
-                        <hr class="my-6 border-t-4 border-black">
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>State <span style="color: red;">*</span></label>
-                        <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="inputBillboardState" required>
-                            <option value="">-- Select State --</option>
-                            <?php $__currentLoopData = $states; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $state): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                            <option value="<?php echo e($state->id); ?>"><?php echo e($state->name); ?></option>
-                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-                        </select>
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>District <span style="color: red;">*</span></label>
-                        <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="inputBillboardDistrict" required>
-                            <option value="">-- Select District --</option>
-                        </select>
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>Council <span style="color: red;">*</span></label>
-                        <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="inputBillboardCouncil" required>
-                            <option value="">-- Select Council --</option>
-                        </select>
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>Location <span style="color: red;">*</span></label>
-                        <input type="text" class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="inputBillboardLocation" placeholder="Enter location name" required>
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>State/Private Land <span style="color: red;">*</span></label>
-                        <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="inputBillboardLand" required>
-                            <option value="">-- Select option --</option>
-                            <option value="A">A - State Land</option>
-                            <option value="B">B - Private Land</option>
-                            <option value="C">C - KKR</option>
-                            <option value="D">D - Others</option>
-                        </select>
-                    </div>
-                    <!-- Separator -->
-                    <div class="col-span-12">
-                        <hr class="my-6 border-t-4 border-black">
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label for="inputGPSCoordinate" class="form-label">GPS Coordinate <span style="color: red;">*</span></label>
-                        <input
-                            type="text"
-                            class="input w-full border mt-2 flex-1"
-                            id="inputGPSCoordinate"
-                            name="gps_coordinate"
-                            pattern="^-?([0-8]?\d(\.\d+)?|90(\.0+)?),\s*-?(1[0-7]\d(\.\d+)?|180(\.0+)?)$"
-                            placeholder="e.g. 3.1390, 101.6869"
-                            required>
-                        <small class="text-gray-500">Format: latitude (-90 → 90), longitude (-180 → 180)</small>
-                    </div>
-                    <!-- New field for Google Maps URL -->
-                    <div class="col-span-12 sm:col-span-12">
-                        <label for="inputMapsUrl" class="form-label">Google Maps Link</label>
-                        <input
-                            type="url"
-                            class="input w-full border mt-2 flex-1"
-                            id="inputMapsUrl"
-                            name="gps_url"
-                            placeholder="Paste Google Maps share link (e.g. https://maps.app.goo.gl/xyz123)"
-                            pattern="https:\/\/maps\.app\.goo\.gl\/[A-Za-z0-9]+">
-                        <small class="text-gray-500">Paste the short link from Google Maps → Share → Copy Link</small>
-                    </div>
-                    <!-- Separator -->
-                    <div class="col-span-12">
-                        <hr class="my-6 border-t-4 border-black">
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label for="inputBillboardTrafficVolume" class="form-label">Traffic Volume</label>
-                        <input
-                            type="number"
-                            class="input w-full border mt-2 flex-1"
-                            id="inputBillboardTrafficVolume"
-                            name="traffic_volume"
-                            step="1"
-                            placeholder="e.g. 50000"
-                            required>
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>Site Type</label>
-                        <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="inputBillboardSiteType">
-                            <option value="">-- Select option --</option>
-                            <option value="new">New</option>
-                            <option value="existing">Existing</option>
-                            <option value="rejected">Rejected</option>
-                            <option value="existing_1">Existing 1</option>
-                            <option value="existing_2">Existing 2</option>
-                            <option value="existing_3">Existing 3</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="px-5 py-3 text-right border-t border-gray-200 dark:border-dark-5">
-                    <button type="submit" class="button w-20 bg-theme-1 text-white" id="billboardAddButton">Submit</button>
-                </div>
-            </form>
+<div class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden" id="addBillboardModal">
+    <div class="modal__content bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-800">Add New Stock</h2>
+            <button type="button" data-dismiss="modal" class="text-gray-500 hover:text-gray-700">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
         </div>
+        <form id="addBillboardForm">
+            <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Outdoor Type -->
+                <div class="md:col-span-1">
+                    <label for="inputBillboardType" class="block text-sm font-medium text-gray-700 mb-1">Outdoor Type <span class="text-red-500">*</span></label>
+                    <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="inputBillboardType" required>
+                        <option value="">-- Select Outdoor Type --</option>
+                        <option value="BB">Billboard</option>
+                        <option value="TB">Tempboard</option>
+                        <option value="BU">Bunting</option>
+                        <option value="BN">Banner</option>
+                    </select>
+                </div>
+
+                <!-- Size -->
+                <div class="md:col-span-1">
+                    <label for="inputBillboardSize" class="block text-sm font-medium text-gray-700 mb-1">Size (H)'x(W)' <span class="text-red-500">*</span></label>
+                    <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="inputBillboardSize" required>
+                        <option value="">-- Select Size --</option>
+                        <option value="10x10">10x10</option>
+                        <option value="15x10">15x10</option>
+                        <option value="20x15">20x15</option>
+                        <option value="30x20">30x20</option>
+                        <option value="10x40">10x40</option>
+                        <option value="6x3">6x3</option>
+                        <option value="7x3">7x3</option>
+                        <option value="8x3">8x3</option>
+                    </select>
+                </div>
+
+                <!-- Lighting -->
+                <div class="md:col-span-1">
+                    <label for="inputBillboardLighting" class="block text-sm font-medium text-gray-700 mb-1">Lighting <span class="text-red-500">*</span></label>
+                    <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="inputBillboardLighting" required>
+                        <option value="">-- Select Lighting --</option>
+                        <option value="None">None</option>
+                        <option value="TNB">TNB</option>
+                        <option value="SOLAR">SOLAR</option>
+                    </select>
+                </div>
+
+                <!-- Separator -->
+                <div class="md:col-span-2 py-2">
+                    <hr class="border-t border-gray-300">
+                </div>
+
+                <!-- State -->
+                <div class="md:col-span-1">
+                    <label for="inputBillboardState" class="block text-sm font-medium text-gray-700 mb-1">State <span class="text-red-500">*</span></label>
+                    <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="inputBillboardState" required>
+                        <option value="">-- Select State --</option>
+                        <?php $__currentLoopData = $states; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $state): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                            <option value="<?php echo e($state->id); ?>"><?php echo e($state->name); ?></option>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                    </select>
+                </div>
+
+                <!-- District -->
+                <div class="md:col-span-1">
+                    <label for="inputBillboardDistrict" class="block text-sm font-medium text-gray-700 mb-1">District <span class="text-red-500">*</span></label>
+                    <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="inputBillboardDistrict" required>
+                        <option value="">-- Select District --</option>
+                    </select>
+                </div>
+
+                <!-- Council -->
+                <div class="md:col-span-1">
+                    <label for="inputBillboardCouncil" class="block text-sm font-medium text-gray-700 mb-1">Council <span class="text-red-500">*</span></label>
+                    <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="inputBillboardCouncil" required>
+                        <option value="">-- Select Council --</option>
+                    </select>
+                </div>
+
+                <!-- Location -->
+                <div class="md:col-span-1">
+                    <label for="inputBillboardLocation" class="block text-sm font-medium text-gray-700 mb-1">Location <span class="text-red-500">*</span></label>
+                    <input type="text" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="inputBillboardLocation" placeholder="Enter location name" required>
+                </div>
+
+                <!-- Land Type -->
+                <div class="md:col-span-1">
+                    <label for="inputBillboardLand" class="block text-sm font-medium text-gray-700 mb-1">State/Private Land <span class="text-red-500">*</span></label>
+                    <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="inputBillboardLand" required>
+                        <option value="">-- Select option --</option>
+                        <option value="A">A - State Land</option>
+                        <option value="B">B - Private Land</option>
+                        <option value="C">C - KKR</option>
+                        <option value="D">D - Others</option>
+                    </select>
+                </div>
+
+                <!-- Separator -->
+                <div class="md:col-span-2 py-2">
+                    <hr class="border-t border-gray-300">
+                </div>
+
+                <!-- GPS Coordinate -->
+                <div class="md:col-span-2">
+                    <label for="inputGPSCoordinate" class="block text-sm font-medium text-gray-700 mb-1">GPS Coordinate <span class="text-red-500">*</span></label>
+                    <input
+                        type="text"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                        id="inputGPSCoordinate"
+                        name="gps_coordinate"
+                        pattern="^-?([0-8]?\d(\.\d+)?|90(\.0+)?),\s*-?(1[0-7]\d(\.\d+)?|180(\.0+)?)$"
+                        placeholder="e.g. 3.1390, 101.6869"
+                        required>
+                    <small class="text-gray-500 mt-1 block">Format: latitude (-90 → 90), longitude (-180 → 180)</small>
+                </div>
+
+                <!-- Maps URL -->
+                <div class="md:col-span-2">
+                    <label for="inputMapsUrl" class="block text-sm font-medium text-gray-700 mb-1">Google Maps Link</label>
+                    <input
+                        type="url"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                        id="inputMapsUrl"
+                        name="gps_url"
+                        placeholder="Paste Google Maps share link (e.g. https://maps.app.goo.gl/xyz123)"
+                        pattern="https:\/\/maps\.app\.goo\.gl\/[A-Za-z0-9]+">
+                    <small class="text-gray-500 mt-1 block">Paste the short link from Google Maps → Share → Copy Link</small>
+                </div>
+
+                <!-- Separator -->
+                <div class="md:col-span-2 py-2">
+                    <hr class="border-t border-gray-300">
+                </div>
+
+                <!-- Traffic Volume -->
+                <div class="md:col-span-1">
+                    <label for="inputBillboardTrafficVolume" class="block text-sm font-medium text-gray-700 mb-1">Traffic Volume</label>
+                    <input
+                        type="number"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                        id="inputBillboardTrafficVolume"
+                        name="traffic_volume"
+                        step="1"
+                        placeholder="e.g. 50000">
+                </div>
+
+                <!-- Site Type -->
+                <div class="md:col-span-1">
+                    <label for="inputBillboardSiteType" class="block text-sm font-medium text-gray-700 mb-1">Site Type</label>
+                    <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="inputBillboardSiteType">
+                        <option value="">-- Select option --</option>
+                        <option value="new">New</option>
+                        <option value="existing">Existing</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="existing_1">Existing 1</option>
+                        <option value="existing_2">Existing 2</option>
+                        <option value="existing_3">Existing 3</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end px-6 py-4 space-x-3 border-t border-gray-200 bg-gray-50 rounded-b-lg">
+                <button type="button" data-dismiss="modal" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">
+                    Cancel
+                </button>
+                <button type="submit" id="billboardAddButton" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">
+                    Submit
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 <!-- Create Modal End -->
-<!-- Edit Billboard Modal -->
-<div class="row flex flex-col sm:flex-row sm:items-end xl:items-start mb-2">
-    <div class="modal" id="billboardEditModal">
-        <div class="modal__content">
-            <div class="flex items-center px-5 py-5 sm:py-3 border-b border-gray-200 dark:border-dark-5">
-                <h2 class="font-medium text-base mr-auto">Edit Stock</h2>
-            </div>
-            <form>
-                <div class="p-5 grid grid-cols-12 gap-4 gap-y-3">
-                    <div class="col-span-12 sm:col-span-12">
-                        <input type="hidden" id="editBillboardModalId" name="id">
-                        <label>Outdoor Type <span style="color: red;">*</span></label>
-                        <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="editBillboardType" disabled>
-                            <option value="">-- Select Outdoor Type --</option>
-                            <option value="BB">Billboard</option>
-                            <option value="TB">Tempboard</option>
-                            <option value="BU">Bunting</option>
-                            <option value="BN">Banner</option>
-                        </select>
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>Billboard Size <span style="color: red;">*</span></label>
-                        <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="editBillboardSize" required>
-                            <option value="">-- Select Size --</option>
-                            <option value="10x10">10x10</option>
-                            <option value="15x10">15x10</option>
-                            <option value="30x20">30x20</option>
-                            <option value="10x40">10x40</option>
-                            <option value="6x3">6x3</option>
-                            <option value="7x3">7x3</option>
-                            <option value="8x3">8x3</option>
-                        </select>
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>Lighting <span style="color: red;">*</span></label>
-                        <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="editBillboardLighting" required>
-                            <option value="">-- Select Lighting --</option>
-                            <option value="None">None</option>
-                            <option value="TNB">TNB</option>
-                            <option value="SOLAR">SOLAR</option>
-                        </select>
-                    </div>
-                    <!-- Separator -->
-                    <div class="col-span-12">
-                        <hr class="my-6 border-t-4 border-black">
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>State <span style="color: red;">*</span></label>
-                        <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="editBillboardState" disabled>
-                            <option value="">-- Select State --</option>
-                            <?php $__currentLoopData = $states; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $state): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+
+<!-- Edit Billboard Modal Start -->
+<div class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden" id="billboardEditModal">
+    <div class="modal__content bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-800">Edit Stock</h2>
+            <button type="button" data-dismiss="modal" class="text-gray-500 hover:text-gray-700">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <form id="editBillboardForm">
+            <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Hidden ID -->
+                <input type="hidden" id="editBillboardModalId" name="id">
+
+                <!-- Outdoor Type (Disabled) -->
+                <div class="md:col-span-1">
+                    <label for="editBillboardType" class="block text-sm font-medium text-gray-700 mb-1">Outdoor Type <span class="text-red-500">*</span></label>
+                    <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-gray-100 cursor-not-allowed" id="editBillboardType" disabled>
+                        <option value="">-- Select Outdoor Type --</option>
+                        <option value="BB">Billboard</option>
+                        <option value="TB">Tempboard</option>
+                        <option value="BU">Bunting</option>
+                        <option value="BN">Banner</option>
+                    </select>
+                </div>
+
+                <!-- Size -->
+                <div class="md:col-span-1">
+                    <label for="editBillboardSize" class="block text-sm font-medium text-gray-700 mb-1">Billboard Size <span class="text-red-500">*</span></label>
+                    <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="editBillboardSize" required>
+                        <option value="">-- Select Size --</option>
+                        <option value="10x10">10x10</option>
+                        <option value="15x10">15x10</option>
+                        <option value="20x15">20x15</option>
+                        <option value="30x20">30x20</option>
+                        <option value="10x40">10x40</option>
+                        <option value="6x3">6x3</option>
+                        <option value="7x3">7x3</option>
+                        <option value="8x3">8x3</option>
+                    </select>
+                </div>
+
+                <!-- Lighting -->
+                <div class="md:col-span-1">
+                    <label for="editBillboardLighting" class="block text-sm font-medium text-gray-700 mb-1">Lighting <span class="text-red-500">*</span></label>
+                    <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="editBillboardLighting" required>
+                        <option value="">-- Select Lighting --</option>
+                        <option value="None">None</option>
+                        <option value="TNB">TNB</option>
+                        <option value="SOLAR">SOLAR</option>
+                    </select>
+                </div>
+
+                <!-- Separator -->
+                <div class="md:col-span-2 py-2">
+                    <hr class="border-t border-gray-300">
+                </div>
+
+                <!-- State (Disabled) -->
+                <div class="md:col-span-1">
+                    <label for="editBillboardState" class="block text-sm font-medium text-gray-700 mb-1">State <span class="text-red-500">*</span></label>
+                    <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-gray-100 cursor-not-allowed" id="editBillboardState" disabled>
+                        <option value="">-- Select State --</option>
+                        <?php $__currentLoopData = $states; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $state): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                             <option value="<?php echo e($state->id); ?>"><?php echo e($state->name); ?></option>
-                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-                        </select>
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>District <span style="color: red;">*</span></label>
-                        <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="editBillboardDistrict" required>
-                            <option value="">-- Select District --</option>
-                        </select>
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>Council <span style="color: red;">*</span></label>
-                        <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="editBillboardCouncil" disabled>
-                            <option value="">-- Select Council --</option>
-                        </select>
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>Location <span style="color: red;">*</span></label>
-                        <input type="text" class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="editBillboardLocation" placeholder="Enter location name">
-                    </div>
-                    <!-- Separator -->
-                    <div class="col-span-12">
-                        <hr class="my-6 border-t-4 border-black">
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label for="editGPSCoordinate" class="form-label">GPS Coordinate <span style="color: red;">*</span></label>
-                        <input
-                            type="text"
-                            class="input w-full border mt-2 flex-1"
-                            id="editGPSCoordinate"
-                            name="gps_coordinate"
-                            placeholder="e.g. 3.1390, 101.6869"
-                            required>
-                        <small class="text-gray-500">Format: latitude, longitude</small>
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label for="editGPSUrl" class="form-label">GPS URL (Google Maps)</label>
-                        <input
-                            type="url"
-                            class="input w-full border mt-2 flex-1"
-                            id="editGPSUrl"
-                            name="gps_url"
-                            placeholder="https://maps.app.goo.gl/xyz123">
-                        <small class="text-gray-500">Example: https://maps.app.goo.gl/xxxxx</small>
-                    </div>
-                    <!-- Separator -->
-                    <div class="col-span-12">
-                        <hr class="my-6 border-t-4 border-black">
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>Traffic Volume</label>
-                        <input type="text" class="input w-full border mt-2 flex-1" id="editBillboardTrafficVolume" value="" required>
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>Site Type</label>
-                        <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="editBillboardSiteType">
-                            <option value="">-- Select option --</option>
-                            <option value="new">New</option>
-                            <option value="existing">Existing</option>
-                            <option value="rejected">Rejected</option>
-                            <option value="existing_1">Existing 1</option>
-                            <option value="existing_2">Existing 2</option>
-                            <option value="existing_3">Existing 3</option>
-                        </select>
-                    </div>
-                    <div class="col-span-12 sm:col-span-12">
-                        <label>Status</label>
-                        <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="editBillboardStatus">
-                            <option value="">-- Select option --</option>
-                            <option value="1">Active</option>
-                            <option value="0">Inactive</option>
-                        </select>
-                    </div>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                    </select>
                 </div>
-                <div class="px-5 py-3 text-right border-t border-gray-200 dark:border-dark-5">
-                    <button type="submit" class="button w-20 bg-theme-1 text-white" id="billboardEditButton">Submit</button>
+
+                <!-- District -->
+                <div class="md:col-span-1">
+                    <label for="editBillboardDistrict" class="block text-sm font-medium text-gray-700 mb-1">District <span class="text-red-500">*</span></label>
+                    <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="editBillboardDistrict" required>
+                        <option value="">-- Select District --</option>
+                    </select>
                 </div>
-            </form>
-        </div>
+
+                <!-- Council (Disabled) -->
+                <div class="md:col-span-1">
+                    <label for="editBillboardCouncil" class="block text-sm font-medium text-gray-700 mb-1">Council <span class="text-red-500">*</span></label>
+                    <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-gray-100 cursor-not-allowed" id="editBillboardCouncil" disabled>
+                        <option value="">-- Select Council --</option>
+                    </select>
+                </div>
+
+                <!-- Location -->
+                <div class="md:col-span-1">
+                    <label for="editBillboardLocation" class="block text-sm font-medium text-gray-700 mb-1">Location <span class="text-red-500">*</span></label>
+                    <input type="text" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="editBillboardLocation" placeholder="Enter location name">
+                </div>
+
+                <!-- Separator -->
+                <div class="md:col-span-2 py-2">
+                    <hr class="border-t border-gray-300">
+                </div>
+
+                <!-- GPS Coordinate -->
+                <div class="md:col-span-2">
+                    <label for="editGPSCoordinate" class="block text-sm font-medium text-gray-700 mb-1">GPS Coordinate <span class="text-red-500">*</span></label>
+                    <input
+                        type="text"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                        id="editGPSCoordinate"
+                        name="gps_coordinate"
+                        placeholder="e.g. 3.1390, 101.6869"
+                        required>
+                    <small class="text-gray-500 mt-1 block">Format: latitude, longitude</small>
+                </div>
+
+                <!-- Maps URL -->
+                <div class="md:col-span-2">
+                    <label for="editGPSUrl" class="block text-sm font-medium text-gray-700 mb-1">GPS URL (Google Maps)</label>
+                    <input
+                        type="url"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                        id="editGPSUrl"
+                        name="gps_url"
+                        placeholder="https://maps.app.goo.gl/xyz123">
+                    <small class="text-gray-500 mt-1 block">Example: https://maps.app.goo.gl/xxxxx</small>
+                </div>
+
+                <!-- Separator -->
+                <div class="md:col-span-2 py-2">
+                    <hr class="border-t border-gray-300">
+                </div>
+
+                <!-- Traffic Volume -->
+                <div class="md:col-span-1">
+                    <label for="editBillboardTrafficVolume" class="block text-sm font-medium text-gray-700 mb-1">Traffic Volume</label>
+                    <input
+                        type="text"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                        id="editBillboardTrafficVolume"
+                        name="traffic_volume"
+                        placeholder="e.g. 50000">
+                </div>
+
+                <!-- Site Type -->
+                <div class="md:col-span-1">
+                    <label for="editBillboardSiteType" class="block text-sm font-medium text-gray-700 mb-1">Site Type</label>
+                    <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="editBillboardSiteType">
+                        <option value="">-- Select option --</option>
+                        <option value="new">New</option>
+                        <option value="existing">Existing</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="existing_1">Existing 1</option>
+                        <option value="existing_2">Existing 2</option>
+                        <option value="existing_3">Existing 3</option>
+                    </select>
+                </div>
+
+                <!-- Status -->
+                <div class="md:col-span-1">
+                    <label for="editBillboardStatus" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="editBillboardStatus">
+                        <option value="">-- Select option --</option>
+                        <option value="1">Active</option>
+                        <option value="0">Inactive</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end px-6 py-4 space-x-3 border-t border-gray-200 bg-gray-50 rounded-b-lg">
+                <button type="button" data-dismiss="modal" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">
+                    Cancel
+                </button>
+                <button type="submit" id="billboardEditButton" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">
+                    Submit
+                </button>
+            </div>
+        </form>
     </div>
 </div>
-<!-- Edit Modal End -->
+<!-- Edit Billboard Modal End -->
 <!-- BEGIN: Billboard Delete Modal -->
-<div class="modal" id="billboardDeleteModal">
-    <div class="modal__content">
-        <div class="p-5 text-center"> <i data-feather="x-circle" class="w-16 h-16 text-theme-6 mx-auto mt-3"></i>
-            <div class="text-3xl mt-5">Are you sure?</div>
-            <div class="text-gray-600 mt-2">Confirm delete this billboard info? This process cannot be undone.</div>
-        </div>
-        <div class="px-5 pb-8 text-center">
-            <button type="button" data-dismiss="modal" class="button w-24 border text-gray-700 dark:border-dark-5 dark:text-gray-300 mr-1">Cancel</button>
-            <button type="button" class="button w-24 bg-theme-6 text-white" id="billboardDeleteButton" onclick="billboardDeleteButton()">Delete</button>
+<div class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden" id="billboardDeleteModal">
+    <!-- Note: Using max-w-md for a smaller, more appropriate size for a confirmation modal -->
+    <div class="modal__content bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+        <div class="p-6">
+            <!-- Icon and Message -->
+            <div class="text-center">
+                <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100">
+                    <!-- Using the same warning icon style as before, but with consistent Tailwind classes -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mt-4">Are you sure?</h3>
+                <div class="mt-2 text-gray-500">
+                    <p>Confirm delete this billboard info?</p>
+                    <p class="text-sm mt-1">This process cannot be undone.</p>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="mt-6 flex justify-center space-x-3">
+                <button type="button" data-dismiss="modal" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">
+                    Cancel
+                </button>
+                <!-- The delete button now has an ID and calls the billboardDeleteButton function -->
+                <button type="button" id="billboardDeleteButton" class="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition">
+                    Delete
+                </button>
+            </div>
         </div>
     </div>
 </div>
-<!-- END: Service Request Reject Modal -->
+<!-- END: Billboard Delete Modal -->
 
 <!-- Scripts -->
 <script>
@@ -669,9 +791,16 @@
         // When "State" is changed in add form
         $('#inputBillboardState').on('change', function() {
             let stateId = $(this).val();
-            // Reset District & Council
-            $('#inputBillboardDistrict').empty().append('<option value="">-- Select District --</option>');
-            $('#inputBillboardCouncil').empty().append('<option value="">-- Select Council --</option>');
+            let $districtSelect = $('#inputBillboardDistrict');
+            let $councilSelect = $('#inputBillboardCouncil');
+
+            // Reset dropdowns (Clear underlying select)
+            $districtSelect.empty().append('<option value="">-- Select District --</option>');
+            $councilSelect.empty().append('<option value="">-- Select Council --</option>');
+
+            // Clear Select2 selection for District
+            $districtSelect.val(null).trigger('change'); // Clears the Select2 UI
+
             if (stateId !== '') {
                 $.ajax({
                     url: '<?php echo e(route("location.getDistricts")); ?>',
@@ -681,19 +810,56 @@
                         state_id: stateId
                     },
                     success: function(districts) {
+                        // Clear the select again (ensure clean state before adding new options)
+                        $districtSelect.empty().append('<option value="">-- Select District --</option>');
+
+                        // Add the new options to the underlying <select> element
                         districts.forEach(function(district) {
-                            let option = new Option(district.name, district.id, false, false);
-                            $('#inputBillboardDistrict').append(option);
+                            $districtSelect.append(`<option value="${district.id}">${district.name}</option>`);
                         });
-                        // Refresh select2 options after AJAX load
-                        $('#inputBillboardDistrict').trigger('change');
+
+                        // --- CRITICAL: Destroy and Re-initialize Select2 ---
+                        // This ensures Select2 picks up the new options correctly
+                        $districtSelect.select2('destroy');
+
+                        // Re-initialize with the same settings as the initial setup
+                        $districtSelect.select2({
+                            tags: true,
+                            placeholder: "-- Select or Add District --",
+                            allowClear: true,
+                            width: '100%' // Add width if needed
+                        });
+                        // --- CRITICAL: Destroy and Re-initialize Select2 ---
                     },
                     error: function() {
                         alert('Failed to load districts.');
+                        // Ensure Select2 is still functional even after an error
+                        // Re-initialize with just the default option if it was destroyed
+                        if ($districtSelect.data('select2')) {
+                            $districtSelect.select2('destroy');
+                        }
+                        $districtSelect.select2({
+                            tags: true,
+                            placeholder: "-- Select or Add District --",
+                            allowClear: true,
+                            width: '100%'
+                        });
                     }
+                });
+            } else {
+                // If no state is selected, ensure Select2 is re-initialized with just the default option
+                if ($districtSelect.data('select2')) {
+                    $districtSelect.select2('destroy');
+                }
+                $districtSelect.select2({
+                    tags: true,
+                    placeholder: "-- Select or Add District --",
+                    allowClear: true,
+                    width: '100%'
                 });
             }
         });
+
         // When district changes → load councils
         $('#inputBillboardDistrict').on('change', function() {
             let stateId = $('#inputBillboardState').val();
@@ -719,37 +885,56 @@
                 });
             }
         });
+
+        // Open "Add New Stock" modal
+        $('a[data-toggle="modal"][data-target="#addBillboardModal"]').on('click', function(e) {
+            e.preventDefault();
+            openAltEditorModal("#addBillboardModal");
+        });
+
+        $('#billboardDeleteModal [data-dismiss="modal"]').on('click', function() {
+            closeAltEditorModal("#billboardDeleteModal");
+        });
+
+        $(document).on('click', 'a[data-toggle="modal"][data-target="#billboardDeleteModal"]', function(e) {
+            e.preventDefault();
+            // Store the ID of the clicked delete link (e.g., "delete-billboard-123")
+            // This is crucial for billboardDeleteButton() to know which ID to delete
+            lastClickedLink = $(this).attr('id');
+            openAltEditorModal("#billboardDeleteModal");
+        });
+
+        // Close any modal with [data-dismiss="modal"]
+        $(document).on('click', '[data-dismiss="modal"]', function() {
+            // Find the closest modal and close it
+            const modal = $(this).closest('.modal')[0];
+            if (modal) {
+                closeAltEditorModal('#' + modal.id);
+            }
+        });
+
         document.getElementById("billboardAddButton").addEventListener("click", function(e) {
             e.preventDefault();
             billboardAddButton();
         });
-        //Store the ID of the last clicked update status modal when it's triggered
-        (function() {
-            $(document).on('click', "[data-target='#workOrderStatusUpdateModal'], [data-target='#workOrderAssignTcModal']", function() {
-                originalWorkOrderIdStatusUpdate = ($(this).attr('id')).split("-")[2];
-                // console.log(originalWorkOrderIdStatusUpdate);
-            });
-            document.getElementById('billboardDeleteButton').addEventListener('click', function(e) {
-                // Prevent the default form submission behavior
-                e.preventDefault();
-            });
-        })();
-        // Store the ID of the last clicked modal when it's triggered
-        (function() {
-            $(document).on('click', "[data-toggle='modal']", function() {
-                lastClickedLink = $(this).attr('id');
-                // Grab row client id
-                originalWorkOrderId = $(event.target).closest('tr').find('td:nth-child(9) a').attr('id').split("-")[1];
-                console.log(originalWorkOrderId);
-            });
-        })();
+        
         // Open modal
-        function openAltEditorModal(element) {
-            cash(element).modal('show');
+        function openAltEditorModal(selector) {
+            const modal = document.querySelector(selector);
+            if (modal) {
+                modal.classList.add('show');
+                // Prevent body scroll when modal is open
+                document.body.style.overflow = 'hidden';
+            }
         }
-        // Close modal
-        function closeAltEditorModal(element) {
-            cash(element).modal('hide');
+
+        function closeAltEditorModal(selector) {
+            const modal = document.querySelector(selector);
+            if (modal) {
+                modal.classList.remove('show');
+                // Re-enable body scroll
+                document.body.style.overflow = '';
+            }
         }
         // Setup the on-going Billboard datatable
         function initBillboardDatatable() {
@@ -1333,35 +1518,124 @@
             });
         }
         // Delete billboard ID
-        function billboardDeleteButton() {
-            var id = lastClickedLink.split("-")[2];
-            $.ajax({
-                type: 'POST',
-                url: "<?php echo e(route('billboard.delete')); ?>",
-                data: {
-                    _token: $('meta[name="csrf-token"]').attr('content'),
-                    id: id,
-                },
-                success: function(response) {
-                    // Close modal after successfully deleted
-                    var element = "#billboardDeleteModal";
-                    closeAltEditorModal(element);
-                    // Show successful toast
+        // function billboardDeleteButton() {
+        //     var id = lastClickedLink.split("-")[2];
+        //     $.ajax({
+        //         type: 'POST',
+        //         url: "<?php echo e(route('billboard.delete')); ?>",
+        //         data: {
+        //             _token: $('meta[name="csrf-token"]').attr('content'),
+        //             id: id,
+        //         },
+        //         success: function(response) {
+        //             // Close modal after successfully deleted
+        //             var element = "#billboardDeleteModal";
+        //             closeAltEditorModal(element);
+        //             // Show successful toast
+        //             window.showSubmitToast("Successfully deleted.", "#91C714");
+        //             // Reload table
+        //             $('#billboard_table').DataTable().ajax.reload();
+        //             // Reload the entire page
+        //             // location.reload();
+        //         },
+        //         error: function(xhr, status, error) {
+        //             // Display the validation error message
+        //             var response = JSON.parse(xhr.responseText);
+        //             var error = "Error: " + response.error;
+        //             // Show fail toast
+        //             window.showSubmitToast(error, "#D32929");
+        //         }
+        //     });
+        // }
+        // Delete billboard ID
+function billboardDeleteButton() {
+    // 1. Get the ID from the stored link ID (e.g., "delete-billboard-123" -> "123")
+    var id = lastClickedLink.split("-")[2];
+    console.log("Attempting to delete billboard with ID:", id); // Debug log
+
+    // 2. Perform the AJAX request
+    $.ajax({
+        type: 'POST',
+        url: "<?php echo e(route('billboard.delete')); ?>",
+        data: {
+            _token: $('meta[name="csrf-token"]').attr('content'),
+            id: id,
+        },
+        success: function(response) {
+            console.log("Delete AJAX call successful, response:", response); // Debug log
+
+            // 3. Close the modal
+            var element = "#billboardDeleteModal";
+            closeAltEditorModal(element);
+            console.log("Modal closed."); // Debug log
+
+            // 4. Attempt to show success toast
+            try {
+                // Ensure the function exists before calling it
+                if (typeof window.showSubmitToast === 'function') {
                     window.showSubmitToast("Successfully deleted.", "#91C714");
-                    // Reload table
-                    $('#billboard_table').DataTable().ajax.reload();
-                    // Reload the entire page
-                    // location.reload();
-                },
-                error: function(xhr, status, error) {
-                    // Display the validation error message
-                    var response = JSON.parse(xhr.responseText);
-                    var error = "Error: " + response.error;
-                    // Show fail toast
-                    window.showSubmitToast(error, "#D32929");
+                    console.log("Success toast shown via showSubmitToast."); // Debug log
+                } else {
+                    console.warn("showSubmitToast function is not defined.");
+                    // Fallback: Use a standard browser alert or a different notification method
+                    alert("Successfully deleted billboard with ID: " + id); // Or use a better notification library if available
+                    console.log("Success message shown via alert (fallback)."); // Debug log
                 }
-            });
+            } catch (toastError) {
+                console.error("Error calling showSubmitToast:", toastError);
+                // Even if the toast function failed, the action was successful, so maybe alert
+                alert("Successfully deleted billboard with ID: " + id); // Fallback
+            }
+
+            // 5. Attempt to reload the DataTable (this part is working now)
+            try {
+                // Ensure the DataTable exists and is initialized
+                var tableElement = $('#billboard_table');
+                if ($.fn.DataTable.isDataTable(tableElement)) {
+                    var table = tableElement.DataTable();
+                    table.ajax.reload(); // Reload data from server
+                    console.log("DataTable reloaded."); // Debug log
+                } else {
+                    console.warn("DataTable is not initialized on #billboard_table when trying to reload.");
+                    // Fallback: maybe reload the whole page if reload fails critically
+                    // location.reload();
+                }
+            } catch (reloadError) {
+                console.error("Error reloading DataTable:", reloadError);
+                // Fallback: maybe reload the whole page if reload fails critically
+                // location.reload();
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error("Delete AJAX call failed:", error, xhr, status); // Debug log
+            // Close the modal even on error
+            var element = "#billboardDeleteModal";
+            closeAltEditorModal(element);
+
+            // Display the error message
+            var errorMessage = "Error deleting billboard.";
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMessage = xhr.responseJSON.message;
+            } else if (xhr.responseText) {
+                try {
+                    var responseObj = JSON.parse(xhr.responseText);
+                    if (responseObj.error) {
+                        errorMessage = "Error: " + responseObj.error;
+                    }
+                } catch (e) {
+                    // If response is not JSON, use the raw text or status
+                    errorMessage = "Error: " + xhr.status + " " + xhr.statusText;
+                }
+            }
+            // Show error toast or alert
+            if (typeof window.showSubmitToast === 'function') {
+                 window.showSubmitToast(errorMessage, "#D32929"); // Red color for error
+            } else {
+                 alert(errorMessage); // Fallback
+            }
         }
+    });
+}
         // Store the ID of the last clicked modal when it's triggered
         (function() {
             $(document).on('click', "[data-toggle='modal']", function() {
