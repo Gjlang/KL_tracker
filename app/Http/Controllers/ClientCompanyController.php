@@ -23,22 +23,19 @@ class ClientCompanyController extends Controller
      *
      * @return void
      */
-    public function __construct()
-    {
-        $this->middleware(function ($request, $next) {
-            $this->user = Auth::guard('web')->user();
-            return $next($request);
-        });
-    }
+    // public function __construct()
+    // {
+    //     $this->middleware(function ($request, $next) {
+    //         $this->user = Auth::guard('web')->user();
+    //         return $next($request);
+    //     });
+    // }
 
     /**
      * Show the client company page.
      */
     public function index()
     {
-        if (is_null($this->user) || !$this->user->can('client.view')) {
-            abort(403, 'Sorry !! You are Unauthorized to view any client. Contact system admin for access !');
-        }
 
         $clientcompany = ClientCompany::all();
 
@@ -50,7 +47,6 @@ class ClientCompanyController extends Controller
      */
     public function list(Request $request)
     {
-
         $status = $request->input('status');
 
         $columns = [
@@ -132,6 +128,8 @@ class ClientCompanyController extends Controller
      */
     public function create(Request $request)
     {
+        logger('ClientCompanyController create called');
+        logger('request data: ', $request->all());
         $name           = $request->name;
         $address        = $request->address;
         $companyPhone   = $request->companyPhone;
@@ -189,8 +187,9 @@ class ClientCompanyController extends Controller
             $company = ClientCompany::create([
                 'name'              => $name,
                 'address'           => $address ?? null,
-                'phone'             => $companyPhone,
+                'phone'             => $companyPhone ?? null,
             ]);
+            logger('Created company ID: '.$company->id);
 
             foreach ($pics as $pic) {
                 Client::create([
@@ -305,15 +304,14 @@ class ClientCompanyController extends Controller
      */
     public function delete(Request $request)
     {
-        
-        $currentTime = now();
+        // $currentTime = now(); // Not needed for hard delete
         $id = $request->id;
 
         // Validate input
         $validator = Validator::make(
             $request->all(),
             [
-                'id' => ['required', 'integer', 'exists:client_companies,id'],
+                'id' => ['required', 'integer', 'exists:client_companies,id'], // Check if the company exists before deleting
             ],
             [
                 'id.exists' => 'The client company cannot be found.',
@@ -327,19 +325,12 @@ class ClientCompanyController extends Controller
         try {
             DB::beginTransaction();
 
-            // Soft delete all PICs related to this client company
-            Client::where('company_id', $id)
-                ->update([
-                    'status' => '0',
-                    'deleted_at' => $currentTime
-                ]);
+            // Delete all PICs related to this client company (hard delete)
+            // Assuming the Client model represents the PICs
+            Client::where('company_id', $id)->delete();
 
-            // Soft delete the client company
-            ClientCompany::where('id', $id)
-                ->update([
-                    'status' => '0',
-                    'deleted_at' => $currentTime
-                ]);
+            // Delete the client company itself (hard delete)
+            ClientCompany::where('id', $id)->delete(); // Or use find($id)->delete() if preferred
 
             DB::commit();
 

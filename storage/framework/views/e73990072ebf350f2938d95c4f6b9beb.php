@@ -155,9 +155,7 @@ unset($__errorArgs, $__bag); ?>
                                 <label class="w-12 flex-none xl:w-auto xl:flex-initial mr-2">Client</label>
                                 <select class="input w-full mt-2 sm:mt-0 sm:w-auto border" id="filterBillboardBookingCompany">
                                     <option value="">All</option>
-                                    <?php $__currentLoopData = $companies; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $company): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                        <option value="<?php echo e($company->id); ?>"><?php echo e($company->name); ?></option>
-                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+
                                 </select>
                             </div>
 

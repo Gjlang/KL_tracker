@@ -1,4 +1,4 @@
-@extends('layouts.app') {{-- Assuming you have a main layout --}}
+@extends('layouts.app')
 
 @section('title')
 <title>BGOC Outdoor System - Billboard Master</title>
@@ -613,6 +613,10 @@
 </div>
 <!-- END: Billboard Delete Modal -->
 
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
 <!-- Scripts -->
 <script>
     // Global array
@@ -767,6 +771,7 @@
             table.ajax.reload();
         });
     }
+    
     $(document).ready(function() {
         // Global variables
         var filterBillboardStatus;

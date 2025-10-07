@@ -27,6 +27,8 @@
         border-color: #10b981 !important;
         background-color: #ecfdf5 !important;
     }
+
+    
 </style>
 
 <div class="container mx-auto px-4 py-8">
@@ -198,9 +200,8 @@
     </div>
 </div>
 
-<?php $__env->stopSection(); ?>
 
-<?php $__env->startSection('modal_content'); ?>
+
 <!-- Edit Billboard Modal -->
 <div class="fixed inset-0 z-50 flex items-center justify-center hidden bg-black bg-opacity-50 modal" id="billboardEditModal">
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 overflow-hidden modal__content">
@@ -353,7 +354,7 @@
     </div>
 </div>
 <!-- Edit Modal End -->
-<?php $__env->stopSection(); ?>
+ <?php $__env->stopSection(); ?>
 
 
 <?php $__env->startSection('scripts'); ?>
@@ -432,7 +433,6 @@
 
     function populateBillboardEditModal(data) {
 
-        console.log("populateBillboardEditModal called with data:", data);
         // IDs
         let stateID    = data.state_id;
         let districtID = data.district_id;
@@ -497,6 +497,94 @@
 
         // Open modal with delay to prevent scrollbar error
         openAltEditorModal('#billboardEditModal');
+    }
+
+    // Handle form submission when the submit button is clicked
+    $(document).on('click', '#billboardEditButton', function (e) {
+        e.preventDefault();
+        
+        // Validate required fields
+        if (!validateForm()) {
+            return;
+        }
+
+        $.ajax({
+            url: '<?php echo e(route("billboard.update")); ?>',
+            method: 'POST',
+            data: $('#billboardEditForm').serialize(),
+            success: function(response) {
+                console.log("AJAX Success Handler Reached", response);
+
+                // Ensure modal close function exists and call it
+                if (typeof closeAltEditorModal === 'function') {
+                    closeAltEditorModal('#billboardEditModal');
+                } else {
+                    console.error("closeAltEditorModal function is not defined!");
+                }
+
+                // Ensure toast function exists and call it
+                if (typeof window.showSubmitToast !== 'undefined') {
+                    window.showSubmitToast(response.message || "Successfully updated.", "#91C714");
+                } else {
+                    alert(response.message || "Successfully updated.");
+                }
+
+                console.log("About to reload page");
+                // Ensure no other code prevents the reload
+                setTimeout(() => {
+                    location.reload();
+                }, 100); // Small delay to ensure other operations finish
+            },
+            error: function(xhr, status, error) {
+                // Display the validation error message
+                console.log("AJAX Error", xhr.status, xhr.responseText);
+                var response = xhr.responseJSON || {error: 'An error occurred'};
+                var errorMessage = response.error || response.message || 'An unknown error occurred';
+
+                if (typeof window.showSubmitToast !== 'undefined') {
+                    window.showSubmitToast("Error: " + errorMessage, "#D32929");
+                } else {
+                    alert("Error: " + errorMessage);
+                }
+            }
+        });
+    });
+
+    // Form validation function
+    function validateForm() {
+        let isValid = true;
+        let errors = [];
+
+        if (!$('#editBillboardModalId').val()) {
+            errors.push('Billboard ID is required');
+            isValid = false;
+        }
+
+        if (!$('#editBillboardType').val()) {
+            errors.push('Outdoor Type is required');
+            isValid = false;
+        }
+
+        if (!$('#editBillboardSize').val()) {
+            errors.push('Billboard Size is required');
+            isValid = false;
+        }
+
+        if (!$('#editBillboardLighting').val()) {
+            errors.push('Lighting is required');
+            isValid = false;
+        }
+
+        if (!$('#editGPSCoordinate').val()) {
+            errors.push('GPS Coordinate is required');
+            isValid = false;
+        }
+
+        if (errors.length > 0) {
+            alert('Please fix the following errors:\n' + errors.join('\n'));
+        }
+
+        return isValid;
     }
 
     // Open modal
@@ -629,87 +717,6 @@
             });
         } else {
             console.error("Dropzone not loaded");
-        }
-
-
-        // Handle form submission when the submit button is clicked
-        $(document).on('click', '#billboardEditButton', function (e) {
-            e.preventDefault();
-            
-            // Validate required fields
-            if (!validateForm()) {
-                return;
-            }
-
-            $.ajax({
-                url: '<?php echo e(route("billboard.update")); ?>',
-                method: 'POST',
-                data: $('#billboardEditForm').serialize(),
-                success: function(response) {
-                    // Close modal after successfully edited
-                    var element = "#billboardEditModal";
-                    closeAltEditorModal(element);
-
-                    // Show successful toast
-                    if (typeof window.showSubmitToast !== 'undefined') {
-                        window.showSubmitToast("Successfully updated.", "#91C714");
-                    } else {
-                        alert("Successfully updated.");
-                    }
-
-                    // Reload the page to see changes
-                    location.reload();
-                },
-                error: function(xhr, status, error) {
-                    // Display the validation error message
-                    console.log("AJAX Error", xhr.status, xhr.responseText);
-                    var response = xhr.responseJSON || {error: 'An error occurred'};
-                    var errorMessage = response.error || response.message || 'An unknown error occurred';
-
-                    if (typeof window.showSubmitToast !== 'undefined') {
-                        window.showSubmitToast("Error: " + errorMessage, "#D32929");
-                    } else {
-                        alert("Error: " + errorMessage);
-                    }
-                }
-            });
-        });
-
-        // Form validation function
-        function validateForm() {
-            let isValid = true;
-            let errors = [];
-
-            if (!$('#editBillboardModalId').val()) {
-                errors.push('Billboard ID is required');
-                isValid = false;
-            }
-
-            if (!$('#editBillboardType').val()) {
-                errors.push('Outdoor Type is required');
-                isValid = false;
-            }
-
-            if (!$('#editBillboardSize').val()) {
-                errors.push('Billboard Size is required');
-                isValid = false;
-            }
-
-            if (!$('#editBillboardLighting').val()) {
-                errors.push('Lighting is required');
-                isValid = false;
-            }
-
-            if (!$('#editGPSCoordinate').val()) {
-                errors.push('GPS Coordinate is required');
-                isValid = false;
-            }
-
-            if (errors.length > 0) {
-                alert('Please fix the following errors:\n' + errors.join('\n'));
-            }
-
-            return isValid;
         }
     });
 </script>

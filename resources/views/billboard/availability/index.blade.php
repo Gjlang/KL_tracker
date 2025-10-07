@@ -1,250 +1,271 @@
-@extends('layouts.main')
+@extends('layouts.app')
 
 @section('title')
 <title>BGOC Outdoor System - Billboard Availability</title>
 @endsection('title')
 
 @section('sidebar')
-@include('layouts.sidebar')
+@include('layouts.app')
 @endsection
 
-@section('app_content')
+@section('content')
 <style>
-    table td, table th {
-        white-space: nowrap;
-    }
+  body {
+    font-family: 'Inter', sans-serif;
+  }
+  
+  .monthly-booking-table-wrapper {
+    max-height: 400px;
+    overflow: auto;
+    border-radius: 0.5rem;
+    border: 1px solid #e5e7eb;
+  }
 
-    /* Wrapper scrolls both directions */
-    .monthly-booking-table-wrapper {
-        max-height: 400px;
-        overflow: auto;
-    }
+  #monthly-booking-table {
+    border-collapse: collapse;
+    min-width: 1200px;
+  }
 
-    #monthly-booking-table {
-        border-collapse: collapse;
-        min-width: 1200px; /* adjust based on columns */
-    }
+  #monthly-booking-table th,
+  #monthly-booking-table td {
+    border: 1px solid #e5e7eb;
+    padding: 0.75rem;
+    white-space: nowrap;
+  }
 
-    #monthly-booking-table th,
-    #monthly-booking-table td {
-        border: 1px solid #d1d5db; /* Tailwind border-gray-300 */
-        padding: 4px 8px;
-        white-space: nowrap;
-        /* background: #fff; important for frozen cells */
-    }
+  #monthly-booking-table thead th {
+    position: sticky;
+    top: 0;
+    background-color: #f9fafb;
+    z-index: 4;
+    font-weight: 600;
+    color: #1f2937;
+  }
 
-    /* Sticky header row */
-    #monthly-booking-table thead th {
-        position: sticky;
-        top: 0;
-        background-color: #f3f4f6; /* bg-gray-100 */
-        z-index: 4; /* sits above normal cells */
-    }
+  #monthly-booking-table th:nth-child(1),
+  #monthly-booking-table td:nth-child(1) {
+    position: sticky;
+    left: 0;
+    min-width: 50px;
+    background: #fff;
+    z-index: 5;
+  }
 
-    /* ===== Freeze first 3 columns ===== */
-    #monthly-booking-table th:nth-child(1),
-    #monthly-booking-table td:nth-child(1) {
-        position: sticky;
-        left: 0;
-        min-width: 50px;   /* No */
-        background: #fff;
-        z-index: 5;
-    }
+  #monthly-booking-table th:nth-child(2),
+  #monthly-booking-table td:nth-child(2) {
+    position: sticky;
+    left: 50px;
+    min-width: 120px;
+    background: #fff;
+    z-index: 5;
+  }
 
-    #monthly-booking-table th:nth-child(2),
-    #monthly-booking-table td:nth-child(2) {
-        position: sticky;
-        left: 30px;        /* width of col1 */
-        min-width: 120px;  /* Site No */
-        background: #fff;
-        z-index: 5;
-    }
+  #monthly-booking-table th:nth-child(3),
+  #monthly-booking-table td:nth-child(3) {
+    position: sticky;
+    left: 170px;
+    min-width: 200px;
+    background: #fff;
+    z-index: 5;
+  }
 
-    #monthly-booking-table th:nth-child(3),
-    #monthly-booking-table td:nth-child(3) {
-        position: sticky;
-        left: 200px;       /* col1 + col2 */
-        min-width: 200px;  /* Location */
-        background: #fff;
-        z-index: 5;
-    }
+  #monthly-booking-table thead th:nth-child(1),
+  #monthly-booking-table thead th:nth-child(2),
+  #monthly-booking-table thead th:nth-child(3) {
+    z-index: 6;
+  }
 
-    /* Ensure header cells of frozen columns stay on top */
-    #monthly-booking-table thead th:nth-child(1),
-    #monthly-booking-table thead th:nth-child(2),
-    #monthly-booking-table thead th:nth-child(3) {
-        z-index: 6;
-    }
+  .expand-cell {
+    max-width: 250px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    position: relative;
+    vertical-align: top;
+    padding-right: 30px;
+  }
 
-    /* Collapsed (default) */
-    .expand-cell {
-        max-width: 250px;          /* adjust width */
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        position: relative;
-        vertical-align: top;
-        padding-right: 30px;
-    }
+  .expand-cell .toggle-location {
+    position: absolute;
+    display: inline-block;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #3b82f6;
+    background: white;
+    z-index: 10;
+    cursor: pointer;
+  }
 
-    .expand-cell .toggle-location {
-        position: absolute;
-        display: inline-block;
-        right: 4px;                /* pin to right edge */
-        top: 50%;
-        transform: translateY(-50%);
-        color: blue;
-        background: white;         /* prevent overlap */
-        z-index: 10;               /* bring to front */
-    }
+  .expand-cell .location-text {
+    padding-right: 25px;
+    display: inline-block;
+  }
 
-    .expand-cell .location-text {
-        padding-right: 25px; /* space reserved for [+] */
-        display: inline-block;
-    }
+  .expand-cell.expanded {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    max-width: none;
+  }
 
-    /* Expanded (full text, no cutoff) */
-    .expand-cell.expanded {
-        white-space: normal;       /* allow multiple lines */
-        overflow: visible;         /* no hidden text */
-        text-overflow: clip;       /* remove ... */
-        max-width: none;           /* allow full width */
-    }
+  .select2-container {
+    min-width: 250px !important;
+  }
 
+  .filter-card {
+    background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+  }
 
-    .select2-container {
-        min-width: 250px !important; /* adjust size */
-    }
+  .status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .action-btn {
+    @apply px-3 py-1.5 rounded-md text-sm font-medium transition-colors;
+  }
+
+  .modal-backdrop {
+    @apply fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4;
+  }
+
+  .modal-content {
+    @apply bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden;
+  }
+
+  .modal-header {
+    @apply px-6 py-4 border-b border-gray-200 flex justify-between items-center;
+  }
+
+  .modal-body {
+    @apply p-6 overflow-y-auto;
+  }
+
+  .modal-footer {
+    @apply px-6 py-4 border-t border-gray-200 flex justify-end gap-3;
+  }
 </style>
 
 
 
-<div class="intro-y flex flex-col sm:flex-row items-center mt-8">
-    <h2 class="text-lg font-medium mr-auto">
-        Billboard Availability
-    </h2>
-</div>
-<div class="intro-y box p-5 mt-5">
-    <div class="mb-5 p-5 rounded-md" style="background-color:#ECF9FD;">
-        <h2 class="text-lg font-medium">
-            Check Billboard Availability
-        </h2>
-        <p class="w-12 flex-none xl:w-auto xl:flex-initial ml-2">
-            <i class="font-bold">Billboard Availability</i> - Lorem Ipsum.
-        </p>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Billboard Availability</h1>
+      <p class="mt-1 text-sm text-gray-600">View and manage billboard availability across locations</p>
+    </div>
+    <div class="mt-4 md:mt-0">
+      <button class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+        Export Data
+      </button>
+    </div>
+  </div>
+
+  <div class="filter-card mb-8">
+    <h2 class="text-lg font-semibold text-gray-900 mb-2">Filter Options</h2>
+    <p class="text-sm text-gray-600 mb-4">Refine your search to find available billboards</p>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">State</label>
+        <select class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-primary-500 focus:border-primary-500" id="filterAvailabilityState">
+          <option value="" selected="">-- Select State --</option>
+          @foreach ($states as $state)
+            <option value="{{ $state->id }}">{{ $state->name }}</option>
+          @endforeach
+        </select>
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">District</label>
+        <select class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-primary-500 focus:border-primary-500" id="filterAvailabilityDistrict">
+          <option value="" selected="">-- Select District --</option>
+          @foreach ($districts as $district)
+            <option value="{{ $district->id }}">{{ $district->name }}</option>
+          @endforeach
+        </select>
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Location</label>
+        <select class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-primary-500 focus:border-primary-500" id="filterAvailabilityLocation">
+          <option value="" selected="">-- Select Location --</option>
+          @foreach ($locations as $location)
+            <option value="{{ $location->id }}">{{ $location->name }}</option>
+          @endforeach
+        </select>
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+        <select class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-primary-500 focus:border-primary-500" id="filterAvailabilityType">
+          <option value="" selected="">-- Select Type --</option>
+          @foreach ($types as $type)
+            <option value="{{ $type->prefix }}">{{ $type->type }}</option>
+          @endforeach
+        </select>
+      </div>
     </div>
 
-    
-
-
-    <!-- Billboard Booking Calendar Filter -->
-    <div class="flex flex-col sm:flex-row sm:items-end xl:items-start mb-2 mt-2">
-        <form class="xl:flex sm:mr-auto">
-            <div class="row sm:flex items-center sm:mr-4">
-                <label class="w-12 flex-none xl:w-auto xl:flex-initial mr-2">State</label>
-                <select class="input w-full mt-2 sm:mt-0 sm:w-auto border select2-state" id="filterAvailabilityState">
-                    <option value="" selected="">-- Select State --</option>
-                    @foreach ($states as $state)
-                        <option value="{{ $state->id }}">{{ $state->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="row sm:flex items-center sm:mr-4">
-                <label class="w-12 flex-none xl:w-auto xl:flex-initial mr-2">District</label>
-                <select class="input w-full mt-2 sm:mt-0 sm:w-auto border select2-district" id="filterAvailabilityDistrict">
-                    <option value="" selected="">-- Select District --</option>
-                    @foreach ($districts as $district)
-                        <option value="{{ $district->id }}">{{ $district->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="sm:flex items-center sm:mr-4">
-                <label class="w-12 flex-none xl:w-auto xl:flex-initial mr-2">Location</label>
-                <select class="input w-64 mt-2 sm:mt-0 border select2-location" id="filterAvailabilityLocation">
-                    <option value="" selected="">-- Select Location --</option>
-                    @foreach ($locations as $location)
-                        <option value="{{ $location->id }}">{{ $location->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-        </form> 
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">New/Existing</label>
+        <select class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-primary-500 focus:border-primary-500" id="filterAvailabilitySiteType">
+          <option value="" selected="">All</option>
+          <option value="new">New</option>
+          <option value="existing">Existing</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+        <select class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-primary-500 focus:border-primary-500" id="filterAvailabilityStatus">
+          <option value="" selected="">All</option>
+          <option value="pending_payment">Pending Payment</option>
+          <option value="pending_install">Pending Install</option>
+          <option value="ongoing">Ongoing</option>
+          <option value="completed">Completed</option>
+          <option value="dismantle">Dismantle</option>
+        </select>
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+        <input type="date" id="filterAvailabilityStart" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-primary-500 focus:border-primary-500" />
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+        <input type="date" id="filterAvailabilityEnd" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-primary-500 focus:border-primary-500" />
+      </div>
     </div>
-    <!-- Filter End -->
 
-    <!-- Billboard Booking Calendar Filter -->
-    <div class="flex flex-col sm:flex-row sm:items-end xl:items-start mb-2 mt-2">
-        <form class="xl:flex sm:mr-auto">
-            
-            <div class="sm:flex items-center sm:mr-4">
-                <label class="w-12 flex-none xl:w-auto xl:flex-initial mr-2">Type</label>
-                <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="filterAvailabilityType">
-                    <option value="" selected="">-- Select Type --</option>
-                    @foreach ($types as $type)
-                        <option value="{{ $type->prefix }}">{{ $type->type }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="row sm:flex items-center sm:mr-4">
-                <label class="w-12 flex-none xl:w-auto xl:flex-initial mr-2">New/Existing</label>
-                <select class="input w-full mt-2 sm:mt-0 sm:w-auto border" id="filterAvailabilitySiteType">
-                    <option value="" selected="">All</option>
-                    <option value="new">New</option>
-                    <option value="existing">Existing</option>
-                    <option value="rejected">Rejected</option>
-                </select>
-            </div>
-            <div class="row sm:flex items-center sm:mr-4">
-                <label class="w-12 flex-none xl:w-auto xl:flex-initial mr-2">Status</label>
-                <select class="input w-full mt-2 sm:mt-0 sm:w-auto border" id="filterAvailabilityStatus">
-                    <option value="" selected="">All</option>
-                    <option value="pending_payment">Pending Payment</option>
-                    <option value="pending_install">Pending Install</option>
-                    <option value="ongoing">Ongoing</option>
-                    <option value="completed">Completed</option>
-                    <option value="dismantle">Dismantle</option>
-                </select>
-            </div>
-        </form> 
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Year</label>
+        <select class="rounded-lg border border-gray-300 px-3 py-2 focus:ring-primary-500 focus:border-primary-500" id="filterAvailabilityYear">
+          @for ($y = 2023; $y <= now()->year + 2; $y++)
+            <option value="{{ $y }}" {{ $y == now()->year ? 'selected' : '' }}>{{ $y }}</option>
+          @endfor
+        </select>
+      </div>
+      
+      <div class="flex items-center gap-2">
+        <input type="text" id="globalSearchInput"
+          class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-primary-500 focus:border-primary-500"
+          placeholder="Search all tables...">
+        <button class="flex items-center justify-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition">
+          Search
+        </button>
+      </div>
     </div>
-    <!-- Filter End -->
-
-    
-     <!-- Billboard Availability Date Filter -->
-    <div class="flex flex-col sm:flex-row sm:items-end xl:items-start mb-2 mt-2">
-        <form class="xl:flex flex-wrap items-end space-y-4 xl:space-y-0 xl:space-x-4 mb-4">
-            <div class="row sm:flex items-center sm:mr-4">
-                <label class="w-24 text-gray-700">Start Date</label>
-                <input type="date" id="filterAvailabilityStart" class="input border w-48" />
-            </div>
-
-            <div class="row sm:flex items-center sm:mr-4">
-                <label class="w-24 text-gray-700">End Date</label>
-                <input type="date" id="filterAvailabilityEnd" class="input border w-48" />
-            </div>
-        </form>
-    </div>
-    <!-- Filter End -->
-
-    <!-- Availability Year Filter -->
-    <div class="flex flex-col sm:flex-row sm:items-end xl:items-start mb-2 mt-2">
-        <form class="xl:flex flex-wrap items-end space-y-4 xl:space-y-0 xl:space-x-4 mb-4">
-            <div class="row sm:flex items-center sm:mr-4">
-                <label class="w-12 flex-none xl:w-auto xl:flex-initial mr-2">Year</label>
-                <select class="input w-full mt-2 sm:mt-0 sm:w-auto border" id="filterAvailabilityYear">
-                    @for ($y = 2023; $y <= now()->year + 2; $y++)
-                        <option value="{{ $y }}" {{ $y == now()->year ? 'selected' : '' }}>{{ $y }}</option>
-                    @endfor
-                </select>
-            </div>
-        </form>
-    </div>
-    <!-- Filter End -->
-
-    <div class="mb-4">
-        Search:<input type="text" id="globalSearchInput"
-            class="input border p-2 w-64 ml-4"
-            placeholder="Search all tables...">
-    </div>
+  </div>
 
     <!-- Legend -->
     <div class="flex flex-wrap items-center gap-4 mb-4 text-sm">
@@ -302,39 +323,37 @@
 
 
     <!-- Check Availability table -->
-    <div class="overflow-x-auto scrollbar-hidden">
-        <table class="table mt-5" id="billboard_availability_table">
-            <thead>
-                <tr class="bg-theme-1 text-white">
-                    <th class="whitespace-nowrap">No.</th>
-                    <th class="whitespace-nowrap">Site #</th>
-                    <th class="whitespace-nowrap">Client Name</th>
-                    <th class="whitespace-nowrap">Location</th>
-                    <th class="whitespace-nowrap">Start Date</th>
-                    <th class="whitespace-nowrap">End Date</th> 
-                    <th class="whitespace-nowrap">Duration (Month)</th>
-                    <th class="whitespace-nowrap">Status</th>
-                    <th class="whitespace-nowrap">Remarks</th>
-                    <th class="whitespace-nowrap">Detail</th>
-                    <th class="whitespace-nowrap flex flex-row">Action</th>
+    <div class="overflow-x-auto">
+        <table id="billboard_availability_table" class="min-w-full border-collapse border border-neutral-300"> <!-- Add border classes to the table -->
+            <thead class="bg-neutral-50 sticky top-0 z-10">
+                <tr class="border-b border-neutral-300">
+                    <th class="px-4 py-4 table-header border-r border-neutral-300">No.</th>
+                    <th class="px-4 py-4 table-header min-w-[180px] w-[180px] border-r border-neutral-300">Site #</th>
+                    <th class="px-4 py-4 table-header min-w-[180px] w-[180px] border-r border-neutral-300">Client Name</th>
+                    <th class="px-4 py-4 table-header min-w-[350px] border-r border-neutral-300">Location</th>
+                    <th class="px-4 py-4 table-header border-r border-neutral-300">Start Date</th>
+                    <th class="px-4 py-4 table-header border-r border-neutral-300">End Date</th> 
+                    <th class="px-4 py-4 table-header border-r border-neutral-300">Duration (Month)</th>
+                    <th class="px-4 py-4 table-header border-r border-neutral-300">Status</th>
+                    <th class="px-4 py-4 table-header border-r border-neutral-300">Remarks</th>
+                    <th class="px-4 py-4 table-header border-r border-neutral-300">Detail</th>
+                    <th class="px-4 py-4 table-header min-w-[100px] dt-exclude-export dt-no-sort">Action</th>
                 </tr>
             </thead>
-            <tbody>
-
+            <tbody id="billboard_tbody" class="bg-white divide-y divide-neutral-200"> <!-- 'divide-y' adds borders between rows -->
+                <!-- DataTables will populate this body with <tr> elements -->
+                <!-- Each <tr> generated by DataTables should ideally have borders applied -->
+                <!-- You can modify the DataTables column definitions to add borders to cells if needed -->
             </tbody>
         </table>
     </div>
     <!-- Table End -->
 </div>
-@endsection('app_content')
 
-@section('modal_content')
 <!-- Remarks Modal -->
-<div class="row flex flex-col sm:flex-row sm:items-end xl:items-start mb-2">
-    <div class="modal" id="remarksModal">
-        <div class="modal__content">
-            <!-- Modal Header -->
-            <div class="flex items-center px-5 py-5 sm:py-3 border-b border-gray-200 dark:border-dark-5">
+<div class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden" id="remarksModal">
+    <div class="modal__content bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                 <h2 class="font-medium text-base mr-auto">Remarks</h2>
             </div>
 
@@ -351,10 +370,9 @@
 <!-- Remarks Modal End -->
 
 <!-- Create Job Order Modal -->
-<div class="row flex flex-col sm:flex-row sm:items-end xl:items-start mb-2">
-    <div class="modal" id="addBookingModal">
-        <div class="modal__content">
-            <div class="flex items-center px-5 py-5 sm:py-3 border-b border-gray-200 dark:border-dark-5">
+<div class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden" id="addBookingModal">
+    <div class="modal__content bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                 <h2 class="font-medium text-base mr-auto">Add New Job Order</h2>
             </div>
             <form id="inputBookingForm">
@@ -454,9 +472,9 @@
 <!-- Create Job Order End -->
 
 <!-- Edit Status Modal -->
-<div class="modal" id="editStatusModal">
-    <div class="modal__content">
-        <div class="flex items-center px-5 py-5 sm:py-3 border-b border-gray-200 dark:border-dark-5">
+<div class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden" id="editStatusModal">
+    <div class="modal__content bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <h2 class="font-medium text-base mr-auto">Edit Status</h2>
         </div>
         <form>
@@ -499,7 +517,7 @@
     </div>
 </div>
 <!-- View Modal End -->
-@endsection('modal_content')
+@endsection
 
 @section('script')
 
@@ -1304,8 +1322,10 @@
             ],
             iDisplayLength: 25,
             ajax: {
-                url: "{{ route('billboard.booking.list') }}",
+                url: "{{ route('billboard.availability.index') }}",
+                dataType: "json",
                 type: "POST",
+                method: "POST",
                 data: function(d) {
                     d._token = $('meta[name="csrf-token"]').attr('content');
                     d.start_date = $('#filterAvailabilityStart').val();
@@ -1629,78 +1649,78 @@
             inputBookingSubmit(); // Call your AJAX function
         });
 
-        function inputBookingSubmit() {
-            const start_date = document.getElementById('start_date').value;
-            const end_date   = document.getElementById('end_date').value;
+        // function inputBookingSubmit() {
+        //     const start_date = document.getElementById('start_date').value;
+        //     const end_date   = document.getElementById('end_date').value;
 
-            if (!start_date || !end_date) {
-                alert("Please select both Start and End dates.");
-                return;
-            }
+        //     if (!start_date || !end_date) {
+        //         alert("Please select both Start and End dates.");
+        //         return;
+        //     }
 
-            document.getElementById("inputBookingSubmit").disabled = true;
-            document.getElementById('inputBookingSubmit').style.display = 'none';
+        //     document.getElementById("inputBookingSubmit").disabled = true;
+        //     document.getElementById('inputBookingSubmit').style.display = 'none';
 
-            $.ajax({
-                type: 'POST',
-                url: "{{ route('billboard.booking.create') }}",
-                data: {
-                    _token          : $('meta[name="csrf-token"]').attr('content'),
-                    client_id       : $("#inputBookingCompany").val(),
-                    site_number     : $("#hiddenBookingSiteNo").val(),
-                    state_id        : $("#hiddenBookingState").val(),
-                    district_id     : $("#hiddenBookingDistrict").val(),
-                    location_id     : $("#hiddenBookingLocation").val(),
-                    start_date      : start_date,
-                    end_date        : end_date,
-                    status          : $("#inputBookingStatus").val(),
-                    artwork_by      : $("#inputBookingArtworkBy").val(),
-                    dbp_approval    : $("#inputBookingDBPApproval").val(),
-                    remarks         : $("#inputBookingRemarks").val(),
-                },
+        //     $.ajax({
+        //         type: 'POST',
+        //         url: "{{ route('billboard.availability.index') }}",
+        //         data: {
+        //             _token          : $('meta[name="csrf-token"]').attr('content'),
+        //             client_id       : $("#inputBookingCompany").val(),
+        //             site_number     : $("#hiddenBookingSiteNo").val(),
+        //             state_id        : $("#hiddenBookingState").val(),
+        //             district_id     : $("#hiddenBookingDistrict").val(),
+        //             location_id     : $("#hiddenBookingLocation").val(),
+        //             start_date      : start_date,
+        //             end_date        : end_date,
+        //             status          : $("#inputBookingStatus").val(),
+        //             artwork_by      : $("#inputBookingArtworkBy").val(),
+        //             dbp_approval    : $("#inputBookingDBPApproval").val(),
+        //             remarks         : $("#inputBookingRemarks").val(),
+        //         },
 
-                success: function(response) {
-                    // Close modal
-                    const element = "#addBookingModal";
-                    closeAltEditorModal(element);
+        //         success: function(response) {
+        //             // Close modal
+        //             const element = "#addBookingModal";
+        //             closeAltEditorModal(element);
 
-                    // Success toast
-                    window.showSubmitToast("Successfully added.", "#91C714");
+        //             // Success toast
+        //             window.showSubmitToast("Successfully added.", "#91C714");
 
-                    // Clear inputs
-                    $('#inputBookingCompany').val('').trigger('change');
-                    $('#inputBookingSiteNo').val('');
-                    document.getElementById("inputBookingState").value = "";
-                    document.getElementById("inputBookingDistrict").value = "";
-                    document.getElementById("inputBookingLocation").value = "";
-                    document.getElementById("inputBookingStatus").value = "";
-                    document.getElementById("inputBookingArtworkBy").value = "";
-                    document.getElementById("inputBookingDBPApproval").value = "";
-                    document.getElementById("inputBookingRemarks").value = "";
-                    if (startPicker) startPicker.clear();
-                    if (endPicker) endPicker.clear();
+        //             // Clear inputs
+        //             $('#inputBookingCompany').val('').trigger('change');
+        //             $('#inputBookingSiteNo').val('');
+        //             document.getElementById("inputBookingState").value = "";
+        //             document.getElementById("inputBookingDistrict").value = "";
+        //             document.getElementById("inputBookingLocation").value = "";
+        //             document.getElementById("inputBookingStatus").value = "";
+        //             document.getElementById("inputBookingArtworkBy").value = "";
+        //             document.getElementById("inputBookingDBPApproval").value = "";
+        //             document.getElementById("inputBookingRemarks").value = "";
+        //             if (startPicker) startPicker.clear();
+        //             if (endPicker) endPicker.clear();
 
-                    // Reload table
-                    // $('#billboard_availability_table').DataTable().ajax.reload();
+        //             // Reload table
+        //             // $('#billboard_availability_table').DataTable().ajax.reload();
 
-                    window.location.href = "{{ route('billboard.booking.index') }}";
+        //             window.location.href = "{{ route('billboard.availability.index') }}";
 
-                    // Reset button
-                    document.getElementById("inputBookingSubmit").disabled = false;
-                    document.getElementById('inputBookingSubmit').style.display = 'inline-block';
-                },
-                error: function(xhr) {
-                    const response = JSON.parse(xhr.responseText);
-                    const error = "Error: " + response.error;
+        //             // Reset button
+        //             document.getElementById("inputBookingSubmit").disabled = false;
+        //             document.getElementById('inputBookingSubmit').style.display = 'inline-block';
+        //         },
+        //         error: function(xhr) {
+        //             const response = JSON.parse(xhr.responseText);
+        //             const error = "Error: " + response.error;
 
-                    // Show fail toast
-                    window.showSubmitToast(error, "#D32929");
+        //             // Show fail toast
+        //             window.showSubmitToast(error, "#D32929");
 
-                    document.getElementById("inputBookingSubmit").disabled = false;
-                    document.getElementById('inputBookingSubmit').style.display = 'inline-block';
-                }
-            });
-        }
+        //             document.getElementById("inputBookingSubmit").disabled = false;
+        //             document.getElementById('inputBookingSubmit').style.display = 'inline-block';
+        //         }
+        //     });
+        // }
 
         $('.select2-client').select2({
             placeholder: "Select a client",
@@ -1900,7 +1920,7 @@
 
             $.ajax({
                 type: 'POST',
-                url: "{{ route('billboard.booking.edit') }}",
+                url: "{{ route('billboard.availability.index') }}",
                 data: {
                     _token: $('meta[name="csrf-token"]').attr('content'),
                     status: status,
@@ -1954,7 +1974,7 @@
 
             $.ajax({
                 type: 'POST',
-                url: "{{ route('billboard.booking.edit') }}",
+                url: "{{ route('billboard.availability.index') }}",
                 data: {
                     _token: $('meta[name="csrf-token"]').attr('content'),
                     status: status,
@@ -1988,12 +2008,22 @@
         }
 
         // Open modal
-        function openAltEditorModal(element) {
-            cash(element).modal('show');
+        function openAltEditorModal(selector) {
+            const modal = document.querySelector(selector);
+            if (modal) {
+                modal.classList.add('show');
+                // Prevent body scroll when modal is open
+                document.body.style.overflow = 'hidden';
+            }
         }
-        // Close modal
-        function closeAltEditorModal(element) {
-            cash(element).modal('hide');
+
+        function closeAltEditorModal(selector) {
+            const modal = document.querySelector(selector);
+            if (modal) {
+                modal.classList.remove('show');
+                // Re-enable body scroll
+                document.body.style.overflow = '';
+            }
         }
 
         
@@ -2152,66 +2182,10 @@
         
         
         
-        // Edit SR 
-        function editServiceRequest() {
-            var description = document.getElementById("serviceRequestEditDescription").value;
-            var client_remark = document.getElementById("serviceRequestEditClientRemark").value;
-
-            $.ajax({
-                type: 'POST',
-                url: "{{ route('serviceRequest.edit') }}",
-                data: {
-                    _token: $('meta[name="csrf-token"]').attr('content'),
-                    desc: description,
-                    client_remark: client_remark,
-                    id: originalServiceRequestId,
-                },
-                success: function(response) {
-                    // Close modal after successfully edited
-                    var element = "#serviceRequestEditModal";
-                    closeAltEditorModal(element);
-
-                    // Show successful toast
-                    window.showSubmitToast("Successfully updated.", "#91C714");
-
-                    // Clean fields
-                    document.getElementById("serviceRequestEditDescription").value = "";
-                    document.getElementById("serviceRequestEditClientRemark").value = "";
-
-                    // Reload table
-                    $('#billboard_availability_table').DataTable().ajax.reload();
-                },
-                error: function(xhr, status, error) {
-                    // Display the validation error message
-                    var response = JSON.parse(xhr.responseText);
-                    var error = "Error: " + response.error;
-
-                    // Show fail toast
-                    window.showSubmitToast(error, "#D32929");
-                }
-            });
-        }
         
         
-        // Open modal to edit SR
-        function serviceRequestEditModal() {
-            // Remove previous click event listeners
-            $(document).off('click', "[id^='billboard_availability_table'] tbody tr td:not(:last-child)");
-
-            $(document).on('click', "[id^='billboard_availability_table'] tbody tr td:not(:last-child)", function() {
-
-                // Grab row client company id
-                originalServiceRequestId = $(event.target).closest('tr').find('td:nth-last-child(2) a').attr('id').split('-')[1];
-
-                // Place values to edit form fields in the modal
-                document.getElementById("serviceRequestEditDescription").value = $(event.target).closest('tr').find('td:nth-child(' + '3' + ')').text();
-                document.getElementById("serviceRequestEditClientRemark").value = $(event.target).closest('tr').find('td:nth-child(' + '4' + ')').text();
-
-                // Open modal
-                var element = "#serviceRequestEditModal";
-                openAltEditorModal(element);
-            });
-        }
+        
+        
 
         var table = $('#table').DataTable({
             "dom": 'rtip',

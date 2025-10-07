@@ -107,12 +107,12 @@
            x-transition:leave-end="opacity-0 transform scale-95">
         <a href="{{ route('billboard.index') }}"
            @click="if (window.matchMedia('(max-width: 767px)').matches) close()"
-           class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('dashboard.outdoor') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
+           class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('billboard.index') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
           Billboard Stock inventory
         </a>
-        <a href="{{ route('dashboard.outdoor') }}"
+        <a href="{{ route('billboard.availability.index') }}"
            @click="if (window.matchMedia('(max-width: 767px)').matches) close()"
-           class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('dashboard.outdoor') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
+           class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('billboard.availability.index') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
           Billboard Availability
         </a>
         <a href="{{ route('dashboard.outdoor') }}"
@@ -162,9 +162,9 @@
            class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('dashboard.outdoor') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
           Users
         </a>
-        <a href="{{ route('dashboard.outdoor') }}"
+        <a href="{{ route('client-company.index') }}"
            @click="if (window.matchMedia('(max-width: 767px)').matches) close()"
-           class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('dashboard.outdoor') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
+           class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('client-company.index') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
           Clients
         </a>
         <a href="{{ route('dashboard.outdoor') }}"

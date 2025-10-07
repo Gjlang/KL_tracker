@@ -23,13 +23,13 @@ class ClientsController extends Controller
      *
      * @return void
      */
-    public function __construct()
-    {
-        $this->middleware(function ($request, $next) {
-            $this->user = Auth::guard('web')->user();
-            return $next($request);
-        });
-    }
+    // public function __construct()
+    // {
+    //     $this->middleware(function ($request, $next) {
+    //         $this->user = Auth::guard('web')->user();
+    //         return $next($request);
+    //     });
+    // }
 
     /**
      * Display a listing of the resource.
@@ -38,9 +38,6 @@ class ClientsController extends Controller
      */
     public function index()
     {
-        if (is_null($this->user) || !$this->user->can('client.view')) {
-            abort(403, 'Sorry !! You are Unauthorized to view any client. Contact system admin for access !');
-        }
 
         // Get clients data
         $clients = Client::leftJoin('client_companies', 'client_companies.id', '=', 'clients.company_id')

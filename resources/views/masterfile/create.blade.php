@@ -132,9 +132,7 @@
                                 <label class="w-12 flex-none xl:w-auto xl:flex-initial mr-2">Client</label>
                                 <select class="input w-full mt-2 sm:mt-0 sm:w-auto border" id="filterBillboardBookingCompany">
                                     <option value="">All</option>
-                                    @foreach ($companies as $company)
-                                        <option value="{{ $company->id }}">{{ $company->name }}</option>
-                                    @endforeach
+
                                 </select>
                             </div>
 

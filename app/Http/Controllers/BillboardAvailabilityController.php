@@ -34,22 +34,22 @@ class BillboardAvailabilityController extends Controller
      *
      * @return void
      */
-    public function __construct()
-    {
-        $this->middleware(function ($request, $next) {
-            $this->user = Auth::guard('web')->user();
-            return $next($request);
-        });
-    }
+    // public function __construct()
+    // {
+    //     $this->middleware(function ($request, $next) {
+    //         $this->user = Auth::guard('web')->user();
+    //         return $next($request);
+    //     });
+    // }
 
     /**
      * Show the projects page.
      */
     public function index()
     {
-        if (is_null($this->user) || !$this->user->can('billboard.view')) {
-            abort(403, 'Sorry !! You are Unauthorized to view any project. Contact system admin for access !');
-        }
+        // if (is_null($this->user) || !$this->user->can('billboard.view')) {
+        //     abort(403, 'Sorry !! You are Unauthorized to view any project. Contact system admin for access !');
+        // }
 
         $companies = ClientCompany::orderBy('name', 'ASC')->get();
         $states = State::orderBy('name', 'ASC')->get();
