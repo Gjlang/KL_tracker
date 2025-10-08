@@ -9,6 +9,8 @@ class ClientFeedBacklog extends Model
 {
     protected $fillable = [
         'master_file_id',
+        'billboard_id',
+        'company_id',
         'date',
         'servicing',
         'product',
@@ -63,6 +65,16 @@ class ClientFeedBacklog extends Model
     public function getExpectedFinishDateAttribute($value)
     {
         return $value ? Carbon::parse($value) : null;
+    }
+
+    public function billboard()
+    {
+        return $this->belongsTo(Billboard::class, 'billboard_id');
+    }
+
+    public function company()
+    {
+        return $this->belongsToMany(ClientCompany::class);
     }
 
     // Optional relation

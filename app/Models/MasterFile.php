@@ -32,7 +32,7 @@ class MasterFile extends Model
 
         // Outdoor-only
         'outdoor_size','outdoor_district_council','outdoor_coordinates',
-        'amount',
+        'amount','billboard_id','company_id',
     ];
 
 
@@ -230,6 +230,16 @@ class MasterFile extends Model
         }
 
         return 'Other'; // fallback
+    }
+
+    public function billboard()
+    {
+        return $this->belongsTo(Billboard::class, 'billboard_id');
+    }
+
+    public function company()
+    {
+        return $this->belongsToMany(ClientCompany::class);
     }
 
     public function mediaOngoingJobs()

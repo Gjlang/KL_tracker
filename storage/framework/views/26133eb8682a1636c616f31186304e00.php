@@ -1,0 +1,1 @@
+<?php /**PATH D:\Projects\Laravel\KL_tracker\resources\views\components\progress.blade.php ENDPATH**/ ?>

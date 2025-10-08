@@ -12,6 +12,8 @@ class Job extends Model
     // Temporarily remove SoftDeletes until we fix the database
 
     protected $fillable = [
+        'billboard_id',
+        'company_id',
         'company_name',
         'site_name',
         'product',
@@ -46,6 +48,16 @@ class Job extends Model
     public function assignedUser()
     {
         return $this->belongsTo(User::class, 'assigned_user_id');
+    }
+
+    public function billboard()
+    {
+        return $this->belongsTo(Billboard::class, 'billboard_id');
+    }
+
+    public function company()
+    {
+        return $this->belongsToMany(ClientCompany::class);
     }
 
     // Accessors
