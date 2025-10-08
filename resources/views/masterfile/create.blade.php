@@ -114,19 +114,40 @@
                                 @enderror
                             </div>
 
-                            <div>
-                                <label for="company" class="block text-sm font-medium text-[#1C1E26] mb-2">Company</label>
-                                <input type="text"
-                                    name="company"
-                                    id="company"
-                                    value="{{ old('company') }}"
-                                    placeholder="Company Name"
-                                    class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200"
-                                    required>
-                                @error('company')
-                                <p class="mt-1 text-sm text-[#d33831]">{{ $message }}</p>
-                                @enderror
+                            <div class="flex items-end gap-6">
+                                <!-- Company block -->
+                                <div class="flex flex-col flex-1">
+                                    <label for="company" class="text-sm font-medium text-[#1C1E26] mb-2">
+                                        Company
+                                    </label>
+                                    <input
+                                        list="company-history"
+                                        name="company"
+                                        id="company"
+                                        value="{{ old('company') }}"
+                                        placeholder="Company Name"
+                                        class="w-full h-11 px-4 border border-gray-300 rounded-2xl text-sm
+                                            focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]
+                                            transition-colors duration-200 appearance-none"
+                                        autocomplete="off"
+                                        required
+                                    />
+                                    <datalist id="company-history">
+                                        @foreach(($companies ?? []) as $c)
+                                            <option value="{{ $c }}"></option>
+                                        @endforeach
+                                    </datalist>
+                                </div>
+
                             </div>
+
+                            <style>
+                            /* Optional – hide dropdown arrow for datalist inputs */
+                            input[list]::-webkit-calendar-picker-indicator {
+                            display: none !important;
+                            }
+                            </style>
+
 
                             <div class="row sm:flex items-center sm:mr-4">
                                 <label class="w-12 flex-none xl:w-auto xl:flex-initial mr-2">Client</label>

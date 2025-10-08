@@ -558,8 +558,30 @@ class MasterFileController extends Controller
 
     public function create()
     {
-        return view('masterfile.create');
+        // Pick the correct column name safely
+        $col = Schema::hasColumn('client_companies', 'company') ? 'company'
+            : (Schema::hasColumn('client_companies', 'company_name') ? 'company_name'
+            : (Schema::hasColumn('client_companies', 'name') ? 'name' : null));
+
+        $companies = collect();
+
+        if ($col) {
+            $companies = DB::table('client_companies')
+                ->whereNotNull($col)
+                ->where($col, '!=', '')
+                ->orderBy($col)
+                ->pluck($col)
+                ->map(fn ($v) => trim($v))
+                ->filter()
+                ->unique(fn ($v) => mb_strtolower($v))
+                ->values();
+        }
+
+        return view('masterfile.create', [
+            'companies' => $companies,
+        ]);
     }
+
 
     // 🔧 FIXED: Single store method with AUTO-SEED KLTG DISABLED
     public function store(Request $request)

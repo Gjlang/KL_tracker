@@ -776,7 +776,7 @@ public function upsert(Request $request)
         if ($month) {
             try {
                 $monthLabel = Carbon::createFromDate(now()->year, $month, 1)->format('F Y');
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 $monthLabel = "Month {$month}";
             }
         }

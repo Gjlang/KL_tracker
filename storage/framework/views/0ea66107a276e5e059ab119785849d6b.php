@@ -1,1 +1,0 @@
-<?php /**PATH D:\Projects\Laravel\KL_tracker\resources\views\components\chip.blade.php ENDPATH**/ ?>
