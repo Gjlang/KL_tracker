@@ -582,6 +582,37 @@ class MasterFileController extends Controller
         ]);
     }
 
+    // MasterFileController.php
+public function getCompanyContacts(Request $request)
+{
+    $company = trim($request->get('company', ''));
+
+    // Kolom fleksibel
+    $nameCol = Schema::hasColumn('client_companies', 'name') ? 'name'
+             : (Schema::hasColumn('client_companies', 'company') ? 'company'
+             : (Schema::hasColumn('client_companies', 'company_name') ? 'company_name' : null));
+
+    $phoneCol = Schema::hasColumn('client_companies', 'phone') ? 'phone'
+              : (Schema::hasColumn('client_companies', 'contact') ? 'contact'
+              : (Schema::hasColumn('client_companies', 'phone_number') ? 'phone_number' : null));
+
+    if (!$nameCol || !$phoneCol || $company === '') {
+        return response()->json([]);
+    }
+
+    $phones = DB::table('client_companies')
+        ->where($nameCol, $company)
+        ->orWhere($nameCol, 'LIKE', $company.'%')
+        ->pluck($phoneCol)
+        ->map(fn($v) => trim((string)$v))
+        ->filter()
+        ->unique()
+        ->values();
+
+    return response()->json($phones);
+}
+
+
 
     // 🔧 FIXED: Single store method with AUTO-SEED KLTG DISABLED
     public function store(Request $request)

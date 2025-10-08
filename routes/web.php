@@ -676,3 +676,13 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/calendar/coordinators/events', [CoordinatorCalendarController::class, 'events'])
         ->name('calendar.coordinators.events');
 });
+
+
+
+// ===============================================
+// RECENTLY EDITED FILES
+// ===============================================
+
+// web.php
+Route::get('/company/contacts', [MasterFileController::class, 'getCompanyContacts'])
+    ->name('company.contacts');

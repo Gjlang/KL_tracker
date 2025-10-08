@@ -1,5 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
+<link href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+
 
 <head>
     <meta charset="UTF-8">
@@ -114,32 +117,41 @@
                                 @enderror
                             </div>
 
-                            <div class="flex items-end gap-6">
-                                <!-- Company block -->
-                                <div class="flex flex-col flex-1">
-                                    <label for="company" class="text-sm font-medium text-[#1C1E26] mb-2">
-                                        Company
-                                    </label>
-                                    <input
-                                        list="company-history"
-                                        name="company"
-                                        id="company"
-                                        value="{{ old('company') }}"
-                                        placeholder="Company Name"
-                                        class="w-full h-11 px-4 border border-gray-300 rounded-2xl text-sm
-                                            focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]
-                                            transition-colors duration-200 appearance-none"
-                                        autocomplete="off"
-                                        required
-                                    />
-                                    <datalist id="company-history">
-                                        @foreach(($companies ?? []) as $c)
-                                            <option value="{{ $c }}"></option>
-                                        @endforeach
-                                    </datalist>
-                                </div>
+                            <div class="flex flex-col flex-1">
+    <label for="company" class="text-sm font-medium text-[#1C1E26] mb-2">
+        Company
+    </label>
+    <select
+        id="company"
+        name="company"
+        placeholder="Company Name"
+        class="w-full border border-gray-300 rounded-2xl text-sm h-11
+               focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]
+               transition-colors duration-200"
+        autocomplete="off"
+        required
+    >
+        <option value=""></option>
+        @foreach(($companies ?? []) as $c)
+            <option value="{{ $c }}" @selected(old('company') === $c)>{{ $c }}</option>
+        @endforeach
+    </select>
+</div>
 
-                            </div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    new TomSelect('#company', {
+        create: true, // allow manual typing of new names
+        persist: false,
+        maxOptions: 1000,
+        allowEmptyOption: true,
+        sortField: { field: 'text', direction: 'asc' },
+        plugins: ['clear_button','dropdown_input'],
+        placeholder: 'Company Name'
+    });
+});
+</script>
+
 
                             <style>
                             /* Optional – hide dropdown arrow for datalist inputs */
