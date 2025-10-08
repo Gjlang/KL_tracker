@@ -118,39 +118,39 @@
                             </div>
 
                             <div class="flex flex-col flex-1">
-    <label for="company" class="text-sm font-medium text-[#1C1E26] mb-2">
-        Company
-    </label>
-    <select
-        id="company"
-        name="company"
-        placeholder="Company Name"
-        class="w-full border border-gray-300 rounded-2xl text-sm h-11
-               focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]
-               transition-colors duration-200"
-        autocomplete="off"
-        required
-    >
-        <option value=""></option>
-        @foreach(($companies ?? []) as $c)
-            <option value="{{ $c }}" @selected(old('company') === $c)>{{ $c }}</option>
-        @endforeach
-    </select>
-</div>
+                <label for="company" class="text-sm font-medium text-[#1C1E26] mb-2">
+                    Company
+                </label>
+                <select
+                    id="company"
+                    name="company"
+                    placeholder="Company Name"
+                    class="w-full border border-gray-300 rounded-2xl text-sm h-11
+                        focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]
+                        transition-colors duration-200"
+                    autocomplete="off"
+                    required
+                >
+                    <option value=""></option>
+                    @foreach(($companies ?? []) as $c)
+                        <option value="{{ $c }}" @selected(old('company') === $c)>{{ $c }}</option>
+                    @endforeach
+                </select>
+            </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    new TomSelect('#company', {
-        create: true, // allow manual typing of new names
-        persist: false,
-        maxOptions: 1000,
-        allowEmptyOption: true,
-        sortField: { field: 'text', direction: 'asc' },
-        plugins: ['clear_button','dropdown_input'],
-        placeholder: 'Company Name'
-    });
-});
-</script>
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                new TomSelect('#company', {
+                    create: true, // allow manual typing of new names
+                    persist: false,
+                    maxOptions: 1000,
+                    allowEmptyOption: true,
+                    sortField: { field: 'text', direction: 'asc' },
+                    plugins: ['clear_button','dropdown_input'],
+                    placeholder: 'Company Name'
+                });
+            });
+            </script>
 
 
                             <style>

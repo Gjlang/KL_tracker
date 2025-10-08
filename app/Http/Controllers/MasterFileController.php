@@ -583,35 +583,98 @@ class MasterFileController extends Controller
     }
 
     // MasterFileController.php
+private function pickColumn(string $table, array $candidates): ?string
+{
+    foreach ($candidates as $c) {
+        if (Schema::hasColumn($table, $c)) return $c;
+    }
+    return null;
+}
+
+/** GET /company/contacts?company=... -> ["012...", "03-..."] */
 public function getCompanyContacts(Request $request)
 {
-    $company = trim($request->get('company', ''));
+    $company = trim((string) $request->query('company', ''));
+    $nameCol  = $this->pickColumn('client_companies', ['name','company','company_name']);
+    $phoneCol = $this->pickColumn('client_companies', ['phone','contact','phone_number']);
 
-    // Kolom fleksibel
-    $nameCol = Schema::hasColumn('client_companies', 'name') ? 'name'
-             : (Schema::hasColumn('client_companies', 'company') ? 'company'
-             : (Schema::hasColumn('client_companies', 'company_name') ? 'company_name' : null));
-
-    $phoneCol = Schema::hasColumn('client_companies', 'phone') ? 'phone'
-              : (Schema::hasColumn('client_companies', 'contact') ? 'contact'
-              : (Schema::hasColumn('client_companies', 'phone_number') ? 'phone_number' : null));
-
-    if (!$nameCol || !$phoneCol || $company === '') {
+    if (!$company || !$nameCol || !$phoneCol) {
         return response()->json([]);
     }
 
-    $phones = DB::table('client_companies')
-        ->where($nameCol, $company)
+    $rows = DB::table('client_companies')
+        ->whereRaw("LOWER($nameCol) = ?", [mb_strtolower($company)])
         ->orWhere($nameCol, 'LIKE', $company.'%')
         ->pluck($phoneCol)
-        ->map(fn($v) => trim((string)$v))
+        ->map(fn($v) => trim((string) $v))
         ->filter()
-        ->unique()
+        ->unique(fn($v) => mb_strtolower($v))
         ->values();
 
-    return response()->json($phones);
+    return response()->json($rows);
 }
 
+/** GET /company/pics?company=... -> ["Alice","Bob"] */
+public function getCompanyPICs(Request $request)
+{
+    $company = trim((string) $request->query('company', ''));
+    $nameCol = $this->pickColumn('client_companies', ['name','company','company_name']);
+    $picCols = collect(['pic','person_in_charge','contact_person','contact_name','pic_name'])
+        ->filter(fn($c) => Schema::hasColumn('client_companies', $c));
+
+    if (!$company || !$nameCol || $picCols->isEmpty()) {
+        return response()->json([]);
+    }
+
+    $names = collect();
+    foreach ($picCols as $col) {
+        $names = $names->merge(
+            DB::table('client_companies')
+                ->whereRaw("LOWER($nameCol) = ?", [mb_strtolower($company)])
+                ->orWhere($nameCol, 'LIKE', $company.'%')
+                ->pluck($col)
+        );
+    }
+
+    $names = $names
+        ->map(fn($v) => trim((string) $v))
+        ->filter()
+        ->unique(fn($v) => mb_strtolower($v))
+        ->values();
+
+    return response()->json($names);
+}
+
+/** GET /company/emails?company=... -> ["a@x.com","b@y.com"] */
+public function getCompanyEmails(Request $request)
+{
+    $company = trim((string) $request->query('company', ''));
+    $nameCol = $this->pickColumn('client_companies', ['name','company','company_name']);
+    $emailCols = collect(['email','pic_email','contact_email','email_address'])
+        ->filter(fn($c) => Schema::hasColumn('client_companies', $c));
+
+    if (!$company || !$nameCol || $emailCols->isEmpty()) {
+        return response()->json([]);
+    }
+
+    $emails = collect();
+    foreach ($emailCols as $col) {
+        $emails = $emails->merge(
+            DB::table('client_companies')
+                ->whereRaw("LOWER($nameCol) = ?", [mb_strtolower($company)])
+                ->orWhere($nameCol, 'LIKE', $company.'%')
+                ->pluck($col)
+        );
+    }
+
+    $emails = $emails
+        ->map(fn($v) => trim((string) $v))
+        ->filter()
+        ->unique(fn($v) => mb_strtolower($v))
+        ->values();
+
+    return response()->json($emails);
+}
 
 
     // 🔧 FIXED: Single store method with AUTO-SEED KLTG DISABLED
