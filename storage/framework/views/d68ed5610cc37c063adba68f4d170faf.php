@@ -1,5 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
+<link href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+
 
 <head>
     <meta charset="UTF-8">
@@ -130,26 +133,47 @@ endif;
 unset($__errorArgs, $__bag); ?>
                             </div>
 
-                            <div>
-                                <label for="company" class="block text-sm font-medium text-[#1C1E26] mb-2">Company</label>
-                                <input type="text"
-                                    name="company"
+                            <div class="flex flex-col flex-1">
+                                <label for="company" class="text-sm font-medium text-[#1C1E26] mb-2">
+                                    Company
+                                </label>
+                                <select
                                     id="company"
-                                    value="<?php echo e(old('company')); ?>"
+                                    name="company"
                                     placeholder="Company Name"
-                                    class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200"
-                                    required>
-                                <?php $__errorArgs = ['company'];
-$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
-if ($__bag->has($__errorArgs[0])) :
-if (isset($message)) { $__messageOriginal = $message; }
-$message = $__bag->first($__errorArgs[0]); ?>
-                                <p class="mt-1 text-sm text-[#d33831]"><?php echo e($message); ?></p>
-                                <?php unset($message);
-if (isset($__messageOriginal)) { $message = $__messageOriginal; }
-endif;
-unset($__errorArgs, $__bag); ?>
+                                    class="w-full border border-gray-300 rounded-2xl text-sm h-11
+                                        focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]
+                                        transition-colors duration-200"
+                                    autocomplete="off"
+                                    required
+                                >
+                                    <option value=""></option>
+                                    <?php $__currentLoopData = ($companies ?? []); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $c): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                        <option value="<?php echo e($c); ?>" <?php if(old('company') === $c): echo 'selected'; endif; ?>><?php echo e($c); ?></option>
+                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                </select>
                             </div>
+
+                            <script>
+                            document.addEventListener('DOMContentLoaded', function() {
+                                new TomSelect('#company', {
+                                    create: true, // allow manual typing of new names
+                                    persist: false,
+                                    maxOptions: 1000,
+                                    allowEmptyOption: true,
+                                    sortField: { field: 'text', direction: 'asc' },
+                                    plugins: ['clear_button','dropdown_input'],
+                                    placeholder: 'Company Name'
+                                });
+                            });
+                            </script>
+                            <style>
+                            /* Optional – hide dropdown arrow for datalist inputs */
+                            input[list]::-webkit-calendar-picker-indicator {
+                            display: none !important;
+                            }
+                            </style>
+
 
                             <div class="row sm:flex items-center sm:mr-4">
                                 <label class="w-12 flex-none xl:w-auto xl:flex-initial mr-2">Client</label>
@@ -1099,4 +1123,5 @@ unset($__errorArgs, $__bag); ?>
 
 </body>
 
-</html><?php /**PATH C:\Users\Gjlang\kl_guide_tracker\resources\views\masterfile\create.blade.php ENDPATH**/ ?>
+</html>
+<?php /**PATH C:\Users\Gjlang\kl_guide_tracker\resources\views\masterfile\create.blade.php ENDPATH**/ ?>
