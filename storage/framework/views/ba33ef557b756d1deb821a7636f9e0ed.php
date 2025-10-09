@@ -1,6 +1,4 @@
-@extends('layouts.app')
-
-@section('head')
+<?php $__env->startSection('head'); ?>
 <title>BGOC Outdoor System - Contractors</title>
 <style>
     /* Custom styles for classic elegant design */
@@ -147,9 +145,9 @@
         color: #6B7280;
     }
 </style>
-@endsection
+<?php $__env->stopSection(); ?>
 
-@section('content')
+<?php $__env->startSection('content'); ?>
 
 <!-- Top Bar -->
 <div class="ink py-6">
@@ -182,9 +180,9 @@
             <label class="table-header-label block mb-2">Company</label>
             <select class="input-elegant w-full px-3" id="inputCompanyName">
                 <option selected value="">All Companies</option>
-                @foreach ($clientcompany as $clientcomp)
-                    <option value="{{ $clientcomp->id }}">{{ $clientcomp->name }}</option>
-                @endforeach
+                <?php $__currentLoopData = $clientcompany; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $clientcomp): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <option value="<?php echo e($clientcomp->id); ?>"><?php echo e($clientcomp->name); ?></option>
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
             </select>
         </div>
 
@@ -222,9 +220,9 @@
     </div>
 </div>
 
-@endsection
+<?php $__env->stopSection(); ?>
 
-@section('modal_content')
+<?php $__env->startSection('modal_content'); ?>
 <!-- BEGIN: Contractor Add Modal -->
 <div class="modal" id="contractorAddModal">
     <div class="modal__content">
@@ -232,7 +230,7 @@
             <h2 class="font-serif text-xl font-semibold ink">Add Contractor</h2>
         </div>
         <form>
-        @csrf
+        <?php echo csrf_field(); ?>
         <div class="p-6 space-y-4">
             <div>
                 <label class="table-header-label block mb-2">Company</label>
@@ -305,9 +303,9 @@
     </div>
 </div>
 <!-- END: Contractor Delete Modal -->
-@endsection
+<?php $__env->stopSection(); ?>
 
-@section('script')
+<?php $__env->startSection('script'); ?>
 <script>
     $(document).ready(function() {
 
@@ -386,7 +384,7 @@
         function contractorAddButton() {
             $.ajax({
                 type: 'POST',
-                url: "{{ route('contractors.create') }}",
+                url: "<?php echo e(route('contractors.create')); ?>",
                 data: {
                     _token: $('meta[name="csrf-token"]').attr('content'),
                     company: document.getElementById("contractorAddCompanyName").value,
@@ -428,7 +426,7 @@
 
             $.ajax({
                 type: 'POST',
-                url: "{{ route('contractors.edit') }}",
+                url: "<?php echo e(route('contractors.edit')); ?>",
                 data: {
                     _token: $('meta[name="csrf-token"]').attr('content'),
                     company: company,
@@ -484,7 +482,7 @@
                 aLengthMenu: [[25, 50, 75, -1], [25, 50, 75, "All"]],
                 iDisplayLength: 25,
                 ajax: {
-                    url: "{{ route('contractors.list') }}",
+                    url: "<?php echo e(route('contractors.list')); ?>",
                     dataType: "json",
                     type: "POST",
                     data: function(d) {
@@ -666,7 +664,7 @@
 
             $.ajax({
                 type: 'POST',
-                url: "{{ route('contractors.delete') }}",
+                url: "<?php echo e(route('contractors.delete')); ?>",
                 data: {
                     _token: $('meta[name="csrf-token"]').attr('content'),
                     id: id,
@@ -694,4 +692,6 @@
         }
     })
 </script>
-@endsection
+<?php $__env->stopSection(); ?>
+
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\Gjlang\kl_guide_tracker\resources\views/contractors/index.blade.php ENDPATH**/ ?>

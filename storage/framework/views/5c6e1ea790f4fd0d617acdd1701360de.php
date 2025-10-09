@@ -167,10 +167,10 @@
            class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm <?php echo e(request()->routeIs('client-company.index') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50'); ?>">
           Clients
         </a>
-        <a href="<?php echo e(route('dashboard.outdoor')); ?>"
-           @click="if (window.matchMedia('(max-width: 767px)').matches) close()"
-           class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm <?php echo e(request()->routeIs('dashboard.outdoor') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50'); ?>">
-          Contractors
+        <a href="<?php echo e(route('contractors.index')); ?>"
+            @click="if (window.matchMedia('(max-width: 767px)').matches) close()"
+            class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm <?php echo e(request()->routeIs('contractors.*') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50'); ?>">
+            Contractors
         </a>
       </div>
     </div>
