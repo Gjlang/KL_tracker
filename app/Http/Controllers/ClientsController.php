@@ -46,7 +46,7 @@ class ClientsController extends Controller
         ->get();
         
         // Get user data
-        $users = User::where('id', '!=', auth()->id())->get();
+        $userId = Auth::id(); 
         
         // Get client company data
         $clientcompany = ClientCompany::all();
@@ -76,7 +76,7 @@ class ClientsController extends Controller
         $orderDirection = $request->input('order.0.dir');
         
         // Get users data
-        $users = User::where('id', '!=', auth()->id())->get();
+        $userId = Auth::id(); 
         
         // Get client company data
         $clientcompany = ClientCompany::all();

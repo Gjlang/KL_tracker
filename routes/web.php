@@ -686,3 +686,6 @@ Route::middleware(['auth'])->group(function () {
 // web.php
 Route::get('/company/contacts', [MasterFileController::class, 'getCompanyContacts'])
     ->name('company.contacts');
+
+Route::get('/company/pics',    [MasterFileController::class, 'getCompanyPICs']);
+Route::get('/company/emails',  [MasterFileController::class, 'getCompanyEmails']);

@@ -591,7 +591,6 @@ private function pickColumn(string $table, array $candidates): ?string
     return null;
 }
 
-/** GET /company/contacts?company=... -> ["012...", "03-..."] */
 public function getCompanyContacts(Request $request)
 {
     $company = trim((string) $request->query('company', ''));
@@ -614,7 +613,6 @@ public function getCompanyContacts(Request $request)
     return response()->json($rows);
 }
 
-/** GET /company/pics?company=... -> ["Alice","Bob"] */
 public function getCompanyPICs(Request $request)
 {
     $company = trim((string) $request->query('company', ''));
@@ -645,7 +643,6 @@ public function getCompanyPICs(Request $request)
     return response()->json($names);
 }
 
-/** GET /company/emails?company=... -> ["a@x.com","b@y.com"] */
 public function getCompanyEmails(Request $request)
 {
     $company = trim((string) $request->query('company', ''));
@@ -676,6 +673,168 @@ public function getCompanyEmails(Request $request)
     return response()->json($emails);
 }
 
+// SITE: label like "<site> – <district_council>" if both exist, otherwise whatever exists
+public function getOutdoorSites(Request $request)
+{
+    $q  = trim((string) $request->query('q', ''));
+    $sp = trim((string) $request->query('sub_product', ''));
+
+    $src = $this->resolveOutdoorSource();
+    if (!$src || !$src['cols']['site']) return response()->json([]);
+
+    $table = $src['table'];
+    $c     = $src['cols'];
+
+    $rows = DB::table($table);
+
+    if ($sp && $c['sub']) {
+        $rows->whereRaw("LOWER({$c['sub']}) = ?", [mb_strtolower($sp)]);
+    }
+
+    if ($q !== '') {
+        $rows->where($c['site'], 'LIKE', "%{$q}%");
+        if ($c['area']) {
+            $rows->orWhere($c['area'], 'LIKE', "%{$q}%");
+        }
+    }
+
+    $selects = [DB::raw("TRIM({$c['site']}) as site")];
+    if ($c['area']) $selects[] = DB::raw("TRIM({$c['area']}) as area");
+
+    $data = $rows->select($selects)->limit(50)->get();
+
+    $items = $data->map(function ($r) {
+        $site = trim((string)($r->site ?? ''));
+        $area = trim((string)($r->area ?? ''));
+        $label = $site && $area ? "{$site} – {$area}" : ($site ?: $area);
+        return ['label' => $label, 'value' => $label];
+    })->filter(fn($x) => $x['label'] !== '')->unique('label')->values();
+
+    return response()->json($items);
+}
+
+// SIZE
+public function getOutdoorSizes(Request $request)
+{
+    $q  = trim((string) $request->query('q', ''));
+    $sp = trim((string) $request->query('sub_product', ''));
+
+    $src = $this->resolveOutdoorSource();
+    if (!$src || !$src['cols']['size']) return response()->json([]);
+
+    $table = $src['table'];
+    $c     = $src['cols'];
+
+    $rows = DB::table($table);
+    if ($sp && $c['sub']) {
+        $rows->whereRaw("LOWER({$c['sub']}) = ?", [mb_strtolower($sp)]);
+    }
+    if ($q !== '') {
+        $rows->where($c['size'], 'LIKE', "%{$q}%");
+    }
+
+    $vals = $rows->select(DB::raw("TRIM({$c['size']}) as v"))
+        ->limit(50)->pluck('v')->filter()->unique()->values();
+
+    return response()->json($vals->map(fn($v)=>['label'=>$v,'value'=>$v]));
+}
+
+// AREA (district_council)
+public function getOutdoorAreas(Request $request)
+{
+    $q  = trim((string) $request->query('q', ''));
+    $sp = trim((string) $request->query('sub_product', ''));
+
+    $src = $this->resolveOutdoorSource();
+    if (!$src || !$src['cols']['area']) return response()->json([]);
+
+    $table = $src['table'];
+    $c     = $src['cols'];
+
+    $rows = DB::table($table);
+    if ($sp && $c['sub']) {
+        $rows->whereRaw("LOWER({$c['sub']}) = ?", [mb_strtolower($sp)]);
+    }
+    if ($q !== '') {
+        $rows->where($c['area'], 'LIKE', "%{$q}%");
+    }
+
+    $vals = $rows->select(DB::raw("TRIM({$c['area']}) as v"))
+        ->limit(50)->pluck('v')->filter()->unique()->values();
+
+    return response()->json($vals->map(fn($v)=>['label'=>$v,'value'=>$v]));
+}
+
+// COORDS ("coordinates")
+public function getOutdoorCoords(Request $request)
+{
+    $q  = trim((string) $request->query('q', ''));
+    $sp = trim((string) $request->query('sub_product', ''));
+
+    $src = $this->resolveOutdoorSource();
+    if (!$src || !$src['cols']['coords']) return response()->json([]);
+
+    $table = $src['table'];
+    $c     = $src['cols'];
+
+    $rows = DB::table($table);
+    if ($sp && $c['sub']) {
+        $rows->whereRaw("LOWER({$c['sub']}) = ?", [mb_strtolower($sp)]);
+    }
+    if ($q !== '') {
+        $rows->where($c['coords'], 'LIKE', "%{$q}%");
+    }
+
+    $vals = $rows->select(DB::raw("TRIM({$c['coords']}) as v"))
+        ->limit(50)->pluck('v')->filter()->unique()->values();
+
+    return response()->json($vals->map(fn($v)=>['label'=>$v,'value'=>$v]));
+}
+
+
+protected function resolveOutdoorSource(): ?array
+{
+    // Candidate tables in order of likelihood
+    $candidates = [
+        'outdoor_items',
+        'billboards',
+        'outdoor_billboards',
+        'billboard_items',
+        'billboard_locations',
+        // Fallback: the table you showed (if this is the master source you want to query suggestions from)
+        // Replace this with the real table name if different:
+        'outdoor_details',
+        'outdoor_location_details',
+    ];
+
+    foreach ($candidates as $table) {
+        if (!Schema::hasTable($table)) continue;
+
+        // Preferred columns (map to your schema)
+        $site   = $this->firstExistingColumn($table, ['site','site_name','site_number','site_no','code']);
+        $size   = $this->firstExistingColumn($table, ['size','panel_size','dimension','dimensions']);
+        $area   = $this->firstExistingColumn($table, ['district_council','council','area','authority','local_council']);
+        $coords = $this->firstExistingColumn($table, ['coordinates','coords','coordinate','latlng']);
+        $sub    = $this->firstExistingColumn($table, ['sub_product','type','category','product_type','subproduct']);
+
+        if ($site || $size || $area || $coords) {
+            return [
+                'table' => $table,
+                'cols'  => compact('site','size','area','coords','sub'),
+            ];
+        }
+    }
+
+    return null;
+}
+
+protected function firstExistingColumn(string $table, array $candidates): ?string
+{
+    foreach ($candidates as $col) {
+        if (Schema::hasColumn($table, $col)) return $col;
+    }
+    return null;
+}
 
     // 🔧 FIXED: Single store method with AUTO-SEED KLTG DISABLED
     public function store(Request $request)
