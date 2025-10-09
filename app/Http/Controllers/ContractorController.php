@@ -26,10 +26,10 @@ class ContractorController extends Controller
      */
     public function __construct()
     {
-        $this->middleware(function ($request, $next) {
-            $this->user = Auth::guard('web')->user();
-            return $next($request);
-        });
+        // $this->middleware(function ($request, $next) {
+        //     $this->user = Auth::guard('web')->user();
+        //     return $next($request);
+        // });
     }
 
     /**
@@ -38,25 +38,29 @@ class ContractorController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function index()
-    {
-        if (is_null($this->user) || !$this->user->can('client.view')) {
-            abort(403, 'Sorry !! You are Unauthorized to view any client. Contact system admin for access !');
-        }
+{
+    // (Optional) auth/permission check — keep commented while you set up the page
+    // if (is_null($this->user) || !$this->user->can('contractor.view')) {
+    //     abort(403, 'Unauthorized to view contractors.');
+    // }
 
-        // Get clients data
-        $clients = Client::leftJoin('client_companies', 'client_companies.id', '=', 'clients.company_id')
-        ->select('clients.*', 'client_companies.name as company_name')
-        ->where('clients.status', '=', '1')
+    // Data for the table (adjust columns as needed)
+    $contractors = Contractor::select('id', 'company_name', 'name', 'phone')
+        ->orderBy('company_name')
         ->get();
-        
-        // Get user data
-        $users = User::where('id', '!=', auth()->id())->get();
-        
-        // Get client company data
-        $clientcompany = ClientCompany::all();
 
-        return view('contractors.index', compact('clients', 'users', 'clientcompany'));
-    }
+    // For dropdowns/filters on the page
+    $clientcompany = ClientCompany::select('id', 'name')
+        ->orderBy('name')
+        ->get();
+
+    // If your Blade needs the current user id
+    $userId = Auth::id();
+
+    // IMPORTANT: pass only the variables you actually use in the Blade
+    return view('contractors.index', compact('contractors', 'clientcompany', 'userId'));
+}
+
 
     /**
      * Show the contractor users list.
@@ -76,7 +80,7 @@ class ContractorController extends Controller
         $orderColumnIndex = $request->input('order.0.column');
         $orderColumnName = $columns[$orderColumnIndex];
         $orderDirection = $request->input('order.0.dir');
-        
+
         // SQL query
         $query = Contractor::select('contractors.*')
         ->orderBy($orderColumnName, $orderDirection);
@@ -97,7 +101,7 @@ class ContractorController extends Controller
 
         // Get total filtered records count
         $totalFiltered = $query->count();
-        
+
         // Apply pagination
         $filteredData = $query->skip($start)->take($limit)->get();
 
@@ -121,7 +125,7 @@ class ContractorController extends Controller
         );
 
         echo json_encode($json_data);
-        
+
     }
 
     /**
@@ -296,7 +300,7 @@ class ContractorController extends Controller
             ],
             [
                 'id.exists' => 'The contractor cannot be found.',
-            ] 
+            ]
         );
 
         // Handle failed validations

@@ -28,7 +28,16 @@
 
 <body class="font-sans">
 
-    <x-app-layout>
+    <?php if (isset($component)) { $__componentOriginal4619374cef299e94fd7263111d0abc69 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal4619374cef299e94fd7263111d0abc69 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.app-layout','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('app-layout'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
         <div x-data="{ saving: false }" class="w-screen min-h-screen bg-[#F7F7F9]">
 
             <!-- Sticky Top Toolbar -->
@@ -36,7 +45,7 @@
                 <div class="w-full max-w-none px-6 lg:px-10 xl:px-14 py-4">
                     <div class="flex items-center justify-between">
                         <!-- Left: Back -->
-                        <a href="{{ route('dashboard') }}"
+                        <a href="<?php echo e(route('dashboard')); ?>"
                             class="inline-flex items-center text-[#22255b] hover:text-[#4bbbed] text-sm font-medium transition-colors duration-200"
                             title="Back to Dashboard">
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -91,12 +100,12 @@
                 </div>
 
                 <form id="mfForm"
-                    action="{{ route('masterfile.store') }}"
+                    action="<?php echo e(route('masterfile.store')); ?>"
                     method="POST"
                     @submit="saving = true"
                     x-data="productPicker()"
                     class="space-y-8">
-                    @csrf
+                    <?php echo csrf_field(); ?>
 
                     <!-- Basic Information -->
                     <div class="rounded-2xl border border-neutral-200/70 shadow-sm bg-white p-6">
@@ -108,26 +117,56 @@
                                 <input type="text"
                                     name="month"
                                     id="month"
-                                    value="{{ old('month') }}"
+                                    value="<?php echo e(old('month')); ?>"
                                     placeholder="e.g., July"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200"
                                     required>
-                                @error('month')
-                                <p class="mt-1 text-sm text-[#d33831]">{{ $message }}</p>
-                                @enderror
+                                <?php $__errorArgs = ['month'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                <p class="mt-1 text-sm text-[#d33831]"><?php echo e($message); ?></p>
+                                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                             </div>
 
                             <div class="flex flex-col flex-1">
-                                <label for="company_id" class="text-sm font-medium text-[#1C1E26] mb-2">
-                                    Company
-                                </label>
-                                <select name="company_id" id="company_id" class="w-full border border-gray-300 rounded-2xl text-sm h-11 focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" required>
-                                    <option value="">-- Select Company --</option>
-                                    @foreach($companies as $c)
-                                        <option value="{{ $c->id }}">{{ $c->$display_column }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
+                <label for="company" class="text-sm font-medium text-[#1C1E26] mb-2">
+                    Company
+                </label>
+                <select
+                    id="company"
+                    name="company"
+                    placeholder="Company Name"
+                    class="w-full border border-gray-300 rounded-2xl text-sm h-11
+                        focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]
+                        transition-colors duration-200"
+                    autocomplete="off"
+                    required
+                >
+                    <option value=""></option>
+                    <?php $__currentLoopData = ($companies ?? []); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $c): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <option value="<?php echo e($c); ?>" <?php if(old('company') === $c): echo 'selected'; endif; ?>><?php echo e($c); ?></option>
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                </select>
+            </div>
+
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                new TomSelect('#company', {
+                    create: true, // allow manual typing of new names
+                    persist: false,
+                    maxOptions: 1000,
+                    allowEmptyOption: true,
+                    sortField: { field: 'text', direction: 'asc' },
+                    plugins: ['clear_button','dropdown_input'],
+                    placeholder: 'Company Name'
+                });
+            });
+            </script>
 
 
                             <style>
@@ -137,38 +176,34 @@
                             }
                             </style>
 
-                            <script>
-                            document.addEventListener('DOMContentLoaded', function () {
-                                const companySelect = document.getElementById('company_id');
-                                const clientSelect = document.getElementById('client_id');
-                                
-                                // Pre-loaded data from the view
-                                const clientsByCompany = @json($clientsByCompany);
 
-                                companySelect.addEventListener('change', function () {
-                                    const companyId = this.value;
-                                    clientSelect.innerHTML = '<option value="">-- Select Person In Charge --</option>';
+                            <div class="row sm:flex items-center sm:mr-4">
+                                <label class="w-12 flex-none xl:w-auto xl:flex-initial mr-2">Client</label>
+                                <select class="input w-full mt-2 sm:mt-0 sm:w-auto border" id="filterBillboardBookingCompany">
+                                    <option value="">All</option>
 
-                                    if (companyId && clientsByCompany[companyId]) {
-                                        const companyClients = clientsByCompany[companyId];
-                                        companyClients.forEach(function(client) {
-                                            const option = document.createElement('option');
-                                            option.value = client.id;  // Use client ID as value
-                                            option.textContent = client.name;  // Display client name
-                                            clientSelect.appendChild(option);
-                                        });
-                                    }
-                                });
-                            });
-                            </script>
-
-                            <div class="flex flex-col flex-1">
-                                <label for="client_id" class="text-sm font-medium text-[#1C1E26] mb-2">
-                                    Person In Charge
-                                </label>
-                                <select name="client_id" id="client_id" class="w-full border border-gray-300 rounded-2xl text-sm h-11 focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]">
-                                    <option value="">-- Select Person In Charge --</option>
                                 </select>
+                            </div>
+
+                            <div>
+                                <label for="client" class="block text-sm font-medium text-[#1C1E26] mb-2">Person In Charge</label>
+                                <input type="text"
+                                    name="client"
+                                    id="client"
+                                    value="<?php echo e(old('client')); ?>"
+                                    placeholder="PIC Name"
+                                    class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200"
+                                    required>
+                                <?php $__errorArgs = ['client'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                <p class="mt-1 text-sm text-[#d33831]"><?php echo e($message); ?></p>
+                                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                             </div>
 
                             <div>
@@ -176,12 +211,19 @@
                                 <input type="text"
                                     name="sales_person"
                                     id="sales_person"
-                                    value="{{ old('sales_person') }}"
+                                    value="<?php echo e(old('sales_person')); ?>"
                                     placeholder="e.g., Aisyah / Daniel"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200">
-                                @error('sales_person')
-                                <p class="mt-1 text-sm text-[#d33831]">{{ $message }}</p>
-                                @enderror
+                                <?php $__errorArgs = ['sales_person'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                <p class="mt-1 text-sm text-[#d33831]"><?php echo e($message); ?></p>
+                                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                             </div>
 
                             <div>
@@ -189,12 +231,19 @@
                                 <input type="text"
                                     name="contact_number"
                                     id="contact_number"
-                                    value="{{ old('contact_number') }}"
+                                    value="<?php echo e(old('contact_number')); ?>"
                                     placeholder="e.g., +60 12-3456789"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200">
-                                @error('contact_number')
-                                <p class="mt-1 text-sm text-[#d33831]">{{ $message }}</p>
-                                @enderror
+                                <?php $__errorArgs = ['contact_number'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                <p class="mt-1 text-sm text-[#d33831]"><?php echo e($message); ?></p>
+                                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                             </div>
 
                             <div>
@@ -202,12 +251,19 @@
                                 <input type="email"
                                     name="email"
                                     id="email"
-                                    value="{{ old('email') }}"
+                                    value="<?php echo e(old('email')); ?>"
                                     placeholder="e.g., example@email.com"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200">
-                                @error('email')
-                                <p class="mt-1 text-sm text-[#d33831]">{{ $message }}</p>
-                                @enderror
+                                <?php $__errorArgs = ['email'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                <p class="mt-1 text-sm text-[#d33831]"><?php echo e($message); ?></p>
+                                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                             </div>
                         </div>
                     </div>
@@ -262,9 +318,16 @@
                                     <option :value="product.value" x-text="product.label"></option>
                                 </template>
                             </select>
-                            @error('product')
-                            <p class="mt-1 text-sm text-[#d33831]">{{ $message }}</p>
-                            @enderror
+                            <?php $__errorArgs = ['product'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                            <p class="mt-1 text-sm text-[#d33831]"><?php echo e($message); ?></p>
+                            <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                         </div>
 
                         <!-- Other Fields -->
@@ -274,13 +337,20 @@
                                 <input type="text"
                                     name="traffic"
                                     id="traffic"
-                                    value="{{ old('traffic') }}"
+                                    value="<?php echo e(old('traffic')); ?>"
                                     placeholder="Traffic Details"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200"
                                     required>
-                                @error('traffic')
-                                <p class="mt-1 text-sm text-[#d33831]">{{ $message }}</p>
-                                @enderror
+                                <?php $__errorArgs = ['traffic'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                <p class="mt-1 text-sm text-[#d33831]"><?php echo e($message); ?></p>
+                                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                             </div>
 
                             <div>
@@ -290,11 +360,18 @@
                                     id="amount"
                                     step="0.01"
                                     min="0"
-                                    value="{{ old('amount') }}"
+                                    value="<?php echo e(old('amount')); ?>"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200 tabular">
-                                @error('amount')
-                                <p class="mt-1 text-sm text-[#d33831]">{{ $message }}</p>
-                                @enderror
+                                <?php $__errorArgs = ['amount'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                <p class="mt-1 text-sm text-[#d33831]"><?php echo e($message); ?></p>
+                                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                             </div>
 
                             <div>
@@ -302,13 +379,20 @@
                                 <input type="text"
                                     name="duration"
                                     id="duration"
-                                    value="{{ old('duration') }}"
+                                    value="<?php echo e(old('duration')); ?>"
                                     placeholder="e.g., 3 months"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200"
                                     required>
-                                @error('duration')
-                                <p class="mt-1 text-sm text-[#d33831]">{{ $message }}</p>
-                                @enderror
+                                <?php $__errorArgs = ['duration'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                <p class="mt-1 text-sm text-[#d33831]"><?php echo e($message); ?></p>
+                                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                             </div>
 
                             <div>
@@ -316,12 +400,19 @@
                                 <input type="date"
                                     name="date"
                                     id="date"
-                                    value="{{ old('date') }}"
+                                    value="<?php echo e(old('date')); ?>"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200"
                                     required>
-                                @error('date')
-                                <p class="mt-1 text-sm text-[#d33831]">{{ $message }}</p>
-                                @enderror
+                                <?php $__errorArgs = ['date'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                <p class="mt-1 text-sm text-[#d33831]"><?php echo e($message); ?></p>
+                                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                             </div>
 
                             <div>
@@ -329,12 +420,19 @@
                                 <input type="date"
                                     name="date_finish"
                                     id="date_finish"
-                                    value="{{ old('date_finish') }}"
+                                    value="<?php echo e(old('date_finish')); ?>"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200"
                                     required>
-                                @error('date_finish')
-                                <p class="mt-1 text-sm text-[#d33831]">{{ $message }}</p>
-                                @enderror
+                                <?php $__errorArgs = ['date_finish'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                <p class="mt-1 text-sm text-[#d33831]"><?php echo e($message); ?></p>
+                                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                             </div>
 
                             <div>
@@ -343,11 +441,18 @@
                                     id="status"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200"
                                     required>
-                                    <option value="pending" {{ old('status') === 'pending' ? 'selected' : '' }}>Pending</option>
+                                    <option value="pending" <?php echo e(old('status') === 'pending' ? 'selected' : ''); ?>>Pending</option>
                                 </select>
-                                @error('status')
-                                <p class="mt-1 text-sm text-[#d33831]">{{ $message }}</p>
-                                @enderror
+                                <?php $__errorArgs = ['status'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                <p class="mt-1 text-sm text-[#d33831]"><?php echo e($message); ?></p>
+                                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                             </div>
 
                             <div>
@@ -356,12 +461,19 @@
                                     id="artwork"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200"
                                     required>
-                                    <option value="BGOC" {{ old('artwork') === 'BGOC' ? 'selected' : '' }}>BGOC</option>
-                                    <option value="Client" {{ old('artwork') === 'Client' ? 'selected' : '' }}>Client</option>
+                                    <option value="BGOC" <?php echo e(old('artwork') === 'BGOC' ? 'selected' : ''); ?>>BGOC</option>
+                                    <option value="Client" <?php echo e(old('artwork') === 'Client' ? 'selected' : ''); ?>>Client</option>
                                 </select>
-                                @error('artwork')
-                                <p class="mt-1 text-sm text-[#d33831]">{{ $message }}</p>
-                                @enderror
+                                <?php $__errorArgs = ['artwork'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                <p class="mt-1 text-sm text-[#d33831]"><?php echo e($message); ?></p>
+                                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                             </div>
 
                             <div>
@@ -369,7 +481,7 @@
                                 <input type="text"
                                     name="job_number"
                                     id="job_number"
-                                    value="{{ old('job_number') }}"
+                                    value="<?php echo e(old('job_number')); ?>"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl bg-neutral-50 tabular"
                                     readonly>
                             </div>
@@ -379,13 +491,20 @@
                                 <input type="text"
                                     name="remarks"
                                     id="remarks"
-                                    value="{{ old('remarks') }}"
+                                    value="<?php echo e(old('remarks')); ?>"
                                     placeholder="Remarks"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200"
                                     required>
-                                @error('remarks')
-                                <p class="mt-1 text-sm text-[#d33831]">{{ $message }}</p>
-                                @enderror
+                                <?php $__errorArgs = ['remarks'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                <p class="mt-1 text-sm text-[#d33831]"><?php echo e($message); ?></p>
+                                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                             </div>
                         </div>
                     </div>
@@ -402,7 +521,7 @@
                                 <input type="text"
                                     name="kltg_industry"
                                     id="kltg_industry"
-                                    value="{{ old('kltg_industry') }}"
+                                    value="<?php echo e(old('kltg_industry')); ?>"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200">
                             </div>
 
@@ -411,7 +530,7 @@
                                 <input type="text"
                                     name="kltg_x"
                                     id="kltg_x"
-                                    value="{{ old('kltg_x') }}"
+                                    value="<?php echo e(old('kltg_x')); ?>"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200">
                             </div>
 
@@ -420,7 +539,7 @@
                                 <input type="text"
                                     name="kltg_edition"
                                     id="kltg_edition"
-                                    value="{{ old('kltg_edition') }}"
+                                    value="<?php echo e(old('kltg_edition')); ?>"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200">
                             </div>
 
@@ -429,7 +548,7 @@
                                 <input type="text"
                                     name="kltg_material_cbp"
                                     id="kltg_material_cbp"
-                                    value="{{ old('kltg_material_cbp') }}"
+                                    value="<?php echo e(old('kltg_material_cbp')); ?>"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200">
                             </div>
 
@@ -438,7 +557,7 @@
                                 <input type="text"
                                     name="kltg_print"
                                     id="kltg_print"
-                                    value="{{ old('kltg_print') }}"
+                                    value="<?php echo e(old('kltg_print')); ?>"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200">
                             </div>
 
@@ -447,7 +566,7 @@
                                 <input type="text"
                                     name="kltg_article"
                                     id="kltg_article"
-                                    value="{{ old('kltg_article') }}"
+                                    value="<?php echo e(old('kltg_article')); ?>"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200">
                             </div>
 
@@ -456,7 +575,7 @@
                                 <input type="text"
                                     name="kltg_video"
                                     id="kltg_video"
-                                    value="{{ old('kltg_video') }}"
+                                    value="<?php echo e(old('kltg_video')); ?>"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200">
                             </div>
 
@@ -465,7 +584,7 @@
                                 <input type="text"
                                     name="kltg_leaderboard"
                                     id="kltg_leaderboard"
-                                    value="{{ old('kltg_leaderboard') }}"
+                                    value="<?php echo e(old('kltg_leaderboard')); ?>"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200">
                             </div>
 
@@ -474,7 +593,7 @@
                                 <input type="text"
                                     name="kltg_qr_code"
                                     id="kltg_qr_code"
-                                    value="{{ old('kltg_qr_code') }}"
+                                    value="<?php echo e(old('kltg_qr_code')); ?>"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200">
                             </div>
 
@@ -483,7 +602,7 @@
                                 <input type="text"
                                     name="kltg_blog"
                                     id="kltg_blog"
-                                    value="{{ old('kltg_blog') }}"
+                                    value="<?php echo e(old('kltg_blog')); ?>"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200">
                             </div>
 
@@ -492,7 +611,7 @@
                                 <input type="text"
                                     name="kltg_em"
                                     id="kltg_em"
-                                    value="{{ old('kltg_em') }}"
+                                    value="<?php echo e(old('kltg_em')); ?>"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200">
                             </div>
 
@@ -501,7 +620,7 @@
                                 <input type="text"
                                     name="barter"
                                     id="barter"
-                                    value="{{ old('barter') }}"
+                                    value="<?php echo e(old('barter')); ?>"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200">
                             </div>
 
@@ -510,7 +629,7 @@
                                 <input type="text"
                                     name="kltg_remarks"
                                     id="kltg_remarks"
-                                    value="{{ old('kltg_remarks') }}"
+                                    value="<?php echo e(old('kltg_remarks')); ?>"
                                     class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200">
                             </div>
                         </div>
@@ -577,102 +696,33 @@
                                         </select>
                                     </div>
 
-                                  <!-- SITE -->
-                                <div class="md:col-span-2">
-                                <label class="block text-xs text-neutral-600 mb-1">Site</label>
-                                <select
-                                    :id="`outdoor_site_${idx}`"
-                                    :name="`locations[${idx}][site]`"
-                                    x-model="row.site"
-                                    placeholder="e.g., TB-WPK-0075 – Persiaran Puncak Jalil"
-                                    class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]"
-                                    x-init="$nextTick(() => initSuggestSelect($el, '{{ url('/outdoor/sites') }}', () => row.sub_product))">
-                                    <template x-if="row.site">
-                                    <option :value="row.site" x-text="row.site" selected></option>
-                                    </template>
-                                </select>
-                                </div>
+                                    <div class="md:col-span-2">
+                                        <label class="block text-xs text-neutral-600 mb-1">Site</label>
+                                        <input type="text" :name="`locations[${idx}][site]`" x-model="row.site"
+                                            placeholder="e.g., Wangsa Maju LRT"
+                                            class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
+                                    </div>
 
-                                <!-- SIZE -->
-                                <div class="md:col-span-1">
-                                <label class="block text-xs text-neutral-600 mb-1">Size</label>
-                                <select
-                                    :id="`outdoor_size_${idx}`"
-                                    :name="`locations[${idx}][size]`"
-                                    x-model="row.size"
-                                    placeholder="10x20ft"
-                                    class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]"
-                                    x-init="$nextTick(() => initSuggestSelect($el, '{{ url('/outdoor/sizes') }}', () => row.sub_product))">
-                                    <template x-if="row.size">
-                                    <option :value="row.size" x-text="row.size" selected></option>
-                                    </template>
-                                </select>
-                                </div>
+                                    <div class="md:col-span-1">
+                                        <label class="block text-xs text-neutral-600 mb-1">Size</label>
+                                        <input type="text" :name="`locations[${idx}][size]`" x-model="row.size"
+                                            placeholder="10x20ft"
+                                            class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
+                                    </div>
 
-                                <!-- AREA -->
-                                <div class="md:col-span-1">
-                                <label class="block text-xs text-neutral-600 mb-1">Area</label>
-                                <select
-                                    :id="`outdoor_area_${idx}`"
-                                    :name="`locations[${idx}][council]`"
-                                    x-model="row.council"
-                                    placeholder="AREA"
-                                    class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]"
-                                    x-init="$nextTick(() => initSuggestSelect($el, '{{ url('/outdoor/areas') }}', () => row.sub_product))">
-                                    <template x-if="row.council">
-                                    <option :value="row.council" x-text="row.council" selected></option>
-                                    </template>
-                                </select>
-                                </div>
+                                    <div class="md:col-span-1">
+                                        <label class="block text-xs text-neutral-600 mb-1">Area</label>
+                                        <input type="text" :name="`locations[${idx}][council]`" x-model="row.council"
+                                            placeholder="AREA"
+                                            class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
+                                    </div>
 
-                                <!-- COORDS -->
-                                <div class="md:col-span-1">
-                                <label class="block text-xs text-neutral-600 mb-1">Coords (lat,lng)</label>
-                                <select
-                                    :id="`outdoor_coords_${idx}`"
-                                    :name="`locations[${idx}][coords]`"
-                                    x-model="row.coords"
-                                    placeholder="3.154,101.74"
-                                    class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]"
-                                    x-init="$nextTick(() => initSuggestSelect($el, '{{ url('/outdoor/coords') }}', () => row.sub_product))">
-                                    <template x-if="row.coords">
-                                    <option :value="row.coords" x-text="row.coords" selected></option>
-                                    </template>
-                                </select>
-                                </div>
-
-
-                                <script>
-                                function initSuggestSelect(selectEl, endpoint, getSubProduct) {
-                                try {
-                                    if (selectEl.tomselect) selectEl.tomselect.destroy();
-
-                                    new TomSelect(selectEl, {
-                                    create: true,                 // user can type anything and press Enter
-                                    persist: false,
-                                    allowEmptyOption: true,
-                                    maxOptions: 1000,
-                                    valueField: 'value',
-                                    labelField: 'label',
-                                    searchField: ['label', 'value'],
-                                    plugins: ['clear_button','dropdown_input'],
-                                    load: function(query, callback) {
-                                        const sp = (typeof getSubProduct === 'function') ? (getSubProduct() || '') : '';
-                                        const url = `${endpoint}?q=${encodeURIComponent(query || '')}&sub_product=${encodeURIComponent(sp)}`;
-                                        fetch(url).then(r => r.json()).then(data => callback(data || [])).catch(() => callback());
-                                    },
-                                    render: {
-                                        option: (item, esc) => `<div>${esc(item.label)}</div>`,
-                                        item:   (item, esc) => `<div>${esc(item.label)}</div>`,
-                                        no_results: () => `<div class="p-2 text-sm text-neutral-500">No matches. Press Enter to use your text.</div>`
-                                    }
-                                    });
-                                } catch (e) {
-                                    console.warn('initSuggestSelect failed', e);
-                                }
-                                }
-                                </script>
-
+                                    <div class="md:col-span-1">
+                                        <label class="block text-xs text-neutral-600 mb-1">Coords (lat,lng)</label>
+                                        <input type="text" :name="`locations[${idx}][coords]`" x-model="row.coords"
+                                            placeholder="3.154,101.74"
+                                            class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
+                                    </div>
 
                                     <div class="md:col-span-1">
                                         <label class="block text-xs text-neutral-600 mb-1">Start Date</label>
@@ -973,7 +1023,7 @@
                         },
 
                         selectedCategory: '',
-                        selectedProduct: @json(old('product', '')),
+                        selectedProduct: <?php echo json_encode(old('product', ''), 512) ?>,
 
                         // ===== Lifecycle =====
                         init() {
@@ -1040,7 +1090,7 @@
                             if (!date || !product || !jobEl) return;
 
                             try {
-                                // {{-- TODO: Replace with actual route if it exists --}}
+                                // 
                                 const url = new URL('/serials/preview', window.location.origin);
                                 url.searchParams.set('date', date);
                                 url.searchParams.set('product', product);
@@ -1062,8 +1112,18 @@
                     };
                 }
             </script>
-    </x-app-layout>
+     <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal4619374cef299e94fd7263111d0abc69)): ?>
+<?php $attributes = $__attributesOriginal4619374cef299e94fd7263111d0abc69; ?>
+<?php unset($__attributesOriginal4619374cef299e94fd7263111d0abc69); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal4619374cef299e94fd7263111d0abc69)): ?>
+<?php $component = $__componentOriginal4619374cef299e94fd7263111d0abc69; ?>
+<?php unset($__componentOriginal4619374cef299e94fd7263111d0abc69); ?>
+<?php endif; ?>
 
 </body>
 
 </html>
+<?php /**PATH C:\Users\Gjlang\kl_guide_tracker\resources\views\masterfile\create.blade.php ENDPATH**/ ?>
