@@ -118,39 +118,16 @@
                             </div>
 
                             <div class="flex flex-col flex-1">
-                <label for="company" class="text-sm font-medium text-[#1C1E26] mb-2">
-                    Company
-                </label>
-                <select
-                    id="company"
-                    name="company"
-                    placeholder="Company Name"
-                    class="w-full border border-gray-300 rounded-2xl text-sm h-11
-                        focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]
-                        transition-colors duration-200"
-                    autocomplete="off"
-                    required
-                >
-                    <option value=""></option>
-                    @foreach(($companies ?? []) as $c)
-                        <option value="{{ $c }}" @selected(old('company') === $c)>{{ $c }}</option>
-                    @endforeach
-                </select>
-            </div>
-
-            <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                new TomSelect('#company', {
-                    create: true, // allow manual typing of new names
-                    persist: false,
-                    maxOptions: 1000,
-                    allowEmptyOption: true,
-                    sortField: { field: 'text', direction: 'asc' },
-                    plugins: ['clear_button','dropdown_input'],
-                    placeholder: 'Company Name'
-                });
-            });
-            </script>
+                                <label for="company_id" class="text-sm font-medium text-[#1C1E26] mb-2">
+                                    Company
+                                </label>
+                                <select name="company_id" id="company_id" class="w-full border border-gray-300 rounded-2xl text-sm h-11 focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" required>
+                                    <option value="">-- Select Company --</option>
+                                    @foreach($companies as $c)
+                                        <option value="{{ $c->id }}">{{ $c->$display_column }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
 
 
                             <style>
@@ -160,27 +137,38 @@
                             }
                             </style>
 
+                            <script>
+                            document.addEventListener('DOMContentLoaded', function () {
+                                const companySelect = document.getElementById('company_id');
+                                const clientSelect = document.getElementById('client_id');
+                                
+                                // Pre-loaded data from the view
+                                const clientsByCompany = @json($clientsByCompany);
 
-                            <div class="row sm:flex items-center sm:mr-4">
-                                <label class="w-12 flex-none xl:w-auto xl:flex-initial mr-2">Client</label>
-                                <select class="input w-full mt-2 sm:mt-0 sm:w-auto border" id="filterBillboardBookingCompany">
-                                    <option value="">All</option>
+                                companySelect.addEventListener('change', function () {
+                                    const companyId = this.value;
+                                    clientSelect.innerHTML = '<option value="">-- Select Person In Charge --</option>';
 
+                                    if (companyId && clientsByCompany[companyId]) {
+                                        const companyClients = clientsByCompany[companyId];
+                                        companyClients.forEach(function(client) {
+                                            const option = document.createElement('option');
+                                            option.value = client.id;  // Use client ID as value
+                                            option.textContent = client.name;  // Display client name
+                                            clientSelect.appendChild(option);
+                                        });
+                                    }
+                                });
+                            });
+                            </script>
+
+                            <div class="flex flex-col flex-1">
+                                <label for="client_id" class="text-sm font-medium text-[#1C1E26] mb-2">
+                                    Person In Charge
+                                </label>
+                                <select name="client_id" id="client_id" class="w-full border border-gray-300 rounded-2xl text-sm h-11 focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]">
+                                    <option value="">-- Select Person In Charge --</option>
                                 </select>
-                            </div>
-
-                            <div>
-                                <label for="client" class="block text-sm font-medium text-[#1C1E26] mb-2">Person In Charge</label>
-                                <input type="text"
-                                    name="client"
-                                    id="client"
-                                    value="{{ old('client') }}"
-                                    placeholder="PIC Name"
-                                    class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200"
-                                    required>
-                                @error('client')
-                                <p class="mt-1 text-sm text-[#d33831]">{{ $message }}</p>
-                                @enderror
                             </div>
 
                             <div>

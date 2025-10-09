@@ -8,6 +8,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+use App\Models\ClientCompany;
+use App\Models\Client;
+
 
 class MasterFile extends Model
 {
@@ -24,7 +27,7 @@ class MasterFile extends Model
     protected $fillable = [
         'month','date','company','product','product_category','location','traffic','duration',
         'status','remarks','client','date_finish','job_number','artwork','invoice_date',
-        'invoice_number','contact_number','email','sales_person',
+        'invoice_number','contact_number','email','sales_person', 'client_id',
 
         // KLTG-only
         'kltg_industry','kltg_x','kltg_edition','kltg_material_cbp','kltg_print',
@@ -237,9 +240,14 @@ class MasterFile extends Model
         return $this->belongsTo(Billboard::class, 'billboard_id');
     }
 
-    public function company()
+    public function clientCompany()
     {
-        return $this->belongsToMany(ClientCompany::class);
+        return $this->belongsTo(ClientCompany::class, 'company_id');
+    }
+
+    public function client()
+    {
+        return $this->belongsTo(Client::class, 'client_id');
     }
 
     public function mediaOngoingJobs()

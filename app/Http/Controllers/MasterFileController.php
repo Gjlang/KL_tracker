@@ -23,6 +23,7 @@ use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use App\Models\OutdoorItem;
+use App\Models\Client;
 use Illuminate\Support\Arr;
 
 
@@ -409,6 +410,8 @@ class MasterFileController extends Controller
         // Get paginated results with filters retained
         $masterFiles = $query->orderBy('date', 'desc')->paginate(25)->withQueryString();
 
+        logger('sini la');
+
         // Debug: Log the result count
         Log::info('Query Results:', ['count' => $masterFiles->count(), 'total' => $masterFiles->total()]);
 
@@ -553,8 +556,38 @@ class MasterFileController extends Controller
     public function show($id)
     {
         $file = MasterFile::findOrFail($id);
+        logger('company apatu: ' . $file);
         return view('masterfile.show', compact('file'));
     }
+
+    // public function create()
+    // {
+    //     // Pick the correct column name safely
+    //     $col = Schema::hasColumn('client_companies', 'company') ? 'company'
+    //         : (Schema::hasColumn('client_companies', 'company_name') ? 'company_name'
+    //         : (Schema::hasColumn('client_companies', 'name') ? 'name' : null));
+
+    //     $companies = collect();
+
+    //     if ($col) {
+    //         $companies = DB::table('client_companies')
+    //             ->whereNotNull($col)
+    //             ->where($col, '!=', '') 
+    //             ->orderBy($col)
+    //             ->get() // This gets ALL columns including id
+    //             ->map(function ($company) use ($col) {
+    //                 $company->{$col} = trim($company->{$col});
+    //                 return $company;
+    //             })
+    //             ->filter(function ($company) use ($col) {
+    //                 return !empty($company->{$col});
+    //             });
+    //     }
+
+    //     return view('masterfile.create', [
+    //         'companies' => $companies,
+    //     ]);
+    // }
 
     public function create()
     {
@@ -564,22 +597,55 @@ class MasterFileController extends Controller
             : (Schema::hasColumn('client_companies', 'name') ? 'name' : null));
 
         $companies = collect();
+        $clientsByCompany = collect();
 
         if ($col) {
             $companies = DB::table('client_companies')
                 ->whereNotNull($col)
                 ->where($col, '!=', '')
                 ->orderBy($col)
-                ->pluck($col)
-                ->map(fn ($v) => trim($v))
-                ->filter()
-                ->unique(fn ($v) => mb_strtolower($v))
-                ->values();
+                ->get()
+                ->map(function ($company) use ($col) {
+                    $company->{$col} = trim($company->{$col});
+                    return $company;
+                })
+                ->filter(function ($company) use ($col) {
+                    return !empty($company->{$col});
+                });
+
+            // Get clients with both ID and name, grouped by company_id
+            $clientsByCompany = Client::whereNotNull('company_id')
+                ->whereNotNull('name')
+                ->where('name', '!=', '')
+                ->select('id', 'name', 'company_id')
+                ->get()
+                ->groupBy('company_id')
+                ->map(function ($clients) {
+                    return $clients->map(function ($client) {
+                        return [
+                            'id' => $client->id,
+                            'name' => $client->name
+                        ];
+                    })->values();
+                });
         }
 
         return view('masterfile.create', [
             'companies' => $companies,
+            'clientsByCompany' => $clientsByCompany,
+            'display_column' => $col,
         ]);
+    }
+
+    public function getClientsByCompany($companyId)
+    {
+        logger('company id: ' . $companyId);
+        $clients = Client::where('company_id', $companyId)
+                    ->select('id', 'name')
+                    ->orderBy('name')
+                    ->get();
+
+        return response()->json($clients);
     }
 
     // MasterFileController.php
@@ -680,12 +746,14 @@ public function getCompanyEmails(Request $request)
     // 🔧 FIXED: Single store method with AUTO-SEED KLTG DISABLED
     public function store(Request $request)
     {
+        logger('masuk store: ' . $request);
         // 1) VALIDASI biasa + bulk_placements
         $data = $request->validate([
             // === field existing kamu ===
             'month' => ['required', 'string', 'max:255'],
             'date' => ['required', 'date'],
-            'company' => ['required', 'string', 'max:255'],
+            'company_id' => ['required', 'string', 'max:255'],
+            // 'company' => ['requir    ed', 'string', 'max:255'],
             'product' => ['required', 'string', 'max:255'],
             'product_category' => ['nullable', 'string', 'max:255'],
             'location' => ['nullable', 'string', 'max:255'],
@@ -694,7 +762,7 @@ public function getCompanyEmails(Request $request)
             'amount' => ['nullable', 'numeric', 'between:0,999999999.99'],
             'status' => ['required', 'string', 'max:255'],
             'remarks' => ['nullable', 'string'],
-            'client' => ['required', 'string', 'max:255'],
+            'client_id' => ['required', 'string', 'max:255'],
             'sales_person' => ['nullable', 'string', 'max:255'],
             'date_finish' => ['nullable', 'date'],
             'job_number' => ['nullable', 'string', 'max:255'],
@@ -1855,7 +1923,6 @@ public function getCompanyEmails(Request $request)
     public function updateTimeline(Request $request, $id)
     {
         Log::info('🚀 updateTimeline triggered', ['id' => $id]);
-        logger('disini');
 
         $file = MasterFile::findOrFail($id);
 

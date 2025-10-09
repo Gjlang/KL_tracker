@@ -376,13 +376,13 @@
                                 <td class="px-6 py-4 text-sm">
                                     @can('masterfile.show')
                                     <a href="{{ route('masterfile.show', $file->id) }}" class="ink hover:text-blue-600 font-medium">
-                                        <div class="max-w-[200px] truncate" title="{{ $file->company }}">{{ $file->company }}</div>
+                                        <div class="max-w-[200px] truncate" title="{{ $file->clientCompany->name ?? 'No Company' }}">{{ $file->clientCompany->name ?? 'No Company' }}</div>
                                     </a>
                                     @else
-                                    <div class="max-w-[200px] truncate" title="{{ $file->company }}">{{ $file->company }}</div>
-                                    @endcan
+                                    <div class="max-w-[200px] truncate" title="{{ $file->clientCompany->name ?? 'No Company' }}">{{ $file->clientCompany->name ?? 'No Company' }}</div>
+                                    @endcan   
                                 </td>
-                                <td class="px-6 py-4 text-sm ink">{{ $file->client ?? '-' }}</td>
+                                <td class="px-6 py-4 text-sm ink">{{ $file->client->name ?? '-' }}</td>
                                 <td class="px-6 py-4 text-sm text-gray-600">{{ $file->email ?? '-' }}</td>
                                 <td class="px-6 py-4 text-sm ink text-right tabular-nums font-medium">{{ $file->amount ?? '-' }}</td>
                                 <td class="px-6 py-4 text-sm ink">{{ $file->contact_number ?? '-' }}</td>
