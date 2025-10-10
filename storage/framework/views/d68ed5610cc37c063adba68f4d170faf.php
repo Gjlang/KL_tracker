@@ -696,33 +696,102 @@ unset($__errorArgs, $__bag); ?>
                                         </select>
                                     </div>
 
-                                    <div class="md:col-span-2">
-                                        <label class="block text-xs text-neutral-600 mb-1">Site</label>
-                                        <input type="text" :name="`locations[${idx}][site]`" x-model="row.site"
-                                            placeholder="e.g., Wangsa Maju LRT"
-                                            class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
-                                    </div>
+                                  <!-- SITE -->
+                                <div class="md:col-span-2">
+                                <label class="block text-xs text-neutral-600 mb-1">Site</label>
+                                <select
+                                    :id="`outdoor_site_${idx}`"
+                                    :name="`locations[${idx}][site]`"
+                                    x-model="row.site"
+                                    placeholder="e.g., TB-WPK-0075 – Persiaran Puncak Jalil"
+                                    class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]"
+                                    x-init="$nextTick(() => initSuggestSelect($el, '<?php echo e(url('/outdoor/sites')); ?>', () => row.sub_product))">
+                                    <template x-if="row.site">
+                                    <option :value="row.site" x-text="row.site" selected></option>
+                                    </template>
+                                </select>
+                                </div>
 
-                                    <div class="md:col-span-1">
-                                        <label class="block text-xs text-neutral-600 mb-1">Size</label>
-                                        <input type="text" :name="`locations[${idx}][size]`" x-model="row.size"
-                                            placeholder="10x20ft"
-                                            class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
-                                    </div>
+                                <!-- SIZE -->
+                                <div class="md:col-span-1">
+                                <label class="block text-xs text-neutral-600 mb-1">Size</label>
+                                <select
+                                    :id="`outdoor_size_${idx}`"
+                                    :name="`locations[${idx}][size]`"
+                                    x-model="row.size"
+                                    placeholder="10x20ft"
+                                    class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]"
+                                    x-init="$nextTick(() => initSuggestSelect($el, '<?php echo e(url('/outdoor/sizes')); ?>', () => row.sub_product))">
+                                    <template x-if="row.size">
+                                    <option :value="row.size" x-text="row.size" selected></option>
+                                    </template>
+                                </select>
+                                </div>
 
-                                    <div class="md:col-span-1">
-                                        <label class="block text-xs text-neutral-600 mb-1">Area</label>
-                                        <input type="text" :name="`locations[${idx}][council]`" x-model="row.council"
-                                            placeholder="AREA"
-                                            class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
-                                    </div>
+                                <!-- AREA -->
+                                <div class="md:col-span-1">
+                                <label class="block text-xs text-neutral-600 mb-1">Area</label>
+                                <select
+                                    :id="`outdoor_area_${idx}`"
+                                    :name="`locations[${idx}][council]`"
+                                    x-model="row.council"
+                                    placeholder="AREA"
+                                    class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]"
+                                    x-init="$nextTick(() => initSuggestSelect($el, '<?php echo e(url('/outdoor/areas')); ?>', () => row.sub_product))">
+                                    <template x-if="row.council">
+                                    <option :value="row.council" x-text="row.council" selected></option>
+                                    </template>
+                                </select>
+                                </div>
 
-                                    <div class="md:col-span-1">
-                                        <label class="block text-xs text-neutral-600 mb-1">Coords (lat,lng)</label>
-                                        <input type="text" :name="`locations[${idx}][coords]`" x-model="row.coords"
-                                            placeholder="3.154,101.74"
-                                            class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
-                                    </div>
+                                <!-- COORDS -->
+                                <div class="md:col-span-1">
+                                <label class="block text-xs text-neutral-600 mb-1">Coords (lat,lng)</label>
+                                <select
+                                    :id="`outdoor_coords_${idx}`"
+                                    :name="`locations[${idx}][coords]`"
+                                    x-model="row.coords"
+                                    placeholder="3.154,101.74"
+                                    class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]"
+                                    x-init="$nextTick(() => initSuggestSelect($el, '<?php echo e(url('/outdoor/coords')); ?>', () => row.sub_product))">
+                                    <template x-if="row.coords">
+                                    <option :value="row.coords" x-text="row.coords" selected></option>
+                                    </template>
+                                </select>
+                                </div>
+
+
+                                <script>
+                                function initSuggestSelect(selectEl, endpoint, getSubProduct) {
+                                try {
+                                    if (selectEl.tomselect) selectEl.tomselect.destroy();
+
+                                    new TomSelect(selectEl, {
+                                    create: true,                 // user can type anything and press Enter
+                                    persist: false,
+                                    allowEmptyOption: true,
+                                    maxOptions: 1000,
+                                    valueField: 'value',
+                                    labelField: 'label',
+                                    searchField: ['label', 'value'],
+                                    plugins: ['clear_button','dropdown_input'],
+                                    load: function(query, callback) {
+                                        const sp = (typeof getSubProduct === 'function') ? (getSubProduct() || '') : '';
+                                        const url = `${endpoint}?q=${encodeURIComponent(query || '')}&sub_product=${encodeURIComponent(sp)}`;
+                                        fetch(url).then(r => r.json()).then(data => callback(data || [])).catch(() => callback());
+                                    },
+                                    render: {
+                                        option: (item, esc) => `<div>${esc(item.label)}</div>`,
+                                        item:   (item, esc) => `<div>${esc(item.label)}</div>`,
+                                        no_results: () => `<div class="p-2 text-sm text-neutral-500">No matches. Press Enter to use your text.</div>`
+                                    }
+                                    });
+                                } catch (e) {
+                                    console.warn('initSuggestSelect failed', e);
+                                }
+                                }
+                                </script>
+
 
                                     <div class="md:col-span-1">
                                         <label class="block text-xs text-neutral-600 mb-1">Start Date</label>

@@ -8,7 +8,7 @@
     <title>{{ config('app.name', 'Job Tracking System') }}</title>
 
     {{-- Fonts --}}
-    <link rel="preconnect" href="https://fonts.bunny.net  ">
+    <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
     {{-- Laravel Vite (CSS & JS) --}}
@@ -20,10 +20,10 @@
     @stack('head')
 
     {{-- FullCalendar CSS --}}
-    <link href="  https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css  " rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet" />
 
     {{-- Select2 CSS (loaded in head for styles, JS loaded in body) --}}
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css  " rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
     {{-- DataTables Buttons CSS --}}
     <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css">
@@ -92,32 +92,39 @@
 {{-- Load external libraries in the correct order --}}
 
 {{-- 1. jQuery (Required by DataTables and Select2) --}}
-<script src="https://code.jquery.com/jquery-3.7.1.min.js  " integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 
 {{-- 2. DataTables JS (Depends on jQuery) --}}
-<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js  "></script>
-<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js  "></script> <!-- If using Bootstrap theme -->
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script> <!-- If using Bootstrap theme -->
 
 {{-- 3. DataTables Buttons Extension JS (Depends on DataTables core) --}}
 <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+
+{{-- 3.1 JSZip MUST be before buttons.html5 --}}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+{{-- 3.2 PDF dependencies (optional, must be BEFORE buttons.html5) --}}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
+
+{{-- 3.3 Buttons HTML5/Print AFTER dependencies --}}
 <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha512-Xf/tPwC9z3TvP1x/8j2pLgltKZI2HvZPMqkYz3a3WfV4RfF+8Jg2JLqjZ+9yT578Z8ZJ9Lc+YUI0Bp5f8b7OvQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-{{-- Optional: For PDF export --}}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js" integrity="sha512-5y5Vw1f5z7Hk20wZg9qyEo+7+Hx4lgxYJLnWJkQo4UAb36BXEGrnU+aS7LfMnJFyL0pUqV0mL6pGF4Ud3Kg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js" integrity="sha512-5y5Vw1f5z7Hk20wZg9qyEo+7+Hx4lgxYJLnWJkQo4UAb36BXEGrnU+aS7LfMnJFyL0pUqV0mL6pGF4Ud3Kg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script> <!-- add this -->
+
 {{-- Optional: Bootstrap integration for Buttons --}}
 {{-- <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"></script> --}}
 
 {{-- 4. Select2 JS (Depends on jQuery) --}}
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js  "></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 {{-- FullCalendar JS --}}
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js  "></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 
 {{-- Alpine.js (Loaded last among external libs, 'defer' is fine) --}}
-<script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js  "></script>
+<script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
-{{-- Alpine sidebar controller --}}
+{{-- Alpine sidebar controller and global helper functions --}}
 <script>
   function sidebar() {
     return {
@@ -135,18 +142,84 @@
   }
 
   // Legacy modal helpers
-  function openModal(id){
-    document.getElementById(id)?.classList.remove('hidden');
+  window.openModal = function(id){
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove('hidden');
+    el.classList.add('show');
+    el.style.display = 'flex';     // match .modal.show { display:flex }
     document.body.classList.add('overflow-hidden');
   }
-  function closeModal(id){
-    document.getElementById(id)?.classList.add('hidden');
+
+  window.closeModal = function(id){
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add('hidden');
+    el.classList.remove('show');
+    el.style.display = 'none';
     document.body.classList.remove('overflow-hidden');
   }
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-      document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
-      document.body.classList.remove('overflow-hidden');
+
+  // Global Toast Notification Function
+  window.showSubmitToast = function(message, color) {
+    // Create container if missing
+    let container = document.getElementById('toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'toast-container';
+      container.className = 'fixed top-4 right-4 z-[10000] space-y-2';
+      container.style.cssText = 'pointer-events: none;';
+      document.body.appendChild(container);
+    }
+
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = 'rounded-xl shadow-lg px-6 py-4 text-sm font-medium text-white transition-all duration-300 transform translate-x-0 opacity-100';
+    toast.style.cssText = `background-color: ${color || '#91C714'}; pointer-events: auto; min-width: 250px;`;
+    toast.textContent = message || 'Action completed';
+
+    // Add to container
+    container.appendChild(toast);
+
+    // Animate in
+    setTimeout(() => {
+      toast.style.transform = 'translateX(0)';
+      toast.style.opacity = '1';
+    }, 10);
+
+    // Remove after delay
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateX(20px)';
+      setTimeout(() => {
+        toast.remove();
+        // Remove container if empty
+        if (container.children.length === 0) {
+          container.remove();
+        }
+      }, 300);
+    }, 3000);
+  };
+
+  // Allow [data-toggle="modal"] to work (Bootstrap-like)
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-toggle="modal"]');
+    if (!t) return;
+    e.preventDefault();
+    const targetSel = t.getAttribute('data-target');
+    if (!targetSel) return;
+    const id = targetSel.startsWith('#') ? targetSel.slice(1) : targetSel;
+    openModal(id);
+  });
+
+  // Allow [data-dismiss="modal"] to work
+  document.addEventListener('click', (e) => {
+    const dismissBtn = e.target.closest('[data-dismiss="modal"]');
+    if (!dismissBtn) return;
+    e.preventDefault();
+    const modal = dismissBtn.closest('.modal');
+    if (modal) {
+      closeModal(modal.id);
     }
   });
 </script>

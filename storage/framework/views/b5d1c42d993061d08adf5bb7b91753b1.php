@@ -1,160 +1,309 @@
-<?php $__env->startSection('title'); ?>
+<?php $__env->startSection('head'); ?>
 <title>BGOC Outdoor System - Contractors</title>
+<style>
+    /* Custom styles for classic elegant design */
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600&display=swap');
+
+    body {
+        background-color: #F7F7F9;
+        font-family: 'Inter', sans-serif;
+    }
+
+    .font-serif {
+        font-family: 'Playfair Display', serif;
+    }
+
+    .ink {
+        color: #1C1E26;
+    }
+
+    .hairline {
+        border-color: #EAEAEA;
+    }
+
+    .tabular-nums {
+        font-variant-numeric: tabular-nums;
+    }
+
+    .btn-primary {
+        background-color: #22255b;
+        color: white;
+        transition: opacity 150ms ease;
+    }
+
+    .btn-primary:hover {
+        opacity: 0.9;
+    }
+
+    .btn-secondary {
+        border: 1px solid #EAEAEA;
+        color: #1C1E26;
+        background: white;
+        transition: all 150ms ease;
+    }
+
+    .btn-secondary:hover {
+        background-color: rgba(75, 187, 237, 0.1);
+    }
+
+    .btn-destructive {
+        background-color: #d33831;
+        color: white;
+        transition: opacity 150ms ease;
+    }
+
+    .btn-destructive:hover {
+        opacity: 0.9;
+    }
+
+    .card-elegant {
+        background: white;
+        border-radius: 1rem;
+        border: 1px solid rgba(234, 234, 234, 0.7);
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+    }
+
+    .filter-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.375rem 0.75rem;
+        background: rgba(34, 37, 91, 0.05);
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        color: #22255b;
+        letter-spacing: 0.02em;
+        margin-right: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .table-header-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #6B7280;
+        font-weight: 600;
+    }
+
+    .ledger-row {
+        border-bottom: 1px solid #EAEAEA;
+        transition: all 200ms ease;
+    }
+
+    .ledger-row:hover {
+        background-color: #FAFAFA;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        transform: translateY(-1px);
+    }
+
+    .quick-nav-card {
+        background: white;
+        border: 1px solid #EAEAEA;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        transition: all 200ms ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .quick-nav-card::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: #22255b;
+        transform: scaleY(0);
+        transition: transform 200ms ease;
+    }
+
+    .quick-nav-card:hover::before {
+        transform: scaleY(1);
+    }
+
+    .quick-nav-card:hover {
+        border-color: #22255b;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+
+    .input-elegant {
+        height: 2.75rem;
+        border-radius: 0.75rem;
+        border: 1px solid #D1D5DB;
+        transition: all 150ms ease;
+    }
+
+    .input-elegant:focus {
+        outline: none;
+        border-color: transparent;
+        box-shadow: 0 0 0 2px #4bbbed;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: #6B7280;
+    }
+</style>
 <?php $__env->stopSection(); ?>
 
-<?php $__env->startSection('sidebar'); ?>
-<?php $__env->stopSection(); ?>
+<?php $__env->startSection('content'); ?>
 
-<?php $__env->startSection('app_content'); ?>
-<div class="intro-y flex flex-col sm:flex-row items-center mt-8">
-    <h2 class="text-lg font-medium mr-auto">
-        Contractors
-    </h2>
-</div>
-
-<div class="intro-y box p-5 mt-5">
-    <div class="pos col-span-12 lg:col-span-4">
-        <!-- BEGIN: Client -->
+<!-- Top Bar -->
+<div class="ink py-6">
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <!-- Left: Title -->
         <div>
-            <!-- BEGIN: Filter & Add Client -->
-            <div class="flex flex-col sm:flex-row sm:items-end xl:items-start">
-                <!-- BEGIN: Filter -->
-                <form class="xl:flex sm:mr-auto">
-                    <div class="sm:flex items-center sm:mr-4">
-                        <label class="w-12 flex-none xl:w-auto xl:flex-initial mr-2">Company Name</label>
-                        <select class="input w-full sm:w-32 xxl:w-full mt-2 sm:mt-0 sm:w-auto border" id="inputCompanyName">
-                        <option selected value="">Select an option</option>
-                        <?php $__currentLoopData = $clientcompany; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $clientcomp): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                            <option value="<?php echo e($clientcomp->id); ?>"><?php echo e($clientcomp->name); ?></option>
-                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-                        </select>
-                    </div>
-                    <div class="mt-2 xl:mt-0">
-                        <button type="button" class="button w-full sm:w-16 bg-theme-32 text-white" id="filterClientButton">Filter</button>
-                    </div>
-                </form>
-                <!-- END: Filter -->
-
-                <!-- BEGIN: Add Client -->
-                <div class="text-center">
-                    <a href="javascript:;" data-toggle="modal" data-target="#contractorAddModal" class="button w-50 mr-2 mb-2 flex items-center justify-center bg-theme-32 text-white">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather feather-plus w-4 h-4">
-                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                        </svg>
-                        Add New Contractor
-                    </a>
-                </div>
-                <!-- END: Add Client -->
-            </div>
-            <!-- END: Filter & Add Client -->
-
-            <!-- BEGIN: Client List -->
-            <div class="overflow-x-auto scrollbar-hidden">
-                <table class="table table-report mt-5" id="contractor_table">
-                    <thead>
-                        <tr class="bg-theme-1 text-white">
-                            <th width="5%">No.</th>
-                            <th>Company Name</th>
-                            <th>PIC Name</th>
-                            <th>Phone No.</th>
-                            <!-- <th class="whitespace-nowrap">User</th>
-                            <th class="whitespace-nowrap" width="20%">User Account Status</th>
-                            <th class="whitespace-nowrap" width="10%">Client Status</th> -->
-                            <th width="10%">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-
-                    </tbody>
-                </table>
-            </div>
-            <!-- END: Client List -->
+            <h1 class="font-serif text-3xl font-bold ink">Contractors</h1>
+            <p class="text-sm text-gray-500 mt-1" id="recordsSubtitle">Managing contractor relationships</p>
         </div>
-        <!-- END: Client -->
+
+        <!-- Right: Actions -->
+        <div class="flex flex-wrap items-center gap-2">
+            <a id="openAddContractor" href="javascript:;" data-toggle="modal" data-target="#contractorAddModal"
+               class="btn-primary inline-flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm focus:ring-2 focus:ring-[#4bbbed] focus:outline-none">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Add New Contractor
+            </a>
+        </div>
     </div>
 </div>
-<?php $__env->stopSection(); ?>
 
-<?php $__env->startSection('modal_content'); ?>
-<!-- BEGIN: Client Users Add Modal -->
-<div class="modal" id="contractorAddModal">
+<!-- Filter Panel -->
+<div class="card-elegant p-6 mb-6">
+    <form class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Company Filter -->
+        <div>
+            <label class="table-header-label block mb-2">Company</label>
+            <select class="input-elegant w-full px-3" id="inputCompanyName">
+                <option selected value="">All Companies</option>
+                <?php $__currentLoopData = $clientcompany; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $clientcomp): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <option value="<?php echo e($clientcomp->id); ?>"><?php echo e($clientcomp->name); ?></option>
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+            </select>
+        </div>
+
+        <!-- Apply Button -->
+        <div class="sm:col-span-2 lg:col-span-4 flex justify-end">
+            <button type="button" class="btn-primary px-6 py-2 rounded-full font-medium text-sm focus:ring-2 focus:ring-[#4bbbed] focus:outline-none" id="filterClientButton">
+                Apply Filters
+            </button>
+        </div>
+    </form>
+
+    <!-- Active Filters Chips -->
+    <div id="activeFiltersChips" class="mt-4 hidden">
+        <div class="text-xs text-gray-500 mb-2">Active Filters:</div>
+        <div id="filterChipsContainer"></div>
+    </div>
+</div>
+
+<!-- Data Table -->
+<div class="card-elegant p-6">
+    <div class="overflow-x-auto">
+        <table class="table w-full" id="contractor_table">
+            <thead>
+                <tr class="border-b-2 hairline">
+                    <th class="table-header-label text-left py-3 px-4" width="5%">No.</th>
+                    <th class="table-header-label text-left py-3 px-4">Company Name</th>
+                    <th class="table-header-label text-left py-3 px-4">PIC Name</th>
+                    <th class="table-header-label text-left py-3 px-4">Phone No.</th>
+                    <th class="table-header-label text-center py-3 px-4" width="10%">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- BEGIN: Contractor Add Modal -->
+<div class="modal hidden" id="contractorAddModal">
     <div class="modal__content">
-        <div class="flex items-center px-5 py-5 sm:py-3 border-b border-gray-200 dark:border-dark-5">
-            <h2 class="font-medium text-base mr-auto">Add Contractor</h2>
+        <div class="flex items-center px-6 py-4 border-b hairline">
+            <h2 class="font-serif text-xl font-semibold ink">Add Contractor</h2>
         </div>
         <form>
         <?php echo csrf_field(); ?>
-        <div class="p-5 grid grid-cols-12 gap-4 gap-y-3">
-            <div class="col-span-12 sm:col-span-12">
-                <label>Company</label>
-                <input type="text" placeholder="Enter a Company Name" class="input w-full border mt-2 flex-1" id="contractorAddCompanyName" required>
+        <div class="p-6 space-y-4">
+            <div>
+                <label class="table-header-label block mb-2">Company</label>
+                <input type="text" placeholder="Enter a Company Name" class="input-elegant w-full px-3" id="contractorAddCompanyName" required>
             </div>
-            <div class="col-span-12 sm:col-span-12">
-                <label>Contractor PIC Name</label>
-                <input type="text" placeholder="Enter a PIC Name" class="input w-full border mt-2 flex-1" id="contractorAddPICName" required>
+            <div>
+                <label class="table-header-label block mb-2">Contractor PIC Name</label>
+                <input type="text" placeholder="Enter a PIC Name" class="input-elegant w-full px-3" id="contractorAddPICName" required>
             </div>
-            <div class="col-span-12 sm:col-span-12">
-                <label>Phone No.</label>
-                <input type="text"  title="Please enter Phone number in correct format" placeholder="Enter a Phone Number" class="input w-full border mt-2 flex-1" id="contractorAddPhone" required>
+            <div>
+                <label class="table-header-label block mb-2">Phone No.</label>
+                <input type="text" title="Please enter Phone number in correct format" placeholder="Enter a Phone Number" class="input-elegant w-full px-3" id="contractorAddPhone" required>
             </div>
-            </div>
-            <div class="px-5 py-3 text-right border-t border-gray-200 dark:border-dark-5">
-                <button type="submit" class="button w-50 bg-theme-1 text-white" id="contractorAddButton">Save</button>
-            </div>
+        </div>
+        <div class="px-6 py-4 flex justify-end gap-2 border-t hairline">
+            <button type="button" data-dismiss="modal" class="btn-secondary px-6 py-2 rounded-full font-medium text-sm">Cancel</button>
+            <button type="submit" class="btn-primary px-6 py-2 rounded-full font-medium text-sm focus:ring-2 focus:ring-[#4bbbed] focus:outline-none" id="contractorAddButton">Save</button>
+        </div>
         </form>
-
     </div>
 </div>
-<!-- END: Client Users Add Modal -->
+<!-- END: Contractor Add Modal -->
 
-<!-- BEGIN: Client Edit Modal -->
-<div class="modal" id="contractorEditModal">
+<!-- BEGIN: Contractor Edit Modal -->
+<div class="modal hidden" id="contractorEditModal">
     <div class="modal__content">
-        <div class="flex items-center px-5 py-5 sm:py-3 border-b border-gray-200 dark:border-dark-5">
-            <h2 class="font-medium text-base mr-auto">Edit Contractor</h2>
+        <div class="flex items-center px-6 py-4 border-b hairline">
+            <h2 class="font-serif text-xl font-semibold ink">Edit Contractor</h2>
         </div>
         <form>
-            <div class="p-5 grid grid-cols-12 gap-4 gap-y-3">
-                <div class="col-span-12 sm:col-span-12">
-                    <label>Company Name</label>
-                    <input type="text" class="input w-full border mt-2 flex-1" placeholder="Company Name" id="contractorEditCompanyName" required>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="table-header-label block mb-2">Company Name</label>
+                    <input type="text" class="input-elegant w-full px-3" placeholder="Company Name" id="contractorEditCompanyName" required>
                 </div>
-                <div class="col-span-12 sm:col-span-12">
-                    <label>Contractor PIC Name</label>
-                    <input type="text" class="input w-full border mt-2 flex-1" placeholder="Contractor PIC Name" id="contractorEditPICName" required>
+                <div>
+                    <label class="table-header-label block mb-2">Contractor PIC Name</label>
+                    <input type="text" class="input-elegant w-full px-3" placeholder="Contractor PIC Name" id="contractorEditPICName" required>
                 </div>
-                <div class="col-span-12 sm:col-span-12">
-                    <label>Phone No.</label>
-                    <input type="text" class="input w-full border mt-2 flex-1" placeholder="Phone No" id="contractorEditPhone" required>
+                <div>
+                    <label class="table-header-label block mb-2">Phone No.</label>
+                    <input type="text" class="input-elegant w-full px-3" placeholder="Phone No" id="contractorEditPhone" required>
                 </div>
             </div>
-
-            <div class="px-5 py-3 text-right border-t border-gray-200 dark:border-dark-5">
-                <button type="submit" class="button w-20 bg-theme-1 text-white" id="contractorEditButton">Update</button>
+            <div class="px-6 py-4 flex justify-end gap-2 border-t hairline">
+                <button type="button" data-dismiss="modal" class="btn-secondary px-6 py-2 rounded-full font-medium text-sm">Cancel</button>
+                <button type="submit" class="btn-primary px-6 py-2 rounded-full font-medium text-sm focus:ring-2 focus:ring-[#4bbbed] focus:outline-none" id="contractorEditButton">Update</button>
             </div>
         </form>
     </div>
 </div>
-<!-- END: Client Edit Modal -->
+<!-- END: Contractor Edit Modal -->
 
-<!-- BEGIN: Client Delete Modal -->
-<div class="modal" id="contractorDeleteModal">
+<!-- BEGIN: Contractor Delete Modal -->
+<div class="modal hidden" id="contractorDeleteModal">
     <div class="modal__content">
-        <div class="p-5 text-center"> <i data-feather="x-circle" class="w-16 h-16 text-theme-6 mx-auto mt-3"></i>
-            <div class="text-3xl mt-5">Are you sure?</div>
-            <div class="text-gray-600 mt-2">Confirm deleting the client? This process cannot be undone.</div>
+        <div class="p-8 text-center">
+            <div class="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-[#d33831]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+            <h3 class="font-serif text-2xl font-semibold ink mb-2">Are you sure?</h3>
+            <p class="text-gray-600">Confirm deleting the contractor? This process cannot be undone.</p>
         </div>
-        <div class="px-5 pb-8 text-center">
-            <button type="button" data-dismiss="modal" class="button w-24 border text-gray-700 dark:border-dark-5 dark:text-gray-300 mr-1">Cancel</button>
-            <button type="button" class="button w-24 bg-theme-6 text-white" id="contractorDeleteButton">Delete</button>
+        <div class="px-6 pb-6 flex justify-center gap-3">
+            <button type="button" data-dismiss="modal" class="btn-secondary px-6 py-2 rounded-full font-medium text-sm">Cancel</button>
+            <button type="button" class="btn-destructive px-6 py-2 rounded-full font-medium text-sm focus:ring-2 focus:ring-red-300 focus:outline-none" id="contractorDeleteButton">Delete</button>
         </div>
     </div>
 </div>
-<!-- END: Client Delete Modal -->
+<!-- END: Contractor Delete Modal -->
+
 <?php $__env->stopSection(); ?>
 
-<?php $__env->startSection('script'); ?>
+<?php $__env->startSection('scripts'); ?>
 <script>
     $(document).ready(function() {
 
@@ -163,47 +312,86 @@
         var contractorID;
         var lastClickedLink;
 
-        // Listen to below buttons
-        document.getElementById("filterClientButton").addEventListener("click", filterClientButton);
-        document.getElementById("contractorAddButton").addEventListener("click", contractorAddButton);
-        document.getElementById("contractorDeleteButton").addEventListener("click", contractorDeleteButton);
+        // Modal helper functions
+        function openAltEditorModal(selector) {
+            const id = selector.startsWith('#') ? selector.slice(1) : selector;
+            openModal(id);
+        }
+
+        function closeAltEditorModal(selector) {
+            const id = selector.startsWith('#') ? selector.slice(1) : selector;
+            closeModal(id);
+        }
+
+        // Listen to below buttons with safety guards
+        const filterBtn = document.getElementById("filterClientButton");
+        if (filterBtn) filterBtn.addEventListener("click", filterClientButton);
+
+        const addBtn = document.getElementById("contractorAddButton");
+        if (addBtn) addBtn.addEventListener("click", contractorAddButton);
+
+        const delBtn = document.getElementById("contractorDeleteButton");
+        if (delBtn) delBtn.addEventListener("click", contractorDeleteButton);
+
+        // Direct listener for opening Add Contractor modal
+        const openAddBtn = document.getElementById('openAddContractor');
+        if (openAddBtn) {
+            openAddBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                openAltEditorModal('#contractorAddModal');
+            });
+        }
 
         // When "filterClientButton" button is clicked, initiate initClientCompanyDatatable
         function filterClientButton() {
             filterClientCompany = document.getElementById("inputCompanyName").value;
             initContractorDatatable(filterClientCompany);
+            updateFilterChips();
         };
+
+        // Update filter chips display
+        function updateFilterChips() {
+            const companySelect = document.getElementById("inputCompanyName");
+            const chipContainer = document.getElementById("filterChipsContainer");
+            const chipsSection = document.getElementById("activeFiltersChips");
+
+            let chips = [];
+
+            if (companySelect.value) {
+                const selectedText = companySelect.options[companySelect.selectedIndex].text;
+                chips.push(`COMPANY: ${selectedText}`);
+            }
+
+            if (chips.length > 0) {
+                chipContainer.innerHTML = chips.map(chip =>
+                    `<span class="filter-chip">${chip}</span>`
+                ).join('');
+                chipsSection.classList.remove('hidden');
+            } else {
+                chipsSection.classList.add('hidden');
+            }
+        }
 
         // When page first loads, load table
         filterClientButton();
 
         // When any submit button is clicked
         (function() {
-            var contractor_table = $('#contractor_table')[0].altEditor;
+            const addBtn2 = document.getElementById('contractorAddButton');
+            if (addBtn2) {
+                addBtn2.addEventListener('click', function(e) {
+                    e.preventDefault();
+                });
+            }
 
-            document.getElementById('contractorAddButton').addEventListener('click', function(e) {
-                // Prevent the default form submission behavior
-                e.preventDefault();
-            });
-
-            document.getElementById('contractorEditButton').addEventListener('click', function(e) {
-                // Prevent the default form submission behavior
-                e.preventDefault();
-
-                // Edit client
-                editContractor();
-            });
+            const editBtn = document.getElementById('contractorEditButton');
+            if (editBtn) {
+                editBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    editContractor();
+                });
+            }
         })();
-
-        // Open modal
-        function openAltEditorModal(element) {
-            cash(element).modal('show');
-        }
-
-        // Close modal
-        function closeAltEditorModal(element) {
-            cash(element).modal('hide');
-        }
 
         // Add New Client
         function contractorAddButton() {
@@ -294,22 +482,17 @@
             const $fileName = `Contractor_List_${formattedDate}_${formattedTime}`;
 
             const table = $('#contractor_table').DataTable({
-                altEditor: true, // Enable altEditor
+                altEditor: true,
                 destroy: true,
                 debug: true,
                 processing: true,
                 searching: true,
                 serverSide: true,
                 ordering: true,
-                order: [
-                    [0, 'desc']
-                ],
+                order: [[0, 'desc']],
                 pagingType: 'full_numbers',
                 pageLength: 25,
-                aLengthMenu: [
-                    [25, 50, 75, -1],
-                    [25, 50, 75, "All"]
-                ],
+                aLengthMenu: [[25, 50, 75, -1], [25, 50, 75, "All"]],
                 iDisplayLength: 25,
                 ajax: {
                     url: "<?php echo e(route('contractors.list')); ?>",
@@ -323,51 +506,55 @@
                     dataSrc: function(json) {
                         json.recordsTotal = json.recordsTotal;
                         json.recordsFiltered = json.recordsFiltered;
+
+                        // Update subtitle with record count
+                        const subtitle = document.getElementById('recordsSubtitle');
+                        if (subtitle) {
+                            subtitle.textContent = `Showing ${json.recordsFiltered} of ${json.recordsTotal} records`;
+                        }
+
                         return json.data;
                     }
                 },
                 dom: "lBfrtip",
-                buttons: [{
+                buttons: [
+                    {
                         extend: "csv",
-                        className: "button w-24 rounded-full shadow-md mr-1 mb-2 bg-theme-7 text-white",
+                        className: "btn-secondary px-4 py-2 rounded-full text-sm font-medium",
                         title: $fileName,
                         exportOptions: {
                             columns: ":not(.dt-exclude-export)"
                         },
                         init: function(api, node, config) {
-                            $(node).removeClass('dt-button');
-                            $(node).removeClass('buttons-html5');
+                            $(node).removeClass('dt-button buttons-html5');
                         },
                     },
                     {
                         extend: "excel",
-                        className: "button w-24 rounded-full shadow-md mr-1 mb-2 bg-theme-7 text-white",
+                        className: "btn-secondary px-4 py-2 rounded-full text-sm font-medium",
                         title: $fileName,
                         exportOptions: {
                             columns: ":not(.dt-exclude-export)"
                         },
                         init: function(api, node, config) {
-                            $(node).removeClass('dt-button');
-                            $(node).removeClass('buttons-html5');
+                            $(node).removeClass('dt-button buttons-html5');
                         },
                     },
                     {
                         extend: "print",
-                        className: "button w-24 rounded-full shadow-md mr-1 mb-2 bg-theme-7 text-white",
+                        className: "btn-secondary px-4 py-2 rounded-full text-sm font-medium",
                         title: $fileName,
-                        // including printing image
                         exportOptions: {
                             stripHtml: false,
                         },
                         init: function(api, node, config) {
-                            $(node).removeClass('dt-button');
-                            $(node).removeClass('buttons-html5');
+                            $(node).removeClass('dt-button buttons-html5');
                         },
                     },
                 ],
                 columns: [
                     {
-                        data: null, // <-- important
+                        data: null,
                         name: 'no',
                         orderable: false,
                         searchable: false,
@@ -383,105 +570,73 @@
                     },
                     {
                         data: "phone",
+                        render: function(data) {
+                            return `<span class="tabular-nums">${data}</span>`;
+                        }
                     },
-                    // {
-                    //     data: "users_name",
-                    // },
-                    // {
-                    //     data: "users_id",
-                    //     type: "readonly",
-                    //     render: function(data, type, row) {
-                    //         let element = ``
-                    //         if (data == null) {
-                    //             element = `<a class="p-2 w-24 rounded-full mr-1 mb-2 border text-gray-700 dark:border-dark-5 dark:text-gray-300">No Account Registered</a>`;
-                    //         }else{
-                    //             element = `<a class="p-2 w-24 rounded-full mr-1 mb-2 bg-theme-18 text-black">Account Registered</a>`;
-                    //         }
-                    //         return element;
-                    //     }
-                    // },
-                    // {
-                    //     data: "status",
-                    //     type: "readonly",
-                    //     render: function(data, type, row) {
-                    //         let element = ``
-                    //         if (data == '0') {
-                    //             element = `<a class="p-2 w-24 rounded-full mr-1 mb-2 border text-gray-700 dark:border-dark-5 dark:text-gray-300">Inactive</a>`;
-                    //         }else{
-                    //             element = `<a class="p-2 w-24 rounded-full mr-1 mb-2 bg-theme-18 text-black">Active</a>`;
-                    //         }
-                    //         return element;
-                    //     }
-                    // },
                     {
                         data: "id",
+                        className: "text-center",
                         render: function(data, type, row) {
                             return `
-                            <div class="flex items-center justify-center space-x-3">
-                                <!-- Edit Icon -->
-                                <a href="javascript:;" class="text-theme-9" data-toggle="modal" data-target="#contractorEditModal" id="edit-${data}" title="Edit">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path d="M15.232 5.232l3.536 3.536M9 13h3l9-9a1.5 1.5 0 00-2.121-2.121l-9 9v3z"/>
+                            <div class="flex items-center justify-center gap-3">
+                                <a href="javascript:;" class="text-[#4bbbed] hover:text-[#22255b] transition-colors" data-toggle="modal" data-target="#contractorEditModal" id="edit-${data}" title="Edit">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                     </svg>
                                 </a>
-
-                                <!-- Delete Icon -->
-                                <a href="javascript:;" class="text-theme-6" data-toggle="modal" data-target="#contractorDeleteModal" id="delete-${data}" title="Delete">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <polyline points="3 6 5 6 21 6"></polyline>
-                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4
-                                            a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                                        <line x1="10" y1="11" x2="10" y2="17"></line>
-                                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                                <a href="javascript:;" class="text-[#d33831] hover:text-red-700 transition-colors" data-toggle="modal" data-target="#contractorDeleteModal" id="delete-${data}" title="Delete">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                     </svg>
                                 </a>
                             </div>`;
                         }
                     },
                 ],
+                drawCallback: function() {
+                    // Apply ledger row styling
+                    $('#contractor_table tbody tr').addClass('ledger-row');
+                }
             });
 
-            // Add classes to the "dt-buttons" div
+            // Style DataTable elements
             var dtButtonsDiv = document.querySelector(".dt-buttons");
             if (dtButtonsDiv) {
-                dtButtonsDiv.classList.add("mt-2");
+                dtButtonsDiv.classList.add("mb-4", "flex", "gap-2");
             }
 
-            // Update styling for the filter input
             var filterDiv = document.getElementById("contractor_table_filter");
             if (filterDiv) {
                 filterDiv.style.float = "right";
                 filterDiv.classList.remove('dataTables_filter');
-
                 var inputElement = filterDiv.querySelector("label input");
                 if (inputElement) {
-                    inputElement.classList.add("input", "border", "mt-2", "ml-2", "mr-1", "mb-5");
+                    inputElement.className = "input-elegant px-3";
+                    inputElement.placeholder = "Search contractors...";
                 }
             }
 
-            // Update styling for the info and paginate elements
             var infoDiv = document.getElementById("contractor_table_info");
             var paginateDiv = document.getElementById("contractor_table_paginate");
 
             if (infoDiv) {
                 infoDiv.style.float = "left";
-                infoDiv.classList.add("mt-5");
+                infoDiv.classList.add("mt-4", "text-sm", "text-gray-600");
             }
 
             if (paginateDiv) {
                 paginateDiv.style.float = "right";
-                paginateDiv.classList.add("mt-5");
+                paginateDiv.classList.add("mt-4");
             }
 
-            // Update styling for the "client_users_table_length" div and its select element
             var existingDiv = document.getElementById("contractor_table_length");
             if (existingDiv) {
                 existingDiv.classList.remove('dataTables_length');
-                existingDiv.classList.add('mt-2', 'mb-1');
-
+                existingDiv.classList.add('mb-4');
                 var existingSelect = existingDiv.querySelector('select');
                 if (existingSelect) {
-                    existingSelect.className = 'input sm:w-auto border';
+                    existingSelect.className = 'input-elegant px-3';
                 }
             }
 
@@ -498,7 +653,7 @@
                 // Place values to edit form fields in the modal
                 document.getElementById("contractorEditCompanyName").value = $(event.target).closest('tr').find('td:nth-child(' + '2' + ')').text();
                 document.getElementById("contractorEditPICName").value = $(event.target).closest('tr').find('td:nth-child(' + '3' + ')').text();
-                document.getElementById("contractorEditPhone").value = $(event.target).closest('tr').find('td:nth-child(' + '4' + ')').text();
+                document.getElementById("contractorEditPhone").value = $(event.target).closest('tr').find('td:nth-child(' + '4' + ')').text().trim();
 
                 // Grab row client id
                 contractorID = $(event.target).closest('tr').find('td:nth-child(5) a').attr('id').split('-')[1];
@@ -509,23 +664,24 @@
             });
         }
 
-        var filterClientCompany;
-
-        // When "filterClientButton" button is clicked, initiate filterClientCompany
-        function filterClientButton() {
-            filterClientCompany = document.getElementById("inputCompanyName").value;
-            initContractorDatatable(filterClientCompany);
-        };
-
-        // When page first loads, load tables
-        filterClientButton();
-
         // Store the ID of the last clicked modal when it's triggered
         (function() {
             $(document).on('click', "[data-toggle='modal']", function() {
                 lastClickedLink = $(this).attr('id');
             });
         })();
+
+        // Handle modal triggers
+        $(document).on('click', '[data-toggle="modal"]', function () {
+            const target = $(this).attr('data-target');
+            if (target) openAltEditorModal(target);
+        });
+
+        // Handle modal dismiss
+        $(document).on('click', '[data-dismiss="modal"]', function () {
+            const $modal = $(this).closest('.modal');
+            if ($modal.length) closeAltEditorModal('#' + $modal.attr('id'));
+        });
 
         // Delete Client Company
         function contractorDeleteButton() {
@@ -563,4 +719,4 @@
 </script>
 <?php $__env->stopSection(); ?>
 
-<?php echo $__env->make('layouts.main', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\Gjlang\kl_guide_tracker\resources\views\contractors\index.blade.php ENDPATH**/ ?>
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\Gjlang\kl_guide_tracker\resources\views\contractors\index.blade.php ENDPATH**/ ?>
