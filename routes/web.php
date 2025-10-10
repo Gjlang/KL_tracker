@@ -176,6 +176,9 @@ Route::prefix('masterfile')->middleware(['web', 'auth'])->name('masterfile.')->g
         ->middleware('permission:masterfile.show')
         ->name('matrix.show');
 
+    Route::get('/companies/{company}/clients', [MasterFileController::class, 'getClientsByCompany']);
+
+
     Route::get('/{id}/kltg-matrix', [MasterFileController::class, 'showKltgMatrix'])
         ->middleware('permission:masterfile.show')
         ->name('kltg.matrix');

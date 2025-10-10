@@ -26,9 +26,14 @@ class Client extends Model
         'updated_at'
     ];
 
-    public function company()
+    public function clientCompany()
     {
-        return $this->belongsToMany(ClientCompany::class);
+        return $this->belongsTo(ClientCompany::class, 'company_id', 'id');
+    }
+
+    public function masterFiles()
+    {
+        return $this->hasMany(MasterFile::class, 'client_id', 'id');
     }
 
 }

@@ -1,6 +1,15 @@
-<x-app-shell title="Master Proposal Confirmation">
+<?php if (isset($component)) { $__componentOriginal9144295cee351e372dbe9bffc4f13bc5 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal9144295cee351e372dbe9bffc4f13bc5 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.app-shell','data' => ['title' => 'Master Proposal Confirmation']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('app-shell'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['title' => 'Master Proposal Confirmation']); ?>
 
-@push('head')
+<?php $__env->startPush('head'); ?>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet">
@@ -166,7 +175,7 @@
             }
         }
     </style>
-@endpush
+<?php $__env->stopPush(); ?>
 
 <!-- Page Header -->
 <header class="mb-8">
@@ -175,81 +184,81 @@
         <div class="flex-1">
             <h1 class="font-serif text-3xl lg:text-4xl font-medium ink mb-2">Master Proposal Confirmation</h1>
             <p class="text-sm text-gray-600">
-                @if(isset($masterFiles) && $masterFiles->count() > 0)
-                    Showing {{ $masterFiles->count() }} records
-                @else
+                <?php if(isset($masterFiles) && $masterFiles->count() > 0): ?>
+                    Showing <?php echo e($masterFiles->count()); ?> records
+                <?php else: ?>
                     No records found
-                @endif
+                <?php endif; ?>
             </p>
         </div>
 
         <!-- Action Buttons -->
         <div class="flex flex-wrap gap-3">
             <!-- Add New - Primary -->
-            @can('masterfile.create')
-            <a href="{{ route('masterfile.create') }}" class="btn-primary inline-flex items-center px-5 py-2.5 rounded-full text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2">
+            <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('masterfile.create')): ?>
+            <a href="<?php echo e(route('masterfile.create')); ?>" class="btn-primary inline-flex items-center px-5 py-2.5 rounded-full text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                 </svg>
                 Add New
             </a>
-            @endcan
+            <?php endif; ?>
 
             <!-- Calendar View - Secondary -->
-            @can('dashboard.view')
-            <a href="{{ route('calendar.index') }}" class="btn-secondary inline-flex items-center px-4 py-2.5 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2">
+            <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('dashboard.view')): ?>
+            <a href="<?php echo e(route('calendar.index')); ?>" class="btn-secondary inline-flex items-center px-4 py-2.5 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                 </svg>
                 Calendar View
             </a>
-            @endcan
+            <?php endif; ?>
 
             <!-- Import Data - Ghost -->
-            @can('masterfile.import')
+            <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('masterfile.import')): ?>
             <button type="button" onclick="testImportModal()" class="btn-ghost inline-flex items-center px-4 py-2.5 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3"></path>
                 </svg>
                 Import Data
             </button>
-            @endcan
+            <?php endif; ?>
 
             <!-- Export All Data - Ghost -->
-            @can('export.run')
-            <a href="{{ route('masterfile.exportXlsx', request()->query()) }}" class="btn-ghost inline-flex items-center px-4 py-2.5 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2">
+            <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('export.run')): ?>
+            <a href="<?php echo e(route('masterfile.exportXlsx', request()->query())); ?>" class="btn-ghost inline-flex items-center px-4 py-2.5 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l2-2m0 0l2-2m-2 2H6"></path>
                 </svg>
                 Export All Data
             </a>
-            @endcan
+            <?php endif; ?>
 
             <!-- Information Booth -->
-            @can('information.booth.view')
-            <a href="{{ route('information.booth.index') }}" class="btn-secondary inline-flex items-center px-4 py-2.5 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2">
+            <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('information.booth.view')): ?>
+            <a href="<?php echo e(route('information.booth.index')); ?>" class="btn-secondary inline-flex items-center px-4 py-2.5 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
                 Information Hub
             </a>
-            @endcan
+            <?php endif; ?>
 
-            <a href="{{ route('report.summary', ['year'=>request('year', now()->year), 'month'=>request('month'), 'status'=>request('status')]) }}"
+            <a href="<?php echo e(route('report.summary', ['year'=>request('year', now()->year), 'month'=>request('month'), 'status'=>request('status')])); ?>"
                 class="inline-flex items-center px-3 py-2 rounded-lg text-white"
                 style="background:#22255b">
                 Print All (Summary)
             </a>
 
-            <a href="{{ route('calendar.coordinators.index') }}"
+            <a href="<?php echo e(route('calendar.coordinators.index')); ?>"
                 class="inline-flex items-center px-3 py-2 rounded-full text-white"
                 style="background:#22255b">
                 Coordinator Calendar
             </a>
 
             <!-- Logout - Destructive (Always visible) -->
-            <form method="POST" action="{{ route('logout') }}" class="inline">
-                @csrf
+            <form method="POST" action="<?php echo e(route('logout')); ?>" class="inline">
+                <?php echo csrf_field(); ?>
                 <button type="submit" class="btn-destructive inline-flex items-center px-4 py-2.5 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7"></path>
@@ -263,7 +272,7 @@
 
 <!-- Filters Card -->
 <div class="card p-6 mb-8">
-    <form method="GET" action="{{ route('dashboard') }}" class="space-y-6">
+    <form method="GET" action="<?php echo e(route('dashboard')); ?>" class="space-y-6">
         <!-- Filter Fields Grid -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <!-- Search -->
@@ -272,7 +281,7 @@
                 <input type="text"
                        name="search"
                        id="search"
-                       value="{{ request('search') }}"
+                       value="<?php echo e(request('search')); ?>"
                        placeholder="Company, product, status, client, month…"
                        class="w-full h-11 rounded-xl border-gray-300 focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm">
             </div>
@@ -282,9 +291,9 @@
                 <label class="small-caps text-gray-600 block mb-2">Status</label>
                 <select name="status" id="status" class="w-full h-11 rounded-xl border-gray-300 focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm">
                     <option value="">All Status</option>
-                    <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Completed</option>
-                    <option value="ongoing" {{ request('status') == 'ongoing' ? 'selected' : '' }}>Ongoing</option>
-                    <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
+                    <option value="completed" <?php echo e(request('status') == 'completed' ? 'selected' : ''); ?>>Completed</option>
+                    <option value="ongoing" <?php echo e(request('status') == 'ongoing' ? 'selected' : ''); ?>>Ongoing</option>
+                    <option value="pending" <?php echo e(request('status') == 'pending' ? 'selected' : ''); ?>>Pending</option>
                 </select>
             </div>
 
@@ -293,9 +302,9 @@
                 <label class="small-caps text-gray-600 block mb-2">Month</label>
                 <select name="month" id="month" class="w-full h-11 rounded-xl border-gray-300 focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm">
                     <option value="">All Months</option>
-                    @foreach(['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] as $m)
-                        <option value="{{ $m }}" {{ request('month') == $m ? 'selected' : '' }}>{{ $m }}</option>
-                    @endforeach
+                    <?php $__currentLoopData = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $m): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <option value="<?php echo e($m); ?>" <?php echo e(request('month') == $m ? 'selected' : ''); ?>><?php echo e($m); ?></option>
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                 </select>
             </div>
 
@@ -304,9 +313,9 @@
                 <label class="small-caps text-gray-600 block mb-2">Category</label>
                 <select name="product_category" id="product_category" class="w-full h-11 rounded-xl border-gray-300 focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm">
                     <option value="">All Categories</option>
-                    <option value="Outdoor" {{ request('product_category') == 'Outdoor' ? 'selected' : '' }}>Outdoor</option>
-                    <option value="Media" {{ request('product_category') == 'Media' ? 'selected' : '' }}>Media</option>
-                    <option value="KLTG" {{ request('product_category') == 'KLTG' ? 'selected' : '' }}>KLTG</option>
+                    <option value="Outdoor" <?php echo e(request('product_category') == 'Outdoor' ? 'selected' : ''); ?>>Outdoor</option>
+                    <option value="Media" <?php echo e(request('product_category') == 'Media' ? 'selected' : ''); ?>>Media</option>
+                    <option value="KLTG" <?php echo e(request('product_category') == 'KLTG' ? 'selected' : ''); ?>>KLTG</option>
                 </select>
             </div>
         </div>
@@ -316,27 +325,27 @@
             <button type="submit" class="btn-primary flex-1 sm:flex-none px-8 py-2.5 rounded-xl text-sm font-medium">
                 Apply Filters
             </button>
-            @if(request('search') || request('status') || request('month') || request('product_category'))
-                <a href="{{ route('dashboard') }}" class="btn-ghost px-6 py-2.5 rounded-xl text-sm font-medium">
+            <?php if(request('search') || request('status') || request('month') || request('product_category')): ?>
+                <a href="<?php echo e(route('dashboard')); ?>" class="btn-ghost px-6 py-2.5 rounded-xl text-sm font-medium">
                     Clear Filters
                 </a>
-            @endif
+            <?php endif; ?>
         </div>
 
         <!-- Active Filter Chips -->
-        @if(request('search') || request('status') || request('month') || request('product_category'))
+        <?php if(request('search') || request('status') || request('month') || request('product_category')): ?>
             <div class="flex flex-wrap gap-2">
-                @if(request('search'))<span class="filter-chip">SEARCH: "{{ request('search') }}"</span>@endif
-                @if(request('status'))<span class="filter-chip">STATUS: {{ strtoupper(request('status')) }}</span>@endif
-                @if(request('month'))<span class="filter-chip">MONTH: {{ strtoupper(request('month')) }}</span>@endif
-                @if(request('product_category'))<span class="filter-chip">CATEGORY: {{ strtoupper(request('product_category')) }}</span>@endif
+                <?php if(request('search')): ?><span class="filter-chip">SEARCH: "<?php echo e(request('search')); ?>"</span><?php endif; ?>
+                <?php if(request('status')): ?><span class="filter-chip">STATUS: <?php echo e(strtoupper(request('status'))); ?></span><?php endif; ?>
+                <?php if(request('month')): ?><span class="filter-chip">MONTH: <?php echo e(strtoupper(request('month'))); ?></span><?php endif; ?>
+                <?php if(request('product_category')): ?><span class="filter-chip">CATEGORY: <?php echo e(strtoupper(request('product_category'))); ?></span><?php endif; ?>
             </div>
-        @endif
+        <?php endif; ?>
     </form>
 </div>
 
 <!-- Tab Navigation -->
-@include('dashboard.master._tabs', ['active' => $active ?? ''])
+<?php echo $__env->make('dashboard.master._tabs', ['active' => $active ?? ''], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
 
 <!-- Data Table -->
 <div class="card overflow-hidden mb-8">
@@ -368,44 +377,45 @@
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-100">
-                    @if(isset($masterFiles) && $masterFiles->count() > 0)
-                        @foreach($masterFiles as $file)
-                            <tr class="table-row {{ $loop->iteration % 2 === 0 ? 'bg-white' : 'bg-gray-50' }}">
-                                <td class="px-6 py-4 text-sm ink">{{ $file->created_at ? $file->created_at->format('M d, Y') : '-' }}</td>
-                                <td class="px-6 py-4 text-sm ink">{{ $file->sales_person ?? '-' }}</td>
+                    <?php if(isset($masterFiles) && $masterFiles->count() > 0): ?>
+                        <?php $__currentLoopData = $masterFiles; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $file): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                            <tr class="table-row <?php echo e($loop->iteration % 2 === 0 ? 'bg-white' : 'bg-gray-50'); ?>">
+                                <td class="px-6 py-4 text-sm ink"><?php echo e($file->created_at ? $file->created_at->format('M d, Y') : '-'); ?></td>
+                                <td class="px-6 py-4 text-sm ink"><?php echo e($file->sales_person ?? '-'); ?></td>
                                 <td class="px-6 py-4 text-sm">
-                                    @can('masterfile.show')
-                                    <a href="{{ route('masterfile.show', $file->id) }}" class="ink hover:text-blue-600 font-medium">
-                                        <div class="max-w-[200px] truncate" title="{{ $file->clientCompany->name ?? 'No Company' }}">{{ $file->clientCompany->name ?? 'No Company' }}</div>
+                                    <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('masterfile.show')): ?>
+                                    <a href="<?php echo e(route('masterfile.show', $file->id)); ?>" class="ink hover:text-blue-600 font-medium">
+                                        <div class="max-w-[200px] truncate" title="<?php echo e($file->clientCompany->name ?? 'No Company'); ?>"><?php echo e($file->clientCompany->name ?? 'No Company'); ?></div>
                                     </a>
-                                    @else
-                                    <div class="max-w-[200px] truncate" title="{{ $file->clientCompany->name ?? 'No Company' }}">{{ $file->clientCompany->name ?? 'No Company' }}</div>
-                                    @endcan   
+                                    <?php else: ?>
+                                    <div class="max-w-[200px] truncate" title="<?php echo e($file->clientCompany->name ?? 'No Company'); ?>"><?php echo e($file->clientCompany->name ?? 'No Company'); ?></div>
+                                    <?php endif; ?>   
                                 </td>
-                                <td class="px-6 py-4 text-sm ink">{{ $file->client->name ?? '-' }}</td>
-                                <td class="px-6 py-4 text-sm text-gray-600">{{ $file->email ?? '-' }}</td>
-                                <td class="px-6 py-4 text-sm ink text-right tabular-nums font-medium">{{ $file->amount ?? '-' }}</td>
-                                <td class="px-6 py-4 text-sm ink">{{ $file->contact_number ?? '-' }}</td>
-                                <td class="px-6 py-4 text-sm ink">{{ $file->product ?? '-' }}</td>
-                                <td class="px-6 py-4 text-sm ink">{{ $file->month ?? '-' }}</td>
-                                <td class="px-6 py-4 text-sm ink">{{ $file->date ? \Carbon\Carbon::parse($file->date)->format('d/m/Y') : '-' }}</td>
-                                <td class="px-6 py-4 text-sm ink">{{ $file->date_finish ? \Carbon\Carbon::parse($file->date_finish)->format('d/m/Y') : '-' }}</td>
-                                <td class="px-6 py-4 text-sm ink">{{ $file->duration ?? '-' }}</td>
+                                <td class="px-6 py-4 text-sm ink"><?php echo e($file->client->name ?? '-'); ?></td>
+                                <td class="px-6 py-4 text-sm text-gray-600"><?php echo e($file->email ?? '-'); ?></td>
+                                <td class="px-6 py-4 text-sm ink text-right tabular-nums font-medium"><?php echo e($file->amount ?? '-'); ?></td>
+                                <td class="px-6 py-4 text-sm ink"><?php echo e($file->contact_number ?? '-'); ?></td>
+                                <td class="px-6 py-4 text-sm ink"><?php echo e($file->product ?? '-'); ?></td>
+                                <td class="px-6 py-4 text-sm ink"><?php echo e($file->month ?? '-'); ?></td>
+                                <td class="px-6 py-4 text-sm ink"><?php echo e($file->date ? \Carbon\Carbon::parse($file->date)->format('d/m/Y') : '-'); ?></td>
+                                <td class="px-6 py-4 text-sm ink"><?php echo e($file->date_finish ? \Carbon\Carbon::parse($file->date_finish)->format('d/m/Y') : '-'); ?></td>
+                                <td class="px-6 py-4 text-sm ink"><?php echo e($file->duration ?? '-'); ?></td>
                                 <td class="px-6 py-4 text-sm">
                                     <span class="inline-flex px-3 py-1 text-xs font-semibold rounded-full
-                                      {{ $file->status === 'completed' ? 'bg-green-100 text-green-800' : ($file->status === 'ongoing' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800') }}">
-                                      {{ ucfirst($file->status ?? 'pending') }}
+                                      <?php echo e($file->status === 'completed' ? 'bg-green-100 text-green-800' : ($file->status === 'ongoing' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800')); ?>">
+                                      <?php echo e(ucfirst($file->status ?? 'pending')); ?>
+
                                     </span>
                                 </td>
-                                <td class="px-6 py-4 text-sm ink">{{ $file->job_number ?? '-' }}</td>
-                                <td class="px-6 py-4 text-sm ink">{{ $file->artwork ?? '-' }}</td>
-                                <td class="px-6 py-4 text-sm ink">{{ $file->traffic ?? '-' }}</td>
-                                <td class="px-6 py-4 text-sm ink">{{ $file->invoice_date ?? '-' }}</td>
-                                <td class="px-6 py-4 text-sm ink">{{ $file->invoice_number ?? '-' }}</td>
-                                <td class="px-6 py-4 text-sm ink">{{ $file->remarks ?? '-' }}</td>
+                                <td class="px-6 py-4 text-sm ink"><?php echo e($file->job_number ?? '-'); ?></td>
+                                <td class="px-6 py-4 text-sm ink"><?php echo e($file->artwork ?? '-'); ?></td>
+                                <td class="px-6 py-4 text-sm ink"><?php echo e($file->traffic ?? '-'); ?></td>
+                                <td class="px-6 py-4 text-sm ink"><?php echo e($file->invoice_date ?? '-'); ?></td>
+                                <td class="px-6 py-4 text-sm ink"><?php echo e($file->invoice_number ?? '-'); ?></td>
+                                <td class="px-6 py-4 text-sm ink"><?php echo e($file->remarks ?? '-'); ?></td>
                             </tr>
-                        @endforeach
-                    @else
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                    <?php else: ?>
                         <tr>
                             <td colspan="19" class="px-6 py-16 text-center text-gray-500">
                                 <div class="flex flex-col items-center">
@@ -414,15 +424,15 @@
                                     </svg>
                                     <h3 class="font-serif text-lg font-medium ink mb-2">No records found</h3>
                                     <p class="text-gray-600 mb-4">Get started by adding your first record.</p>
-                                    @can('masterfile.create')
-                                    <a href="{{ route('masterfile.create') }}" class="btn-primary px-4 py-2 rounded-xl text-sm">
+                                    <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('masterfile.create')): ?>
+                                    <a href="<?php echo e(route('masterfile.create')); ?>" class="btn-primary px-4 py-2 rounded-xl text-sm">
                                         Add New Record
                                     </a>
-                                    @endcan
+                                    <?php endif; ?>
                                 </div>
                             </td>
                         </tr>
-                    @endif
+                    <?php endif; ?>
                 </tbody>
             </table>
         </div>
@@ -435,14 +445,15 @@
 </div>
 
 <!-- Pagination -->
-@if(isset($masterFiles) && method_exists($masterFiles, 'links'))
+<?php if(isset($masterFiles) && method_exists($masterFiles, 'links')): ?>
     <div class="mb-8">
-        {{ $masterFiles->links() }}
+        <?php echo e($masterFiles->links()); ?>
+
     </div>
-@endif
+<?php endif; ?>
 
 <!-- Import Modal -->
-@can('masterfile.import')
+<?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('masterfile.import')): ?>
 <div id="importModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-25 flex items-center justify-center p-4">
     <div class="card max-w-lg w-full p-8 max-h-screen overflow-y-auto">
         <div class="flex justify-between items-start mb-6">
@@ -458,7 +469,7 @@
         </div>
 
         <!-- Display any validation errors -->
-        @if ($errors->any())
+        <?php if($errors->any()): ?>
             <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
                 <div class="flex">
                     <svg class="w-5 h-5 text-red-400 mr-3 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
@@ -467,17 +478,17 @@
                     <div class="text-sm text-red-800">
                         <h4 class="font-semibold mb-2">Import Error:</h4>
                         <ul class="list-disc list-inside space-y-1">
-                            @foreach ($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
+                            <?php $__currentLoopData = $errors->all(); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $error): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                <li><?php echo e($error); ?></li>
+                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                         </ul>
                     </div>
                 </div>
             </div>
-        @endif
+        <?php endif; ?>
 
-        <form action="{{ route('masterfile.import') }}" method="POST" enctype="multipart/form-data" class="space-y-6" id="importForm">
-            @csrf
+        <form action="<?php echo e(route('masterfile.import')); ?>" method="POST" enctype="multipart/form-data" class="space-y-6" id="importForm">
+            <?php echo csrf_field(); ?>
             <!-- File Upload Area -->
             <div>
                 <label class="small-caps text-gray-600 block mb-3">Choose File</label>
@@ -510,9 +521,9 @@
         </form>
     </div>
 </div>
-@endcan
+<?php endif; ?>
 
-@push('scripts')
+<?php $__env->startPush('scripts'); ?>
 <script>
     // Import modal functions
     function testImportModal() {
@@ -661,6 +672,16 @@
 
     console.log("✅ Dashboard loaded successfully!");
 </script>
-@endpush
+<?php $__env->stopPush(); ?>
 
-</x-app-shell>
+ <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal9144295cee351e372dbe9bffc4f13bc5)): ?>
+<?php $attributes = $__attributesOriginal9144295cee351e372dbe9bffc4f13bc5; ?>
+<?php unset($__attributesOriginal9144295cee351e372dbe9bffc4f13bc5); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal9144295cee351e372dbe9bffc4f13bc5)): ?>
+<?php $component = $__componentOriginal9144295cee351e372dbe9bffc4f13bc5; ?>
+<?php unset($__componentOriginal9144295cee351e372dbe9bffc4f13bc5); ?>
+<?php endif; ?>
+<?php /**PATH D:\Projects\Laravel\KL_tracker\resources\views/dashboard.blade.php ENDPATH**/ ?>

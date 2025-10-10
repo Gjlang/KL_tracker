@@ -133,7 +133,7 @@
                     <!-- Center: Entity Title & Meta -->
                     <div class="text-center">
                         <h1 class="text-2xl font-serif text-[#1C1E26] font-semibold">
-                            {{ $file->company ?: '' }}
+                            {{ $file->clientCompany->name ?: '' }}
                         </h1>
                         <p class="text-sm text-neutral-500 mt-1">
                             ID: #{{ $file->id }} • Created: {{ $file->created_at ? $file->created_at->format('M d, Y') : '' }}

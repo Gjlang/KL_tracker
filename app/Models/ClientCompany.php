@@ -30,4 +30,9 @@ class ClientCompany extends Model
         return $this->hasMany(Client::class, 'company_id', 'id');
     }
 
+    public function masterFiles()
+    {
+        return $this->hasMany(MasterFile::class, 'company_id', 'id');
+    }
+
 }
