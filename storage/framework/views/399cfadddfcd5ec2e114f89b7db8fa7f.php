@@ -81,6 +81,7 @@
         <?php echo $__env->yieldContent('content'); ?>
       </div>
     </main>
+    <?php echo $__env->yieldContent('modal_content'); ?>
 
     <?php echo $__env->yieldPushContent('modals'); ?>
 
@@ -144,18 +145,84 @@
   }
 
   // Legacy modal helpers
-  function openModal(id){
-    document.getElementById(id)?.classList.remove('hidden');
+  window.openModal = function(id){
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove('hidden');
+    el.classList.add('show');
+    el.style.display = 'flex';     // match .modal.show { display:flex }
     document.body.classList.add('overflow-hidden');
   }
-  function closeModal(id){
-    document.getElementById(id)?.classList.add('hidden');
+
+  window.closeModal = function(id){
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add('hidden');
+    el.classList.remove('show');
+    el.style.display = 'none';
     document.body.classList.remove('overflow-hidden');
   }
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-      document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
-      document.body.classList.remove('overflow-hidden');
+
+  // Global Toast Notification Function
+  window.showSubmitToast = function(message, color) {
+    // Create container if missing
+    let container = document.getElementById('toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'toast-container';
+      container.className = 'fixed top-4 right-4 z-[10000] space-y-2';
+      container.style.cssText = 'pointer-events: none;';
+      document.body.appendChild(container);
+    }
+
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = 'rounded-xl shadow-lg px-6 py-4 text-sm font-medium text-white transition-all duration-300 transform translate-x-0 opacity-100';
+    toast.style.cssText = `background-color: ${color || '#91C714'}; pointer-events: auto; min-width: 250px;`;
+    toast.textContent = message || 'Action completed';
+
+    // Add to container
+    container.appendChild(toast);
+
+    // Animate in
+    setTimeout(() => {
+      toast.style.transform = 'translateX(0)';
+      toast.style.opacity = '1';
+    }, 10);
+
+    // Remove after delay
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateX(20px)';
+      setTimeout(() => {
+        toast.remove();
+        // Remove container if empty
+        if (container.children.length === 0) {
+          container.remove();
+        }
+      }, 300);
+    }, 3000);
+  };
+
+  // Allow [data-toggle="modal"] to work (Bootstrap-like)
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-toggle="modal"]');
+    if (!t) return;
+    e.preventDefault();
+    const targetSel = t.getAttribute('data-target');
+    if (!targetSel) return;
+    const id = targetSel.startsWith('#') ? targetSel.slice(1) : targetSel;
+    openModal(id);
+  });
+
+  // Allow [data-dismiss="modal"] to work
+  document.addEventListener('click', (e) => {
+    const dismissBtn = e.target.closest('[data-dismiss="modal"]');
+    if (!dismissBtn) return;
+    e.preventDefault();
+    const modal = dismissBtn.closest('.modal');
+    if (modal) {
+      closeModal(modal.id);
     }
   });
 </script>

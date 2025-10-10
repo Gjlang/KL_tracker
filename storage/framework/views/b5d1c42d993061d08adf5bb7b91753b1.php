@@ -1,7 +1,7 @@
 <?php $__env->startSection('head'); ?>
 <title>BGOC Outdoor System - Contractors</title>
 <style>
-    /* Custom styles for classic elegant design */
+    /* Typography */
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600&display=swap');
 
     body {
@@ -13,6 +13,7 @@
         font-family: 'Playfair Display', serif;
     }
 
+    /* Color System */
     .ink {
         color: #1C1E26;
     }
@@ -21,14 +22,24 @@
         border-color: #EAEAEA;
     }
 
+    /* Typography Utilities */
     .tabular-nums {
         font-variant-numeric: tabular-nums;
     }
 
+    .header-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #6B7280;
+        font-weight: 600;
+    }
+
+    /* Button System */
     .btn-primary {
         background-color: #22255b;
         color: white;
-        transition: opacity 150ms ease;
+        transition: all 150ms ease;
     }
 
     .btn-primary:hover {
@@ -49,13 +60,25 @@
     .btn-destructive {
         background-color: #d33831;
         color: white;
-        transition: opacity 150ms ease;
+        transition: all 150ms ease;
     }
 
     .btn-destructive:hover {
         opacity: 0.9;
     }
 
+    .btn-ghost {
+        border: 1px solid #D1D5DB;
+        color: #4B5563;
+        background: transparent;
+        transition: all 150ms ease;
+    }
+
+    .btn-ghost:hover {
+        background-color: #F9FAFB;
+    }
+
+    /* Card System */
     .card-elegant {
         background: white;
         border-radius: 1rem;
@@ -63,6 +86,14 @@
         box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
     }
 
+    .card-floating {
+        background: white;
+        border-radius: 1.5rem;
+        border: 1px solid rgba(234, 234, 234, 0.7);
+        box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.04);
+    }
+
+    /* Filter Chips */
     .filter-chip {
         display: inline-flex;
         align-items: center;
@@ -76,14 +107,21 @@
         margin-bottom: 0.5rem;
     }
 
-    .table-header-label {
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: #6B7280;
-        font-weight: 600;
+    /* Input System */
+    .input-elegant {
+        height: 2.75rem;
+        border-radius: 0.75rem;
+        border: 1px solid #D1D5DB;
+        transition: all 150ms ease;
     }
 
+    .input-elegant:focus {
+        outline: none;
+        border-color: transparent;
+        box-shadow: 0 0 0 2px #4bbbed;
+    }
+
+    /* Table Ledger Style */
     .ledger-row {
         border-bottom: 1px solid #EAEAEA;
         transition: all 200ms ease;
@@ -95,6 +133,7 @@
         transform: translateY(-1px);
     }
 
+    /* Quick Navigation Cards */
     .quick-nav-card {
         background: white;
         border: 1px solid #EAEAEA;
@@ -103,6 +142,7 @@
         transition: all 200ms ease;
         position: relative;
         overflow: hidden;
+        cursor: pointer;
     }
 
     .quick-nav-card::before {
@@ -126,125 +166,227 @@
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     }
 
-    .input-elegant {
-        height: 2.75rem;
-        border-radius: 0.75rem;
-        border: 1px solid #D1D5DB;
-        transition: all 150ms ease;
-    }
-
-    .input-elegant:focus {
-        outline: none;
-        border-color: transparent;
-        box-shadow: 0 0 0 2px #4bbbed;
-    }
-
+    /* Empty State */
     .empty-state {
         text-align: center;
         padding: 4rem 2rem;
         color: #6B7280;
     }
+
+    /* Modal System */
+    .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+
+    .modal.show {
+        display: flex !important;
+    }
+
+    .modal__content {
+        background: white;
+        border-radius: 1rem;
+        max-width: 500px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+
+    /* DataTables Custom Styling */
+    .dataTables_wrapper {
+        color: #1C1E26;
+    }
+
+    .dataTables_info {
+        font-size: 0.875rem;
+        color: #6B7280;
+    }
+
+    .dataTables_paginate {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .dataTables_paginate .paginate_button {
+        padding: 0.5rem 0.75rem !important;
+        margin: 0 !important;
+        border-radius: 0.5rem !important;
+        border: 1px solid transparent !important;
+        transition: all 150ms ease !important;
+        background: transparent !important;
+        color: #6B7280 !important;
+        min-width: 2.5rem;
+        text-align: center;
+        display: inline-block;
+    }
+
+    .dataTables_paginate .paginate_button:hover {
+        background: #F3F4F6 !important;
+        border-color: #D1D5DB !important;
+        color: #1C1E26 !important;
+    }
+
+    .dataTables_paginate .paginate_button.current {
+        background: #22255b !important;
+        color: white !important;
+        border-color: #22255b !important;
+    }
+
+    .dataTables_paginate .paginate_button.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    .dataTables_wrapper .dataTables_length,
+    .dataTables_wrapper .dataTables_filter,
+    .dataTables_wrapper .dataTables_info,
+    .dataTables_wrapper .dataTables_paginate {
+        margin-top: 1rem;
+    }
+
+    .dataTables_wrapper .dataTables_length {
+        float: left;
+    }
+
+    .dataTables_wrapper .dataTables_filter {
+        float: right;
+    }
+
+    .dataTables_wrapper .dataTables_info {
+        clear: both;
+        float: left;
+        padding-top: 0.75rem;
+    }
+
+    .dataTables_wrapper .dataTables_paginate {
+        float: right;
+        padding-top: 0.75rem;
+    }
+
+    /* Truncate long text with tooltip */
+    .truncate-cell {
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
 </style>
 <?php $__env->stopSection(); ?>
 
 <?php $__env->startSection('content'); ?>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-<!-- Top Bar -->
-<div class="ink py-6">
-    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <!-- Left: Title -->
-        <div>
-            <h1 class="font-serif text-3xl font-bold ink">Contractors</h1>
-            <p class="text-sm text-gray-500 mt-1" id="recordsSubtitle">Managing contractor relationships</p>
+    <!-- Top Bar -->
+    <div class="mb-8">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <!-- Left: Title -->
+            <div>
+                <h1 class="font-serif text-4xl font-bold ink">Contractors</h1>
+                <p class="text-sm text-gray-500 mt-1" id="recordsSubtitle">Managing contractor relationships</p>
+            </div>
+
+            <!-- Right: Actions -->
+            <div class="flex flex-wrap items-center gap-2">
+                <a id="openAddContractor" href="javascript:;" data-toggle="modal" data-target="#contractorAddModal"
+                   class="btn-primary inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm focus:ring-2 focus:ring-[#4bbbed] focus:outline-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Add New Contractor
+                </a>
+            </div>
         </div>
 
-        <!-- Right: Actions -->
-        <div class="flex flex-wrap items-center gap-2">
-            <a id="openAddContractor" href="javascript:;" data-toggle="modal" data-target="#contractorAddModal"
-               class="btn-primary inline-flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm focus:ring-2 focus:ring-[#4bbbed] focus:outline-none">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                Add New Contractor
-            </a>
+        <!-- Active Filters Chips -->
+        <div id="activeFiltersChips" class="mt-4 hidden">
+            <div class="text-xs text-gray-500 mb-2">Active Filters:</div>
+            <div id="filterChipsContainer"></div>
         </div>
     </div>
-</div>
 
-<!-- Filter Panel -->
-<div class="card-elegant p-6 mb-6">
-    <form class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <!-- Company Filter -->
-        <div>
-            <label class="table-header-label block mb-2">Company</label>
-            <select class="input-elegant w-full px-3" id="inputCompanyName">
-                <option selected value="">All Companies</option>
-                <?php $__currentLoopData = $clientcompany; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $clientcomp): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                    <option value="<?php echo e($clientcomp->id); ?>"><?php echo e($clientcomp->name); ?></option>
-                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-            </select>
-        </div>
+    <!-- Filter Panel -->
+    <div class="card-floating p-6 mb-6">
+        <form class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Company Filter -->
+            <div>
+                <label class="header-label block mb-2">Company</label>
+                <select class="input-elegant w-full px-3" id="inputCompanyName">
+                    <option selected value="">All Companies</option>
+                    <?php $__currentLoopData = $clientcompany; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $clientcomp): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <option value="<?php echo e($clientcomp->id); ?>"><?php echo e($clientcomp->name); ?></option>
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                </select>
+            </div>
 
-        <!-- Apply Button -->
-        <div class="sm:col-span-2 lg:col-span-4 flex justify-end">
-            <button type="button" class="btn-primary px-6 py-2 rounded-full font-medium text-sm focus:ring-2 focus:ring-[#4bbbed] focus:outline-none" id="filterClientButton">
-                Apply Filters
-            </button>
-        </div>
-    </form>
-
-    <!-- Active Filters Chips -->
-    <div id="activeFiltersChips" class="mt-4 hidden">
-        <div class="text-xs text-gray-500 mb-2">Active Filters:</div>
-        <div id="filterChipsContainer"></div>
+            <!-- Apply Button -->
+            <div class="sm:col-span-2 lg:col-span-4 flex justify-end">
+                <button type="button" class="btn-primary px-6 py-2.5 rounded-full font-medium text-sm focus:ring-2 focus:ring-[#4bbbed] focus:outline-none" id="filterClientButton">
+                    Apply Filters
+                </button>
+            </div>
+        </form>
     </div>
-</div>
 
-<!-- Data Table -->
-<div class="card-elegant p-6">
-    <div class="overflow-x-auto">
-        <table class="table w-full" id="contractor_table">
-            <thead>
-                <tr class="border-b-2 hairline">
-                    <th class="table-header-label text-left py-3 px-4" width="5%">No.</th>
-                    <th class="table-header-label text-left py-3 px-4">Company Name</th>
-                    <th class="table-header-label text-left py-3 px-4">PIC Name</th>
-                    <th class="table-header-label text-left py-3 px-4">Phone No.</th>
-                    <th class="table-header-label text-center py-3 px-4" width="10%">Action</th>
-                </tr>
-            </thead>
-            <tbody>
-            </tbody>
-        </table>
+    <!-- Data Table -->
+    <div class="card-elegant p-6 mb-8">
+        <div class="overflow-x-auto">
+            <table class="table w-full" id="contractor_table">
+                <thead>
+                    <tr class="border-b-2 hairline">
+                        <th class="header-label text-left py-4 px-4" width="5%">No.</th>
+                        <th class="header-label text-left py-4 px-4">Company Name</th>
+                        <th class="header-label text-left py-4 px-4">PIC Name</th>
+                        <th class="header-label text-left py-4 px-4">Phone No.</th>
+                        <th class="header-label text-center py-4 px-4" width="10%">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
     </div>
+
+
+
 </div>
 
 <!-- BEGIN: Contractor Add Modal -->
 <div class="modal hidden" id="contractorAddModal">
     <div class="modal__content">
-        <div class="flex items-center px-6 py-4 border-b hairline">
-            <h2 class="font-serif text-xl font-semibold ink">Add Contractor</h2>
+        <div class="flex items-center px-6 py-5 border-b hairline">
+            <h2 class="font-serif text-2xl font-semibold ink">Add Contractor</h2>
         </div>
         <form>
         <?php echo csrf_field(); ?>
-        <div class="p-6 space-y-4">
+        <div class="p-6 space-y-5">
             <div>
-                <label class="table-header-label block mb-2">Company</label>
+                <label class="header-label block mb-2">Company</label>
                 <input type="text" placeholder="Enter a Company Name" class="input-elegant w-full px-3" id="contractorAddCompanyName" required>
             </div>
             <div>
-                <label class="table-header-label block mb-2">Contractor PIC Name</label>
+                <label class="header-label block mb-2">Contractor PIC Name</label>
                 <input type="text" placeholder="Enter a PIC Name" class="input-elegant w-full px-3" id="contractorAddPICName" required>
             </div>
             <div>
-                <label class="table-header-label block mb-2">Phone No.</label>
+                <label class="header-label block mb-2">Phone No.</label>
                 <input type="text" title="Please enter Phone number in correct format" placeholder="Enter a Phone Number" class="input-elegant w-full px-3" id="contractorAddPhone" required>
             </div>
         </div>
-        <div class="px-6 py-4 flex justify-end gap-2 border-t hairline">
-            <button type="button" data-dismiss="modal" class="btn-secondary px-6 py-2 rounded-full font-medium text-sm">Cancel</button>
-            <button type="submit" class="btn-primary px-6 py-2 rounded-full font-medium text-sm focus:ring-2 focus:ring-[#4bbbed] focus:outline-none" id="contractorAddButton">Save</button>
+        <div class="px-6 py-4 flex justify-end gap-3 border-t hairline">
+            <button type="button" data-dismiss="modal" class="btn-secondary px-6 py-2.5 rounded-full font-medium text-sm">Cancel</button>
+            <button type="submit" class="btn-primary px-6 py-2.5 rounded-full font-medium text-sm focus:ring-2 focus:ring-[#4bbbed] focus:outline-none" id="contractorAddButton">Save</button>
         </div>
         </form>
     </div>
@@ -254,27 +396,27 @@
 <!-- BEGIN: Contractor Edit Modal -->
 <div class="modal hidden" id="contractorEditModal">
     <div class="modal__content">
-        <div class="flex items-center px-6 py-4 border-b hairline">
-            <h2 class="font-serif text-xl font-semibold ink">Edit Contractor</h2>
+        <div class="flex items-center px-6 py-5 border-b hairline">
+            <h2 class="font-serif text-2xl font-semibold ink">Edit Contractor</h2>
         </div>
         <form>
-            <div class="p-6 space-y-4">
+            <div class="p-6 space-y-5">
                 <div>
-                    <label class="table-header-label block mb-2">Company Name</label>
+                    <label class="header-label block mb-2">Company Name</label>
                     <input type="text" class="input-elegant w-full px-3" placeholder="Company Name" id="contractorEditCompanyName" required>
                 </div>
                 <div>
-                    <label class="table-header-label block mb-2">Contractor PIC Name</label>
+                    <label class="header-label block mb-2">Contractor PIC Name</label>
                     <input type="text" class="input-elegant w-full px-3" placeholder="Contractor PIC Name" id="contractorEditPICName" required>
                 </div>
                 <div>
-                    <label class="table-header-label block mb-2">Phone No.</label>
+                    <label class="header-label block mb-2">Phone No.</label>
                     <input type="text" class="input-elegant w-full px-3" placeholder="Phone No" id="contractorEditPhone" required>
                 </div>
             </div>
-            <div class="px-6 py-4 flex justify-end gap-2 border-t hairline">
-                <button type="button" data-dismiss="modal" class="btn-secondary px-6 py-2 rounded-full font-medium text-sm">Cancel</button>
-                <button type="submit" class="btn-primary px-6 py-2 rounded-full font-medium text-sm focus:ring-2 focus:ring-[#4bbbed] focus:outline-none" id="contractorEditButton">Update</button>
+            <div class="px-6 py-4 flex justify-end gap-3 border-t hairline">
+                <button type="button" data-dismiss="modal" class="btn-secondary px-6 py-2.5 rounded-full font-medium text-sm">Cancel</button>
+                <button type="submit" class="btn-primary px-6 py-2.5 rounded-full font-medium text-sm focus:ring-2 focus:ring-[#4bbbed] focus:outline-none" id="contractorEditButton">Update</button>
             </div>
         </form>
     </div>
@@ -294,8 +436,8 @@
             <p class="text-gray-600">Confirm deleting the contractor? This process cannot be undone.</p>
         </div>
         <div class="px-6 pb-6 flex justify-center gap-3">
-            <button type="button" data-dismiss="modal" class="btn-secondary px-6 py-2 rounded-full font-medium text-sm">Cancel</button>
-            <button type="button" class="btn-destructive px-6 py-2 rounded-full font-medium text-sm focus:ring-2 focus:ring-red-300 focus:outline-none" id="contractorDeleteButton">Delete</button>
+            <button type="button" data-dismiss="modal" class="btn-secondary px-6 py-2.5 rounded-full font-medium text-sm">Cancel</button>
+            <button type="button" class="btn-destructive px-6 py-2.5 rounded-full font-medium text-sm focus:ring-2 focus:ring-red-300 focus:outline-none" id="contractorDeleteButton">Delete</button>
         </div>
     </div>
 </div>
@@ -312,6 +454,29 @@
         var contractorID;
         var lastClickedLink;
 
+        // Define modal functions if they don't exist in layout
+        if (typeof openModal === 'undefined') {
+            window.openModal = function(id) {
+                const modal = document.getElementById(id);
+                if (modal) {
+                    modal.classList.remove('hidden');
+                    modal.classList.add('show');
+                    modal.style.display = 'flex';
+                }
+            };
+        }
+
+        if (typeof closeModal === 'undefined') {
+            window.closeModal = function(id) {
+                const modal = document.getElementById(id);
+                if (modal) {
+                    modal.classList.add('hidden');
+                    modal.classList.remove('show');
+                    modal.style.display = 'none';
+                }
+            };
+        }
+
         // Modal helper functions
         function openAltEditorModal(selector) {
             const id = selector.startsWith('#') ? selector.slice(1) : selector;
@@ -323,7 +488,7 @@
             closeModal(id);
         }
 
-        // Listen to below buttons with safety guards
+        // Listen to buttons with safety guards
         const filterBtn = document.getElementById("filterClientButton");
         if (filterBtn) filterBtn.addEventListener("click", filterClientButton);
 
@@ -393,7 +558,7 @@
             }
         })();
 
-        // Add New Client
+        // Add New Contractor
         function contractorAddButton() {
             $.ajax({
                 type: 'POST',
@@ -405,33 +570,23 @@
                     phone: document.getElementById("contractorAddPhone").value,
                 },
                 success: function(response) {
-                    // Close modal after successfully edited
                     var element = "#contractorAddModal";
                     closeAltEditorModal(element);
-
-                    // Show successful toast
                     window.showSubmitToast("Successfully added.", "#91C714");
-
-                    // Clean fields
                     document.getElementById("contractorAddCompanyName").value = "";
                     document.getElementById("contractorAddPICName").value = "";
                     document.getElementById("contractorAddPhone").value = "";
-
-                    // Reload table
                     $('#contractor_table').DataTable().ajax.reload();
                 },
                 error: function(xhr, status, error) {
-                    // Display the validation error message
                     var response = JSON.parse(xhr.responseText);
                     var error = "Error: " + response.error;
-
-                    // Show fail toast
                     window.showSubmitToast(error, "#D32929");
                 }
             });
         }
 
-        // Edit Client
+        // Edit Contractor
         function editContractor() {
             var company = document.getElementById("contractorEditCompanyName").value;
             var name = document.getElementById("contractorEditPICName").value;
@@ -448,27 +603,17 @@
                     id: contractorID,
                 },
                 success: function(response) {
-                    // Close modal after successfully edited
                     var element = "#contractorEditModal";
                     closeAltEditorModal(element);
-
-                    // Show successful toast
                     window.showSubmitToast("Successfully updated.", "#91C714");
-
-                    // Clean fields
                     document.getElementById("contractorEditCompanyName").value = "";
                     document.getElementById("contractorEditPICName").value = "";
                     document.getElementById("contractorEditPhone").value = "";
-
-                    // Reload table
                     $('#contractor_table').DataTable().ajax.reload();
                 },
                 error: function(xhr, status, error) {
-                    // Display the validation error message
                     var response = JSON.parse(xhr.responseText);
                     var error = "Error: " + response.error;
-
-                    // Show fail toast
                     window.showSubmitToast(error, "#D32929");
                 }
             });
@@ -507,7 +652,6 @@
                         json.recordsTotal = json.recordsTotal;
                         json.recordsFiltered = json.recordsFiltered;
 
-                        // Update subtitle with record count
                         const subtitle = document.getElementById('recordsSubtitle');
                         if (subtitle) {
                             subtitle.textContent = `Showing ${json.recordsFiltered} of ${json.recordsTotal} records`;
@@ -520,7 +664,7 @@
                 buttons: [
                     {
                         extend: "csv",
-                        className: "btn-secondary px-4 py-2 rounded-full text-sm font-medium",
+                        className: "btn-ghost px-4 py-2 rounded-full text-sm font-medium",
                         title: $fileName,
                         exportOptions: {
                             columns: ":not(.dt-exclude-export)"
@@ -531,7 +675,7 @@
                     },
                     {
                         extend: "excel",
-                        className: "btn-secondary px-4 py-2 rounded-full text-sm font-medium",
+                        className: "btn-ghost px-4 py-2 rounded-full text-sm font-medium",
                         title: $fileName,
                         exportOptions: {
                             columns: ":not(.dt-exclude-export)"
@@ -542,7 +686,7 @@
                     },
                     {
                         extend: "print",
-                        className: "btn-secondary px-4 py-2 rounded-full text-sm font-medium",
+                        className: "btn-ghost px-4 py-2 rounded-full text-sm font-medium",
                         title: $fileName,
                         exportOptions: {
                             stripHtml: false,
@@ -564,6 +708,9 @@
                     },
                     {
                         data: "company_name",
+                        render: function(data) {
+                            return `<span class="truncate-cell" title="${data}">${data}</span>`;
+                        }
                     },
                     {
                         data: "name",
@@ -576,7 +723,7 @@
                     },
                     {
                         data: "id",
-                        className: "text-center",
+                        className: "text-center dt-exclude-export",
                         render: function(data, type, row) {
                             return `
                             <div class="flex items-center justify-center gap-3">
@@ -595,7 +742,6 @@
                     },
                 ],
                 drawCallback: function() {
-                    // Apply ledger row styling
                     $('#contractor_table tbody tr').addClass('ledger-row');
                 }
             });
@@ -603,7 +749,7 @@
             // Style DataTable elements
             var dtButtonsDiv = document.querySelector(".dt-buttons");
             if (dtButtonsDiv) {
-                dtButtonsDiv.classList.add("mb-4", "flex", "gap-2");
+                dtButtonsDiv.classList.add("mb-4", "flex", "flex-wrap", "gap-2");
             }
 
             var filterDiv = document.getElementById("contractor_table_filter");
@@ -617,18 +763,20 @@
                 }
             }
 
-            var infoDiv = document.getElementById("contractor_table_info");
-            var paginateDiv = document.getElementById("contractor_table_paginate");
+            // Style info and pagination
+            setTimeout(function() {
+                var infoDiv = document.getElementById("contractor_table_info");
+                var paginateDiv = document.getElementById("contractor_table_paginate");
 
-            if (infoDiv) {
-                infoDiv.style.float = "left";
-                infoDiv.classList.add("mt-4", "text-sm", "text-gray-600");
-            }
+                if (infoDiv) {
+                    infoDiv.style.cssText = "float: left; margin-top: 1rem;";
+                    infoDiv.classList.add("text-sm", "text-gray-600");
+                }
 
-            if (paginateDiv) {
-                paginateDiv.style.float = "right";
-                paginateDiv.classList.add("mt-4");
-            }
+                if (paginateDiv) {
+                    paginateDiv.style.cssText = "float: right; margin-top: 1rem; display: flex; gap: 0.25rem;";
+                }
+            }, 100);
 
             var existingDiv = document.getElementById("contractor_table_length");
             if (existingDiv) {
@@ -640,25 +788,21 @@
                 }
             }
 
-            // Open modal to edit client
+            // Open modal to edit contractor
             contractorEditModal();
         };
 
-        // Open modal to edit client
+        // Open modal to edit contractor
         function contractorEditModal() {
-            // Remove previous click event listeners
             $(document).off('click', "[id^='contractor_table'] tbody tr td:not(:last-child)");
 
             $(document).on('click', "[id^='contractor_table'] tbody tr td:not(:last-child)", function() {
-                // Place values to edit form fields in the modal
                 document.getElementById("contractorEditCompanyName").value = $(event.target).closest('tr').find('td:nth-child(' + '2' + ')').text();
                 document.getElementById("contractorEditPICName").value = $(event.target).closest('tr').find('td:nth-child(' + '3' + ')').text();
                 document.getElementById("contractorEditPhone").value = $(event.target).closest('tr').find('td:nth-child(' + '4' + ')').text().trim();
 
-                // Grab row client id
                 contractorID = $(event.target).closest('tr').find('td:nth-child(5) a').attr('id').split('-')[1];
 
-                // Open modal
                 var element = "#contractorEditModal";
                 openAltEditorModal(element);
             });
@@ -683,7 +827,14 @@
             if ($modal.length) closeAltEditorModal('#' + $modal.attr('id'));
         });
 
-        // Delete Client Company
+        // Close modal when clicking outside
+        $(document).on('click', '.modal', function(e) {
+            if ($(e.target).hasClass('modal')) {
+                closeAltEditorModal('#' + $(this).attr('id'));
+            }
+        });
+
+        // Delete Contractor
         function contractorDeleteButton() {
             var id = lastClickedLink.split("-")[1];
 
@@ -695,22 +846,14 @@
                     id: id,
                 },
                 success: function (response) {
-                    // Close modal after successfully deleted
                     var element = "#contractorDeleteModal";
                     closeAltEditorModal(element);
-
-                    // Show successful toast
                     window.showSubmitToast("Successfully deleted.", "#91C714");
-
-                    // Reload table
                     $('#contractor_table').DataTable().ajax.reload();
                 },
                 error: function (xhr, status, error) {
-                    // Display the validation error message
                     var response = JSON.parse(xhr.responseText);
                     var error = "Error: " + response.error;
-
-                    // Show fail toast
                     window.showSubmitToast(error, "#D32929");
                 }
             });

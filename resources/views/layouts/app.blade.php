@@ -79,6 +79,7 @@
         @yield('content')
       </div>
     </main>
+    @yield('modal_content')
 
     @stack('modals')
 

@@ -34,6 +34,7 @@ use App\Http\Controllers\ClientsController;
 use App\Http\Controllers\ClientCompanyController;
 use App\Http\Controllers\ContractorController;
 use App\Http\Controllers\StockInventoryController;
+use App\Http\Controllers\UsersController;
 
 
 
@@ -175,9 +176,6 @@ Route::prefix('masterfile')->middleware(['web', 'auth'])->name('masterfile.')->g
     Route::get('/{id}/matrix', [MasterFileController::class, 'showMatrix'])
         ->middleware('permission:masterfile.show')
         ->name('matrix.show');
-
-    Route::get('/companies/{company}/clients', [MasterFileController::class, 'getClientsByCompany']);
-
 
     Route::get('/{id}/kltg-matrix', [MasterFileController::class, 'showKltgMatrix'])
         ->middleware('permission:masterfile.show')
@@ -431,6 +429,7 @@ Route::group(['middleware' => ['auth']], function () {
     // Contractors
     Route::get('/contractors', [ContractorController::class, 'index'])->name('contractors.index');
     Route::post('/contractors/list', [ContractorController::class, 'list'])->name('contractors.list');
+    Route::post('/contractors', [ContractorController::class, 'store'])->name('contractors.store');
     Route::post('/contractors/create', [ContractorController::class, 'create'])->name('contractors.create');
     Route::post('/contractors/edit', [ContractorController::class, 'edit'])->name('contractors.edit');
     Route::post('/contractors/delete', [ContractorController::class, 'delete'])->name('contractors.delete');
@@ -692,3 +691,23 @@ Route::get('/company/contacts', [MasterFileController::class, 'getCompanyContact
 
 Route::get('/company/pics',    [MasterFileController::class, 'getCompanyPICs']);
 Route::get('/company/emails',  [MasterFileController::class, 'getCompanyEmails']);
+Route::get('/outdoor/sites', [MasterFileController::class, 'getOutdoorSites'])->name('outdoor.sites');
+Route::get('/outdoor/sizes',  [MasterFileController::class, 'getOutdoorSizes'])->name('outdoor.sizes');
+Route::get('/outdoor/areas',  [MasterFileController::class, 'getOutdoorAreas'])->name('outdoor.areas');
+Route::get('/outdoor/coords', [MasterFileController::class, 'getOutdoorCoords'])->name('outdoor.coords');
+
+
+// ===============================================
+// USERS ROUTES
+// ===============================================
+Route::prefix('users')
+    ->middleware(['web','auth'])   // <- remove 'permission:users.view'
+    ->name('users.')
+    ->group(function () {
+        Route::get('/',        [UsersController::class, 'index'])->name('index');
+        Route::post('/list',   [UsersController::class, 'list'])->name('list');
+        Route::post('/create', [UsersController::class, 'create'])->name('create');   // remove per-route permission
+        Route::post('/edit',   [UsersController::class, 'edit'])->name('edit');
+        Route::post('/delete', [UsersController::class, 'delete'])->name('delete');
+    });
+

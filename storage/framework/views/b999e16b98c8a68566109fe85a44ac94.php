@@ -81,6 +81,7 @@
         <?php echo $__env->yieldContent('content'); ?>
       </div>
     </main>
+    <?php echo $__env->yieldContent('modal_content'); ?>
 
     <?php echo $__env->yieldPushContent('modals'); ?>
 
