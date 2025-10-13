@@ -274,53 +274,45 @@ class UsersController extends Controller
      * Delete user.
      */
     public function delete(Request $request)
-    {
-        $delete_user_id = $request->delete_user_id;
+{
+    // Validate first
+    $request->validate([
+        'delete_user_id' => ['required','integer','exists:users,id'],
+    ]);
 
-        // Validate fields
-        $validator = Validator::make(
-            $request->all(),
-            [
-                'delete_user_id' => [
-                    'required',
-                    'integer',
-                    'exists:users,id',
-                ],
-            ],
-            [
-                'delete_user_id.exists' => 'The employee cannot be found.',
-            ]
-        );
+    try {
+        DB::transaction(function () use ($request) {
+            $id = (int) $request->input('delete_user_id');
 
-        // Handle failed validations
-        if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()->first()], 422);
-        }
+            $user = User::findOrFail($id);
 
-        try {
-            // Ensure all queries successfully executed
-            DB::beginTransaction();
+            // If using Spatie roles, detach to avoid FK issues (safe even if not present)
+            if (method_exists($user, 'roles')) {
+                $user->syncRoles([]);
+            }
+            DB::table('model_has_roles')->where('model_id', $user->id)->delete();
 
-            // Update employee user_id to null as removing the association of the deleted user account
-            User::where('id', $delete_user_id)
-                ->update([
-                    'status'   => 0
-                ]);
+            // HARD DELETE:
+            // - If your User model has SoftDeletes trait, forceDelete truly removes it.
+            // - If not, delete() is already a hard delete.
+            if (method_exists($user, 'forceDelete')) {
+                $user->forceDelete();
+            } else {
+                $user->delete();
+            }
+        });
 
-            // Delete system user
-            // User::find($delete_user_id)->delete();
+        return response()->json(['success' => true], 200);
 
-            // Ensure all queries successfully executed, commit the db changes
-            DB::commit();
-
-            return response()->json([
-                "success"   => "success",
-            ], 200);
-        } catch (\Exception $e) {
-            // If any queries fail, undo all changes
-            DB::rollback();
-
-            return response()->json(['error' => $e->getMessage()], 422);
-        }
+    } catch (\Illuminate\Database\QueryException $e) {
+        // FK constraint block (e.g., code 23000)
+        return response()->json([
+            'error' => 'Cannot delete: this user is referenced by other records. ' .
+                       'Detach related data or set FKs to cascade.'
+        ], 422);
+    } catch (\Throwable $e) {
+        return response()->json(['error' => $e->getMessage()], 422);
     }
+}
+
 }

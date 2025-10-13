@@ -488,10 +488,14 @@
         });
 
         // Delete (confirm button inside modal)
-        $(document).on('click', '#usersDeleteButton', function (e) {
+        $(document).on('click', '.delete-user-link', function (e) {
             e.preventDefault();
-            usersDeleteButton();
+            const id = $(this).data('user-id');
+            // attach the id to the confirm button that actually submits
+            $('#usersDeleteButton').data('user-id', id);
+            openAltEditorModal('#usersDeleteModal'); // Use the existing function
         });
+
 
         // Store the ID of the last clicked modal when it's triggered
         (function() {
@@ -500,15 +504,29 @@
             });
         })();
 
-        // Open modal
-        function openAltEditorModal(element) {
-            cash(element).modal('show');
-        }
+        // Open modal - works with cash() or fallback
+function openAltEditorModal(element) {
+    if (window.cash && typeof cash(element).modal === 'function') {
+        cash(element).modal('show');
+    } else {
+        $(element).addClass('show').css('display', 'flex');
+    }
+}
 
-        // Close modal
-        function closeAltEditorModal(element) {
-            cash(element).modal('hide');
-        }
+// Close modal - works with cash() or fallback
+function closeAltEditorModal(element) {
+    if (window.cash && typeof cash(element).modal === 'function') {
+        cash(element).modal('hide');
+    } else {
+        $(element).removeClass('show').css('display', 'none');
+    }
+}
+
+// Add helper for data-dismiss functionality
+$(document).on('click', '[data-dismiss="modal"]', function() {
+    var target = $(this).closest('.modal');
+    closeAltEditorModal('#' + target.attr('id'));
+});
 
         /**
          * USERS
@@ -630,15 +648,17 @@
                         data: "id",
                         render: function(data, type, row) {
                             return `
-                                <a class="elegant-btn-ghost inline-flex items-center px-3 py-1.5" href="javascript:;" data-toggle="modal" data-target="#usersDeleteModal" id="delete-user-${data}">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1.5">
-                                        <polyline points="3 6 5 6 21 6"></polyline>
-                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                        <line x1="10" y1="11" x2="10" y2="17"></line>
-                                        <line x1="14" y1="11" x2="14" y2="17"></line>
-                                    </svg>
-                                    Delete
-                                </a>
+                            <a class="elegant-btn-ghost inline-flex items-center px-3 py-1.5 delete-user-link"
+                                href="javascript:;" data-toggle="modal" data-target="#usersDeleteModal"
+                                id="delete-user-${data}" data-user-id="${data}">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1.5">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                <line x1="10" y1="11" x2="10" y2="17"></line>
+                                <line x1="14" y1="11" x2="14" y2="17"></line>
+                                </svg>
+                                Delete
+                            </a>
                             `;
                         }
                     },
@@ -699,7 +719,7 @@
                     email: document.getElementById("usersAddEmail").value
                 },
                 success: function(response) {
-                    closeModal('usersAddModal');
+                    closeAltEditorModal('#usersAddModal');
                     window.showSubmitToast("Successfully added.", "#91C714");
 
                     document.getElementById("usersAddName").value = "";
@@ -770,28 +790,33 @@
         }
 
         // Delete User
-        function usersDeleteButton() {
-            var delete_user_id = lastClickedLink.split("-")[2];
+         $(document).on('click', '#usersDeleteButton', function (e) {
+            e.preventDefault();
+            usersDeleteButton();
+        });
 
-            $.ajax({
-                type: 'POST',
-                url: "{{ route('users.delete') }}",
-                data: {
-                    _token: $('meta[name="csrf-token"]').attr('content'),
-                    delete_user_id: delete_user_id
-                },
-                success: function(response) {
-                    closeModal('usersDeleteModal');
-                    window.showSubmitToast("Successfully deleted.", "#91C714");
-                    $('#users_table').DataTable().ajax.reload();
-                },
-                error: function(xhr, status, error) {
-                    var response = JSON.parse(xhr.responseText);
-                    var error = "Error: " + response.error;
-                    window.showSubmitToast(error, "#D32929");
-                }
-            });
-        }
+        function usersDeleteButton() {
+        const delete_user_id = $('#usersDeleteButton').data('user-id');
+
+        $.ajax({
+            type: 'POST',
+            url: "{{ route('users.delete') }}",
+            data: {
+            _token: $('meta[name="csrf-token"]').attr('content'),
+            delete_user_id: delete_user_id
+            },
+            success: function () {
+            closeModal('usersDeleteModal');
+            window.showSubmitToast("Successfully deleted.", "#91C714");
+            $('#users_table').DataTable().ajax.reload(null, false);
+            },
+            error: function (xhr) {
+            const msg = xhr.responseJSON?.error || 'Delete failed.';
+            window.showSubmitToast(msg, "#D32929");
+            }
+        });
+    }
+
 
         // Filter functionality
         $('#applyFiltersBtn').on('click', function() {
