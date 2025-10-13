@@ -173,6 +173,13 @@
             class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('contractors.*') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
             Contractors
         </a>
+
+        <a href="{{ route('stockInventory.index') }}"
+        class="side-menu {{ request()->routeIs('stockInventory.*') ? 'side-menu--active' : '' }}">
+            <div class="side-menu__icon"><i data-lucide="boxes"></i></div>
+            <div class="side-menu__title">Stock Inventory</div>
+        </a>
+
       </div>
     </div>
 

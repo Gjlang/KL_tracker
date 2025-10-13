@@ -7,6 +7,106 @@ use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * @property int $id
+ * @property int|null $master_file_id
+ * @property int|null $outdoor_item_id
+ * @property \Illuminate\Support\Carbon|null $masterfile_created_at
+ * @property int|null $year
+ * @property int|null $month
+ * @property string|null $client
+ * @property string|null $product
+ * @property string|null $site
+ * @property \Illuminate\Support\Carbon|null $site_date
+ * @property string|null $payment
+ * @property \Illuminate\Support\Carbon|null $payment_date
+ * @property string|null $material
+ * @property \Illuminate\Support\Carbon|null $material_date
+ * @property string|null $artwork
+ * @property \Illuminate\Support\Carbon|null $artwork_date
+ * @property \Illuminate\Support\Carbon|null $received_approval
+ * @property string|null $received_approval_note
+ * @property \Illuminate\Support\Carbon|null $sent_to_printer
+ * @property string|null $sent_to_printer_note
+ * @property \Illuminate\Support\Carbon|null $collection_printer
+ * @property string|null $collection_printer_note
+ * @property \Illuminate\Support\Carbon|null $installation
+ * @property string|null $installation_note
+ * @property \Illuminate\Support\Carbon|null $dismantle
+ * @property string|null $dismantle_note
+ * @property string|null $remarks
+ * @property \Illuminate\Support\Carbon|null $next_follow_up
+ * @property string|null $next_follow_up_note
+ * @property string $status
+ * @property bool|null $month_jan
+ * @property bool|null $month_feb
+ * @property bool|null $month_mar
+ * @property bool|null $month_apr
+ * @property bool|null $month_may
+ * @property bool|null $month_jun
+ * @property bool|null $month_jul
+ * @property bool|null $month_aug
+ * @property bool|null $month_sep
+ * @property bool|null $month_oct
+ * @property bool|null $month_nov
+ * @property bool|null $month_dec
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\MasterFile|null $masterFile
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking filterByClient($client)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking filterByState($state)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking filterByStatus($status)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking filterByYear($year)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking outdoorOnly()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereArtwork($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereArtworkDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereClient($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereCollectionPrinter($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereCollectionPrinterNote($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereDismantle($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereDismantleNote($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereInstallation($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereInstallationNote($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereMasterFileId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereMasterfileCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereMaterial($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereMaterialDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereMonth($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereMonthApr($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereMonthAug($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereMonthDec($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereMonthFeb($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereMonthJan($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereMonthJul($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereMonthJun($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereMonthMar($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereMonthMay($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereMonthNov($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereMonthOct($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereMonthSep($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereNextFollowUp($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereNextFollowUpNote($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereOutdoorItemId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking wherePayment($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking wherePaymentDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereProduct($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereReceivedApproval($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereReceivedApprovalNote($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereRemarks($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereSentToPrinter($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereSentToPrinterNote($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereSite($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereSiteDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorCoordinatorTracking whereYear($value)
+ * @mixin \Eloquent
+ */
 class OutdoorCoordinatorTracking extends Model
 {
     use HasFactory;

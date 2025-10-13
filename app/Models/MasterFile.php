@@ -12,6 +12,121 @@ use App\Models\ClientCompany;
 use App\Models\Client;
 
 
+/**
+ * @property int $id
+ * @property string $month
+ * @property \Illuminate\Support\Carbon $date
+ * @property string $company
+ * @property string $product
+ * @property string|null $product_category
+ * @property string|null $location
+ * @property string $traffic
+ * @property string|null $duration
+ * @property numeric|null $amount
+ * @property string $status
+ * @property string|null $remarks
+ * @property Client|null $client
+ * @property string|null $sales_person
+ * @property string|null $barter
+ * @property \Illuminate\Support\Carbon|null $date_finish
+ * @property string|null $job_number
+ * @property string|null $artwork
+ * @property \Illuminate\Support\Carbon|null $invoice_date
+ * @property string|null $invoice_number
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property string|null $contact_number
+ * @property string|null $email
+ * @property string|null $kltg_industry
+ * @property string|null $kltg_x
+ * @property string|null $kltg_edition
+ * @property string|null $kltg_material_cbp
+ * @property string|null $kltg_print
+ * @property string|null $kltg_article
+ * @property string|null $kltg_video
+ * @property string|null $kltg_leaderboard
+ * @property string|null $kltg_qr_code
+ * @property string|null $kltg_blog
+ * @property string|null $kltg_em
+ * @property string|null $kltg_remarks
+ * @property string|null $outdoor_size
+ * @property string|null $outdoor_district_council
+ * @property string|null $outdoor_coordinates
+ * @property int|null $company_id
+ * @property string|null $dbp_approval
+ * @property-read \App\Models\Billboard|null $billboard
+ * @property-read ClientCompany|null $clientCompany
+ * @property-read mixed $formatted_date
+ * @property-read mixed $formatted_date_finish
+ * @property-read mixed $formatted_invoice_date
+ * @property-read mixed $status_badge_class
+ * @property-read \App\Models\KltgCoordinatorList|null $kltgCoordinatorList
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\KltgMonthlyDetail> $kltgDetails
+ * @property-read int|null $kltg_details_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\KltgMonthlyDetail> $kltgMatrix
+ * @property-read int|null $kltg_matrix_count
+ * @property-read \App\Models\KltgMonthlyDetail|null $kltgMonthly
+ * @property-read \App\Models\KltgMonthlyDetail|null $kltgMonthlyDetail
+ * @property-read \App\Models\MediaCoordinatorTracking|null $mediaCoordinator
+ * @property-read \App\Models\MediaOngoingJob|null $mediaOngoingJob
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\MediaOngoingJob> $mediaOngoingJobs
+ * @property-read int|null $media_ongoing_jobs_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\OutdoorItem> $outdoorItems
+ * @property-read int|null $outdoor_items_count
+ * @property-read \App\Models\OutdoorTrackCoordinator|null $outdoorTrackCoordinator
+ * @property-read \App\Models\OutdoorCoordinatorTracking|null $outdoorTracking
+ * @property-read \App\Models\MasterFileTimeline|null $timeline
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile category($category)
+ * @method static \Database\Factories\MasterFileFactory factory($count = null, $state = [])
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile month($month)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile product($product)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile status($status)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereAmount($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereArtwork($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereBarter($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereClient($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereCompany($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereCompanyId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereContactNumber($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereDateFinish($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereDbpApproval($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereDuration($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereEmail($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereInvoiceDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereInvoiceNumber($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereJobNumber($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereKltgArticle($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereKltgBlog($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereKltgEdition($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereKltgEm($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereKltgIndustry($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereKltgLeaderboard($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereKltgMaterialCbp($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereKltgPrint($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereKltgQrCode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereKltgRemarks($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereKltgVideo($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereKltgX($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereLocation($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereMonth($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereOutdoorCoordinates($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereOutdoorDistrictCouncil($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereOutdoorSize($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereProduct($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereProductCategory($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereRemarks($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereSalesPerson($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereTraffic($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterFile whereUpdatedAt($value)
+ * @mixin \Eloquent
+ */
 class MasterFile extends Model
 {
     use HasFactory;

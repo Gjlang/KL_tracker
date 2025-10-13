@@ -6,6 +6,75 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
 
+/**
+ * @property int $id
+ * @property int|null $master_file_id
+ * @property \Illuminate\Support\Carbon|null $date
+ * @property string $company
+ * @property string $product
+ * @property string|null $category
+ * @property string|null $location
+ * @property \Illuminate\Support\Carbon|null $start_date
+ * @property \Illuminate\Support\Carbon|null $end_date
+ * @property string|null $jan
+ * @property string|null $feb
+ * @property string|null $mar
+ * @property string|null $apr
+ * @property string|null $may
+ * @property string|null $jun
+ * @property string|null $jul
+ * @property string|null $aug
+ * @property string|null $sep
+ * @property string|null $oct
+ * @property string|null $nov
+ * @property string|null $dec
+ * @property string|null $remarks
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read mixed $active_months
+ * @property-read mixed $category_color
+ * @property-read mixed $duration
+ * @property-read mixed $formatted_date
+ * @property-read mixed $formatted_end
+ * @property-read mixed $formatted_end_date
+ * @property-read mixed $formatted_start
+ * @property-read mixed $formatted_start_date
+ * @property-read mixed $monthly_data
+ * @property-read \App\Models\MasterFile|null $masterFile
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob byCategory($category)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob byCompany($company)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob byProduct($product)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob currentYear()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob whereApr($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob whereAug($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob whereCategory($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob whereCompany($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob whereDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob whereDec($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob whereEndDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob whereFeb($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob whereJan($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob whereJul($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob whereJun($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob whereLocation($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob whereMar($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob whereMasterFileId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob whereMay($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob whereNov($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob whereOct($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob whereProduct($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob whereRemarks($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob whereSep($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob whereStartDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MediaOngoingJob withinDateRange($startDate, $endDate)
+ * @mixin \Eloquent
+ */
 class MediaOngoingJob extends Model
 {
     use HasFactory;

@@ -5,6 +5,46 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int|null $master_file_id
+ * @property Carbon $date
+ * @property Carbon|null $expected_finish_date
+ * @property string|null $servicing
+ * @property string|null $product
+ * @property string|null $location
+ * @property string $client
+ * @property \Illuminate\Database\Eloquent\Collection<int, \App\Models\ClientCompany> $company
+ * @property string $status
+ * @property string|null $attended_by
+ * @property string|null $reasons
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property int|null $billboard_id
+ * @property int|null $company_id
+ * @property-read \App\Models\Billboard|null $billboard
+ * @property-read int|null $company_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientFeedBacklog newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientFeedBacklog newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientFeedBacklog query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientFeedBacklog whereAttendedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientFeedBacklog whereBillboardId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientFeedBacklog whereClient($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientFeedBacklog whereCompany($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientFeedBacklog whereCompanyId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientFeedBacklog whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientFeedBacklog whereDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientFeedBacklog whereExpectedFinishDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientFeedBacklog whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientFeedBacklog whereLocation($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientFeedBacklog whereMasterFileId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientFeedBacklog whereProduct($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientFeedBacklog whereReasons($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientFeedBacklog whereServicing($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientFeedBacklog whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientFeedBacklog whereUpdatedAt($value)
+ * @mixin \Eloquent
+ */
 class ClientFeedBacklog extends Model
 {
     protected $fillable = [

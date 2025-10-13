@@ -38,9 +38,6 @@ use App\Http\Controllers\UsersController;
 
 
 
-
-
-
 // ===============================================
 // ROOT & AUTHENTICATION ROUTES
 // ===============================================
@@ -441,6 +438,7 @@ Route::group(['middleware' => ['auth']], function () {
     Route::post('/inventory/edit', [StockInventoryController::class, 'edit'])->name('stockInventory.edit');
     Route::get('/inventory/{transaction}/edit', [StockInventoryController::class, 'editData']);
     Route::post('/inventory/delete', [StockInventoryController::class, 'delete'])->name('stockInventory.delete');
+
 
 });
 

@@ -86,8 +86,6 @@
   </div>
 </div>
 
-{{-- Load Vite JS (if you have app-specific JS that might use jQuery) --}}
-{{-- Make sure Vite's app.js doesn't redefine $ or cause conflicts if jQuery is also loaded via CDN --}}
 @vite(['resources/js/app.js'])
 
 {{-- Load external libraries in the correct order --}}

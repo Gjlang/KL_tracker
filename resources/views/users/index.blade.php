@@ -731,10 +731,15 @@ $(document).on('click', '[data-dismiss="modal"]', function() {
 
                     $('#users_table').DataTable().ajax.reload();
                 },
-                error: function(xhr, status, error) {
-                    var response = JSON.parse(xhr.responseText);
-                    var error = "Error: " + response.error;
-                    window.showSubmitToast(error, "#D32929");
+                error: function (xhr) {
+                let msg = 'Unexpected error';
+                try {
+                    const r = JSON.parse(xhr.responseText);
+                    msg = r.error || r.message || msg;
+                } catch (e) {
+                    msg = (xhr.status + ' ' + xhr.statusText) || msg;
+                }
+                window.showSubmitToast(msg, "#D32929");
                 }
             });
         }
@@ -743,19 +748,21 @@ $(document).on('click', '[data-dismiss="modal"]', function() {
         function usersEditModal() {
             $(document).off('click', "[id^='users_table'] tbody tr td:not(:last-child)");
 
-            $(document).on('click', "[id^='users_table'] tbody tr td:not(:last-child)", function() {
-                original_username = $(event.target).closest('tr').find('td:nth-child(3)').text();
+            $(document).on('click', "#users_table tbody tr td:not(:last-child)", function (e) {
+            const $row = $(this).closest('tr');
 
-                document.getElementById("usersEditName").value = $(event.target).closest('tr').find('td:nth-child(2)').text().trim();
-                document.getElementById("usersEditUsername").value = $(event.target).closest('tr').find('td:nth-child(3)').text();
-                document.getElementById("usersEditEmail").value = $(event.target).closest('tr').find('td:nth-child(5)').text().trim();
+            original_username = $row.find('td:nth-child(3)').text().trim();
 
-                var roleText = $(event.target).closest('tr').find('td:nth-child(4)').text().trim().toLowerCase();
-                document.getElementById("usersEditRole").value = roleText;
+            $('#usersEditName').val($row.find('td:nth-child(2)').text().trim());
+            $('#usersEditUsername').val($row.find('td:nth-child(3)').text().trim());
+            $('#usersEditEmail').val($row.find('td:nth-child(5)').text().trim());
 
-                var element = "#usersEditModal";
-                openAltEditorModal(element);
-            });
+            const roleText = $row.find('td:nth-child(4)').text().trim().toLowerCase();
+            $('#usersEditRole').val(roleText);
+
+            openAltEditorModal('#usersEditModal');
+        });
+
         }
 
         // Edit User
@@ -767,7 +774,8 @@ $(document).on('click', '[data-dismiss="modal"]', function() {
 
             $.ajax({
                 type: 'POST',
-                url: "{{ route('users.edit') }}",
+                url: "{{ route('users.update') }}",
+                headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
                 data: {
                     _token: $('meta[name="csrf-token"]').attr('content'),
                     name: name,
@@ -777,14 +785,19 @@ $(document).on('click', '[data-dismiss="modal"]', function() {
                     email: email
                 },
                 success: function(response) {
-                    closeModal('usersEditModal');
+                    closeAltEditorModal('#usersEditModal');
                     window.showSubmitToast("Successfully edited.", "#91C714");
                     $('#users_table').DataTable().ajax.reload();
                 },
-                error: function(xhr, status, error) {
-                    var response = JSON.parse(xhr.responseText);
-                    var error = "Error: " + response.error;
-                    window.showSubmitToast(error, "#D32929");
+                error: function (xhr) {
+                    let msg = 'Unexpected error';
+                    try {
+                        const r = JSON.parse(xhr.responseText);
+                        msg = r.error || r.message || msg;
+                    } catch (e) {
+                        msg = (xhr.status + ' ' + xhr.statusText) || msg;
+                    }
+                    window.showSubmitToast(msg, "#D32929");
                 }
             });
         }
@@ -806,7 +819,7 @@ $(document).on('click', '[data-dismiss="modal"]', function() {
             delete_user_id: delete_user_id
             },
             success: function () {
-            closeModal('usersDeleteModal');
+            closeAltEditorModal('#usersDeleteModal');
             window.showSubmitToast("Successfully deleted.", "#91C714");
             $('#users_table').DataTable().ajax.reload(null, false);
             },
@@ -856,14 +869,10 @@ $(document).on('click', '[data-dismiss="modal"]', function() {
 
         // Explicitly open Add User modal when button clicked
         $(document).on('click', '#usersAddModalButton', function (e) {
-        e.preventDefault();
-        if (window.cash && typeof cash('#usersAddModal').modal === 'function') {
-            cash('#usersAddModal').modal('show');
-        } else {
-            // fallback if modal plugin not bound
-            $('#usersAddModal').removeClass('hidden').show();
-        }
-        });
+  e.preventDefault();
+  openAltEditorModal('#usersAddModal');
+});
+
         initUsersDatatable();
     });
 </script>

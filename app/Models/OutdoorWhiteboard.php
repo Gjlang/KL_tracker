@@ -5,6 +5,44 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property int $master_file_id
+ * @property int $outdoor_item_id
+ * @property string|null $client_text
+ * @property \Illuminate\Support\Carbon|null $client_date
+ * @property string|null $po_text
+ * @property \Illuminate\Support\Carbon|null $po_date
+ * @property string|null $supplier_text
+ * @property \Illuminate\Support\Carbon|null $supplier_date
+ * @property string|null $storage_text
+ * @property \Illuminate\Support\Carbon|null $storage_date
+ * @property string|null $notes
+ * @property \Illuminate\Support\Carbon|null $completed_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\OutdoorItem $item
+ * @property-read \App\Models\MasterFile|null $masterFile
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorWhiteboard newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorWhiteboard newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorWhiteboard query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorWhiteboard whereClientDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorWhiteboard whereClientText($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorWhiteboard whereCompletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorWhiteboard whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorWhiteboard whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorWhiteboard whereMasterFileId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorWhiteboard whereNotes($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorWhiteboard whereOutdoorItemId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorWhiteboard wherePoDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorWhiteboard wherePoText($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorWhiteboard whereStorageDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorWhiteboard whereStorageText($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorWhiteboard whereSupplierDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorWhiteboard whereSupplierText($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|OutdoorWhiteboard whereUpdatedAt($value)
+ * @mixin \Eloquent
+ */
 class OutdoorWhiteboard extends Model
 {
     protected $table = 'outdoor_whiteboards';
