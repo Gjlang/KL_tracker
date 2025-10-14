@@ -60,12 +60,7 @@
         }
     </style>
 
-    <!-- Add jQuery CDN -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
-
-    <!-- Include DataTables JS (if not already included elsewhere) -->
-    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script> <!-- If using Bootstrap theme -->
+    
 
     <!-- Include other necessary scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js']) <!-- If using Vite -->
@@ -99,7 +94,7 @@
             </div>
 
             @if (Auth::guard('web')->check() && Auth::guard('web')->user()->hasRole(['superadmin', 'admin']))
-            <!-- Row 1: State & District -->
+            <!-- Row 1: State & Area -->
             <div class="flex flex-col sm:flex-row gap-4">
                 <div class="flex flex-col">
                     <label for="filterBillboardState" class="block text-sm font-medium text-gray-700 mb-1">State</label>
@@ -111,7 +106,7 @@
                     </select>
                 </div>
                 <div class="flex flex-col">
-                    <label for="filterBillboardDistrict" class="block text-sm font-medium text-gray-700 mb-1">District</label>
+                    <label for="filterBillboardDistrict" class="block text-sm font-medium text-gray-700 mb-1">Area</label>
                     <select class="w-full sm:w-40 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="filterBillboardDistrict">
                         <option value="all">All</option>
                         @foreach ($districts as $district)
@@ -206,7 +201,7 @@
                     <th class="px-4 py-4 table-header min-w-[100px] w-[100px] border-r border-neutral-300">Size</th> <!-- Add border to header cell -->
                     <th class="px-4 py-4 table-header min-w-[100px] border-r border-neutral-300">Lighting</th> <!-- Add border to header cell -->
                     <th class="px-4 py-4 table-header min-w-[350px] border-r border-neutral-300">Location</th> <!-- Add border to header cell -->
-                    <th class="px-4 py-4 table-header min-w-[200px] border-r border-neutral-300">District</th> <!-- Add border to header cell -->
+                    <th class="px-4 py-4 table-header min-w-[200px] border-r border-neutral-300">Area</th> <!-- Add border to header cell -->
                     <th class="px-4 py-4 table-header min-w-[160px] hidden border-r border-neutral-300">GPS Coordinate</th> <!-- Add border to header cell -->
                     <th class="px-4 py-4 table-header min-w-[200px] dt-exclude-export dt-no-sort border-r border-neutral-300">Show Detail</th> <!-- Add border to header cell -->
                     <th class="px-4 py-4 table-header min-w-[100px] dt-exclude-export dt-no-sort">Actions</th> <!-- Last header cell, no right border if you don't want it -->
@@ -291,11 +286,13 @@
                     </select>
                 </div>
 
-                <!-- District -->
+                <!-- Area -->
                 <div class="md:col-span-1">
-                    <label for="inputBillboardDistrict" class="block text-sm font-medium text-gray-700 mb-1">District <span class="text-red-500">*</span></label>
-                    <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="inputBillboardDistrict" required>
-                        <option value="">-- Select District --</option>
+                    <label for="inputBillboardDistrict" class="block text-sm font-medium text-gray-700 mb-1">
+                        Area <span class="text-red-500">*</span>
+                    </label>
+                    <select id="inputBillboardDistrict" class="select2 w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" required>
+                        <option value="">-- Select Area --</option>
                     </select>
                 </div>
 
@@ -473,11 +470,11 @@
                     </select>
                 </div>
 
-                <!-- District -->
+                <!-- Area -->
                 <div class="md:col-span-1">
-                    <label for="editBillboardDistrict" class="block text-sm font-medium text-gray-700 mb-1">District <span class="text-red-500">*</span></label>
+                    <label for="editBillboardDistrict" class="block text-sm font-medium text-gray-700 mb-1">Area <span class="text-red-500">*</span></label>
                     <select class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" id="editBillboardDistrict" required>
-                        <option value="">-- Select District --</option>
+                        <option value="">-- Select Area --</option>
                     </select>
                 </div>
 
@@ -614,8 +611,15 @@
 <!-- END: Billboard Delete Modal -->
 
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js" ></script>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<!-- Add jQuery CDN -->
+    
+
+<!-- Include DataTables JS (if not already included elsewhere) -->
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script> <!-- If using Bootstrap theme -->
 
 <!-- Scripts -->
 <script>
@@ -776,23 +780,11 @@
         // Global variables
         var filterBillboardStatus;
         document.getElementById("billboardDeleteButton").addEventListener("click", billboardDeleteButton);
-        // Initialize Select2 with search
-        $('.select2').select2({
-            placeholder: "Select an option",
-            allowClear: true,
-            width: '100%'
-        });
-        $('#inputBillboardDistrict').select2({
-            tags: true,
-            placeholder: "-- Select or Add District --",
-            allowClear: true,
-        });
-        $('#editBillboardDistrict').select2({
-            tags: true, // ✅ allow typing new values
-            placeholder: "-- Select or Type District --",
-            allowClear: true,
-            width: '100%'
-        });
+
+        
+
+        
+        
         // When "State" is changed in add form
         $('#inputBillboardState').on('change', function() {
             let stateId = $(this).val();
@@ -800,10 +792,10 @@
             let $councilSelect = $('#inputBillboardCouncil');
 
             // Reset dropdowns (Clear underlying select)
-            $districtSelect.empty().append('<option value="">-- Select District --</option>');
+            $districtSelect.empty().append('<option value="">-- Select Area --</option>');
             $councilSelect.empty().append('<option value="">-- Select Council --</option>');
 
-            // Clear Select2 selection for District
+            // Clear Select2 selection for Area
             $districtSelect.val(null).trigger('change'); // Clears the Select2 UI
 
             if (stateId !== '') {
@@ -815,26 +807,20 @@
                         state_id: stateId
                     },
                     success: function(districts) {
-                        // Clear the select again (ensure clean state before adding new options)
-                        $districtSelect.empty().append('<option value="">-- Select District --</option>');
-
-                        // Add the new options to the underlying <select> element
+                        // Clear and refill dropdown
+                        $districtSelect.empty().append('<option value="">-- Select Area --</option>');
                         districts.forEach(function(district) {
                             $districtSelect.append(`<option value="${district.id}">${district.name}</option>`);
                         });
 
-                        // --- CRITICAL: Destroy and Re-initialize Select2 ---
-                        // This ensures Select2 picks up the new options correctly
-                        $districtSelect.select2('destroy');
-
-                        // Re-initialize with the same settings as the initial setup
-                        $districtSelect.select2({
-                            tags: true,
-                            placeholder: "-- Select or Add District --",
+                        // Destroy and reinitialize Select2 once only
+                        $districtSelect.select2('destroy').select2({
+                            tags: true, // <-- enables user input
+                            placeholder: "-- Select or Add Area --",
                             allowClear: true,
-                            width: '100%' // Add width if needed
+                            width: '100%',
+                            dropdownParent: $districtSelect.parent()
                         });
-                        // --- CRITICAL: Destroy and Re-initialize Select2 ---
                     },
                     error: function() {
                         alert('Failed to load districts.');
@@ -843,9 +829,9 @@
                         if ($districtSelect.data('select2')) {
                             $districtSelect.select2('destroy');
                         }
-                        $districtSelect.select2({
+                        $districtSelect.select2('destroy').select2({
                             tags: true,
-                            placeholder: "-- Select or Add District --",
+                            placeholder: "-- Select or Add Area --",
                             allowClear: true,
                             width: '100%'
                         });
@@ -858,7 +844,7 @@
                 }
                 $districtSelect.select2({
                     tags: true,
-                    placeholder: "-- Select or Add District --",
+                    placeholder: "-- Select or Add Area --",
                     allowClear: true,
                     width: '100%'
                 });
@@ -889,6 +875,17 @@
                     }
                 });
             }
+        });
+
+        const $districtSelect = $('#inputBillboardDistrict');
+
+        // Initialize Select2
+        $districtSelect.select2({
+            tags: true, // <-- allows custom text input
+            placeholder: "-- Select or Add Area --",
+            allowClear: true,
+            width: '100%',
+            dropdownParent: $districtSelect.parent()
         });
 
         // Open "Add New Stock" modal
@@ -1303,7 +1300,7 @@
                 _token: '{{ csrf_token() }}',
                 state_id: stateID
             }, function(districts) {
-                $('#editBillboardDistrict').empty().append(`<option value="">-- Select District --</option>`);
+                $('#editBillboardDistrict').empty().append(`<option value="">-- Select Area --</option>`);
                 districts.forEach(function(d) {
                     $('#editBillboardDistrict').append(`<option value="${d.id}">${d.name}</option>`);
                 });
@@ -1340,7 +1337,7 @@
             if (stateID) {
                 // districts
                 $.get('/get-districts/' + stateID, function(data) {
-                    let options = '<option value="">-- Select District --</option>';
+                    let options = '<option value="">-- Select Area --</option>';
                     data.forEach(function(district) {
                         options += `<option value="${district.id}">${district.name}</option>`;
                     });
@@ -1356,7 +1353,7 @@
                 });
             }
         });
-        // 🔄 On District change => fetch locations
+        // 🔄 On Area change => fetch locations
         $('#editBillboardDistrict').on('change', function() {
             let districtID = $(this).val();
             $('#editBillboardLocation').html('<option value="">-- Loading Locations --</option>');
@@ -1401,7 +1398,8 @@
                     document.getElementById("inputBillboardSize").value = "";
                     document.getElementById("inputBillboardLighting").value = "";
                     document.getElementById("inputBillboardState").value = "";
-                    $('#inputBillboardDistrict').val(null).trigger('change');
+                    document.getElementById("inputBillboardDistrict").value = "";
+                    // $('#inputBillboardDistrict').val(null).trigger('change');
                     document.getElementById("inputBillboardCouncil").value = "";
                     document.getElementById("inputBillboardLand").value = "";
                     document.getElementById("inputBillboardLocation").value = "";
