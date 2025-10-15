@@ -426,7 +426,7 @@
                                 <tr class="text-left border-b border-neutral-200">
                                     <th class="px-4 py-3 font-medium text-neutral-600">#</th>
                                     <th class="px-4 py-3 font-medium text-neutral-600">Sub Product</th>
-                                    <th class="px-4 py-3 font-medium text-neutral-600">Site / Location</th>
+                                    <th class="px-4 py-3 font-medium text-neutral-600">Site Number</th>
                                     <th class="px-4 py-3 font-medium text-neutral-600">Size</th>
                                     <th class="px-4 py-3 font-medium text-neutral-600">Start</th>
                                     <th class="px-4 py-3 font-medium text-neutral-600">End</th>

@@ -142,7 +142,7 @@ class MasterFile extends Model
     protected $fillable = [
         'month','date','company','product','product_category','location','traffic','duration',
         'status','remarks','client','date_finish','job_number','artwork','invoice_date',
-        'invoice_number','contact_number','email','sales_person', 'client_id',
+        'invoice_number','contact_number','email','sales_person', 'client_id','company_id',
 
         // KLTG-only
         'kltg_industry','kltg_x','kltg_edition','kltg_material_cbp','kltg_print',

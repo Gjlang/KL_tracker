@@ -925,7 +925,7 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
 }
 
     // 🔧 FIXED: Single store method with AUTO-SEED KLTG DISABLED
-    public function store(Request $request)
+   public function store(Request $request)
 {
     // ---- 0) Normalise "company" & "client" (accept id / new: / plain text) BEFORE validate ----
     // Read raw inputs (support either *_id or plain fields)
@@ -981,9 +981,15 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
     $clientModel = null;
     if (is_string($clientRaw) && str_starts_with($clientRaw, 'new:')) {
         $clientName = trim(substr($clientRaw, 4));
+        // Get contact/email from request first (in case user typed them)
+        $autoContact = $request->input('contact_number');
+        $autoEmail   = $request->input('email');
+
         $clientModel = \App\Models\Client::create([
             'name'       => $clientName,
             'company_id' => $companyId,
+            'phone'      => $autoContact,   // ✅ save if provided
+            'email'      => $autoEmail,     // ✅ save if provided
         ]);
         $clientId   = $clientModel->id;
         $clientName = $clientModel->name;
@@ -992,6 +998,17 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
         if ($clientModel) {
             $clientId   = $clientModel->id;
             $clientName = $clientModel->name;
+
+            // 🔴 IMPORTANT: inherit company from client if not already set
+            if (!$companyId && $clientModel->company_id) {
+                $companyId = $clientModel->company_id;
+                if ($companyId) {
+                    $cc = \App\Models\ClientCompany::find($companyId);
+                    if ($cc) {
+                        $companyName = $getCompanyName($cc);
+                    }
+                }
+            }
         }
     } else {
         $typed = trim((string)$clientRaw);
@@ -1001,21 +1018,46 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
             $clientModel = $q->first();
 
             if (!$clientModel) {
+                // Get contact/email from request for new client
+                $autoContact = $request->input('contact_number');
+                $autoEmail   = $request->input('email');
+
                 $clientModel = \App\Models\Client::create([
                     'name'       => $typed,
                     'company_id' => $companyId,
+                    'phone'      => $autoContact,   // ✅ save if provided
+                    'email'      => $autoEmail,     // ✅ save if provided
                 ]);
             }
             $clientId   = $clientModel->id;
             $clientName = $clientModel->name;
+
+            // Inherit company from existing client
+            if (!$companyId && $clientModel->company_id) {
+                $companyId = $clientModel->company_id;
+                if ($companyId) {
+                    $cc = \App\Models\ClientCompany::find($companyId);
+                    if ($cc) {
+                        $companyName = $getCompanyName($cc);
+                    }
+                }
+            }
         }
     }
 
-    // Merge resolved names back to request
-    $autoContact = $request->filled('contact_number') ? $request->input('contact_number') : ($clientModel->contact_number ?? null);
-    $autoEmail   = $request->filled('email')          ? $request->input('email')          : ($clientModel->email ?? null);
+    // Auto-fill contact & email from client model if not provided in request
+    $autoContact = $request->filled('contact_number')
+        ? $request->input('contact_number')
+        : optional($clientModel)->phone;     // ✅ safe even if $clientModel is null
 
+    $autoEmail   = $request->filled('email')
+        ? $request->input('email')
+        : optional($clientModel)->email;     // ✅ safe even if $clientModel is null
+
+    // Merge resolved IDs and names back to request
     $request->merge([
+        'company_id'     => $companyId,      // ✅ NEW: save company ID
+        'client_id'      => $clientId,       // ✅ NEW: save client ID
         'company'        => $companyName ?? (string)$companyRaw,
         'client'         => $clientName  ?? (string)$clientRaw,
         'contact_number' => $autoContact,
@@ -1027,6 +1069,8 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
         'month' => ['required', 'string', 'max:255'],
         'date' => ['required', 'date'],
         'company' => ['required', 'string', 'max:255'],
+        'company_id' => ['nullable', 'integer', 'exists:client_companies,id'],  // ✅ NEW
+        'client_id' => ['nullable', 'integer', 'exists:clients,id'],            // ✅ NEW
         'product' => ['required', 'string', 'max:255'],
         'product_category' => ['nullable', 'string', 'max:255'],
         'location' => ['nullable', 'string', 'max:255'],
