@@ -554,37 +554,34 @@
                                         </select>
                                     </div>
 
-                                  <!-- SITE -->
+                                <!-- SITE -->
                                 <div class="md:col-span-2">
                                 <label class="block text-xs text-neutral-600 mb-1">Site</label>
                                 <select
                                     :id="`outdoor_site_${idx}`"
-                                    :name="`locations[${idx}][site]`"
-                                    x-model="row.site"
+                                    :name="`locations[${idx}][billboard_id]`"
+                                    x-model="row.billboard_id"
                                     placeholder="e.g., TB-WPK-0075 – Persiaran Puncak Jalil"
                                     class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]"
-                                    x-init="$nextTick(() => initSuggestSelect($el, '{{ url('/outdoor/sites') }}', () => row.sub_product))">
-                                    <template x-if="row.site">
-                                    <option :value="row.site" x-text="row.site" selected></option>
+                                    x-init="$nextTick(() => initSiteSelect(
+                                    $el,
+                                    (opt) => {
+                                        row.size    = opt?.size   ?? row.size;
+                                        row.council = opt?.area   ?? row.council;
+                                        row.coords  = opt?.coords ?? row.coords;
+
+                                        fillDependentSelect(`outdoor_size_${idx}`,   row.size,    row.size);
+                                        fillDependentSelect(`outdoor_area_${idx}`,   row.council, row.council);
+                                        fillDependentSelect(`outdoor_coords_${idx}`, row.coords,  row.coords);
+                                    }
+                                    ))">
+                                    <template x-if="row.billboard_id">
+                                    <option :value="row.billboard_id" selected>Selected</option>
                                     </template>
                                 </select>
                                 </div>
 
-                                <!-- SIZE -->
-                                <div class="md:col-span-1">
-                                <label class="block text-xs text-neutral-600 mb-1">Size</label>
-                                <select
-                                    :id="`outdoor_size_${idx}`"
-                                    :name="`locations[${idx}][size]`"
-                                    x-model="row.size"
-                                    placeholder="10x20ft"
-                                    class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]"
-                                    x-init="$nextTick(() => initSuggestSelect($el, '{{ url('/outdoor/sizes') }}', () => row.sub_product))">
-                                    <template x-if="row.size">
-                                    <option :value="row.size" x-text="row.size" selected></option>
-                                    </template>
-                                </select>
-                                </div>
+
 
                                 <!-- AREA -->
                                 <div class="md:col-span-1">
@@ -737,6 +734,7 @@
                                 emptyRow(defaultSub) {
                                     return {
                                         sub_product: defaultSub || 'BB',
+                                        billboard_id: '',
                                         site: '',
                                         size: '',
                                         council: '',
@@ -870,248 +868,345 @@
                         </div>
                     </div>
             </div>
-            <script>
-                document.addEventListener('DOMContentLoaded', () => {
-                // Data PIC ter-group by company_id: { "1":[{id,name},...], ... }
-                const CLIENTS_BY_COMPANY = @json($clientsByCompany ?? []);
+           <script>
 
-                // Company: boleh tambah baru, tetapi value "baru" diprefix 'new:'
-                const tsCompany = new TomSelect('#company_id', {
-                    create: (input) => ({ value: `new:${input}`, text: input }),
-                    persist: false,
-                    allowEmptyOption: true,
-                    placeholder: '-- Select Company --',
-                    plugins: ['dropdown_input','clear_button'],
-                    maxOptions: 1000,
-                });
+function initSiteSelect(selectEl, onPicked) {
+  try {
+    if (selectEl.tomselect) selectEl.tomselect.destroy();
 
-                // PIC: dependent + searchable + boleh tambah baru
-                const tsClient = new TomSelect('#client_id', {
-                    create: (input) => ({ value: `new:${input}`, text: input }),
-                    persist: false,
-                    allowEmptyOption: true,
-                    placeholder: '-- Select Person In Charge --',
-                    plugins: ['dropdown_input','clear_button'],
-                    maxOptions: 1000,
-                    onInitialize() { this.disable(); }
-                });
-
-                function loadClients(companyId) {
-  tsClient.clear();
-  tsClient.clearOptions();
-
-  const keyStr = String(companyId);
-  const keyNum = Number(companyId);
-  const list = CLIENTS_BY_COMPANY[keyStr] || CLIENTS_BY_COMPANY[keyNum] || [];
-
-  if (!companyId || !list.length) {
-    tsClient.addOption({ value: '', text: 'No PIC found for this company' });
-    tsClient.setValue('');
-    tsClient.disable();
-    tsClient.refreshOptions(false);
-    return;
+    new TomSelect(selectEl, {
+      create: true,                   // user can free-type (value will be the typed text)
+      persist: false,
+      allowEmptyOption: true,
+      maxOptions: 1000,
+      valueField: 'value',            // billboard id
+      labelField: 'label',            // pretty text
+      searchField: ['label', 'value'],
+      plugins: ['clear_button','dropdown_input'],
+      load: function(query, callback) {
+        const url = `{{ url('/outdoor/sites') }}?q=${encodeURIComponent(query || '')}`;
+        fetch(url).then(r => r.json()).then(items => callback(items || [])).catch(() => callback());
+      },
+      render: {
+        option: (item, esc) => `<div>${esc(item.label)}</div>`,
+        item:   (item, esc) => `<div>${esc(item.label)}</div>`,
+        no_results: () => `<div class="p-2 text-sm text-neutral-500">No matches. Press Enter to use your text.</div>`
+      },
+      onItemAdd: function(value /*, item */) {
+        // If value is numeric → picked from DB; we can access the rich option data
+        const isNumericId = !!String(value).match(/^\d+$/);
+        if (isNumericId) {
+          const opt = this.options[value]; // contains size/area/coords from the API
+          onPicked && onPicked(opt);
+        } else {
+          // Free-typed text: no autofill available
+          onPicked && onPicked(null);
+        }
+      }
+    });
+  } catch (e) {
+    console.warn('initSiteSelect failed', e);
   }
-
-  list.forEach(c => tsClient.addOption({ value: String(c.id), text: c.name }));
-  tsClient.enable();
-  tsClient.refreshOptions(false);
 }
 
+// Push a value into another TomSelect (Size/Area/Coords), adding it if needed
+function fillDependentSelect(htmlId, value, label) {
+  const el = document.getElementById(htmlId);
+  if (!el || value == null || value === '') return;
+  const ts = el.tomselect;
+  if (!ts) { el.value = value; return; }
+  // add option if it doesn't exist, then set
+  if (!ts.options[value]) {
+    ts.addOption({ value: value, label: label ?? String(value) });
+  }
+  ts.setValue(String(value), true); // silent = true
+}
 
-                tsCompany.on('change', (val) => {
-                    // kalau user mengetik company baru (value diawali 'new:'), jangan load PIC
-                    if (!val || String(val).startsWith('new:')) {
-                    tsClient.clear();
-                    tsClient.clearOptions();
-                    tsClient.addOption({ value: '', text: 'No PIC found for this company' });
-                    tsClient.setValue('');
-                    tsClient.disable();
-                    tsClient.refreshOptions(false);
+document.addEventListener('DOMContentLoaded', () => {
+    // Data PIC ter-group by company_id: { "1":[{id,name,phone,email},...], ... }
+    const CLIENTS_BY_COMPANY = @json($clientsByCompany ?? []);
+
+    // Company: boleh tambah baru, tetapi value "baru" diprefix 'new:'
+    const tsCompany = new TomSelect('#company_id', {
+        create: (input) => ({ value: `new:${input}`, text: input }),
+        persist: false,
+        allowEmptyOption: true,
+        placeholder: '-- Select Company --',
+        plugins: ['dropdown_input','clear_button'],
+        maxOptions: 1000,
+    });
+
+    // PIC: dependent + searchable + boleh tambah baru
+    const tsClient = new TomSelect('#client_id', {
+        create: (input) => ({ value: `new:${input}`, text: input }),
+        persist: false,
+        allowEmptyOption: true,
+        placeholder: '-- Select Person In Charge --',
+        plugins: ['dropdown_input','clear_button'],
+        maxOptions: 1000,
+        onInitialize() { this.disable(); }
+    });
+
+    // Listen to PIC changes and auto-fill contact & email
+    tsClient.on('change', (val) => {
+        // free-typed new PIC → clear
+        if (!val || String(val).startsWith('new:')) {
+            fillContactEmail('', '');
+            return;
+        }
+        const opt = tsClient.options[val];
+        fillContactEmail(opt?.phone || '', opt?.email || '');
+    });
+
+    // Helper to fill contact & email inputs
+    function fillContactEmail(phone, email) {
+        const phoneEl = document.getElementById('contact_number');
+        const mailEl  = document.getElementById('email');
+        if (phoneEl) phoneEl.value = phone || '';
+        if (mailEl)  mailEl.value  = email || '';
+    }
+
+    function loadClients(companyId) {
+        tsClient.clear();
+        tsClient.clearOptions();
+
+        const keyStr = String(companyId);
+        const keyNum = Number(companyId);
+        const list = CLIENTS_BY_COMPANY[keyStr] || CLIENTS_BY_COMPANY[keyNum] || [];
+
+        if (!companyId || !list.length) {
+            tsClient.addOption({ value: '', text: 'No PIC found for this company' });
+            tsClient.setValue('');
+            tsClient.disable();
+            tsClient.refreshOptions(false);
+            // clear dependent fields
+            fillContactEmail('', '');
+            return;
+        }
+
+        // ⬇️ include phone & email on each option
+        list.forEach(c => tsClient.addOption({
+            value: String(c.id),
+            text: c.name,
+            phone: c.phone || '',
+            email: c.email || ''
+        }));
+
+        tsClient.enable();
+        tsClient.refreshOptions(false);
+
+        // (optional) auto-select when only one PIC
+        if (list.length === 1) {
+            tsClient.setValue(String(list[0].id), true);
+            // trigger fill for single PIC
+            const singleOpt = tsClient.options[String(list[0].id)];
+            fillContactEmail(singleOpt?.phone || '', singleOpt?.email || '');
+        }
+    }
+
+    tsCompany.on('change', (val) => {
+        // kalau user mengetik company baru (value diawali 'new:'), jangan load PIC
+        if (!val || String(val).startsWith('new:')) {
+            tsClient.clear();
+            tsClient.clearOptions();
+            tsClient.addOption({ value: '', text: 'No PIC found for this company' });
+            tsClient.setValue('');
+            tsClient.disable();
+            tsClient.refreshOptions(false);
+            // clear dependent fields
+            fillContactEmail('', '');
+            return;
+        }
+        // existing company → load PIC
+        loadClients(val);
+    });
+
+    // Restore old() kalau ada
+    const oldCompany = "{{ old('company_id') }}";
+    const oldClient  = "{{ old('client_id') }}";
+    if (oldCompany) {
+        tsCompany.setValue(String(oldCompany), true);
+        if (!String(oldCompany).startsWith('new:')) {
+            loadClients(String(oldCompany));
+            if (oldClient) {
+                tsClient.setValue(String(oldClient), true);
+                // Also fill contact/email if restoring old client
+                const opt = tsClient.options[String(oldClient)];
+                if (opt) {
+                    fillContactEmail(opt.phone || '', opt.email || '');
+                }
+            }
+        }
+    }
+});
+
+function productPicker() {
+    return {
+        // ===== Data =====
+        categories: {
+            'KLTG': [{
+                    label: 'THE GUIDE',
+                    value: 'THE GUIDE'
+                },
+                {
+                    label: 'KLTG listing',
+                    value: 'KLTG listing'
+                },
+                {
+                    label: 'KLTG Quarter Page',
+                    value: 'KLTG Quarter Page'
+                },
+            ],
+            'Social Media Management': [{
+                    label: 'TikTok Management',
+                    value: 'TikTok Management'
+                },
+                {
+                    label: 'YouTube Management',
+                    value: 'YouTube Management'
+                },
+                {
+                    label: 'FB/IG Management',
+                    value: 'FB/IG Management'
+                },
+                {
+                    label: 'FB Sponsored Ads',
+                    value: 'FB Sponsored Ads'
+                }, // was "FB IG Ad"
+                {
+                    label: 'TikTok Management Boost',
+                    value: 'TikTok Management Boost'
+                },
+                {
+                    label: 'Giveaways/ Contest Management',
+                    value: 'Giveaways/ Contest Management'
+                },
+                {
+                    label: 'Xiaohongshu Management',
+                    value: 'Xiaohongshu Management'
+                },
+            ],
+            'Outdoor': [{
+                    label: 'TB - Tempboard',
+                    value: 'TB'
+                },
+                {
+                    label: 'BB - Billboard',
+                    value: 'BB'
+                },
+                {
+                    label: 'Newspaper',
+                    value: 'Newspaper'
+                },
+                {
+                    label: 'Bunting',
+                    value: 'Bunting'
+                },
+                {
+                    label: 'Flyers',
+                    value: 'Flyers'
+                },
+                {
+                    label: 'Star',
+                    value: 'Star'
+                },
+                {
+                    label: 'Signages',
+                    value: 'Signages'
+                },
+            ],
+        },
+
+        selectedCategory: '',
+        selectedProduct: @json(old('product', '')),
+
+        // ===== Lifecycle =====
+        init() {
+            // Detect category from old product or default to KLTG
+            if (this.selectedProduct) this.detectCategoryFromProduct(this.selectedProduct);
+            if (!this.selectedCategory) this.selectedCategory = 'KLTG';
+
+            // Keep hidden input in sync
+            this._syncHiddenCategory();
+
+            // Expose refreshNumbers for legacy @change="refreshNumbers()"
+            window.refreshNumbers = this.refreshNumbers.bind(this);
+
+            // Auto-refresh when product/date changes
+            const dateEl = document.querySelector('input[name="date"]');
+            if (dateEl) dateEl.addEventListener('change', () => this.refreshNumbers());
+            this.$watch('selectedProduct', () => this.refreshNumbers());
+
+            // Initial attempt
+            this.refreshNumbers();
+        },
+
+        // ===== Actions =====
+        selectCategory(category) {
+            this.selectedCategory = category;
+            // Clear product if it doesn't belong to new category
+            if (!this.isProductInCategory(this.selectedProduct, category)) {
+                this.selectedProduct = '';
+            }
+            this._syncHiddenCategory();
+        },
+
+        detectCategoryFromProduct(productValue) {
+            for (const [category, products] of Object.entries(this.categories)) {
+                if (products.some(p => p.value === productValue)) {
+                    this.selectedCategory = category;
                     return;
-                    }
-                    // existing company → load PIC
-                    loadClients(val);
-                });
-
-                // Restore old() kalau ada
-                const oldCompany = "{{ old('company_id') }}";
-                const oldClient  = "{{ old('client_id') }}";
-                if (oldCompany) {
-                    tsCompany.setValue(String(oldCompany), true);
-                    if (!String(oldCompany).startsWith('new:')) {
-                    loadClients(String(oldCompany));
-                    if (oldClient) tsClient.setValue(String(oldClient), true);
-                    }
                 }
+            }
+        },
+
+        isProductInCategory(productValue, category) {
+            return !!(this.categories[category] && this.categories[category].some(p => p.value === productValue));
+        },
+
+        getCurrentProducts() {
+            return this.categories[this.selectedCategory] || [];
+        },
+
+        _syncHiddenCategory() {
+            const hidden = document.querySelector('input[name="product_category"]');
+            if (hidden) hidden.value = this.selectedCategory;
+        },
+
+        // ===== Job number preview =====
+        async refreshNumbers() {
+            const dateEl = document.querySelector('input[name="date"]');
+            const prodEl = document.querySelector('select[name="product"]');
+            const jobEl = document.getElementById('job_number');
+
+            const date = dateEl?.value || '';
+            const product = prodEl?.value || this.selectedProduct || '';
+
+            if (!date || !product || !jobEl) return;
+
+            try {
+                // {{-- TODO: Replace with actual route if it exists --}}
+                const url = new URL('/serials/preview', window.location.origin);
+                url.searchParams.set('date', date);
+                url.searchParams.set('product', product);
+
+                const res = await fetch(url.toString(), {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
                 });
+                if (!res.ok) return; // don't block the form if backend errs
 
-                function productPicker() {
-                    return {
-                        // ===== Data =====
-                        categories: {
-                            'KLTG': [{
-                                    label: 'THE GUIDE',
-                                    value: 'THE GUIDE'
-                                },
-                                {
-                                    label: 'KLTG listing',
-                                    value: 'KLTG listing'
-                                },
-                                {
-                                    label: 'KLTG Quarter Page',
-                                    value: 'KLTG Quarter Page'
-                                },
-                            ],
-                            'Social Media Management': [{
-                                    label: 'TikTok Management',
-                                    value: 'TikTok Management'
-                                },
-                                {
-                                    label: 'YouTube Management',
-                                    value: 'YouTube Management'
-                                },
-                                {
-                                    label: 'FB/IG Management',
-                                    value: 'FB/IG Management'
-                                },
-                                {
-                                    label: 'FB Sponsored Ads',
-                                    value: 'FB Sponsored Ads'
-                                }, // was "FB IG Ad"
-                                {
-                                    label: 'TikTok Management Boost',
-                                    value: 'TikTok Management Boost'
-                                },
-                                {
-                                    label: 'Giveaways/ Contest Management',
-                                    value: 'Giveaways/ Contest Management'
-                                },
-                                {
-                                    label: 'Xiaohongshu Management',
-                                    value: 'Xiaohongshu Management'
-                                },
-                            ],
-                            'Outdoor': [{
-                                    label: 'TB - Tempboard',
-                                    value: 'TB'
-                                },
-                                {
-                                    label: 'BB - Billboard',
-                                    value: 'BB'
-                                },
-                                {
-                                    label: 'Newspaper',
-                                    value: 'Newspaper'
-                                },
-                                {
-                                    label: 'Bunting',
-                                    value: 'Bunting'
-                                },
-                                {
-                                    label: 'Flyers',
-                                    value: 'Flyers'
-                                },
-                                {
-                                    label: 'Star',
-                                    value: 'Star'
-                                },
-                                {
-                                    label: 'Signages',
-                                    value: 'Signages'
-                                },
-                            ],
-                        },
-
-                        selectedCategory: '',
-                        selectedProduct: @json(old('product', '')),
-
-                        // ===== Lifecycle =====
-                        init() {
-                            // Detect category from old product or default to KLTG
-                            if (this.selectedProduct) this.detectCategoryFromProduct(this.selectedProduct);
-                            if (!this.selectedCategory) this.selectedCategory = 'KLTG';
-
-                            // Keep hidden input in sync
-                            this._syncHiddenCategory();
-
-                            // Expose refreshNumbers for legacy @change="refreshNumbers()"
-                            window.refreshNumbers = this.refreshNumbers.bind(this);
-
-                            // Auto-refresh when product/date changes
-                            const dateEl = document.querySelector('input[name="date"]');
-                            if (dateEl) dateEl.addEventListener('change', () => this.refreshNumbers());
-                            this.$watch('selectedProduct', () => this.refreshNumbers());
-
-                            // Initial attempt
-                            this.refreshNumbers();
-                        },
-
-                        // ===== Actions =====
-                        selectCategory(category) {
-                            this.selectedCategory = category;
-                            // Clear product if it doesn't belong to new category
-                            if (!this.isProductInCategory(this.selectedProduct, category)) {
-                                this.selectedProduct = '';
-                            }
-                            this._syncHiddenCategory();
-                        },
-
-                        detectCategoryFromProduct(productValue) {
-                            for (const [category, products] of Object.entries(this.categories)) {
-                                if (products.some(p => p.value === productValue)) {
-                                    this.selectedCategory = category;
-                                    return;
-                                }
-                            }
-                        },
-
-                        isProductInCategory(productValue, category) {
-                            return !!(this.categories[category] && this.categories[category].some(p => p.value === productValue));
-                        },
-
-                        getCurrentProducts() {
-                            return this.categories[this.selectedCategory] || [];
-                        },
-
-                        _syncHiddenCategory() {
-                            const hidden = document.querySelector('input[name="product_category"]');
-                            if (hidden) hidden.value = this.selectedCategory;
-                        },
-
-                        // ===== Job number preview =====
-                        async refreshNumbers() {
-                            const dateEl = document.querySelector('input[name="date"]');
-                            const prodEl = document.querySelector('select[name="product"]');
-                            const jobEl = document.getElementById('job_number');
-
-                            const date = dateEl?.value || '';
-                            const product = prodEl?.value || this.selectedProduct || '';
-
-                            if (!date || !product || !jobEl) return;
-
-                            try {
-                                // {{-- TODO: Replace with actual route if it exists --}}
-                                const url = new URL('/serials/preview', window.location.origin);
-                                url.searchParams.set('date', date);
-                                url.searchParams.set('product', product);
-
-                                const res = await fetch(url.toString(), {
-                                    headers: {
-                                        'Accept': 'application/json'
-                                    }
-                                });
-                                if (!res.ok) return; // don't block the form if backend errs
-
-                                const data = await res.json();
-                                if (data?.job_number) jobEl.value = data.job_number;
-                            } catch (e) {
-                                // Silent fail to keep UX smooth
-                                console.warn('refreshNumbers failed:', e);
-                            }
-                        },
-                    };
-                }
-            </script>
+                const data = await res.json();
+                if (data?.job_number) jobEl.value = data.job_number;
+            } catch (e) {
+                // Silent fail to keep UX smooth
+                console.warn('refreshNumbers failed:', e);
+            }
+        },
+    };
+}
+</script>
     </x-app-layout>
 
 </body>

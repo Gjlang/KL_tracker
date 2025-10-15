@@ -556,7 +556,7 @@ class MasterFileController extends Controller
         return view('masterfile.show', compact('file'));
     }
 
-   public function create()
+  public function create()
 {
     // 1) Detect company-name column
     $col = Schema::hasColumn('client_companies', 'company') ? 'company'
@@ -593,9 +593,9 @@ class MasterFileController extends Controller
         $nameToId[mb_strtolower($label)] = (string) $id;
     }
 
-    // 3) PIC from `clients` table → { "company_id": [ {id,name}, ... ] }
+    // 3) PIC from `clients` table → { "company_id": [ {id,name,phone,email}, ... ] }
     $clientsRaw = DB::table('clients')
-        ->select('id','name','company_id')
+        ->select('id', 'name', 'company_id', 'phone', 'email')   // ⬅️ added phone & email
         ->whereNotNull('company_id')
         ->orderBy('name')
         ->get();
@@ -605,42 +605,45 @@ class MasterFileController extends Controller
         $cid = (string) $c->company_id;
         if (!isset($byCompany[$cid])) $byCompany[$cid] = [];
         if ($c->name && trim($c->name) !== '') {
-            $byCompany[$cid][] = ['id' => (string)$c->id, 'name' => trim($c->name)];
+            $byCompany[$cid][] = [
+                'id'    => (string)$c->id,
+                'name'  => trim($c->name),
+                'phone' => $c->phone ?? '',     // ⬅️ include phone
+                'email' => $c->email ?? '',     // ⬅️ include email
+            ];
         }
     }
 
     // 4) Merge historic PIC from `master_files` (distinct client per company name)
     //    Only for companies that exist in dropdown
     if (Schema::hasTable('master_files')
-        && Schema::hasColumn('master_files','company')
-        && Schema::hasColumn('master_files','client')) {
+        && Schema::hasColumn('master_files', 'company')
+        && Schema::hasColumn('master_files', 'client')) {
 
         $mf = DB::table('master_files')
-            ->select('company','client')
+            ->select('company', 'client')
             ->whereNotNull('company')
             ->whereNotNull('client')
             ->get();
 
-        // group by company name (case-insensitive)
+        // Group by company name (case-insensitive)
         $grouped = [];
         foreach ($mf as $row) {
             $companyName = trim((string)$row->company);
             $clientName  = trim((string)$row->client);
             if ($companyName === '' || $clientName === '') continue;
-
             $key = mb_strtolower($companyName);
             if (!isset($grouped[$key])) $grouped[$key] = [];
             $grouped[$key][$clientName] = true; // unique by client name
         }
 
         foreach ($grouped as $companyLower => $clientSet) {
-            // map company name to existing ID
+            // Map company name to existing ID
             $cid = $nameToId[$companyLower] ?? null;
             if (!$cid) continue;
-
             if (!isset($byCompany[$cid])) $byCompany[$cid] = [];
 
-            // existing names (lowercased) to avoid duplicates
+            // Existing names (lowercased) to avoid duplicates
             $existingLower = array_map(
                 fn($r) => mb_strtolower($r['name']),
                 $byCompany[$cid]
@@ -648,8 +651,14 @@ class MasterFileController extends Controller
 
             foreach (array_keys($clientSet) as $nm) {
                 if (!in_array(mb_strtolower($nm), $existingLower, true)) {
-                    // mark as "new" so store() can create Client if dipilih
-                    $byCompany[$cid][] = ['id' => 'new:'.$nm, 'name' => $nm];
+                    // Mark as "new" so store() can create Client if selected
+                    // Historic records don't have phone/email, so leave empty
+                    $byCompany[$cid][] = [
+                        'id'    => 'new:' . $nm,
+                        'name'  => $nm,
+                        'phone' => '',          // ⬅️ empty for historic
+                        'email' => '',          // ⬅️ empty for historic
+                    ];
                 }
             }
         }
@@ -657,7 +666,7 @@ class MasterFileController extends Controller
 
     return view('masterfile.create', [
         'companies'         => $companies,        // [id => label]
-        'clientsByCompany'  => $byCompany,        // { "id": [ {id,name}, ... ] }
+        'clientsByCompany'  => $byCompany,        // { "id": [ {id,name,phone,email}, ... ] }
         'display_column'    => $col,              // if you still reference it somewhere
     ]);
 }
@@ -936,9 +945,7 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
     $companyName = null;
     if (is_string($companyRaw) && str_starts_with($companyRaw, 'new:')) {
         $companyName = trim(substr($companyRaw, 4));
-        // create new company
         $companyModel = \App\Models\ClientCompany::create([
-            // ganti kolom di bawah sesuai skema kamu
             'company' => $companyName,
         ]);
         $companyId   = $companyModel->id;
@@ -949,14 +956,11 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
             $companyId   = $companyModel->id;
             $companyName = $getCompanyName($companyModel);
         } else {
-            // fallback: treat as text
             $companyName = $companyRaw;
         }
     } else {
-        // plain text typed (or already a name from old flow)
         $typed = trim((string)$companyRaw);
         if ($typed !== '') {
-            // try find existing by common columns to avoid duplicates
             $companyModel = \App\Models\ClientCompany::where('company', $typed)
                 ->orWhere('company_name', $typed)
                 ->orWhere('name', $typed)
@@ -979,7 +983,7 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
         $clientName = trim(substr($clientRaw, 4));
         $clientModel = \App\Models\Client::create([
             'name'       => $clientName,
-            'company_id' => $companyId, // can be null if company not resolved—OK if schema allows
+            'company_id' => $companyId,
         ]);
         $clientId   = $clientModel->id;
         $clientName = $clientModel->name;
@@ -992,7 +996,6 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
     } else {
         $typed = trim((string)$clientRaw);
         if ($typed !== '') {
-            // Prefer match within the selected company (if any), else global
             $q = \App\Models\Client::query()->where('name', $typed);
             if ($companyId) $q->where('company_id', $companyId);
             $clientModel = $q->first();
@@ -1008,8 +1011,7 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
         }
     }
 
-    // Merge resolved names back to request so validation + MasterFile::create() use text (your schema)
-    // Also auto-fill contact/email from Client if empty in request
+    // Merge resolved names back to request
     $autoContact = $request->filled('contact_number') ? $request->input('contact_number') : ($clientModel->contact_number ?? null);
     $autoEmail   = $request->filled('email')          ? $request->input('email')          : ($clientModel->email ?? null);
 
@@ -1020,7 +1022,7 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
         'email'          => $autoEmail,
     ]);
 
-    // ---- 1) VALIDASI (tetap seperti punyamu) ----
+    // ---- 1) VALIDASI ----
     $data = $request->validate([
         'month' => ['required', 'string', 'max:255'],
         'date' => ['required', 'date'],
@@ -1063,41 +1065,74 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
         'bulk_placements' => ['nullable', 'string'],
     ]);
 
-    // ---- 2) TRANSACTION + your existing outdoor logic ----
+    // ---- 2) TRANSACTION + OUTDOOR LOGIC ----
     DB::transaction(function () use ($request, $data) {
         /** @var \App\Models\MasterFile $masterFile */
         $masterFile = MasterFile::create($data);
 
         $isOutdoor = ($data['product_category'] ?? '') === 'Outdoor';
 
-        // ===== NEW: Repeater mode (locations[...]) =====
+        // ===== REPEATER MODE with Billboard Integration =====
         if ($isOutdoor && $request->has('locations')) {
-            $locs = collect($request->input('locations', []))
-                ->map(function ($r) use ($data) {
-                    return [
-                        'sub_product'      => Arr::get($r, 'sub_product', $data['product'] ?? 'Outdoor'),
-                        'qty'              => 1,
-                        'site'             => Arr::get($r, 'site'),
-                        'size'             => Arr::get($r, 'size'),
-                        'district_council' => Arr::get($r, 'council'),
-                        'coordinates'      => Arr::get($r, 'coords'),
-                        'remarks'          => Arr::get($r, 'remarks'),
-                        'start_date'       => Arr::get($r, 'start_date'),
-                        'end_date'         => Arr::get($r, 'end_date'),
-                    ];
-                })
-                ->filter(fn($row) => ($row['site'] ?? '') !== '')
-                ->values()
-                ->all();
+            $locations = $request->input('locations', []);
 
-            if (!empty($locs)) {
-                $masterFile->outdoorItems()->createMany($locs);
+            foreach ($locations as $loc) {
+                $billboardId = isset($loc['billboard_id']) && is_numeric($loc['billboard_id'])
+                    ? (int) $loc['billboard_id'] : null;
+
+                $typedSite = trim($loc['site'] ?? '');
+
+                // Skip empty rows
+                if (!$billboardId && $typedSite === '') {
+                    continue;
+                }
+
+                // Map UI keys -> DB columns
+                $subProduct = $loc['sub_product'] ?? ($data['product'] ?? 'Outdoor');
+                $size       = $loc['size'] ?? null;
+                $area       = $loc['council'] ?? null;   // UI 'council' -> DB 'district_council'
+                $coords     = $loc['coords'] ?? null;    // UI 'coords'  -> DB 'coordinates'
+                $remarks    = $loc['remarks'] ?? null;
+                $startDate  = $loc['start_date'] ?? null;
+                $endDate    = $loc['end_date'] ?? null;
+                $siteLabel  = $typedSite ?: null;
+
+                // Hydrate from billboard if ID is present
+                if ($billboardId) {
+                    $bb = \DB::table('billboards as b')
+                        ->leftJoin('locations as l', 'l.id', '=', 'b.location_id')
+                        ->where('b.id', $billboardId)
+                        ->first(['b.site_number', 'b.size', 'b.gps_latitude', 'b.gps_longitude', 'l.name as area_name']);
+
+                    if ($bb) {
+                        $siteLabel = $siteLabel ?: ($bb->site_number ?? null);
+                        $size      = $size      ?: ($bb->size ?? null);
+                        $area      = $area      ?: ($bb->area_name ?? null);
+                        if (!$coords && $bb->gps_latitude !== null && $bb->gps_longitude !== null) {
+                            $coords = $bb->gps_latitude . ',' . $bb->gps_longitude;
+                        }
+                    }
+                }
+
+                // Insert outdoor item
+                $masterFile->outdoorItems()->create([
+                    'sub_product'      => $subProduct,
+                    'qty'              => 1, // or ($loc['qty'] ?? 1)
+                    'site'             => $siteLabel,
+                    'size'             => $size,
+                    'district_council' => $area,
+                    'coordinates'      => $coords,
+                    'remarks'          => $remarks,
+                    'start_date'       => $startDate ?: null,
+                    'end_date'         => $endDate   ?: null,
+                    'billboard_id'     => $billboardId,
+                ]);
             }
 
-            return; // done
+            return; // Done with repeater mode
         }
 
-        // ===== Old textarea mode (bulk_placements) =====
+        // ===== FALLBACK: Old textarea mode (bulk_placements) =====
         $raw = trim((string)$request->input('bulk_placements', ''));
         if ($isOutdoor && $raw !== '') {
             $lines = preg_split("/\r\n|\n|\r/", $raw);

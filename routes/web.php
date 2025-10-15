@@ -35,6 +35,8 @@ use App\Http\Controllers\ClientCompanyController;
 use App\Http\Controllers\ContractorController;
 use App\Http\Controllers\StockInventoryController;
 use App\Http\Controllers\UsersController;
+use App\Http\Controllers\OutdoorLookupController;
+
 
 
 
@@ -710,3 +712,9 @@ Route::prefix('users')
         Route::post('/update', [UsersController::class, 'update'])->name('update');
     });
 
+
+
+Route::middleware(['auth','verified'])->group(function () {
+    Route::get('/outdoor/sites', [OutdoorLookupController::class, 'sites'])
+        ->name('outdoor.sites');
+});
