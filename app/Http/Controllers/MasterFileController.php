@@ -23,7 +23,6 @@ use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use App\Models\OutdoorItem;
-use App\Models\Client;
 use Illuminate\Support\Arr;
 
 
@@ -410,8 +409,6 @@ class MasterFileController extends Controller
         // Get paginated results with filters retained
         $masterFiles = $query->orderBy('date', 'desc')->paginate(25)->withQueryString();
 
-        logger('sini la');
-
         // Debug: Log the result count
         Log::info('Query Results:', ['count' => $masterFiles->count(), 'total' => $masterFiles->total()]);
 
@@ -556,99 +553,115 @@ class MasterFileController extends Controller
     public function show($id)
     {
         $file = MasterFile::findOrFail($id);
-        logger('company apatu: ' . $file);
         return view('masterfile.show', compact('file'));
     }
 
-    // public function create()
-    // {
-    //     // Pick the correct column name safely
-    //     $col = Schema::hasColumn('client_companies', 'company') ? 'company'
-    //         : (Schema::hasColumn('client_companies', 'company_name') ? 'company_name'
-    //         : (Schema::hasColumn('client_companies', 'name') ? 'name' : null));
+   public function create()
+{
+    // 1) Detect company-name column
+    $col = Schema::hasColumn('client_companies', 'company') ? 'company'
+        : (Schema::hasColumn('client_companies', 'company_name') ? 'company_name'
+        : (Schema::hasColumn('client_companies', 'name') ? 'name' : null));
 
-    //     $companies = collect();
-
-    //     if ($col) {
-    //         $companies = DB::table('client_companies')
-    //             ->whereNotNull($col)
-    //             ->where($col, '!=', '') 
-    //             ->orderBy($col)
-    //             ->get() // This gets ALL columns including id
-    //             ->map(function ($company) use ($col) {
-    //                 $company->{$col} = trim($company->{$col});
-    //                 return $company;
-    //             })
-    //             ->filter(function ($company) use ($col) {
-    //                 return !empty($company->{$col});
-    //             });
-    //     }
-
-    //     return view('masterfile.create', [
-    //         'companies' => $companies,
-    //     ]);
-    // }
-
-    public function create()
-    {
-        // Pick the correct column name safely
-        $col = Schema::hasColumn('client_companies', 'company') ? 'company'
-            : (Schema::hasColumn('client_companies', 'company_name') ? 'company_name'
-            : (Schema::hasColumn('client_companies', 'name') ? 'name' : null));
-
-        $companies = collect();
-        $clientsByCompany = collect();
-
-        if ($col) {
-            $companies = DB::table('client_companies')
-                ->whereNotNull($col)
-                ->where($col, '!=', '')
-                ->orderBy($col)
-                ->get()
-                ->map(function ($company) use ($col) {
-                    $company->{$col} = trim($company->{$col});
-                    return $company;
-                })
-                ->filter(function ($company) use ($col) {
-                    return !empty($company->{$col});
-                });
-
-            // Get clients with both ID and name, grouped by company_id
-            $clientsByCompany = Client::whereNotNull('company_id')
-                ->whereNotNull('name')
-                ->where('name', '!=', '')
-                ->select('id', 'name', 'company_id')
-                ->get()
-                ->groupBy('company_id')
-                ->map(function ($clients) {
-                    return $clients->map(function ($client) {
-                        return [
-                            'id' => $client->id,
-                            'name' => $client->name
-                        ];
-                    })->values();
-                });
-        }
-
+    // Fallback if no suitable column
+    if (!$col) {
         return view('masterfile.create', [
-            'companies' => $companies,
-            'clientsByCompany' => $clientsByCompany,
-            'display_column' => $col,
+            'companies'         => collect(),   // []
+            'clientsByCompany'  => [],          // {}
+            'display_column'    => 'company',   // not used but safe
         ]);
     }
 
-    public function getClientsByCompany($companyId)
-    {
-        logger('company id: ' . $companyId);
-        $clients = Client::where('company_id', $companyId)
-                    ->select('id', 'name')
-                    ->orderBy('name')
-                    ->get();
+    // 2) Companies as: [ id => "Company Name" ]
+    $companies = DB::table('client_companies')
+        ->select('id', DB::raw("$col as label"))
+        ->whereNotNull($col)
+        ->where($col, '!=', '')
+        ->orderBy($col)
+        ->get()
+        ->map(function ($r) {
+            $r->label = trim($r->label);
+            return $r;
+        })
+        ->filter(fn($r) => $r->label !== '')
+        ->unique(fn($r) => mb_strtolower($r->label))
+        ->mapWithKeys(fn($r) => [$r->id => $r->label]);
 
-        return response()->json($clients);
+    // For mapping company name -> id (case-insensitive)
+    $nameToId = [];
+    foreach ($companies as $id => $label) {
+        $nameToId[mb_strtolower($label)] = (string) $id;
     }
 
-    // MasterFileController.php
+    // 3) PIC from `clients` table → { "company_id": [ {id,name}, ... ] }
+    $clientsRaw = DB::table('clients')
+        ->select('id','name','company_id')
+        ->whereNotNull('company_id')
+        ->orderBy('name')
+        ->get();
+
+    $byCompany = [];
+    foreach ($clientsRaw as $c) {
+        $cid = (string) $c->company_id;
+        if (!isset($byCompany[$cid])) $byCompany[$cid] = [];
+        if ($c->name && trim($c->name) !== '') {
+            $byCompany[$cid][] = ['id' => (string)$c->id, 'name' => trim($c->name)];
+        }
+    }
+
+    // 4) Merge historic PIC from `master_files` (distinct client per company name)
+    //    Only for companies that exist in dropdown
+    if (Schema::hasTable('master_files')
+        && Schema::hasColumn('master_files','company')
+        && Schema::hasColumn('master_files','client')) {
+
+        $mf = DB::table('master_files')
+            ->select('company','client')
+            ->whereNotNull('company')
+            ->whereNotNull('client')
+            ->get();
+
+        // group by company name (case-insensitive)
+        $grouped = [];
+        foreach ($mf as $row) {
+            $companyName = trim((string)$row->company);
+            $clientName  = trim((string)$row->client);
+            if ($companyName === '' || $clientName === '') continue;
+
+            $key = mb_strtolower($companyName);
+            if (!isset($grouped[$key])) $grouped[$key] = [];
+            $grouped[$key][$clientName] = true; // unique by client name
+        }
+
+        foreach ($grouped as $companyLower => $clientSet) {
+            // map company name to existing ID
+            $cid = $nameToId[$companyLower] ?? null;
+            if (!$cid) continue;
+
+            if (!isset($byCompany[$cid])) $byCompany[$cid] = [];
+
+            // existing names (lowercased) to avoid duplicates
+            $existingLower = array_map(
+                fn($r) => mb_strtolower($r['name']),
+                $byCompany[$cid]
+            );
+
+            foreach (array_keys($clientSet) as $nm) {
+                if (!in_array(mb_strtolower($nm), $existingLower, true)) {
+                    // mark as "new" so store() can create Client if dipilih
+                    $byCompany[$cid][] = ['id' => 'new:'.$nm, 'name' => $nm];
+                }
+            }
+        }
+    }
+
+    return view('masterfile.create', [
+        'companies'         => $companies,        // [id => label]
+        'clientsByCompany'  => $byCompany,        // { "id": [ {id,name}, ... ] }
+        'display_column'    => $col,              // if you still reference it somewhere
+    ]);
+}
+
 private function pickColumn(string $table, array $candidates): ?string
 {
     foreach ($candidates as $c) {
@@ -904,154 +917,242 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
 
     // 🔧 FIXED: Single store method with AUTO-SEED KLTG DISABLED
     public function store(Request $request)
-    {
-        logger('masuk store: ' . $request);
-        // 1) VALIDASI biasa + bulk_placements
-        $data = $request->validate([
-            // === field existing kamu ===
-            'month' => ['required', 'string', 'max:255'],
-            'date' => ['required', 'date'],
-            'company_id' => ['required', 'string', 'max:255'],
-            // 'company' => ['requir    ed', 'string', 'max:255'],
-            'product' => ['required', 'string', 'max:255'],
-            'product_category' => ['nullable', 'string', 'max:255'],
-            'location' => ['nullable', 'string', 'max:255'],
-            'traffic' => ['required', 'string', 'max:255'],
-            'duration' => ['nullable', 'string', 'max:255'],
-            'amount' => ['nullable', 'numeric', 'between:0,999999999.99'],
-            'status' => ['required', 'string', 'max:255'],
-            'remarks' => ['nullable', 'string'],
-            'client_id' => ['required', 'string', 'max:255'],
-            'sales_person' => ['nullable', 'string', 'max:255'],
-            'date_finish' => ['nullable', 'date'],
-            'job_number' => ['nullable', 'string', 'max:255'],
-            'artwork' => ['nullable', 'string', 'max:255'],
-            'invoice_date' => ['nullable', 'date'],
-            'invoice_number' => ['nullable', 'string', 'max:255'],
-            'contact_number' => ['nullable', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255'],
+{
+    // ---- 0) Normalise "company" & "client" (accept id / new: / plain text) BEFORE validate ----
+    // Read raw inputs (support either *_id or plain fields)
+    $companyRaw = $request->input('company_id', $request->input('company'));
+    $clientRaw  = $request->input('client_id',  $request->input('client'));
 
-            // === field khusus KLTG / Outdoor (kalau kamu pakai) ===
-            'kltg_industry' => ['nullable', 'string', 'max:255'],
-            'kltg_x' => ['nullable', 'string', 'max:255'],
-            'kltg_edition' => ['nullable', 'string', 'max:255'],
-            'kltg_material_cbp' => ['nullable', 'string', 'max:255'],
-            'kltg_print' => ['nullable', 'string', 'max:255'],
-            'kltg_article' => ['nullable', 'string', 'max:255'],
-            'kltg_video' => ['nullable', 'string', 'max:255'],
-            'kltg_leaderboard' => ['nullable', 'string', 'max:255'],
-            'kltg_qr_code' => ['nullable', 'string', 'max:255'],
-            'kltg_blog' => ['nullable', 'string', 'max:255'],
-            'kltg_em' => ['nullable', 'string', 'max:255'],
-            'kltg_remarks' => ['nullable', 'string', 'max:255'],
+    // Helpers to fetch display column safely
+    $getCompanyName = function ($companyModel) {
+        return $companyModel->company
+            ?? $companyModel->company_name
+            ?? $companyModel->name
+            ?? (string) $companyModel->id;
+    };
 
-            'outdoor_size' => ['nullable', 'string', 'max:255'],
-            'outdoor_district_council' => ['nullable', 'string', 'max:255'],
-            'outdoor_coordinates' => ['nullable', 'string', 'max:255'],
-
-            // === textarea bulk ===
-            'bulk_placements' => ['nullable', 'string'],
+    // Resolve / create Company
+    $companyId   = null;
+    $companyName = null;
+    if (is_string($companyRaw) && str_starts_with($companyRaw, 'new:')) {
+        $companyName = trim(substr($companyRaw, 4));
+        // create new company
+        $companyModel = \App\Models\ClientCompany::create([
+            // ganti kolom di bawah sesuai skema kamu
+            'company' => $companyName,
         ]);
-
-        DB::transaction(function () use ($request, $data) {
-            /** @var \App\Models\MasterFile $masterFile */
-            $masterFile = MasterFile::create($data);
-
-            $isOutdoor = ($data['product_category'] ?? '') === 'Outdoor';
-
-            // ===== NEW: Repeater mode (locations[...]) =====
-            if ($isOutdoor && $request->has('locations')) {
-                $locs = collect($request->input('locations', []))
-                    ->map(function ($r) use ($data) {
-                        // coords: "lat,lng" OR empty
-                        $coords = trim((string)($r['coords'] ?? ''));
-                        // allow sub_product override per row; fall back to selected product
-                        $sub = trim((string)($r['sub_product'] ?? ($data['product'] ?? 'Outdoor')));
-
-                        return [
-                            'sub_product'      => Arr::get($r, 'sub_product', $data['product'] ?? 'Outdoor'),
-                            'qty'              => 1,
-                            'site'             => Arr::get($r, 'site'),
-                            'size'             => Arr::get($r, 'size'),
-                            'district_council' => Arr::get($r, 'council'),
-                            'coordinates'      => Arr::get($r, 'coords'),
-                            'remarks'          => Arr::get($r, 'remarks'),
-                            'start_date'       => Arr::get($r, 'start_date'),
-                            'end_date'         => Arr::get($r, 'end_date'),
-                        ];
-                    })
-                    // keep only rows that at least have a site
-                    ->filter(fn($row) => $row['site'] !== '')
-                    ->values()
-                    ->all();
-
-                if (!empty($locs)) {
-                    $masterFile->outdoorItems()->createMany($locs);
-                }
-
-                return; // done
+        $companyId   = $companyModel->id;
+        $companyName = $getCompanyName($companyModel);
+    } elseif (is_string($companyRaw) && ctype_digit($companyRaw)) {
+        $companyModel = \App\Models\ClientCompany::find($companyRaw);
+        if ($companyModel) {
+            $companyId   = $companyModel->id;
+            $companyName = $getCompanyName($companyModel);
+        } else {
+            // fallback: treat as text
+            $companyName = $companyRaw;
+        }
+    } else {
+        // plain text typed (or already a name from old flow)
+        $typed = trim((string)$companyRaw);
+        if ($typed !== '') {
+            // try find existing by common columns to avoid duplicates
+            $companyModel = \App\Models\ClientCompany::where('company', $typed)
+                ->orWhere('company_name', $typed)
+                ->orWhere('name', $typed)
+                ->first();
+            if (!$companyModel) {
+                $companyModel = \App\Models\ClientCompany::create([
+                    'company' => $typed,
+                ]);
             }
-
-            // ===== Old textarea mode (bulk_placements) =====
-            $raw = trim((string)$request->input('bulk_placements', ''));
-            if ($isOutdoor && $raw !== '') {
-                $lines = preg_split("/\r\n|\n|\r/", $raw);
-                $defaultSub = $data['product'] ?? 'Outdoor';
-
-                $items = [];
-                foreach ($lines as $line) {
-                    $line = trim($line);
-                    if ($line === '') continue;
-
-                    // prefer "|" else ","
-                    $sep   = str_contains($line, '|') ? '|' : ',';
-                    $parts = array_map('trim', str_getcsv($line, $sep));
-
-                    $site        = $parts[0] ?? null;
-                    $size        = $parts[1] ?? null;
-                    $council     = $parts[2] ?? null;
-                    $coordinates = $parts[3] ?? null;
-                    $remarks     = $parts[4] ?? null;
-
-                    // FIX: reset $sub per line (avoid leaking previous value)
-                    $sub = $defaultSub;
-
-                    // Optional prefix: "BB: Site name"
-                    if ($site && preg_match('/^(BB|TB|Bunting|Flyers|Star|Signages|Newspaper)\s*:\s*(.+)$/i', $site, $m)) {
-                        $sub  = $m[1];
-                        $site = $m[2];
-                    }
-
-                    // If coords split into two numeric parts (lat / lng) and remarks captured the second, merge them
-                    if (
-                        $coordinates && $remarks
-                        && preg_match('/^-?\d+(\.\d+)?$/', $coordinates)
-                        && preg_match('/^-?\d+(\.\d+)?$/', $remarks)
-                    ) {
-                        $coordinates = $coordinates . ',' . $remarks;
-                        $remarks = null;
-                    }
-
-                    $items[] = [
-                        'sub_product'      => $sub,
-                        'qty'              => 1,
-                        'site'             => $site,
-                        'size'             => $size ?: null,
-                        'district_council' => $council ?: null,
-                        'coordinates'      => $coordinates ?: null,
-                        'remarks'          => $remarks ?: null,
-                    ];
-                }
-
-                if (!empty($items)) {
-                    $masterFile->outdoorItems()->createMany($items);
-                }
-            }
-        });
-
-
-        return redirect()->route('dashboard')->with('success', 'Saved.');
+            $companyId   = $companyModel->id;
+            $companyName = $getCompanyName($companyModel);
+        }
     }
+
+    // Resolve / create Client (PIC) attached to companyId when possible
+    $clientId   = null;
+    $clientName = null;
+    $clientModel = null;
+    if (is_string($clientRaw) && str_starts_with($clientRaw, 'new:')) {
+        $clientName = trim(substr($clientRaw, 4));
+        $clientModel = \App\Models\Client::create([
+            'name'       => $clientName,
+            'company_id' => $companyId, // can be null if company not resolved—OK if schema allows
+        ]);
+        $clientId   = $clientModel->id;
+        $clientName = $clientModel->name;
+    } elseif (is_string($clientRaw) && ctype_digit($clientRaw)) {
+        $clientModel = \App\Models\Client::find($clientRaw);
+        if ($clientModel) {
+            $clientId   = $clientModel->id;
+            $clientName = $clientModel->name;
+        }
+    } else {
+        $typed = trim((string)$clientRaw);
+        if ($typed !== '') {
+            // Prefer match within the selected company (if any), else global
+            $q = \App\Models\Client::query()->where('name', $typed);
+            if ($companyId) $q->where('company_id', $companyId);
+            $clientModel = $q->first();
+
+            if (!$clientModel) {
+                $clientModel = \App\Models\Client::create([
+                    'name'       => $typed,
+                    'company_id' => $companyId,
+                ]);
+            }
+            $clientId   = $clientModel->id;
+            $clientName = $clientModel->name;
+        }
+    }
+
+    // Merge resolved names back to request so validation + MasterFile::create() use text (your schema)
+    // Also auto-fill contact/email from Client if empty in request
+    $autoContact = $request->filled('contact_number') ? $request->input('contact_number') : ($clientModel->contact_number ?? null);
+    $autoEmail   = $request->filled('email')          ? $request->input('email')          : ($clientModel->email ?? null);
+
+    $request->merge([
+        'company'        => $companyName ?? (string)$companyRaw,
+        'client'         => $clientName  ?? (string)$clientRaw,
+        'contact_number' => $autoContact,
+        'email'          => $autoEmail,
+    ]);
+
+    // ---- 1) VALIDASI (tetap seperti punyamu) ----
+    $data = $request->validate([
+        'month' => ['required', 'string', 'max:255'],
+        'date' => ['required', 'date'],
+        'company' => ['required', 'string', 'max:255'],
+        'product' => ['required', 'string', 'max:255'],
+        'product_category' => ['nullable', 'string', 'max:255'],
+        'location' => ['nullable', 'string', 'max:255'],
+        'traffic' => ['required', 'string', 'max:255'],
+        'duration' => ['nullable', 'string', 'max:255'],
+        'amount' => ['nullable', 'numeric', 'between:0,999999999.99'],
+        'status' => ['required', 'string', 'max:255'],
+        'remarks' => ['nullable', 'string'],
+        'client' => ['required', 'string', 'max:255'],
+        'sales_person' => ['nullable', 'string', 'max:255'],
+        'date_finish' => ['nullable', 'date'],
+        'job_number' => ['nullable', 'string', 'max:255'],
+        'artwork' => ['nullable', 'string', 'max:255'],
+        'invoice_date' => ['nullable', 'date'],
+        'invoice_number' => ['nullable', 'string', 'max:255'],
+        'contact_number' => ['nullable', 'string', 'max:255'],
+        'email' => ['nullable', 'email', 'max:255'],
+
+        'kltg_industry' => ['nullable', 'string', 'max:255'],
+        'kltg_x' => ['nullable', 'string', 'max:255'],
+        'kltg_edition' => ['nullable', 'string', 'max:255'],
+        'kltg_material_cbp' => ['nullable', 'string', 'max:255'],
+        'kltg_print' => ['nullable', 'string', 'max:255'],
+        'kltg_article' => ['nullable', 'string', 'max:255'],
+        'kltg_video' => ['nullable', 'string', 'max:255'],
+        'kltg_leaderboard' => ['nullable', 'string', 'max:255'],
+        'kltg_qr_code' => ['nullable', 'string', 'max:255'],
+        'kltg_blog' => ['nullable', 'string', 'max:255'],
+        'kltg_em' => ['nullable', 'string', 'max:255'],
+        'kltg_remarks' => ['nullable', 'string', 'max:255'],
+
+        'outdoor_size' => ['nullable', 'string', 'max:255'],
+        'outdoor_district_council' => ['nullable', 'string', 'max:255'],
+        'outdoor_coordinates' => ['nullable', 'string', 'max:255'],
+
+        'bulk_placements' => ['nullable', 'string'],
+    ]);
+
+    // ---- 2) TRANSACTION + your existing outdoor logic ----
+    DB::transaction(function () use ($request, $data) {
+        /** @var \App\Models\MasterFile $masterFile */
+        $masterFile = MasterFile::create($data);
+
+        $isOutdoor = ($data['product_category'] ?? '') === 'Outdoor';
+
+        // ===== NEW: Repeater mode (locations[...]) =====
+        if ($isOutdoor && $request->has('locations')) {
+            $locs = collect($request->input('locations', []))
+                ->map(function ($r) use ($data) {
+                    return [
+                        'sub_product'      => Arr::get($r, 'sub_product', $data['product'] ?? 'Outdoor'),
+                        'qty'              => 1,
+                        'site'             => Arr::get($r, 'site'),
+                        'size'             => Arr::get($r, 'size'),
+                        'district_council' => Arr::get($r, 'council'),
+                        'coordinates'      => Arr::get($r, 'coords'),
+                        'remarks'          => Arr::get($r, 'remarks'),
+                        'start_date'       => Arr::get($r, 'start_date'),
+                        'end_date'         => Arr::get($r, 'end_date'),
+                    ];
+                })
+                ->filter(fn($row) => ($row['site'] ?? '') !== '')
+                ->values()
+                ->all();
+
+            if (!empty($locs)) {
+                $masterFile->outdoorItems()->createMany($locs);
+            }
+
+            return; // done
+        }
+
+        // ===== Old textarea mode (bulk_placements) =====
+        $raw = trim((string)$request->input('bulk_placements', ''));
+        if ($isOutdoor && $raw !== '') {
+            $lines = preg_split("/\r\n|\n|\r/", $raw);
+            $defaultSub = $data['product'] ?? 'Outdoor';
+
+            $items = [];
+            foreach ($lines as $line) {
+                $line = trim($line);
+                if ($line === '') continue;
+
+                $sep   = str_contains($line, '|') ? '|' : ',';
+                $parts = array_map('trim', str_getcsv($line, $sep));
+
+                $site        = $parts[0] ?? null;
+                $size        = $parts[1] ?? null;
+                $council     = $parts[2] ?? null;
+                $coordinates = $parts[3] ?? null;
+                $remarks     = $parts[4] ?? null;
+
+                $sub = $defaultSub;
+
+                if ($site && preg_match('/^(BB|TB|Bunting|Flyers|Star|Signages|Newspaper)\s*:\s*(.+)$/i', $site, $m)) {
+                    $sub  = $m[1];
+                    $site = $m[2];
+                }
+
+                if (
+                    $coordinates && $remarks
+                    && preg_match('/^-?\d+(\.\d+)?$/', $coordinates)
+                    && preg_match('/^-?\d+(\.\d+)?$/', $remarks)
+                ) {
+                    $coordinates = $coordinates . ',' . $remarks;
+                    $remarks = null;
+                }
+
+                $items[] = [
+                    'sub_product'      => $sub,
+                    'qty'              => 1,
+                    'site'             => $site,
+                    'size'             => $size ?: null,
+                    'district_council' => $council ?: null,
+                    'coordinates'      => $coordinates ?: null,
+                    'remarks'          => $remarks ?: null,
+                ];
+            }
+
+            if (!empty($items)) {
+                $masterFile->outdoorItems()->createMany($items);
+            }
+        }
+    });
+
+    return redirect()->route('dashboard')->with('success', 'Saved.');
+}
+
 
     private function guessCategoryFromProduct(string $product): string
     {
@@ -1120,9 +1221,9 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
         $data = [
             'file'         => $file,
             'items'        => $items,
-            'date'         => $file->date ? \Carbon\Carbon::parse($file->date)->format('d/m/Y') : '',
-            'date_finish'  => $file->date_finish ? \Carbon\Carbon::parse($file->date_finish)->format('d/m/Y') : '',
-            'invoice_date' => $file->invoice_date ? \Carbon\Carbon::parse($file->invoice_date)->format('d/m/Y') : '',
+            'date'         => $file->date ? Carbon::parse($file->date)->format('d/m/Y') : '',
+            'date_finish'  => $file->date_finish ? Carbon::parse($file->date_finish)->format('d/m/Y') : '',
+            'invoice_date' => $file->invoice_date ? Carbon::parse($file->invoice_date)->format('d/m/Y') : '',
         ];
 
         $views = [
@@ -1908,7 +2009,7 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
         ];
     }
 
-    public function inlineUpdate(\Illuminate\Http\Request $request)
+    public function inlineUpdate(Request $request)
     {
         // Validate core shape
         $data = $request->validate([
@@ -2082,6 +2183,7 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
     public function updateTimeline(Request $request, $id)
     {
         Log::info('🚀 updateTimeline triggered', ['id' => $id]);
+        logger('disini');
 
         $file = MasterFile::findOrFail($id);
 

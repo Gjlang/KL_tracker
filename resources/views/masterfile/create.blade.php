@@ -122,11 +122,13 @@
                                     Company
                                 </label>
                                 <select name="company_id" id="company_id" class="w-full border border-gray-300 rounded-2xl text-sm h-11 focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" required>
-                                    <option value="">-- Select Company --</option>
-                                    @foreach($companies as $c)
-                                        <option value="{{ $c->id }}">{{ $c->$display_column }}</option>
-                                    @endforeach
-                                </select>
+  <option value="">-- Select Company --</option>
+  @foreach($companies as $id => $label)
+    <option value="{{ $id }}">{{ $label }}</option>
+  @endforeach
+</select>
+
+
                             </div>
 
 
@@ -136,31 +138,6 @@
                             display: none !important;
                             }
                             </style>
-
-                            <script>
-                            document.addEventListener('DOMContentLoaded', function () {
-                                const companySelect = document.getElementById('company_id');
-                                const clientSelect = document.getElementById('client_id');
-                                
-                                // Pre-loaded data from the view
-                                const clientsByCompany = @json($clientsByCompany);
-
-                                companySelect.addEventListener('change', function () {
-                                    const companyId = this.value;
-                                    clientSelect.innerHTML = '<option value="">-- Select Person In Charge --</option>';
-
-                                    if (companyId && clientsByCompany[companyId]) {
-                                        const companyClients = clientsByCompany[companyId];
-                                        companyClients.forEach(function(client) {
-                                            const option = document.createElement('option');
-                                            option.value = client.id;  // Use client ID as value
-                                            option.textContent = client.name;  // Display client name
-                                            clientSelect.appendChild(option);
-                                        });
-                                    }
-                                });
-                            });
-                            </script>
 
                             <div class="flex flex-col flex-1">
                                 <label for="client_id" class="text-sm font-medium text-[#1C1E26] mb-2">
@@ -893,8 +870,81 @@
                         </div>
                     </div>
             </div>
-
             <script>
+                document.addEventListener('DOMContentLoaded', () => {
+                // Data PIC ter-group by company_id: { "1":[{id,name},...], ... }
+                const CLIENTS_BY_COMPANY = @json($clientsByCompany ?? []);
+
+                // Company: boleh tambah baru, tetapi value "baru" diprefix 'new:'
+                const tsCompany = new TomSelect('#company_id', {
+                    create: (input) => ({ value: `new:${input}`, text: input }),
+                    persist: false,
+                    allowEmptyOption: true,
+                    placeholder: '-- Select Company --',
+                    plugins: ['dropdown_input','clear_button'],
+                    maxOptions: 1000,
+                });
+
+                // PIC: dependent + searchable + boleh tambah baru
+                const tsClient = new TomSelect('#client_id', {
+                    create: (input) => ({ value: `new:${input}`, text: input }),
+                    persist: false,
+                    allowEmptyOption: true,
+                    placeholder: '-- Select Person In Charge --',
+                    plugins: ['dropdown_input','clear_button'],
+                    maxOptions: 1000,
+                    onInitialize() { this.disable(); }
+                });
+
+                function loadClients(companyId) {
+  tsClient.clear();
+  tsClient.clearOptions();
+
+  const keyStr = String(companyId);
+  const keyNum = Number(companyId);
+  const list = CLIENTS_BY_COMPANY[keyStr] || CLIENTS_BY_COMPANY[keyNum] || [];
+
+  if (!companyId || !list.length) {
+    tsClient.addOption({ value: '', text: 'No PIC found for this company' });
+    tsClient.setValue('');
+    tsClient.disable();
+    tsClient.refreshOptions(false);
+    return;
+  }
+
+  list.forEach(c => tsClient.addOption({ value: String(c.id), text: c.name }));
+  tsClient.enable();
+  tsClient.refreshOptions(false);
+}
+
+
+                tsCompany.on('change', (val) => {
+                    // kalau user mengetik company baru (value diawali 'new:'), jangan load PIC
+                    if (!val || String(val).startsWith('new:')) {
+                    tsClient.clear();
+                    tsClient.clearOptions();
+                    tsClient.addOption({ value: '', text: 'No PIC found for this company' });
+                    tsClient.setValue('');
+                    tsClient.disable();
+                    tsClient.refreshOptions(false);
+                    return;
+                    }
+                    // existing company → load PIC
+                    loadClients(val);
+                });
+
+                // Restore old() kalau ada
+                const oldCompany = "{{ old('company_id') }}";
+                const oldClient  = "{{ old('client_id') }}";
+                if (oldCompany) {
+                    tsCompany.setValue(String(oldCompany), true);
+                    if (!String(oldCompany).startsWith('new:')) {
+                    loadClients(String(oldCompany));
+                    if (oldClient) tsClient.setValue(String(oldClient), true);
+                    }
+                }
+                });
+
                 function productPicker() {
                     return {
                         // ===== Data =====
