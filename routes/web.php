@@ -707,5 +707,6 @@ Route::prefix('users')
         Route::post('/create', [UsersController::class, 'create'])->name('create');   // remove per-route permission
         Route::post('/edit',   [UsersController::class, 'edit'])->name('edit');
         Route::post('/delete', [UsersController::class, 'delete'])->name('delete');
+        Route::post('/update', [UsersController::class, 'update'])->name('update');
     });
 
