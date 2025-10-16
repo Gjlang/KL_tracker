@@ -46,7 +46,7 @@ class OutdoorItem extends Model
         'sub_product','qty','site','size',
         'district_council','coordinates','remarks',
         'start_date','end_date',
-        'billboard_id',
+        'billboard_id', 'status'
     ];
 
     protected $casts = [
@@ -57,5 +57,10 @@ class OutdoorItem extends Model
     public function billboard()
     {
         return $this->belongsTo(Billboard::class, 'billboard_id');
+    }
+
+    public function masterFiles()
+    {
+        return $this->belongsTo(MasterFile::class, 'master_file_id');
     }
 }

@@ -11,7 +11,8 @@ use App\Http\Controllers\Controller;
 use App\Models\ClientCompany;
 use App\Models\User;
 use App\Models\Billboard;
-use App\Models\BillboardBooking;
+use App\Models\MasterFile;
+use App\Models\OutdoorOngoingJob;
 use App\Models\BillboardImage;
 use App\Models\State;
 use App\Models\District;
@@ -50,7 +51,6 @@ class BillboardAvailabilityController extends Controller
         // if (is_null($this->user) || !$this->user->can('billboard.view')) {
         //     abort(403, 'Sorry !! You are Unauthorized to view any project. Contact system admin for access !');
         // }
-
         $companies = ClientCompany::orderBy('name', 'ASC')->get();
         $states = State::orderBy('name', 'ASC')->get();
         $districts = District::orderBy('name', 'ASC')->get();
@@ -69,6 +69,8 @@ class BillboardAvailabilityController extends Controller
 
         $userID = $this->user->id;
 
+        logger('sini boi: ');
+
         $columns = array(
             0 => 'site_number',
             1 => 'company_name',
@@ -85,7 +87,8 @@ class BillboardAvailabilityController extends Controller
         $limit              = $request->input('length');
         $start              = $request->input('start');
         $orderColumnIndex   = $request->input('order.0.column');
-        $orderColumnName    = $columns[$orderColumnIndex] ?? 'billboard_bookings.id';
+        // $orderColumnName    = $columns[$orderColumnIndex] ?? 'master_files.id';
+        $orderColumnName    = $columns[$orderColumnIndex];
         $orderDirection     = $request->input('order.0.dir', 'desc');
 
         $filters = $this->extractFilters($request);
@@ -121,6 +124,8 @@ class BillboardAvailabilityController extends Controller
         $filteredData = $query->skip($start)->take($limit)->get();
 
         $data = array();
+
+        logger('filtered data: ' . $filteredData);
 
         foreach ($filteredData as $d) {
             $created_at = Carbon::parse($d->created_at)->format('Y-m-d');
@@ -209,7 +214,7 @@ class BillboardAvailabilityController extends Controller
             );
 
             // ✅ take the first booking’s status if exists
-            $bookingStatus = $billboard->bookings->first()->status ?? null;
+            // $bookingStatus = $billboard->bookings->first()->status ?? null;
 
             $results[] = [
                 'id'              => $billboard->id,
@@ -228,7 +233,7 @@ class BillboardAvailabilityController extends Controller
                 'state_name'      => $billboard->location->district->state->name ?? '',
 
                 'is_available'    => $isAvailable,
-                'status'          => $bookingStatus, // ✅ actual booking status
+                // 'status'          => $bookingStatus, // ✅ actual booking status
                 'next_available_raw' => $isAvailable ? null : $nextAvailableDate,
                 'next_available'  => $isAvailable ? null : optional($nextAvailableDate)->format('d/m/Y'),
             ];
@@ -274,24 +279,24 @@ class BillboardAvailabilityController extends Controller
     {
         $billboards = Billboard::with([
             'location.district.state',
-            'bookings' => function ($q) use ($filters) {
+            'outdoorItems' => function ($q) use ($filters) {
                 $q->where(function ($query) use ($filters) {
                     $query->where('start_date', '<=', $filters['end_date'])
                         ->where('end_date', '>=', $filters['start_date']);
                 });
             },
-            'bookings.clientCompany'
+            // 'master_files.company_id'
         ])
         ->when($filters['state'], fn($q) => $q->whereHas('location.district.state', fn($q2) => $q2->where('id', $filters['state'])))
         ->when($filters['district'], fn($q) => $q->whereHas('location.district', fn($q2) => $q2->where('id', $filters['district'])))
         ->when($filters['location'], fn($q) => $q->where('location_id', $filters['location']))
         ->when($filters['type'], fn($q) => $q->where('prefix', $filters['type']))
         ->when($filters['site_type'], fn($q) => $q->where('billboards.site_type', $filters['site_type']))
-        ->when($filters['status'], function ($q) use ($filters) {
-            $q->whereHas('bookings', function ($q2) use ($filters) {
-                $q2->where('status', $filters['status']);
-            });
-        })
+        // ->when($filters['status'], function ($q) use ($filters) {
+        //     $q->whereHas('bookings', function ($q2) use ($filters) {
+        //         $q2->where('status', $filters['status']);
+        //     });
+        // })
         ->when(!empty($filters['search_value']), function ($q) use ($filters) {
             $search = $filters['search_value'];
             $q->where(function ($q2) use ($search) {
@@ -320,9 +325,9 @@ class BillboardAvailabilityController extends Controller
         $isAvailable = true;
         $nextAvailableDate = null;
 
-        foreach ($billboard->bookings as $booking) {
-            $bookingStart = Carbon::parse($booking->start_date);
-            $bookingEnd = Carbon::parse($booking->end_date);
+        foreach ($billboard->outdoorItems as $outdoorItem) {
+            $bookingStart = Carbon::parse($outdoorItem->start_date);
+            $bookingEnd = Carbon::parse($outdoorItem->end_date);
 
             if ($bookingStart->lte($endDate) && $bookingEnd->gte($startDate)) {
                 $isAvailable = false;
@@ -375,15 +380,17 @@ class BillboardAvailabilityController extends Controller
 
             $matchedBooking = null;
 
-            foreach ($billboard->bookings as $booking) {
-                $bookingStart = Carbon::parse($booking->start_date);
-                $bookingEnd   = Carbon::parse($booking->end_date);
+            foreach ($billboard->outdoorItems as $outdoorItem) {
+                $bookingStart = Carbon::parse($outdoorItem->start_date);
+                $bookingEnd   = Carbon::parse($outdoorItem->end_date);
 
                 $monthStart = $current->copy()->startOfMonth();
                 $monthEnd   = $current->copy()->endOfMonth();
 
+                logger($outdoorItem);
+
                 if ($bookingStart->lte($monthEnd) && $bookingEnd->gte($monthStart)) {
-                    $matchedBooking = $booking;
+                    $matchedBooking = $outdoorItem;
 
                     $spanStart = max($bookingStart, $monthStart)->copy()->startOfMonth();
                     $spanEnd   = min($bookingEnd, $endDate)->copy()->startOfMonth();
@@ -393,12 +400,14 @@ class BillboardAvailabilityController extends Controller
                         $processedMonths[] = $spanStart->copy()->addMonths($m)->format('Y-m');
                     }
 
-                    $colorClass = match ($booking->status) {
-                        'pending_payment' => 'bg-theme-6 text-white',
-                        'pending_install' => 'bg-theme-1 text-white',
+                    $status = $outdoorItem->masterFiles->status;
+
+                    $colorClass = match ($status) {
+                        'pending_payment' => 'bg-red-600 text-white',
+                        'pending_install' => 'bg-blue-600 text-white',
                         'ongoing'         => 'bg-green-600 text-white',
-                        'completed'       => 'bg-theme-12 text-black',
-                        'dismantle'       => 'bg-theme-13 text-white',
+                        'completed'       => 'bg-yellow-400 text-black',
+                        'dismantle'       => 'bg-gray-600 text-white',
                         default           => 'bg-gray-400 text-black',
                     };
 
@@ -406,17 +415,19 @@ class BillboardAvailabilityController extends Controller
                         'month'      => $current->format('m'),
                         'year'       => $current->year,
                         'span'       => $span,
-                        'text'       => optional($booking->clientCompany)->name
-                                        ? $booking->clientCompany->name . ' (' . $bookingStart->format('d/m/Y') . '–' . $bookingEnd->format('d/m/Y') . ')'
+                        'text'       => optional($outdoorItem->clientCompany)->name
+                                        ? $outdoorItem->clientCompany->name . ' (' . $bookingStart->format('d/m/Y') . '–' . $bookingEnd->format('d/m/Y') . ')'
                                         : 'Booked (' . $bookingStart->format('d/m/Y') . '–' . $bookingEnd->format('d/m/Y') . ')',
                         'color'      => $colorClass,
-                        'booking_id' => $booking->id, // ✅ Add booking_id here
-                        'status'     => $booking->status, // optional: helpful for frontend
-                        'client'      => optional($booking->clientCompany)->name ?? null, // ✅ client name
+                        'booking_id' => $outdoorItem->id, // ✅ Add booking_id here
+                        'status'     => $status, // optional: helpful for frontend
+                        'client'      => optional($outdoorItem->clientCompany)->name ?? null, // ✅ client name
                         'start_date'  => $bookingStart->format('d/m/Y'), // ✅ booking start
                         'end_date'    => $bookingEnd->format('d/m/Y'),   // ✅ booking end
-                        'remarks'     => $booking->remarks,
+                        'remarks'     => $outdoorItem->remarks,
                     ];
+
+                    logger('monthhh: ' , $months);
 
                     break;
                 }
@@ -445,8 +456,8 @@ class BillboardAvailabilityController extends Controller
 
     private function baseBookingQuery()
     {
-        return BillboardBooking::select(
-            'billboard_bookings.*',
+        return MasterFile::select(
+            'master_files.*',
             'billboards.id as billboard_id',
             'billboards.site_number as site_number',
             'client_companies.name as company_name',
@@ -457,8 +468,9 @@ class BillboardAvailabilityController extends Controller
             'states.id as state_id',
             'states.name as state_name'
         )
-        ->leftJoin('client_companies', 'client_companies.id', '=', 'billboard_bookings.company_id')
-        ->leftJoin('billboards', 'billboards.id', '=', 'billboard_bookings.billboard_id')
+        ->leftJoin('outdoor_items', 'outdoor_items.master_file_id', '=', 'master_files.id')
+        ->leftJoin('client_companies', 'client_companies.id', '=', 'master_files.company_id')
+        ->leftJoin('billboards', 'billboards.id', '=', 'outdoor_items.billboard_id')
         ->leftJoin('locations', 'locations.id', '=', 'billboards.location_id')
         ->leftJoin('districts', 'districts.id', '=', 'locations.district_id')
         ->leftJoin('states', 'states.id', '=', 'districts.state_id');
@@ -470,15 +482,15 @@ class BillboardAvailabilityController extends Controller
         return $query
             ->when(!empty($filters['start_date']) && !empty($filters['end_date']), function ($q) use ($filters) {
                 $q->where(function ($sub) use ($filters) {
-                    $sub->where('billboard_bookings.start_date', '<=', $filters['end_date'])
-                        ->where('billboard_bookings.end_date', '>=', $filters['start_date']);
+                    $sub->where('outdoor_items.start_date', '<=', $filters['end_date'])
+                        ->where('outdoor_items.end_date', '>=', $filters['start_date']);
                 });
             })
             ->when(!empty($filters['state']), fn($q) => $q->where('states.id', $filters['state']))
             ->when(!empty($filters['district']), fn($q) => $q->where('districts.id', $filters['district']))
             ->when(!empty($filters['location']), fn($q) => $q->where('locations.id', $filters['location']))
-            ->when(!empty($filters['status']), fn($q) => $q->where('billboard_bookings.status', $filters['status']))
-            ->when(!empty($filters['client']), fn($q) => $q->where('billboard_bookings.company_id', $filters['client']));
+            ->when(!empty($filters['status']), fn($q) => $q->where('master_files.status', $filters['status']))
+            ->when(!empty($filters['client']), fn($q) => $q->where('master_files.company_id', $filters['client']));
     }
 
 
@@ -492,7 +504,7 @@ class BillboardAvailabilityController extends Controller
      */
     public function updateStatus(Request $request)
     {
-        $billboard = BillboardBooking::findOrFail($request->id);
+        $billboard = MasterFile::findOrFail($request->id);
         $billboard->status = $request->status;
         $billboard->remarks = $request->remarks;
         $billboard->save();

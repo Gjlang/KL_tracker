@@ -334,7 +334,7 @@
                 <tbody id="outdoorTbody" class="bg-white divide-y divide-neutral-200">
                   @foreach($rows as $index => $row)
                     @php
-                        $company = $row->company ?? $row->client;
+                        $company = $row->company;
                         $start   = $row->start_date ?? $row->date ?? null;
                         $end     = $row->date_finish ?? $row->end_date ?? null;
                         $startDisp = df($start);

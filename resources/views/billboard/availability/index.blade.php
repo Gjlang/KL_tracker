@@ -270,11 +270,11 @@
     <!-- Legend -->
     <div class="flex flex-wrap items-center gap-4 mb-4 text-sm">
         <div class="flex items-center gap-2">
-            <span class="w-4 h-4 rounded-sm bg-theme-6 mr-1"></span>
+            <span class="w-4 h-4 rounded-sm bg-red-600 mr-1"></span>
             <span class="text-gray-700">Pending Payment</span>
         </div>
         <div class="flex items-center gap-2">
-            <span class="w-4 h-4 rounded-sm bg-theme-1 mr-1"></span>
+            <span class="w-4 h-4 rounded-sm bg-blue-600 mr-1"></span>
             <span class="text-gray-700">Pending Install</span>
         </div>
         <div class="flex items-center gap-2">
@@ -282,11 +282,11 @@
             <span class="text-gray-700">Ongoing</span>
         </div>
         <div class="flex items-center gap-2">
-            <span class="w-4 h-4 rounded-sm bg-theme-12 mr-1"></span>
+            <span class="w-4 h-4 rounded-sm bg-yellow-400 mr-1"></span>
             <span class="text-gray-700">Completed</span>
         </div>
         <div class="flex items-center gap-2">
-            <span class="w-4 h-4 rounded-sm bg-theme-13 mr-1"></span>
+            <span class="w-4 h-4 rounded-sm bg-gray-600 mr-1"></span>
             <span class="text-gray-700">Dismantle</span>
         </div>
         <div class="flex items-center gap-2">
@@ -517,9 +517,8 @@
     </div>
 </div>
 <!-- View Modal End -->
-@endsection
 
-@section('script')
+
 
 <!-- searchable dropdown -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -533,6 +532,8 @@
 <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/file-saver/dist/FileSaver.min.js"></script>
 
+<!-- Add jQuery CDN -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 
 <!-- Flatpickr JS -->
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -858,7 +859,7 @@
                         // Booking / colored cell
                         const bgColor = colorMap[colorClass] || 'FFFFFFFF';
                         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
-                        const fontColor = (colorClass === 'bg-theme-12') ? 'FF000000' : 'FFFFFFFF';
+                        const fontColor = (colorClass === 'bg-yellow-600') ? 'FF000000' : 'FFFFFFFF';
                         cell.font = { bold: true, color: { argb: fontColor } };
                     } else {
                         // Monthly columns with no booking: white font
@@ -1198,7 +1199,7 @@
         });
     }
 
-
+    console.log("Billboard Availability Script Loaded");
 
     function buildMonthlyBookingTableHead(selectedYear) {
         const shortYear = String(selectedYear).slice(-2);
@@ -2120,36 +2121,7 @@
         });
 
 
-        $('#saveAvailabilityButton').on('click', function (e) {
-            e.preventDefault();
-
-            let id = $('#editAvailabilityModal').data('billboard-id');
-            let availability = $('#editAvailability').val(); // "1" or "2"
-
-            $.ajax({
-                url: '{{ route("billboard.availability.update") }}',
-                method: 'POST',
-                data: {
-                    _token: '{{ csrf_token() }}',
-                    id: id,
-                    is_available: availability
-                },
-                success: function(response) {
-                    // Close modal
-                    closeAltEditorModal("#editAvailabilityModal");
-
-                    // Show toast
-                    window.showSubmitToast("Availability updated.", "#91C714");
-
-                    // Reload table
-                    $('#billboard_availability_table').DataTable().ajax.reload();
-                },
-                error: function(xhr) {
-                    var response = JSON.parse(xhr.responseText);
-                    window.showSubmitToast("Error: " + response.error, "#D32929");
-                }
-            });
-        });
+        
 
         
 
@@ -2196,4 +2168,4 @@
     });
 
 </script>
-@endsection('script')
+@endsection

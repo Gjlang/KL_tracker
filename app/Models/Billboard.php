@@ -78,6 +78,11 @@ class Billboard extends Model
         'updated_at'
     ];
 
+    public function outdoorItems()
+    {
+        return $this->hasMany(OutdoorItem::class);
+    }
+
     public function location()
     {
         return $this->belongsTo(Location::class);
