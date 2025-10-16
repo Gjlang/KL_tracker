@@ -387,8 +387,6 @@ class BillboardAvailabilityController extends Controller
                 $monthStart = $current->copy()->startOfMonth();
                 $monthEnd   = $current->copy()->endOfMonth();
 
-                logger($outdoorItem);
-
                 if ($bookingStart->lte($monthEnd) && $bookingEnd->gte($monthStart)) {
                     $matchedBooking = $outdoorItem;
 
@@ -400,7 +398,7 @@ class BillboardAvailabilityController extends Controller
                         $processedMonths[] = $spanStart->copy()->addMonths($m)->format('Y-m');
                     }
 
-                    $status = $outdoorItem->masterFiles->status;
+                    $status = $outdoorItem->status;
 
                     $colorClass = match ($status) {
                         'pending_payment' => 'bg-red-600 text-white',

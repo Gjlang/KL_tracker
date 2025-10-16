@@ -660,6 +660,17 @@
                                             class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
                                     </div>
 
+                                    <!-- outdoor status override (optional) -->
+                                    <div class="md:col-span-1">
+                                        <label class="block text-xs text-neutral-600 mb-1">Status</label>
+                                        <select :name="`locations[${idx}][outdoor_status]`" x-model="row.outdoor_status"
+                                            class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]">
+                                            <template x-for="opt in outdoorStatus" :key="opt">
+                                                <option :value="opt" x-text="opt"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+
                                     <div class="md:col-span-6">
                                         <label class="block text-xs text-neutral-600 mb-1">Remarks</label>
                                         <input type="text" :name="`locations[${idx}][remarks]`" x-model="row.remarks"
@@ -677,6 +688,7 @@
                         window.outdoorRepeater = function(selectedProductRef) {
                             return {
                                 outdoorSubProducts: ['BB', 'TB', 'Newspaper', 'Bunting', 'Flyers', 'Star', 'Signages'],
+                                outdoorStatus: ['pending_payment', 'pending_install', 'ongoing', 'completed', 'dismantle'],
 
                                 count: 1,
                                 rows: [],
@@ -685,6 +697,7 @@
                                 syncDates: false,
                                 syncSize: false, // NEW
                                 syncSub: false, // NEW
+                                syncStatus: false, // NEW
 
                                 init() {
                                     const def = (typeof selectedProductRef === 'function') ?
@@ -729,6 +742,18 @@
                                             }
                                         });
                                     });
+
+                                    // status
+                                    this.$watch('rows[0].outdoor_status', v => {
+                                        if (!this.syncStatus) return;
+                                        // only set if value is in allowed list
+                                        if (!this.outdoorStatus.includes(v)) return;
+                                        this.rows.forEach((r, i) => {
+                                            if (i) {
+                                                r.outdoor_status = v
+                                            }
+                                        });
+                                    });
                                 },
 
                                 emptyRow(defaultSub) {
@@ -741,7 +766,8 @@
                                         coords: '',
                                         remarks: '',
                                         start_date: '',
-                                        end_date: ''
+                                        end_date: '',
+                                        outdoor_status: '',
                                     };
                                 },
 
@@ -791,6 +817,9 @@
                                         if (this.syncSub) {
                                             r.sub_product = this.rows[0]?.sub_product || def;
                                         }
+                                        if (this.syncStatus) {
+                                            r.status = this.rows[0]?.status || '';
+                                        }
                                         this.rows.push(r);
                                     }
                                     while (this.rows.length > target) this.rows.pop();
@@ -810,6 +839,9 @@
                                     }
                                     if (this.syncSub) {
                                         r.sub_product = this.rows[0]?.sub_product || def;
+                                    }
+                                    if (this.syncStatus) {
+                                        r.outdoor_status = this.rows[0]?.outdoor_status || '';
                                     }
                                     this.rows.push(r);
                                     this.count = this.rows.length;

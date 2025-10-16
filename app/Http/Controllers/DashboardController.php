@@ -108,8 +108,6 @@ class DashboardController extends Controller
         // Get paginated results
         $masterFiles = $masterFilesQuery->with(['clientCompany', 'client'])->orderBy('created_at', 'desc')->paginate(50);
 
-        logger('kt sini ke? ' , $masterFiles->toArray());
-
         // Calculate job statistics
         $totalJobs = MasterFile::count();
         $completedJobs = MasterFile::where('status', 'completed')->count();

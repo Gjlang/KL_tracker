@@ -932,6 +932,8 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
     $companyRaw = $request->input('company_id', $request->input('company'));
     $clientRaw  = $request->input('client_id',  $request->input('client'));
 
+    logger('request: ' . $request);
+
     // Helpers to fetch display column safely
     $getCompanyName = function ($companyModel) {
         return $companyModel->company
@@ -1105,6 +1107,7 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
         'outdoor_size' => ['nullable', 'string', 'max:255'],
         'outdoor_district_council' => ['nullable', 'string', 'max:255'],
         'outdoor_coordinates' => ['nullable', 'string', 'max:255'],
+        'outdoor_status' => ['nullable', 'string', 'max:255'],
 
         'bulk_placements' => ['nullable', 'string'],
     ]);
@@ -1139,6 +1142,7 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
                 $remarks    = $loc['remarks'] ?? null;
                 $startDate  = $loc['start_date'] ?? null;
                 $endDate    = $loc['end_date'] ?? null;
+                $outdoorStatus    = $loc['outdoor_status'] ?? null;
                 $siteLabel  = $typedSite ?: null;
 
                 // Hydrate from billboard if ID is present
@@ -1169,6 +1173,7 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
                     'remarks'          => $remarks,
                     'start_date'       => $startDate ?: null,
                     'end_date'         => $endDate   ?: null,
+                    'status'           => $outdoorStatus,
                     'billboard_id'     => $billboardId,
                 ]);
             }
