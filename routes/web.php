@@ -702,6 +702,9 @@ Route::get('/outdoor/locations', [MasterFileController::class, 'getOutdoorLocati
 Route::get('/outdoor/sites', [MasterFileController::class, 'getOutdoorSites'])
     ->name('outdoor.sites');
 
+Route::get('/outdoor/areas', [MasterFileController::class, 'getOutdoorAreas'])
+    ->name('outdoor.areas');
+
 // Legacy (kept for backward compat, but deprecated)
 Route::get('/outdoor/areas', [MasterFileController::class, 'getOutdoorAreas'])
     ->name('outdoor.areas');
@@ -754,7 +757,4 @@ Route::prefix('users')
 
 
 
-Route::middleware(['auth','verified'])->group(function () {
-    Route::get('/outdoor/sites', [OutdoorLookupController::class, 'sites'])
-        ->name('outdoor.sites');
-});
+

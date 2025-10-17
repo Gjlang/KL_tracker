@@ -103,19 +103,33 @@
                         <h3 class="text-sm text-neutral-600 small-caps mb-6 font-medium">Basic Information</h3>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            <div>
-                                <label for="month" class="block text-sm font-medium text-[#1C1E26] mb-2">Month</label>
-                                <input type="text"
-                                    name="month"
-                                    id="month"
-                                    value="{{ old('month') }}"
-                                    placeholder="e.g., July"
-                                    class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200"
-                                    required>
-                                @error('month')
-                                <p class="mt-1 text-sm text-[#d33831]">{{ $message }}</p>
-                                @enderror
-                            </div>
+                           <div>
+  <label for="month" class="block text-sm font-medium text-[#1C1E26] mb-2">Month</label>
+
+  @php
+    $months = [
+      'January','February','March','April','May','June',
+      'July','August','September','October','November','December'
+    ];
+    $selectedMonth = old('month', now()->format('F'));
+  @endphp
+
+  <select
+    name="month"
+    id="month"
+    class="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed] transition-colors duration-200"
+    required
+  >
+    @foreach($months as $m)
+      <option value="{{ $m }}" @selected($selectedMonth === $m)>{{ $m }}</option>
+    @endforeach
+  </select>
+
+  @error('month')
+    <p class="mt-1 text-sm text-[#d33831]">{{ $message }}</p>
+  @enderror
+</div>
+
 
                             <div class="flex flex-col flex-1">
                                 <label for="company_id" class="text-sm font-medium text-[#1C1E26] mb-2">
@@ -555,49 +569,83 @@
                                     </div>
 
                                 <!-- SITE -->
-                                <div class="md:col-span-2">
-                                <label class="block text-xs text-neutral-600 mb-1">Site</label>
-                                <select
-                                    :id="`outdoor_site_${idx}`"
-                                    :name="`locations[${idx}][billboard_id]`"
-                                    x-model="row.billboard_id"
-                                    placeholder="e.g., TB-WPK-0075 – Persiaran Puncak Jalil"
-                                    class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]"
-                                    x-init="$nextTick(() => initSiteSelect(
-                                    $el,
-                                    (opt) => {
-                                        row.size    = opt?.size   ?? row.size;
-                                        row.council = opt?.area   ?? row.council;
-                                        row.coords  = opt?.coords ?? row.coords;
+                                    <div class="md:col-span-2">
+                                    <label class="block text-xs text-neutral-600 mb-1">Site</label>
+                                    <select
+                                        :id="`outdoor_site_${idx}`"
+                                        :name="`locations[${idx}][billboard_id]`"
+                                        x-model="row.billboard_id"
+                                        placeholder="e.g., TB-WPK-0075 – Persiaran Puncak Jalil"
+                                        class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]"
+                                        x-init="$nextTick(() => initSiteSelect(
+                                        $el,
+                                        () => row.area_key,  // filter Site by Area terpilih
+                                        (opt) => {           // callback saat Site dipilih
+                                            if (opt) {
+                                            row.size     = opt.size     ?? '';
+                                            row.council  = opt.area     ?? '';
+                                            row.coords   = opt.coords   ?? '';
+                                            row.area_key = opt.area_key ?? row.area_key; // auto-sync area
 
-                                        fillDependentSelect(`outdoor_size_${idx}`,   row.size,    row.size);
-                                        fillDependentSelect(`outdoor_area_${idx}`,   row.council, row.council);
-                                        fillDependentSelect(`outdoor_coords_${idx}`, row.coords,  row.coords);
-                                    }
-                                    ))">
-                                    <template x-if="row.billboard_id">
-                                    <option :value="row.billboard_id" selected>Selected</option>
-                                    </template>
-                                </select>
-                                </div>
+                                            fillDependentSelect(`outdoor_size_${idx}`,   row.size,    row.size);
+                                            fillDependentSelect(`outdoor_area_${idx}`,   row.council, row.council);
+                                            fillDependentSelect(`outdoor_coords_${idx}`, row.coords,  row.coords);
+                                            }
+                                        }
+                                        ))"
+                                    >
+                                        <template x-if="row.billboard_id">
+                                        <option :value="row.billboard_id" selected>Selected</option>
+                                        </template>
+                                    </select>
+                                    </div>
 
+                                    <!-- AREA -->
+                                    <div class="md:col-span-1">
+                                    <label class="block text-xs text-neutral-600 mb-1">Area</label>
+                                    <select
+                                        :id="`outdoor_area_${idx}`"
+                                        :name="`locations[${idx}][council]`"
+                                        x-model="row.council"
+                                        placeholder="AREA"
+                                        class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]"
+                                        x-init="$nextTick(() => initAreaSelect(
+                                        $el,
+                                        '{{ route('outdoor.areas') }}',
+                                        (opt) => {  // saat Area dipilih
+                                            row.council  = opt?.label ?? '';
+                                            row.area_key = opt?.value ?? '';
 
+                                            const siteSel = document.getElementById(`outdoor_site_${idx}`);
+                                            if (siteSel?.tomselect) {
+                                            const ts = siteSel.tomselect;
+                                            ts.clearOptions();
+                                            ts.load('');   // reload sites by area_key
+                                            ts.open();     // <-- langsung buka list supaya keliatan semua
 
-                                <!-- AREA -->
-                                <div class="md:col-span-1">
-                                <label class="block text-xs text-neutral-600 mb-1">Area</label>
-                                <select
-                                    :id="`outdoor_area_${idx}`"
-                                    :name="`locations[${idx}][council]`"
-                                    x-model="row.council"
-                                    placeholder="AREA"
-                                    class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]"
-                                    x-init="$nextTick(() => initSuggestSelect($el, '{{ url('/outdoor/areas') }}', () => row.sub_product))">
-                                    <template x-if="row.council">
-                                    <option :value="row.council" x-text="row.council" selected></option>
-                                    </template>
-                                </select>
-                                </div>
+                                            // kalau site sebelumnya tidak match area baru, kosongkan
+                                            const prev = ts.getValue();
+                                            const prevOpt = ts.options?.[prev];
+                                            if (!prevOpt || prevOpt.area_key !== row.area_key) {
+                                                ts.clear(true);
+                                                row.size = ''; row.coords = '';
+                                                fillDependentSelect(`outdoor_size_${idx}`,   '', '');
+                                                fillDependentSelect(`outdoor_coords_${idx}`, '', '');
+                                            }
+                                            }
+                                        }
+                                        ))"
+                                    >
+                                        <!-- Penting: value harus pakai area_key, bukan label -->
+                                        <template x-if="row.council && row.area_key">
+                                        <option :value="row.area_key" x-text="row.council" selected></option>
+                                        </template>
+                                    </select>
+
+                                    <!-- kirimkan area_key ke server -->
+                                    <input type="hidden" :name="`locations[${idx}][area_key]`" x-model="row.area_key">
+                                    </div>
+
 
                                 <!-- COORDS -->
                                 <div class="md:col-span-1">
@@ -616,50 +664,63 @@
                                 </div>
 
 
-                                <script>
-                                function initSuggestSelect(selectEl, endpoint, getSubProduct) {
-                                try {
-                                    if (selectEl.tomselect) selectEl.tomselect.destroy();
+                               <script>
+                                    function initAreaSelect(selectEl, endpoint, onPicked){
+                                    try {
+                                        if (selectEl.tomselect) selectEl.tomselect.destroy();
 
-                                    new TomSelect(selectEl, {
-                                    create: true,                 // user can type anything and press Enter
-                                    persist: false,
-                                    allowEmptyOption: true,
-                                    maxOptions: 1000,
-                                    valueField: 'value',
-                                    labelField: 'label',
-                                    searchField: ['label', 'value'],
-                                    plugins: ['clear_button','dropdown_input'],
-                                    load: function(query, callback) {
-                                        const sp = (typeof getSubProduct === 'function') ? (getSubProduct() || '') : '';
-                                        const url = `${endpoint}?q=${encodeURIComponent(query || '')}&sub_product=${encodeURIComponent(sp)}`;
-                                        fetch(url).then(r => r.json()).then(data => callback(data || [])).catch(() => callback());
-                                    },
-                                    render: {
-                                        option: (item, esc) => `<div>${esc(item.label)}</div>`,
-                                        item:   (item, esc) => `<div>${esc(item.label)}</div>`,
-                                        no_results: () => `<div class="p-2 text-sm text-neutral-500">No matches. Press Enter to use your text.</div>`
+                                        const ts = new TomSelect(selectEl, {
+                                        create: false,                 // area TIDAK boleh bikin opsi bebas
+                                        persist: false,
+                                        allowEmptyOption: true,
+                                        maxOptions: 500,
+                                        valueField: 'value',           // area_key: "stateId|districtId"
+                                        labelField: 'label',           // "KL - Bukit Jalil"
+                                        searchField: ['label'],
+                                        plugins: ['clear_button','dropdown_input'],
+                                        load: function(query, callback) {
+                                            // controller pakai ?search=... (bukan ?q=...)
+                                            const url = `${endpoint}${query ? ('?search=' + encodeURIComponent(query)) : ''}`;
+                                            fetch(url)
+                                            .then(r => r.json())
+                                            .then(data => callback(data || []))
+                                            .catch(() => callback());
+                                        },
+                                        render: {
+                                            option: (item, esc) => `<div>${esc(item.label)}</div>`,
+                                            item:   (item, esc) => `<div>${esc(item.label)}</div>`,
+                                            no_results: () => `<div class="p-2 text-sm text-neutral-500">No matches.</div>`
+                                        }
+                                        });
+
+                                        selectEl.tomselect = ts;
+                                        ts.on('change', (val) => {
+                                        const opt = ts.options?.[val];
+                                        onPicked && onPicked(opt || null);
+                                        });
+                                    } catch (e) {
+                                        console.warn('initAreaSelect failed', e);
                                     }
-                                    });
-                                } catch (e) {
-                                    console.warn('initSuggestSelect failed', e);
-                                }
-                                }
+                                    }
                                 </script>
-
-
-                                    <div class="md:col-span-1">
-                                        <label class="block text-xs text-neutral-600 mb-1">Start Date</label>
-                                        <input type="date" :name="`locations[${idx}][start_date]`" x-model="row.start_date"
-                                            class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
-                                    </div>
-
-                                    <div class="md:col-span-1">
+                                    <!-- Dates row -->
+                                    <div class="md:col-span-2">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <!-- End Date (left) -->
+                                        <div>
                                         <label class="block text-xs text-neutral-600 mb-1">End Date</label>
                                         <input type="date" :name="`locations[${idx}][end_date]`" x-model="row.end_date"
-                                            class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
-                                    </div>
+                                                class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
+                                        </div>
 
+                                        <!-- Start Date (right) -->
+                                        <div>
+                                        <label class="block text-xs text-neutral-600 mb-1">Start Date</label>
+                                        <input type="date" :name="`locations[${idx}][start_date]`" x-model="row.start_date"
+                                                class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
+                                        </div>
+                                    </div>
+                                    </div>
                                     <!-- outdoor status override (optional) -->
                                     <div class="md:col-span-1">
                                         <label class="block text-xs text-neutral-600 mb-1">Status</label>
@@ -902,46 +963,52 @@
             </div>
            <script>
 
-function initSiteSelect(selectEl, onPicked) {
+function initSiteSelect(selectEl, getAreaKeyFn, onPicked){
   try {
     if (selectEl.tomselect) selectEl.tomselect.destroy();
 
-    new TomSelect(selectEl, {
-      create: true,
+    const ts = new TomSelect(selectEl, {
+      create: true,                  // boleh ketik bebas kalau perlu
       persist: false,
       allowEmptyOption: true,
       maxOptions: 1000,
-      valueField: 'value',            // billboard.id
-      labelField: 'label',            // BERSIH: "TB-0075 — Location"
-      searchField: ['label', 'value'],
+      valueField: 'value',           // billboard.id
+      labelField: 'label',           // "TB-XXXX — Location" (bersih)
+      searchField: ['label','site_number','location_name'],
       plugins: ['clear_button','dropdown_input'],
       load: function(query, callback) {
-        const url = `{{ url('/outdoor/sites') }}?q=${encodeURIComponent(query || '')}`;
+        const params = new URLSearchParams();
+        // filter by area_key jika ada
+        const areaKey = (typeof getAreaKeyFn === 'function') ? (getAreaKeyFn() || '') : '';
+        if (areaKey) params.set('area_key', areaKey);
+
+        // controller pakai ?search=... (bukan ?q=...)
+        if (query) params.set('search', query);
+
+        const base = `{{ route('outdoor.sites') }}`;
+        const url  = params.toString() ? `${base}?${params.toString()}` : base;
+
         fetch(url)
           .then(r => r.json())
-          .then(items => {
-            // ✅ Backend already returns clean label
-            // Just pass it through, no modification needed
-            callback(items || []);
-          })
+          .then(items => callback(items || []))
           .catch(() => callback());
       },
       render: {
-        // ✅ Display exactly what backend sends (clean label)
         option: (item, esc) => `<div>${esc(item.label)}</div>`,
         item:   (item, esc) => `<div>${esc(item.label)}</div>`,
         no_results: () => `<div class="p-2 text-sm text-neutral-500">No matches. Press Enter to use your text.</div>`
-      },
-      onItemAdd: function(value) {
-        const isNumericId = !!String(value).match(/^\d+$/);
-        if (isNumericId) {
-          // ✅ Get rich data from backend (coords separate)
-          const opt = this.options[value]; // { value, label, coords }
-          onPicked && onPicked(opt);
-        } else {
-          // User typed custom text
-          onPicked && onPicked(null);
-        }
+      }
+    });
+
+    selectEl.tomselect = ts;
+
+    ts.on('change', (value) => {
+      const opt = ts.options?.[value];
+      // jika user pilih opsi valid (id numerik), kirim detailnya
+      if (opt && /^\d+$/.test(String(value))) {
+        onPicked && onPicked(opt);
+      } else {
+        onPicked && onPicked(null);
       }
     });
   } catch (e) {

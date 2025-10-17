@@ -872,99 +872,164 @@ public function getOutdoorLocations(Request $request)
     return response()->json($items);
 }
 
-
 public function getOutdoorSites(Request $request)
 {
-    $q = trim((string)$request->query('q',''));
-    $locationId = $request->query('location_id');
-
-    $rows = \DB::table('billboards as b')
-        ->leftJoin('locations as l', 'l.id', '=', 'b.location_id')
+    $q = Billboard::query()
         ->select(
-            'b.id',
-            'b.site_number',
-            'b.size',
-            'b.gps_latitude',
-            'b.gps_longitude',
-            'l.name as location_name'
+            'billboards.id',
+            'billboards.site_number',
+            'billboards.size',
+            'billboards.gps_latitude',
+            'billboards.gps_longitude',
+            'locations.id as location_id',
+            'locations.name as location_name',
+            'districts.id as district_id',
+            'states.id as state_id'
         )
-        ->when($locationId !== null && $locationId !== '', function ($w) use ($locationId) {
-            $w->where('b.location_id', (int)$locationId);
-        })
-        ->when($q !== '', function ($w) use ($q) {
-            $w->where(function ($x) use ($q) {
-                $x->where('b.site_number', 'LIKE', "%{$q}%")
-                  ->orWhere('l.name', 'LIKE', "%{$q}%");
-            });
-        })
-        ->limit(50)
-        ->get();
+        ->leftJoin('locations', 'billboards.location_id', '=', 'locations.id')
+        ->leftJoin('districts', 'locations.district_id', '=', 'districts.id')
+        ->leftJoin('states', 'districts.state_id', '=', 'states.id');
 
-    $items = $rows->map(function ($r) {
-        $siteNumber = trim((string)$r->site_number);
-        $locationName = trim((string)$r->location_name);
-
-        // Clean location name (remove parentheses)
-        $locationName = preg_replace('/\s*\([^)]*\)/', '', $locationName);
-        $locationName = preg_replace('/\s+/', ' ', trim($locationName));
-
-        if ($locationName === '') {
-            $locationName = 'Unknown Location';
+    // ---- Filter by area_key "stateId|districtId" (utama)
+    if ($request->filled('area_key')) {
+        [$sid, $did] = array_pad(explode('|', $request->get('area_key'), 2), 2, null);
+        if ($sid && $did) {
+            $q->where('states.id', $sid)->where('districts.id', $did);
         }
+    }
 
-        // CLEAN LABEL: Only site_number — location, NO size or coords
-        $label = $siteNumber . ' — ' . $locationName;
+    // ---- Optional cascade filters (fallback / kombinasi)
+    if ($request->filled('state_id')) {
+        $q->where('states.id', $request->integer('state_id'));
+    }
+    if ($request->filled('district_id')) {
+        $q->where('districts.id', $request->integer('district_id'));
+    }
+    if ($request->filled('location_id')) {
+        $q->where('locations.id', $request->integer('location_id'));
+    }
 
-        // Still return size & coords for auto-populate, just not in label
-        $size = trim((string)($r->size ?? ''));
-        $coords = '';
-        if (!empty(trim($r->gps_latitude)) && !empty(trim($r->gps_longitude))) {
-            $coords = trim($r->gps_latitude) . ', ' . trim($r->gps_longitude);
-        }
+    // ---- Pencarian bebas (site number / location name)
+    if ($request->filled('search')) {
+        $term = trim($request->get('search'));
+        $q->where(function($w) use ($term) {
+            $w->where('billboards.site_number', 'like', "%{$term}%")
+              ->orWhere('locations.name', 'like', "%{$term}%");
+        });
+    }
 
+    // ---- Build "STATE_ABBR - District" as area label
+    $abbr = "
+        CASE
+            WHEN states.name = 'Kuala Lumpur'    THEN 'KL'
+            WHEN states.name = 'Selangor'        THEN 'SEL'
+            WHEN states.name = 'Negeri Sembilan' THEN 'N9'
+            WHEN states.name = 'Melaka'          THEN 'MLK'
+            WHEN states.name = 'Johor'           THEN 'JHR'
+            WHEN states.name = 'Perak'           THEN 'PRK'
+            WHEN states.name = 'Pahang'          THEN 'PHG'
+            WHEN states.name = 'Terengganu'      THEN 'TRG'
+            WHEN states.name = 'Kelantan'        THEN 'KTN'
+            WHEN states.name = 'Perlis'          THEN 'PLS'
+            WHEN states.name = 'Kedah'           THEN 'KDH'
+            WHEN states.name = 'Penang'          THEN 'PNG'
+            WHEN states.name = 'Sarawak'         THEN 'SWK'
+            WHEN states.name = 'Sabah'           THEN 'SBH'
+            WHEN states.name = 'Labuan'          THEN 'LBN'
+            WHEN states.name = 'Putrajaya'       THEN 'PJY'
+            ELSE states.name
+        END
+    ";
+
+    $q->addSelect(DB::raw("CONCAT($abbr, ' - ', districts.name) as area"));
+    $q->addSelect(DB::raw("CONCAT(states.id, '|', districts.id) as area_key"));
+    $q->addSelect(DB::raw("CONCAT(billboards.gps_latitude, ', ', billboards.gps_longitude) as coords"));
+
+    $rows = $q->orderBy('billboards.site_number')->limit(50)->get();
+
+    $data = $rows->map(function ($r) {
         return [
-            'value'  => (string)$r->id,
-            'label'  => $label,      // ← CLEAN: site — location only
-            'size'   => $size,       // ← still available for auto-populate
-            'coords' => $coords,     // ← still available for auto-populate
+            'value'          => $r->id,
+            'label'          => "{$r->site_number} — {$r->location_name}", // clean
+            'site_number'    => $r->site_number,
+            'location_name'  => $r->location_name,
+            'size'           => $r->size,
+            'coords'         => $r->coords,
+            'area'           => $r->area,       // "KL - Bukit Jalil"
+            'area_key'       => $r->area_key,   // "stateId|districtId"
+            'state_id'       => $r->state_id,
+            'district_id'    => $r->district_id,
         ];
-    })
-    ->filter(fn($x) => trim($x['label']) !== '')
-    ->unique('value')
-    ->values();
+    });
 
-    return response()->json($items);
+    return response()->json($data);
 }
+
 
 /**
  * @deprecated Use getOutdoorDistricts() + getOutdoorLocations() + getOutdoorSites() instead
  */
 public function getOutdoorAreas(Request $request)
 {
-    // This now just returns district names (for backward compat)
-    $q = trim((string)$request->query('q', ''));
+    $search = trim((string) $request->query('search', ''));
 
-    $rows = \DB::table('districts')
-        ->select(\DB::raw('DISTINCT districts.name as area'))
-        ->leftJoin('locations', function ($j) {
-            $j->on('locations.district_id', '=', 'districts.id');
-        })
-        ->leftJoin('billboards', 'billboards.location_id', '=', 'locations.id')
-        ->when($q !== '', function ($w) use ($q) {
-            $w->where('districts.name', 'LIKE', "%{$q}%");
-        })
+    $abbr = "
+        CASE
+            WHEN states.name = 'Kuala Lumpur'    THEN 'KL'
+            WHEN states.name = 'Selangor'        THEN 'SEL'
+            WHEN states.name = 'Negeri Sembilan' THEN 'N9'
+            WHEN states.name = 'Melaka'          THEN 'MLK'
+            WHEN states.name = 'Johor'           THEN 'JHR'
+            WHEN states.name = 'Perak'           THEN 'PRK'
+            WHEN states.name = 'Pahang'          THEN 'PHG'
+            WHEN states.name = 'Terengganu'      THEN 'TRG'
+            WHEN states.name = 'Kelantan'        THEN 'KTN'
+            WHEN states.name = 'Perlis'          THEN 'PLS'
+            WHEN states.name = 'Kedah'           THEN 'KDH'
+            WHEN states.name = 'Penang'          THEN 'PNG'
+            WHEN states.name = 'Sarawak'         THEN 'SWK'
+            WHEN states.name = 'Sabah'           THEN 'SBH'
+            WHEN states.name = 'Labuan'          THEN 'LBN'
+            WHEN states.name = 'Putrajaya'       THEN 'PJY'
+            ELSE states.name
+        END
+    ";
+
+    $base = DB::table('districts')
+        ->join('states', 'districts.state_id', '=', 'states.id')
+        ->select(
+            'states.id as state_id',
+            'districts.id as district_id',
+            DB::raw("CONCAT($abbr, ' - ', districts.name) as area"),
+            DB::raw("CONCAT(states.id, '|', districts.id) as area_key")
+        );
+
+    if ($search !== '') {
+        $base->where(function($w) use ($search, $abbr) {
+            $w->where('districts.name', 'like', "%{$search}%")
+              ->orWhere(DB::raw($abbr), 'like', "%{$search}%");
+        });
+    }
+
+    $rows = $base
         ->orderBy('area')
-        ->limit(50)
-        ->get();
+        ->limit(100)
+        ->get()
+        ->unique('area_key')
+        ->values();
 
-    return response()->json(
-        $rows->pluck('area')
-             ->filter()
-             ->unique()
-             ->values()
-             ->map(fn($a) => ['label' => $a, 'value' => $a])
-    );
+    $data = $rows->map(function($r){
+        return [
+            'value'      => $r->area_key, // "stateId|districtId"
+            'label'      => $r->area,     // "KL - Bukit Jalil"
+            'state_id'   => $r->state_id,
+            'district_id'=> $r->district_id,
+        ];
+    });
+
+    return response()->json($data);
 }
+
 
 /**
  * @deprecated Use getOutdoorSites() which returns coords directly
