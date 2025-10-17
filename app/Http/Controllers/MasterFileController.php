@@ -1071,194 +1071,190 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
     $companyRaw = $request->input('company_id', $request->input('company'));
     $clientRaw  = $request->input('client_id',  $request->input('client'));
 
-    logger('request: ' . $request);
+    try {
 
-    // Helpers to fetch display column safely
-    $getCompanyName = function ($companyModel) {
-        return $companyModel->company
-            ?? $companyModel->company_name
-            ?? $companyModel->name
-            ?? (string) $companyModel->id;
-    };
+        // Helpers to fetch display column safely
+        $getCompanyName = function ($companyModel) {
+            return $companyModel->company
+                ?? $companyModel->company_name
+                ?? $companyModel->name
+                ?? (string) $companyModel->id;
+        };
 
-    // Resolve / create Company
-    $companyId   = null;
-    $companyName = null;
-    if (is_string($companyRaw) && str_starts_with($companyRaw, 'new:')) {
-        $companyName = trim(substr($companyRaw, 4));
-        $companyModel = \App\Models\ClientCompany::create([
-            'company' => $companyName,
-        ]);
-        $companyId   = $companyModel->id;
-        $companyName = $getCompanyName($companyModel);
-    } elseif (is_string($companyRaw) && ctype_digit($companyRaw)) {
-        $companyModel = \App\Models\ClientCompany::find($companyRaw);
-        if ($companyModel) {
+        // Resolve / create Company
+        $companyId   = null;
+        $companyName = null;
+        if (is_string($companyRaw) && str_starts_with($companyRaw, 'new:')) {
+            $companyName = trim(substr($companyRaw, 4));
+            $companyModel = \App\Models\ClientCompany::create([
+                'company' => $companyName,
+            ]);
             $companyId   = $companyModel->id;
             $companyName = $getCompanyName($companyModel);
+        } elseif (is_string($companyRaw) && ctype_digit($companyRaw)) {
+            $companyModel = \App\Models\ClientCompany::find($companyRaw);
+            if ($companyModel) {
+                $companyId   = $companyModel->id;
+                $companyName = $getCompanyName($companyModel);
+            } else {
+                $companyName = $companyRaw;
+            }
         } else {
-            $companyName = $companyRaw;
-        }
-    } else {
-        $typed = trim((string)$companyRaw);
-        if ($typed !== '') {
-            $companyModel = \App\Models\ClientCompany::where('company', $typed)
-                ->orWhere('company_name', $typed)
-                ->orWhere('name', $typed)
-                ->first();
-            if (!$companyModel) {
-                $companyModel = \App\Models\ClientCompany::create([
-                    'company' => $typed,
-                ]);
+            $typed = trim((string)$companyRaw);
+            if ($typed !== '') {
+                $companyModel = \App\Models\ClientCompany::where('company', $typed)
+                    ->orWhere('company_name', $typed)
+                    ->orWhere('name', $typed)
+                    ->first();
+                if (!$companyModel) {
+                    $companyModel = \App\Models\ClientCompany::create([
+                        'company' => $typed,
+                    ]);
+                }
+                $companyId   = $companyModel->id;
+                $companyName = $getCompanyName($companyModel);
             }
-            $companyId   = $companyModel->id;
-            $companyName = $getCompanyName($companyModel);
         }
-    }
 
-    // Resolve / create Client (PIC) attached to companyId when possible
-    $clientId   = null;
-    $clientName = null;
-    $clientModel = null;
-    if (is_string($clientRaw) && str_starts_with($clientRaw, 'new:')) {
-        $clientName = trim(substr($clientRaw, 4));
-        // Get contact/email from request first (in case user typed them)
-        $autoContact = $request->input('contact_number');
-        $autoEmail   = $request->input('email');
+        // Resolve / create Client (PIC) attached to companyId when possible
+        $clientId   = null;
+        $clientName = null;
+        $clientModel = null;
+        if (is_string($clientRaw) && str_starts_with($clientRaw, 'new:')) {
+            $clientName = trim(substr($clientRaw, 4));
+            // Get contact/email from request first (in case user typed them)
+            $autoContact = $request->input('contact_number');
+            $autoEmail   = $request->input('email');
 
-        $clientModel = \App\Models\Client::create([
-            'name'       => $clientName,
-            'company_id' => $companyId,
-            'phone'      => $autoContact,   // ✅ save if provided
-            'email'      => $autoEmail,     // ✅ save if provided
+            $clientModel = \App\Models\Client::create([
+                'name'       => $clientName,
+                'company_id' => $companyId,
+                'phone'      => $autoContact,   // ✅ save if provided
+                'email'      => $autoEmail,     // ✅ save if provided
+            ]);
+            $clientId   = $clientModel->id;
+            $clientName = $clientModel->name;
+        } elseif (is_string($clientRaw) && ctype_digit($clientRaw)) {
+            $clientModel = \App\Models\Client::find($clientRaw);
+            if ($clientModel) {
+                $clientId   = $clientModel->id;
+                $clientName = $clientModel->name;
+
+                // 🔴 IMPORTANT: inherit company from client if not already set
+                if (!$companyId && $clientModel->company_id) {
+                    $companyId = $clientModel->company_id;
+                    if ($companyId) {
+                        $cc = \App\Models\ClientCompany::find($companyId);
+                        if ($cc) {
+                            $companyName = $getCompanyName($cc);
+                        }
+                    }
+                }
+            }
+        } else {
+            $typed = trim((string)$clientRaw);
+            if ($typed !== '') {
+                $q = \App\Models\Client::query()->where('name', $typed);
+                if ($companyId) $q->where('company_id', $companyId);
+                $clientModel = $q->first();
+
+                if (!$clientModel) {
+                    // Get contact/email from request for new client
+                    $autoContact = $request->input('contact_number');
+                    $autoEmail   = $request->input('email');
+
+                    $clientModel = \App\Models\Client::create([
+                        'name'       => $typed,
+                        'company_id' => $companyId,
+                        'phone'      => $autoContact,   // ✅ save if provided
+                        'email'      => $autoEmail,     // ✅ save if provided
+                    ]);
+                }
+                $clientId   = $clientModel->id;
+                $clientName = $clientModel->name;
+
+                // Inherit company from existing client
+                if (!$companyId && $clientModel->company_id) {
+                    $companyId = $clientModel->company_id;
+                    if ($companyId) {
+                        $cc = \App\Models\ClientCompany::find($companyId);
+                        if ($cc) {
+                            $companyName = $getCompanyName($cc);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Auto-fill contact & email from client model if not provided in request
+        $autoContact = $request->filled('contact_number')
+            ? $request->input('contact_number')
+            : optional($clientModel)->phone;     // ✅ safe even if $clientModel is null
+
+        $autoEmail   = $request->filled('email')
+            ? $request->input('email')
+            : optional($clientModel)->email;     // ✅ safe even if $clientModel is null
+
+        // Merge resolved IDs and names back to request
+        $request->merge([
+            'company_id'     => $companyId,      // ✅ NEW: save company ID
+            'client_id'      => $clientId,       // ✅ NEW: save client ID
+            'company'        => $companyName ?? (string)$companyRaw,
+            'client'         => $clientName  ?? (string)$clientRaw,
+            'contact_number' => $autoContact,
+            'email'          => $autoEmail,
         ]);
-        $clientId   = $clientModel->id;
-        $clientName = $clientModel->name;
-    } elseif (is_string($clientRaw) && ctype_digit($clientRaw)) {
-        $clientModel = \App\Models\Client::find($clientRaw);
-        if ($clientModel) {
-            $clientId   = $clientModel->id;
-            $clientName = $clientModel->name;
 
-            // 🔴 IMPORTANT: inherit company from client if not already set
-            if (!$companyId && $clientModel->company_id) {
-                $companyId = $clientModel->company_id;
-                if ($companyId) {
-                    $cc = \App\Models\ClientCompany::find($companyId);
-                    if ($cc) {
-                        $companyName = $getCompanyName($cc);
-                    }
-                }
-            }
-        }
-    } else {
-        $typed = trim((string)$clientRaw);
-        if ($typed !== '') {
-            $q = \App\Models\Client::query()->where('name', $typed);
-            if ($companyId) $q->where('company_id', $companyId);
-            $clientModel = $q->first();
+        // ---- 1) VALIDASI ----
+        $data = $request->validate([
+            'month' => ['required', 'string', 'max:255'],
+            'date' => ['required', 'date'],
+            'company' => ['required', 'string', 'max:255'],
+            'company_id' => ['nullable', 'integer', 'exists:client_companies,id'],  // ✅ NEW
+            'client_id' => ['nullable', 'integer', 'exists:clients,id'],            // ✅ NEW
+            'product' => ['required', 'string', 'max:255'],
+            'product_category' => ['nullable', 'string', 'max:255'],
+            'location' => ['nullable', 'string', 'max:255'],
+            'traffic' => ['required', 'string', 'max:255'],
+            'duration' => ['nullable', 'string', 'max:255'],
+            'amount' => ['nullable', 'numeric', 'between:0,999999999.99'],
+            'status' => ['required', 'string', 'max:255'],
+            'remarks' => ['nullable', 'string'],
+            'client' => ['required', 'string', 'max:255'],
+            'sales_person' => ['nullable', 'string', 'max:255'],
+            'date_finish' => ['nullable', 'date'],
+            'job_number' => ['nullable', 'string', 'max:255'],
+            'artwork' => ['nullable', 'string', 'max:255'],
+            'invoice_date' => ['nullable', 'date'],
+            'invoice_number' => ['nullable', 'string', 'max:255'],
+            'contact_number' => ['nullable', 'string', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255'],
 
-            if (!$clientModel) {
-                // Get contact/email from request for new client
-                $autoContact = $request->input('contact_number');
-                $autoEmail   = $request->input('email');
+            'kltg_industry' => ['nullable', 'string', 'max:255'],
+            'kltg_x' => ['nullable', 'string', 'max:255'],
+            'kltg_edition' => ['nullable', 'string', 'max:255'],
+            'kltg_material_cbp' => ['nullable', 'string', 'max:255'],
+            'kltg_print' => ['nullable', 'string', 'max:255'],
+            'kltg_article' => ['nullable', 'string', 'max:255'],
+            'kltg_video' => ['nullable', 'string', 'max:255'],
+            'kltg_leaderboard' => ['nullable', 'string', 'max:255'],
+            'kltg_qr_code' => ['nullable', 'string', 'max:255'],
+            'kltg_blog' => ['nullable', 'string', 'max:255'],
+            'kltg_em' => ['nullable', 'string', 'max:255'],
+            'kltg_remarks' => ['nullable', 'string', 'max:255'],
 
-                $clientModel = \App\Models\Client::create([
-                    'name'       => $typed,
-                    'company_id' => $companyId,
-                    'phone'      => $autoContact,   // ✅ save if provided
-                    'email'      => $autoEmail,     // ✅ save if provided
-                ]);
-            }
-            $clientId   = $clientModel->id;
-            $clientName = $clientModel->name;
+            'outdoor_size' => ['nullable', 'string', 'max:255'],
+            'outdoor_district_council' => ['nullable', 'string', 'max:255'],
+            'outdoor_coordinates' => ['nullable', 'string', 'max:255'],
+            'outdoor_status' => ['nullable', 'string', 'max:255'],
 
-            // Inherit company from existing client
-            if (!$companyId && $clientModel->company_id) {
-                $companyId = $clientModel->company_id;
-                if ($companyId) {
-                    $cc = \App\Models\ClientCompany::find($companyId);
-                    if ($cc) {
-                        $companyName = $getCompanyName($cc);
-                    }
-                }
-            }
-        }
-    }
+            'bulk_placements' => ['nullable', 'string'],
+        ]);
 
-    // Auto-fill contact & email from client model if not provided in request
-    $autoContact = $request->filled('contact_number')
-        ? $request->input('contact_number')
-        : optional($clientModel)->phone;     // ✅ safe even if $clientModel is null
-
-    $autoEmail   = $request->filled('email')
-        ? $request->input('email')
-        : optional($clientModel)->email;     // ✅ safe even if $clientModel is null
-
-    // Merge resolved IDs and names back to request
-    $request->merge([
-        'company_id'     => $companyId,      // ✅ NEW: save company ID
-        'client_id'      => $clientId,       // ✅ NEW: save client ID
-        'company'        => $companyName ?? (string)$companyRaw,
-        'client'         => $clientName  ?? (string)$clientRaw,
-        'contact_number' => $autoContact,
-        'email'          => $autoEmail,
-    ]);
-
-    // ---- 1) VALIDASI ----
-    $data = $request->validate([
-        'month' => ['required', 'string', 'max:255'],
-        'date' => ['required', 'date'],
-        'company' => ['required', 'string', 'max:255'],
-        'company_id' => ['nullable', 'integer', 'exists:client_companies,id'],  // ✅ NEW
-        'client_id' => ['nullable', 'integer', 'exists:clients,id'],            // ✅ NEW
-        'product' => ['required', 'string', 'max:255'],
-        'product_category' => ['nullable', 'string', 'max:255'],
-        'location' => ['nullable', 'string', 'max:255'],
-        'traffic' => ['required', 'string', 'max:255'],
-        'duration' => ['nullable', 'string', 'max:255'],
-        'amount' => ['nullable', 'numeric', 'between:0,999999999.99'],
-        'status' => ['required', 'string', 'max:255'],
-        'remarks' => ['nullable', 'string'],
-        'client' => ['required', 'string', 'max:255'],
-        'sales_person' => ['nullable', 'string', 'max:255'],
-        'date_finish' => ['nullable', 'date'],
-        'job_number' => ['nullable', 'string', 'max:255'],
-        'artwork' => ['nullable', 'string', 'max:255'],
-        'invoice_date' => ['nullable', 'date'],
-        'invoice_number' => ['nullable', 'string', 'max:255'],
-        'contact_number' => ['nullable', 'string', 'max:255'],
-        'email' => ['nullable', 'email', 'max:255'],
-
-        'kltg_industry' => ['nullable', 'string', 'max:255'],
-        'kltg_x' => ['nullable', 'string', 'max:255'],
-        'kltg_edition' => ['nullable', 'string', 'max:255'],
-        'kltg_material_cbp' => ['nullable', 'string', 'max:255'],
-        'kltg_print' => ['nullable', 'string', 'max:255'],
-        'kltg_article' => ['nullable', 'string', 'max:255'],
-        'kltg_video' => ['nullable', 'string', 'max:255'],
-        'kltg_leaderboard' => ['nullable', 'string', 'max:255'],
-        'kltg_qr_code' => ['nullable', 'string', 'max:255'],
-        'kltg_blog' => ['nullable', 'string', 'max:255'],
-        'kltg_em' => ['nullable', 'string', 'max:255'],
-        'kltg_remarks' => ['nullable', 'string', 'max:255'],
-
-        'outdoor_size' => ['nullable', 'string', 'max:255'],
-        'outdoor_district_council' => ['nullable', 'string', 'max:255'],
-        'outdoor_coordinates' => ['nullable', 'string', 'max:255'],
-        'outdoor_status' => ['nullable', 'string', 'max:255'],
-
-        'bulk_placements' => ['nullable', 'string'],
-    ]);
-
-    // ---- 2) TRANSACTION + OUTDOOR LOGIC ----
-    DB::transaction(function () use ($request, $data) {
-        /** @var \App\Models\MasterFile $masterFile */
-        $masterFile = MasterFile::create($data);
-
+        // ---- 2) CHECK FOR OVERLAPPING BOOKINGS BEFORE TRANSACTION ----
         $isOutdoor = ($data['product_category'] ?? '') === 'Outdoor';
 
-        // ===== REPEATER MODE with Billboard Integration =====
+        // Check for overlapping bookings in repeater mode
         if ($isOutdoor && $request->has('locations')) {
             $locations = $request->input('locations', []);
 
@@ -1273,107 +1269,169 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
                     continue;
                 }
 
-                // Map UI keys -> DB columns
-                $subProduct = $loc['sub_product'] ?? ($data['product'] ?? 'Outdoor');
-                $size       = $loc['size'] ?? null;
-                $area       = $loc['council'] ?? null;   // UI 'council' -> DB 'district_council'
-                $coords     = $loc['coords'] ?? null;    // UI 'coords'  -> DB 'coordinates'
-                $remarks    = $loc['remarks'] ?? null;
-                $startDate  = $loc['start_date'] ?? null;
-                $endDate    = $loc['end_date'] ?? null;
-                $outdoorStatus    = $loc['outdoor_status'] ?? null;
-                $siteLabel  = $typedSite ?: null;
+                // Check for overlapping bookings
+                $startDate = $loc['start_date'] ?? null;
+                $endDate = $loc['end_date'] ?? null;
 
-                // Hydrate from billboard if ID is present
-                if ($billboardId) {
-                    $bb = \DB::table('billboards as b')
-                        ->leftJoin('locations as l', 'l.id', '=', 'b.location_id')
-                        ->where('b.id', $billboardId)
-                        ->first(['b.site_number', 'b.size', 'b.gps_latitude', 'b.gps_longitude', 'l.name as area_name']);
+                // Only check for overlap if both dates are provided
+                if ($startDate && $endDate) {
+                    $overlap = OutdoorItem::where('billboard_id', $billboardId)
+                        ->where(function ($query) use ($startDate, $endDate) {
+                            $query->whereBetween('start_date', [$startDate, $endDate])
+                                ->orWhereBetween('end_date', [$startDate, $endDate])
+                                ->orWhere(function ($query2) use ($startDate, $endDate) {
+                                    $query2->where('start_date', '<=', $startDate)
+                                            ->where('end_date', '>=', $endDate);
+                                });
+                        })
+                        ->exists();
 
-                    if ($bb) {
-                        $siteLabel = $siteLabel ?: ($bb->site_number ?? null);
-                        $size      = $size      ?: ($bb->size ?? null);
-                        $area      = $area      ?: ($bb->area_name ?? null);
-                        if (!$coords && $bb->gps_latitude !== null && $bb->gps_longitude !== null) {
-                            $coords = $bb->gps_latitude . ',' . $bb->gps_longitude;
+                    if ($overlap) {
+                        if ($overlap) {
+                            return redirect()->back()->withInput()->with('error', 'This billboard is already booked for the selected date range.');
                         }
                     }
                 }
 
-                // Insert outdoor item
-                $masterFile->outdoorItems()->create([
-                    'sub_product'      => $subProduct,
-                    'qty'              => 1, // or ($loc['qty'] ?? 1)
-                    'site'             => $siteLabel,
-                    'size'             => $size,
-                    'district_council' => $area,
-                    'coordinates'      => $coords,
-                    'remarks'          => $remarks,
-                    'start_date'       => $startDate ?: null,
-                    'end_date'         => $endDate   ?: null,
-                    'status'           => $outdoorStatus,
-                    'billboard_id'     => $billboardId,
-                ]);
-            }
-
-            return; // Done with repeater mode
-        }
-
-        // ===== FALLBACK: Old textarea mode (bulk_placements) =====
-        $raw = trim((string)$request->input('bulk_placements', ''));
-        if ($isOutdoor && $raw !== '') {
-            $lines = preg_split("/\r\n|\n|\r/", $raw);
-            $defaultSub = $data['product'] ?? 'Outdoor';
-
-            $items = [];
-            foreach ($lines as $line) {
-                $line = trim($line);
-                if ($line === '') continue;
-
-                $sep   = str_contains($line, '|') ? '|' : ',';
-                $parts = array_map('trim', str_getcsv($line, $sep));
-
-                $site        = $parts[0] ?? null;
-                $size        = $parts[1] ?? null;
-                $council     = $parts[2] ?? null;
-                $coordinates = $parts[3] ?? null;
-                $remarks     = $parts[4] ?? null;
-
-                $sub = $defaultSub;
-
-                if ($site && preg_match('/^(BB|TB|Bunting|Flyers|Star|Signages|Newspaper)\s*:\s*(.+)$/i', $site, $m)) {
-                    $sub  = $m[1];
-                    $site = $m[2];
-                }
-
-                if (
-                    $coordinates && $remarks
-                    && preg_match('/^-?\d+(\.\d+)?$/', $coordinates)
-                    && preg_match('/^-?\d+(\.\d+)?$/', $remarks)
-                ) {
-                    $coordinates = $coordinates . ',' . $remarks;
-                    $remarks = null;
-                }
-
-                $items[] = [
-                    'sub_product'      => $sub,
-                    'qty'              => 1,
-                    'site'             => $site,
-                    'size'             => $size ?: null,
-                    'district_council' => $council ?: null,
-                    'coordinates'      => $coordinates ?: null,
-                    'remarks'          => $remarks ?: null,
+                // Store the validated location for processing inside the transaction
+                $locationsToProcess[] = [
+                    'location_data' => $loc,
+                    'billboard_id' => $billboardId,
+                    'typed_site' => $typedSite,
+                    'start_date' => $startDate,
+                    'end_date' => $endDate,
                 ];
             }
-
-            if (!empty($items)) {
-                $masterFile->outdoorItems()->createMany($items);
-            }
         }
-    });
 
-    return redirect()->route('dashboard')->with('success', 'Saved.');
+    
+
+        // ---- 2) TRANSACTION + OUTDOOR LOGIC ----
+        // If we reach here, no overlaps were found, proceed with transaction
+        DB::transaction(function () use ($request, $data, $isOutdoor, $locationsToProcess) {
+            /** @var \App\Models\MasterFile $masterFile */
+            $masterFile = MasterFile::create($data);
+
+            // ===== REPEATER MODE with Billboard Integration =====
+            if ($isOutdoor && !empty($locationsToProcess)) {
+
+                foreach ($locationsToProcess as $processedLoc) {
+                    $loc = $processedLoc['location_data'];
+                    $billboardId = $processedLoc['billboard_id'];
+                    $typedSite = $processedLoc['typed_site'];
+
+                    // Skip empty rows
+                    if (!$billboardId && $typedSite === '') {
+                        continue;
+                    }
+
+                    // Map UI keys -> DB columns
+                    $subProduct = $loc['sub_product'] ?? ($data['product'] ?? 'Outdoor');
+                    $size       = $loc['size'] ?? null;
+                    $area       = $loc['council'] ?? null;   // UI 'council' -> DB 'district_council'
+                    $coords     = $loc['coords'] ?? null;    // UI 'coords'  -> DB 'coordinates'
+                    $remarks    = $loc['remarks'] ?? null;
+                    $startDate  = $loc['start_date'] ?? null;
+                    $endDate    = $loc['end_date'] ?? null;
+                    $outdoorStatus    = $loc['outdoor_status'] ?? null;
+                    $siteLabel  = $typedSite ?: null;
+
+                    // Hydrate from billboard if ID is present
+                    if ($billboardId) {
+                        $bb = \DB::table('billboards as b')
+                            ->leftJoin('locations as l', 'l.id', '=', 'b.location_id')
+                            ->where('b.id', $billboardId)
+                            ->first(['b.site_number', 'b.size', 'b.gps_latitude', 'b.gps_longitude', 'l.name as area_name']);
+
+                        if ($bb) {
+                            $siteLabel = $siteLabel ?: ($bb->site_number ?? null);
+                            $size      = $size      ?: ($bb->size ?? null);
+                            $area      = $area      ?: ($bb->area_name ?? null);
+                            if (!$coords && $bb->gps_latitude !== null && $bb->gps_longitude !== null) {
+                                $coords = $bb->gps_latitude . ',' . $bb->gps_longitude;
+                            }
+                        }
+                    }
+
+                    // Insert outdoor item
+                    $masterFile->outdoorItems()->create([
+                        'sub_product'      => $subProduct,
+                        'qty'              => 1, // or ($loc['qty'] ?? 1)
+                        'site'             => $siteLabel,
+                        'size'             => $size,
+                        'district_council' => $area,
+                        'coordinates'      => $coords,
+                        'remarks'          => $remarks,
+                        'start_date'       => $startDate ?: null,
+                        'end_date'         => $endDate   ?: null,
+                        'status'           => $outdoorStatus,
+                        'billboard_id'     => $billboardId,
+                    ]);
+                }
+
+                return; // Done with repeater mode
+            }
+
+            // ===== FALLBACK: Old textarea mode (bulk_placements) =====
+            $raw = trim((string)$request->input('bulk_placements', ''));
+            if ($isOutdoor && $raw !== '') {
+                $lines = preg_split("/\r\n|\n|\r/", $raw);
+                $defaultSub = $data['product'] ?? 'Outdoor';
+
+                $items = [];
+                foreach ($lines as $line) {
+                    $line = trim($line);
+                    if ($line === '') continue;
+
+                    $sep   = str_contains($line, '|') ? '|' : ',';
+                    $parts = array_map('trim', str_getcsv($line, $sep));
+
+                    $site        = $parts[0] ?? null;
+                    $size        = $parts[1] ?? null;
+                    $council     = $parts[2] ?? null;
+                    $coordinates = $parts[3] ?? null;
+                    $remarks     = $parts[4] ?? null;
+
+                    $sub = $defaultSub;
+
+                    if ($site && preg_match('/^(BB|TB|Bunting|Flyers|Star|Signages|Newspaper)\s*:\s*(.+)$/i', $site, $m)) {
+                        $sub  = $m[1];
+                        $site = $m[2];
+                    }
+
+                    if (
+                        $coordinates && $remarks
+                        && preg_match('/^-?\d+(\.\d+)?$/', $coordinates)
+                        && preg_match('/^-?\d+(\.\d+)?$/', $remarks)
+                    ) {
+                        $coordinates = $coordinates . ',' . $remarks;
+                        $remarks = null;
+                    }
+
+                    $items[] = [
+                        'sub_product'      => $sub,
+                        'qty'              => 1,
+                        'site'             => $site,
+                        'size'             => $size ?: null,
+                        'district_council' => $council ?: null,
+                        'coordinates'      => $coordinates ?: null,
+                        'remarks'          => $remarks ?: null,
+                    ];
+                }
+
+                if (!empty($items)) {
+                    $masterFile->outdoorItems()->createMany($items);
+                }
+            }
+        });
+
+        return redirect()->route('dashboard')->with('success', 'Saved.');
+    }catch (\Exception $e) {
+        // If any queries fail, undo all changes
+        DB::rollback();
+
+        return response()->json(['error' => $e->getMessage()], 422);
+    }
 }
 
 

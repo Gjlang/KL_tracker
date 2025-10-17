@@ -404,6 +404,8 @@ Route::group(['middleware' => ['auth']], function () {
     Route::post('/booking/availability', [BillboardAvailabilityController::class, 'getBillboardAvailability'])->name('billboard.checkAvailability');
     Route::get('/billboard/monthly-availability', [BillboardAvailabilityController::class, 'getMonthlyBookingAvailability'])->name('billboard.monthly.availability');
     Route::post('/billboard/update-status', [BillboardAvailabilityController::class, 'updateStatus'])->name('billboard.update.status');
+    Route::post('/booking/delete', [BillboardAvailabilityController::class, 'delete'])->name('billboard.booking.delete');
+
 
     // Clients
     Route::get('/clients', [ClientsController::class, 'index'])->name('clients.index');

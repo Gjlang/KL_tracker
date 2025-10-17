@@ -518,6 +518,18 @@
                         >
                         <h3 class="text-sm text-neutral-600 small-caps mb-6 font-medium">Outdoor Details</h3>
 
+                        <!-- Add this after the Outdoor Details heading -->
+                        <div x-show="$el.closest('div[x-show]').style.display !== 'none' && $errors.has('locations')" class="mb-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-lg">
+                            <p class="text-sm" x-text="$errors.get('locations')"></p>
+                        </div>
+
+                        <!-- Add this after the Outdoor Details heading -->
+                        @if ($errors->has('locations'))
+                            <div class="mb-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-lg">
+                                <p class="text-sm">{{ $errors->first('locations') }}</p>
+                            </div>
+                        @endif
+
                         <!-- Count selector -->
                         <div class="mb-4">
                             <label class="block text-sm font-medium text-[#1C1E26] mb-2">How many locations?</label>
@@ -1316,7 +1328,43 @@ function productPicker() {
 }
 </script>
     </x-app-layout>
+<!-- Error Popup Modal -->
+<div id="errorModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 hidden">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+        <div class="flex items-start">
+            <svg class="w-6 h-6 text-red-500 mr-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M12 17h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">Booking Conflict</h3>
+                <p class="text-sm text-gray-700 mb-4" id="errorMessage">
+                    {{ session('error') }}
+                </p>
+                <div class="flex justify-end">
+                    <button type="button"
+                            onclick="closeErrorModal()"
+                            class="px-4 py-2 bg-[#22255b] text-white text-sm rounded-xl hover:opacity-95 transition-colors duration-200">
+                        OK
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
+<script>
+function closeErrorModal() {
+    document.getElementById('errorModal').classList.add('hidden');
+}
+
+// Show the modal if there's an error message
+document.addEventListener('DOMContentLoaded', function() {
+    const errorMessage = "{{ session('error') }}";
+    if (errorMessage) {
+        document.getElementById('errorModal').classList.remove('hidden');
+    }
+});
+</script>
 </body>
 
 </html>

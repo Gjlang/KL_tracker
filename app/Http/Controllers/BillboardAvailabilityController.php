@@ -25,6 +25,7 @@ use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\PushNotificationController;
+use App\Models\OutdoorItem;
 use Illuminate\Support\Facades\Log;
 
 class BillboardAvailabilityController extends Controller
@@ -63,11 +64,6 @@ class BillboardAvailabilityController extends Controller
     public function list(Request $request)
     {
         $user = Auth::user();
-
-        // Get user roles
-        $role = $user->roles->pluck('name')[0];
-
-        $userID = $this->user->id;
 
         logger('sini boi: ');
 
@@ -139,7 +135,7 @@ class BillboardAvailabilityController extends Controller
                 'start_date'            => $d->start_date ? Carbon::parse($d->start_date)->format('d/m/y') : null,
                 'end_date'              => $d->end_date ? Carbon::parse($d->end_date)->format('d/m/y') : null,
                 'remarks'               => $d->remarks,
-                'duration'              => ($d->start_date && $d->end_date) ? Carbon::parse($d->start_date)->diffInMonths(Carbon::parse($d->end_date)) + 1 : null,
+                'duration'              => $d->duration ? $d->duration : null,
                 'created_at'            => $created_at,
                 'status'                => $d->status,
                 'id'                    => $d->id,
@@ -384,6 +380,8 @@ class BillboardAvailabilityController extends Controller
                 $bookingStart = Carbon::parse($outdoorItem->start_date);
                 $bookingEnd   = Carbon::parse($outdoorItem->end_date);
 
+                $masterFile = MasterFile::findorFail($outdoorItem->master_file_id);
+
                 $monthStart = $current->copy()->startOfMonth();
                 $monthEnd   = $current->copy()->endOfMonth();
 
@@ -413,19 +411,17 @@ class BillboardAvailabilityController extends Controller
                         'month'      => $current->format('m'),
                         'year'       => $current->year,
                         'span'       => $span,
-                        'text'       => optional($outdoorItem->clientCompany)->name
-                                        ? $outdoorItem->clientCompany->name . ' (' . $bookingStart->format('d/m/Y') . '–' . $bookingEnd->format('d/m/Y') . ')'
-                                        : 'Booked (' . $bookingStart->format('d/m/Y') . '–' . $bookingEnd->format('d/m/Y') . ')',
+                        'text'       => $masterFile->clientCompany->name
+                                        ? $masterFile->clientCompany->name . ' (' . $bookingStart->format('d/m') . '–' . $bookingEnd->format('d/m/y') . ')'
+                                        : 'Booked (' . $bookingStart->format('d/m') . '–' . $bookingEnd->format('d/m/y') . ')',
                         'color'      => $colorClass,
                         'booking_id' => $outdoorItem->id, // ✅ Add booking_id here
                         'status'     => $status, // optional: helpful for frontend
-                        'client'      => optional($outdoorItem->clientCompany)->name ?? null, // ✅ client name
+                        'client'      => $masterFile->clientCompany->name ?? null, // ✅ client name
                         'start_date'  => $bookingStart->format('d/m/Y'), // ✅ booking start
                         'end_date'    => $bookingEnd->format('d/m/Y'),   // ✅ booking end
                         'remarks'     => $outdoorItem->remarks,
                     ];
-
-                    logger('monthhh: ' , $months);
 
                     break;
                 }
@@ -456,6 +452,7 @@ class BillboardAvailabilityController extends Controller
     {
         return MasterFile::select(
             'master_files.*',
+            'outdoor_items.*',
             'billboards.id as billboard_id',
             'billboards.site_number as site_number',
             'client_companies.name as company_name',
@@ -502,7 +499,7 @@ class BillboardAvailabilityController extends Controller
      */
     public function updateStatus(Request $request)
     {
-        $billboard = MasterFile::findOrFail($request->id);
+        $billboard = OutdoorItem::findOrFail($request->id);
         $billboard->status = $request->status;
         $billboard->remarks = $request->remarks;
         $billboard->save();
@@ -579,5 +576,32 @@ class BillboardAvailabilityController extends Controller
             ->setPaper('a4', 'landscape');
 
         return $pdf->download($filename . '.pdf');
+    }
+
+    public function delete(Request $request)
+    {   
+        $user = Auth::user();
+
+        $id = $request->id;
+
+        try {
+            // Ensure all queries successfully executed
+            DB::beginTransaction();
+
+            // delete billboard booking
+            OutdoorItem::where('id', $id)->delete();
+
+            // Ensure all queries successfully executed, commit the db changes
+            DB::commit();
+
+            return response()->json([
+                "success"   => "success",
+            ], 200);
+        } catch (\Exception $e) {
+            // If any queries fail, undo all changes
+            DB::rollback();
+
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
     }
 }
