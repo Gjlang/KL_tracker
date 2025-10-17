@@ -679,23 +679,63 @@ Route::middleware(['auth'])->group(function () {
         ->name('calendar.coordinators.events');
 });
 
-
-
 // ===============================================
-// RECENTLY EDITED FILES
+// OUTDOOR LOOKUP ROUTES - CLEAN (NO DUPLICATES)
 // ===============================================
 
-// web.php
 Route::get('/company/contacts', [MasterFileController::class, 'getCompanyContacts'])
     ->name('company.contacts');
 
-Route::get('/company/pics',    [MasterFileController::class, 'getCompanyPICs']);
-Route::get('/company/emails',  [MasterFileController::class, 'getCompanyEmails']);
-Route::get('/outdoor/sites', [MasterFileController::class, 'getOutdoorSites'])->name('outdoor.sites');
-Route::get('/outdoor/sizes',  [MasterFileController::class, 'getOutdoorSizes'])->name('outdoor.sizes');
-Route::get('/outdoor/areas',  [MasterFileController::class, 'getOutdoorAreas'])->name('outdoor.areas');
-Route::get('/outdoor/coords', [MasterFileController::class, 'getOutdoorCoords'])->name('outdoor.coords');
+Route::get('/company/pics', [MasterFileController::class, 'getCompanyPICs']);
+Route::get('/company/emails', [MasterFileController::class, 'getCompanyEmails']);
 
+// Cascade: State → District → Location → Site
+Route::get('/outdoor/states', [MasterFileController::class, 'getOutdoorStates'])
+    ->name('outdoor.states');
+
+Route::get('/outdoor/districts', [MasterFileController::class, 'getOutdoorDistricts'])
+    ->name('outdoor.districts');
+
+Route::get('/outdoor/locations', [MasterFileController::class, 'getOutdoorLocations'])
+    ->name('outdoor.locations');
+
+Route::get('/outdoor/sites', [MasterFileController::class, 'getOutdoorSites'])
+    ->name('outdoor.sites');
+
+// Legacy (kept for backward compat, but deprecated)
+Route::get('/outdoor/areas', [MasterFileController::class, 'getOutdoorAreas'])
+    ->name('outdoor.areas');
+
+Route::get('/outdoor/coords', [MasterFileController::class, 'getOutdoorCoords'])
+    ->name('outdoor.coords');
+
+// // ===============================================
+// // RECENTLY EDITED FILES
+// // ===============================================
+
+// // web.php
+// Route::get('/company/contacts', [MasterFileController::class, 'getCompanyContacts'])
+//     ->name('company.contacts');
+
+// Route::get('/company/pics',    [MasterFileController::class, 'getCompanyPICs']);
+// Route::get('/company/emails',  [MasterFileController::class, 'getCompanyEmails']);
+// Route::get('/outdoor/sites', [MasterFileController::class, 'getOutdoorSites'])->name('outdoor.sites');
+// Route::get('/outdoor/sizes',  [MasterFileController::class, 'getOutdoorSizes'])->name('outdoor.sizes');
+// Route::get('/outdoor/areas',  [MasterFileController::class, 'getOutdoorAreas'])->name('outdoor.areas');
+// Route::get('/outdoor/coords', [MasterFileController::class, 'getOutdoorCoords'])->name('outdoor.coords');
+
+
+// // web.php - ADD these routes to your existing outdoor group
+
+// // Cascade: State → District → Location → Site
+// Route::get('/outdoor/states',     [MasterFileController::class, 'getOutdoorStates'])->name('outdoor.states');
+// Route::get('/outdoor/districts',  [MasterFileController::class, 'getOutdoorDistricts'])->name('outdoor.districts');
+// Route::get('/outdoor/locations',  [MasterFileController::class, 'getOutdoorLocations'])->name('outdoor.locations');
+// Route::get('/outdoor/sites',      [MasterFileController::class, 'getOutdoorSites'])->name('outdoor.sites');
+
+// // Legacy (kept for backward compat, but deprecated)
+// Route::get('/outdoor/areas',      [MasterFileController::class, 'getOutdoorAreas'])->name('outdoor.areas');
+// Route::get('/outdoor/coords',     [MasterFileController::class, 'getOutdoorCoords'])->name('outdoor.coords');
 
 // ===============================================
 // USERS ROUTES

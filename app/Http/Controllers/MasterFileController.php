@@ -24,6 +24,7 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use App\Models\OutdoorItem;
 use Illuminate\Support\Arr;
+use App\Models\Billboard;
 
 
 
@@ -761,159 +762,232 @@ public function getCompanyEmails(Request $request)
     return response()->json($emails);
 }
 
-// SITE: label like "<site> – <district_council>" if both exist, otherwise whatever exists
-public function getOutdoorSites(Request $request)
+
+public function getOutdoorStates(Request $request)
 {
-    $q  = trim((string) $request->query('q', ''));
-    $sp = trim((string) $request->query('sub_product', ''));
+    $q = trim((string)$request->query('q', ''));
 
-    $src = $this->resolveOutdoorSource();
-    if (!$src || !$src['cols']['site']) return response()->json([]);
+    $rows = \DB::table('states')
+        ->select('id', 'name')
+        ->when($q !== '', function ($w) use ($q) {
+            $w->where('name', 'LIKE', "%{$q}%");
+        })
+        ->orderBy('name')
+        ->get();
 
-    $table = $src['table'];
-    $c     = $src['cols'];
+    $stateAbbr = [
+        'Kuala Lumpur' => 'KL',
+        'Selangor' => 'SEL',
+        'Negeri Sembilan' => 'N9',
+        'Melaka' => 'MLK',
+        'Johor' => 'JHR',
+        'Perak' => 'PRK',
+        'Pahang' => 'PHG',
+        'Terengganu' => 'TRG',
+        'Kelantan' => 'KTN',
+        'Perlis' => 'PLS',
+        'Kedah' => 'KDH',
+        'Penang' => 'PNG',
+        'Pulau Pinang' => 'PNG',
+        'Sarawak' => 'SWK',
+        'Sabah' => 'SBH',
+        'Labuan' => 'LBN',
+        'Putrajaya' => 'PJY',
+    ];
 
-    $rows = DB::table($table);
-
-    if ($sp && $c['sub']) {
-        $rows->whereRaw("LOWER({$c['sub']}) = ?", [mb_strtolower($sp)]);
-    }
-
-    if ($q !== '') {
-        $rows->where($c['site'], 'LIKE', "%{$q}%");
-        if ($c['area']) {
-            $rows->orWhere($c['area'], 'LIKE', "%{$q}%");
-        }
-    }
-
-    $selects = [DB::raw("TRIM({$c['site']}) as site")];
-    if ($c['area']) $selects[] = DB::raw("TRIM({$c['area']}) as area");
-
-    $data = $rows->select($selects)->limit(50)->get();
-
-    $items = $data->map(function ($r) {
-        $site = trim((string)($r->site ?? ''));
-        $area = trim((string)($r->area ?? ''));
-        $label = $site && $area ? "{$site} – {$area}" : ($site ?: $area);
-        return ['label' => $label, 'value' => $label];
-    })->filter(fn($x) => $x['label'] !== '')->unique('label')->values();
+    $items = $rows->map(function ($r) use ($stateAbbr) {
+        $abbr = $stateAbbr[$r->name] ?? strtoupper(substr($r->name, 0, 3));
+        return [
+            'value' => (string)$r->id,
+            'label' => $abbr . ' - ' . $r->name,
+        ];
+    })->values();
 
     return response()->json($items);
 }
 
-// SIZE
-public function getOutdoorSizes(Request $request)
+
+public function getOutdoorDistricts(Request $request)
 {
-    $q  = trim((string) $request->query('q', ''));
-    $sp = trim((string) $request->query('sub_product', ''));
+    $q = trim((string)$request->query('q', ''));
+    $stateId = $request->query('state_id'); // optional filter
 
-    $src = $this->resolveOutdoorSource();
-    if (!$src || !$src['cols']['size']) return response()->json([]);
+    $rows = \DB::table('districts')
+        ->select('districts.id', 'districts.name', 'districts.state_id')
+        ->when($stateId !== null && $stateId !== '', function ($w) use ($stateId) {
+            $w->where('districts.state_id', (int)$stateId);
+        })
+        ->when($q !== '', function ($w) use ($q) {
+            $w->where('districts.name', 'LIKE', "%{$q}%");
+        })
+        ->orderBy('districts.name')
+        ->get();
 
-    $table = $src['table'];
-    $c     = $src['cols'];
+    $items = $rows->map(function ($r) {
+        return [
+            'value' => (string)$r->id,
+            'label' => $r->name,
+            'state_id' => (string)$r->state_id,
+        ];
+    })->values();
 
-    $rows = DB::table($table);
-    if ($sp && $c['sub']) {
-        $rows->whereRaw("LOWER({$c['sub']}) = ?", [mb_strtolower($sp)]);
-    }
-    if ($q !== '') {
-        $rows->where($c['size'], 'LIKE', "%{$q}%");
-    }
-
-    $vals = $rows->select(DB::raw("TRIM({$c['size']}) as v"))
-        ->limit(50)->pluck('v')->filter()->unique()->values();
-
-    return response()->json($vals->map(fn($v)=>['label'=>$v,'value'=>$v]));
+    return response()->json($items);
 }
 
-// AREA (district_council)
+public function getOutdoorLocations(Request $request)
+{
+    $q = trim((string)$request->query('q', ''));
+    $districtId = $request->query('district_id');
+
+    // CRITICAL: If no district_id, return nothing (force user to select district first)
+    if (!$districtId) {
+        return response()->json([
+            ['label' => 'Please select a district first', 'value' => '', 'disabled' => true]
+        ]);
+    }
+
+    $rows = \DB::table('locations')
+        ->select('locations.id', 'locations.name', 'locations.district_id')
+        ->where('locations.district_id', (int)$districtId)
+        ->when($q !== '', function ($w) use ($q) {
+            $w->where('locations.name', 'LIKE', "%{$q}%");
+        })
+        ->orderBy('locations.name')
+        ->get();
+
+    if ($rows->isEmpty()) {
+        return response()->json([
+            ['label' => 'No locations found for this district', 'value' => '', 'disabled' => true]
+        ]);
+    }
+
+    $items = $rows->map(function ($r) {
+        return [
+            'value' => (string)$r->id,
+            'label' => $r->name,
+            'district_id' => (string)$r->district_id,
+        ];
+    })->values();
+
+    return response()->json($items);
+}
+
+
+public function getOutdoorSites(Request $request)
+{
+    $q = trim((string)$request->query('q',''));
+    $locationId = $request->query('location_id');
+
+    $rows = \DB::table('billboards as b')
+        ->leftJoin('locations as l', 'l.id', '=', 'b.location_id')
+        ->select(
+            'b.id',
+            'b.site_number',
+            'b.size',
+            'b.gps_latitude',
+            'b.gps_longitude',
+            'l.name as location_name'
+        )
+        ->when($locationId !== null && $locationId !== '', function ($w) use ($locationId) {
+            $w->where('b.location_id', (int)$locationId);
+        })
+        ->when($q !== '', function ($w) use ($q) {
+            $w->where(function ($x) use ($q) {
+                $x->where('b.site_number', 'LIKE', "%{$q}%")
+                  ->orWhere('l.name', 'LIKE', "%{$q}%");
+            });
+        })
+        ->limit(50)
+        ->get();
+
+    $items = $rows->map(function ($r) {
+        $siteNumber = trim((string)$r->site_number);
+        $locationName = trim((string)$r->location_name);
+
+        // Clean location name (remove parentheses)
+        $locationName = preg_replace('/\s*\([^)]*\)/', '', $locationName);
+        $locationName = preg_replace('/\s+/', ' ', trim($locationName));
+
+        if ($locationName === '') {
+            $locationName = 'Unknown Location';
+        }
+
+        // CLEAN LABEL: Only site_number — location, NO size or coords
+        $label = $siteNumber . ' — ' . $locationName;
+
+        // Still return size & coords for auto-populate, just not in label
+        $size = trim((string)($r->size ?? ''));
+        $coords = '';
+        if (!empty(trim($r->gps_latitude)) && !empty(trim($r->gps_longitude))) {
+            $coords = trim($r->gps_latitude) . ', ' . trim($r->gps_longitude);
+        }
+
+        return [
+            'value'  => (string)$r->id,
+            'label'  => $label,      // ← CLEAN: site — location only
+            'size'   => $size,       // ← still available for auto-populate
+            'coords' => $coords,     // ← still available for auto-populate
+        ];
+    })
+    ->filter(fn($x) => trim($x['label']) !== '')
+    ->unique('value')
+    ->values();
+
+    return response()->json($items);
+}
+
+/**
+ * @deprecated Use getOutdoorDistricts() + getOutdoorLocations() + getOutdoorSites() instead
+ */
 public function getOutdoorAreas(Request $request)
 {
-    $q  = trim((string) $request->query('q', ''));
-    $sp = trim((string) $request->query('sub_product', ''));
+    // This now just returns district names (for backward compat)
+    $q = trim((string)$request->query('q', ''));
 
-    $src = $this->resolveOutdoorSource();
-    if (!$src || !$src['cols']['area']) return response()->json([]);
+    $rows = \DB::table('districts')
+        ->select(\DB::raw('DISTINCT districts.name as area'))
+        ->leftJoin('locations', function ($j) {
+            $j->on('locations.district_id', '=', 'districts.id');
+        })
+        ->leftJoin('billboards', 'billboards.location_id', '=', 'locations.id')
+        ->when($q !== '', function ($w) use ($q) {
+            $w->where('districts.name', 'LIKE', "%{$q}%");
+        })
+        ->orderBy('area')
+        ->limit(50)
+        ->get();
 
-    $table = $src['table'];
-    $c     = $src['cols'];
-
-    $rows = DB::table($table);
-    if ($sp && $c['sub']) {
-        $rows->whereRaw("LOWER({$c['sub']}) = ?", [mb_strtolower($sp)]);
-    }
-    if ($q !== '') {
-        $rows->where($c['area'], 'LIKE', "%{$q}%");
-    }
-
-    $vals = $rows->select(DB::raw("TRIM({$c['area']}) as v"))
-        ->limit(50)->pluck('v')->filter()->unique()->values();
-
-    return response()->json($vals->map(fn($v)=>['label'=>$v,'value'=>$v]));
+    return response()->json(
+        $rows->pluck('area')
+             ->filter()
+             ->unique()
+             ->values()
+             ->map(fn($a) => ['label' => $a, 'value' => $a])
+    );
 }
 
-// COORDS ("coordinates")
+/**
+ * @deprecated Use getOutdoorSites() which returns coords directly
+ */
 public function getOutdoorCoords(Request $request)
 {
-    $q  = trim((string) $request->query('q', ''));
-    $sp = trim((string) $request->query('sub_product', ''));
+    $q = trim((string)$request->query('q', ''));
 
-    $src = $this->resolveOutdoorSource();
-    if (!$src || !$src['cols']['coords']) return response()->json([]);
+    $rows = \DB::table('billboards')
+        ->select(\DB::raw("DISTINCT CONCAT(gps_latitude, ',', gps_longitude) as coords"))
+        ->when($q !== '', function ($w) use ($q) {
+            $w->where(\DB::raw("CONCAT(gps_latitude, ',', gps_longitude)"), 'LIKE', "%{$q}%");
+        })
+        ->limit(50)
+        ->get();
 
-    $table = $src['table'];
-    $c     = $src['cols'];
-
-    $rows = DB::table($table);
-    if ($sp && $c['sub']) {
-        $rows->whereRaw("LOWER({$c['sub']}) = ?", [mb_strtolower($sp)]);
-    }
-    if ($q !== '') {
-        $rows->where($c['coords'], 'LIKE', "%{$q}%");
-    }
-
-    $vals = $rows->select(DB::raw("TRIM({$c['coords']}) as v"))
-        ->limit(50)->pluck('v')->filter()->unique()->values();
-
-    return response()->json($vals->map(fn($v)=>['label'=>$v,'value'=>$v]));
-}
-
-
-protected function resolveOutdoorSource(): ?array
-{
-    // Candidate tables in order of likelihood
-    $candidates = [
-        'outdoor_items',
-        'billboards',
-        'outdoor_billboards',
-        'billboard_items',
-        'billboard_locations',
-        // Fallback: the table you showed (if this is the master source you want to query suggestions from)
-        // Replace this with the real table name if different:
-        'outdoor_details',
-        'outdoor_location_details',
-    ];
-
-    foreach ($candidates as $table) {
-        if (!Schema::hasTable($table)) continue;
-
-        // Preferred columns (map to your schema)
-        $site   = $this->firstExistingColumn($table, ['site','site_name','site_number','site_no','code']);
-        $size   = $this->firstExistingColumn($table, ['size','panel_size','dimension','dimensions']);
-        $area   = $this->firstExistingColumn($table, ['district_council','council','area','authority','local_council']);
-        $coords = $this->firstExistingColumn($table, ['coordinates','coords','coordinate','latlng']);
-        $sub    = $this->firstExistingColumn($table, ['sub_product','type','category','product_type','subproduct']);
-
-        if ($site || $size || $area || $coords) {
-            return [
-                'table' => $table,
-                'cols'  => compact('site','size','area','coords','sub'),
-            ];
-        }
-    }
-
-    return null;
+    return response()->json(
+        $rows->pluck('coords')
+             ->filter()
+             ->unique()
+             ->values()
+             ->map(fn($v) => ['label' => $v, 'value' => $v])
+    );
 }
 
 protected function firstExistingColumn(string $table, array $candidates): ?string

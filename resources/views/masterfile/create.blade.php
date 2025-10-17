@@ -907,31 +907,39 @@ function initSiteSelect(selectEl, onPicked) {
     if (selectEl.tomselect) selectEl.tomselect.destroy();
 
     new TomSelect(selectEl, {
-      create: true,                   // user can free-type (value will be the typed text)
+      create: true,
       persist: false,
       allowEmptyOption: true,
       maxOptions: 1000,
-      valueField: 'value',            // billboard id
-      labelField: 'label',            // pretty text
+      valueField: 'value',            // billboard.id
+      labelField: 'label',            // BERSIH: "TB-0075 — Location"
       searchField: ['label', 'value'],
       plugins: ['clear_button','dropdown_input'],
       load: function(query, callback) {
         const url = `{{ url('/outdoor/sites') }}?q=${encodeURIComponent(query || '')}`;
-        fetch(url).then(r => r.json()).then(items => callback(items || [])).catch(() => callback());
+        fetch(url)
+          .then(r => r.json())
+          .then(items => {
+            // ✅ Backend already returns clean label
+            // Just pass it through, no modification needed
+            callback(items || []);
+          })
+          .catch(() => callback());
       },
       render: {
+        // ✅ Display exactly what backend sends (clean label)
         option: (item, esc) => `<div>${esc(item.label)}</div>`,
         item:   (item, esc) => `<div>${esc(item.label)}</div>`,
         no_results: () => `<div class="p-2 text-sm text-neutral-500">No matches. Press Enter to use your text.</div>`
       },
-      onItemAdd: function(value /*, item */) {
-        // If value is numeric → picked from DB; we can access the rich option data
+      onItemAdd: function(value) {
         const isNumericId = !!String(value).match(/^\d+$/);
         if (isNumericId) {
-          const opt = this.options[value]; // contains size/area/coords from the API
+          // ✅ Get rich data from backend (coords separate)
+          const opt = this.options[value]; // { value, label, coords }
           onPicked && onPicked(opt);
         } else {
-          // Free-typed text: no autofill available
+          // User typed custom text
           onPicked && onPicked(null);
         }
       }
@@ -940,6 +948,7 @@ function initSiteSelect(selectEl, onPicked) {
     console.warn('initSiteSelect failed', e);
   }
 }
+
 
 // Push a value into another TomSelect (Size/Area/Coords), adding it if needed
 function fillDependentSelect(htmlId, value, label) {
