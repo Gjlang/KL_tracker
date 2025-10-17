@@ -1402,7 +1402,7 @@
             buttons: [
                 {
                     text: "Export Excel",
-                    className: "button w-24 rounded-full shadow-md mr-1 mb-2 bg-theme-7 text-white",
+                    className: "button w-28 rounded-full shadow-md mr-1 mb-2 bg-green-600 text-white",
                     action: function(e, dt, node, config) {
                         exportCombinedExcel();
                     }
@@ -2224,12 +2224,6 @@
             });
         }
 
-        // $(document).on('click', '#cancelDeleteButton', function() {
-        //     console.log('tekannn');
-        //     $('#billboardBookingDeleteModal').addClass('hidden');
-        //     document.body.style.overflow = '';
-        // });
-
         // Open Delete Modal
         $(document).on('click', '[data-toggle="modal"][data-target="#billboardBookingDeleteModal"]', function(e) {
             e.preventDefault();
@@ -2403,11 +2397,22 @@
         
 
        //  Add this new handler near your other event handlers
-        $(document).on("click", "#cancelDeleteButton", function () { // Use the ID you assigned to the close button
-            // Directly hide the remarks modal by adding the 'hidden' class
-            $("#billboardBookingDeleteModal").addClass("hidden");
-            // Re-enable body scroll
-            document.body.style.overflow = '';
+        $(document).on('click', '#cancelDeleteButton', function() {
+            console.log('tekannn'); // This confirms the button click is caught
+
+            // Find the modal element directly using its ID
+            const $modalElement = $('#billboardBookingDeleteModal');
+
+            // Check if jQuery found the element
+            if ($modalElement.length > 0) {
+                // Add the 'hidden' class to hide the modal
+                $modalElement.removeClass('show').addClass('hidden');
+                // Re-enable body scroll
+                document.body.style.overflow = '';
+                console.log("Modal closed by adding 'hidden' class.");
+            } else {
+                console.error("Modal element #billboardBookingDeleteModal not found by jQuery.");
+            }
         });
 
        
