@@ -840,7 +840,7 @@
         ];
 
         const legendRow = 2;
-        let startCol = 8; // H
+        let startCol = 7; // G
 
         legendItems.forEach((item, i) => {
             const col = startCol + i;
@@ -904,14 +904,25 @@
                     const colors = rowData._colors || [];
                     const colorClass = colors[colNumber - 1];
 
-                    if (colNumber <= 8) {
-                        // Force first 8 columns to black font
-                        cell.font = { color: { argb: 'FF000000' } };
+                    if (colNumber <= 8) { // Assuming first 8 columns (including GPS Coordinate) are non-booking
+                        // Force first 8 columns to black font, EXCEPT the GPS coordinate column if it has a link
+                        // Check if this is the GPS Coordinate column (column 6, index 5) and if it has a hyperlink
+                        if (colNumber === 6 && cell.value && typeof cell.value === 'object' && cell.value.hyperlink) {
+                            // Apply hyperlink styling: blue color, underline, bold (optional)
+                            cell.font = { 
+                                color: { argb: 'FF0000FF' }, // Blue color
+                                underline: true,              // Underline
+                                bold: true                    // Bold (optional)
+                            };
+                        } else {
+                            // Apply default black font for other first 8 columns
+                            cell.font = { color: { argb: 'FF000000' } };
+                        }
                     } else if (colorClass) {
                         // Booking / colored cell
                         const bgColor = colorMap[colorClass] || 'FFFFFFFF';
                         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
-                        const fontColor = (colorClass === 'bg-yellow-400') ? 'FF000000' : 'FFFFFFFF';
+                        const fontColor = (colorClass === 'bg-theme-12') ? 'FF000000' : 'FFFFFFFF';
                         cell.font = { bold: true, color: { argb: fontColor } };
                     } else {
                         // Monthly columns with no booking: white font
@@ -957,7 +968,17 @@
         });
 
         // Column widths
-        const colWidths = [5, 12, 25, 20, 12, 10, ...Array(totalCols - 6).fill(15)];
+        const colWidths = [
+            5,   // No
+            12,  // Site No
+            25,  // Location
+            20,  // Area
+            12,  // New/Existing
+            25,  // GPS Coordinate (Increased from default 10 or 12 to 25 to fit text)
+            10,  // Type
+            10,  // Size
+            ...Array(totalCols - 8).fill(15) // Monthly columns (Jan '25, etc.)
+        ];
         colWidths.forEach((w, i) => monthlySheet.getColumn(i + 1).width = w);
 
         // ---- Availability List (2nd sheet) ----
@@ -1034,7 +1055,7 @@
 
         // Build header row
         const header = [
-            'No', 'Site No', 'Location', 'Area', 'New/Existing', 'Type', 'Size',
+            'No', 'Site No', 'Location', 'Area', 'New/Existing', 'GPS Coordinate', 'Traffic Volume', 'Size',
             ...months.map(month => `${month} '${shortYear}`)
         ];
 
@@ -1048,12 +1069,20 @@
             // Skip empty rows or header-like rows
             if ($cells.length === 0 || $cells.first().hasClass('text-center')) return;
 
+            // Retrieve the full row data object stored earlier
+            const fullRowData = $row.data('fullRowData');
+
+            if (!fullRowData) {
+                console.error("Full row data not found for row:", $row);
+                return; // Skip this row if data not found
+            }
+
             const rowData = [];
             const rowColors = []; // NEW: track color class for each cell
 
             // First 6 columns
-            for (let i = 0; i < 6; i++) {
-                const cellText = $($cells[i]).text().trim();
+            for (let i = 0; i < 5; i++) {
+                const cellText = cleanForExport($($cells[i]).text().trim());
                 const classList = $($cells[i]).attr('class') || '';
                 const colorClass = classList.split(/\s+/).find(c => c.startsWith('bg-')) || 'bg-gray-400';
 
@@ -1061,9 +1090,53 @@
                 rowColors.push(colorClass);
             }
 
+            // Column 6: GPS Coordinate (Not from table cell, from API data)
+            // Combine latitude and longitude
+            const gpsLat = fullRowData.gps_latitude;
+            const gpsLng = fullRowData.gps_longitude;
+            const gpsUrl = fullRowData.gps_url;
+
+            let gpsValueForExcel = ''; // This will be what's displayed in the cell
+            let gpsHyperlink = null;    // This will hold the URL if applicable
+
+            if (gpsLat != null && gpsLng != null) {
+                // Format to desired precision if needed, e.g., 6 decimal places
+                gpsValueForExcel = `${parseFloat(gpsLat).toFixed(6)}, ${parseFloat(gpsLng).toFixed(6)}`;
+                // Or simply: gpsValueForExcel = `${gpsLat}, ${gpsLng}`;
+            }
+
+            // Check if URL exists and set hyperlink
+            if (gpsUrl && typeof gpsUrl === 'string' && gpsUrl.trim() !== '') {
+                gpsHyperlink = gpsUrl.trim();
+            }
+
+            // For ExcelJS, if there's a hyperlink, we create an object with text and hyperlink properties
+            // Otherwise, just push the text string
+            if (gpsHyperlink) {
+                rowData.push({ text: gpsValueForExcel, hyperlink: gpsHyperlink, tooltip: gpsHyperlink }); // Optional: tooltip
+            } else {
+                rowData.push(gpsValueForExcel);
+            }
+            
+            rowColors.push('bg-gray-400'); // Default color for non-colored columns
+
+            // Column 7: Type (index 5 in original table cells, index 6 in new data array)
+            const typeCellText = cleanForExport($($cells[5]).text().trim()); // Adjusted index
+            const typeClassList = $($cells[5]).attr('class') || '';
+            const typeColorClass = typeClassList.split(/\s+/).find(c => c.startsWith('bg-')) || 'bg-gray-400';
+            rowData.push(typeCellText);
+            rowColors.push(typeColorClass);
+
+            // Column 8: Size (index 6 in original table cells, index 7 in new data array)
+            const sizeCellText = cleanForExport($($cells[6]).text().trim()); // Adjusted index
+            const sizeClassList = $($cells[6]).attr('class') || '';
+            const sizeColorClass = sizeClassList.split(/\s+/).find(c => c.startsWith('bg-')) || 'bg-gray-400';
+            rowData.push(sizeCellText);
+            rowColors.push(sizeColorClass);
+
             // Monthly columns (handle colspan)
             let monthIndex = 0;
-            for (let i = 6; i < $cells.length; i++) {
+            for (let i = 7; i < $cells.length; i++) {
                 const $cell = $($cells[i]);
                 const colspan = parseInt($cell.attr('colspan')) || 1;
                 const cellText = $cell.text().trim();
@@ -1107,19 +1180,41 @@
             const row = [
                 index + 1,
                 rowData.site_number || '',
-                rowData.company_name || '',
-                rowData.location_name || '',
+                cleanForExport(rowData.company_name) || '',
+                cleanForExport(rowData.location_name) || '',
                 rowData.start_date || '',
                 rowData.end_date || '',
                 rowData.duration || '',
                 rowData.status || '',
                 // `${rowData.district_name || ''}, ${rowData.state_name || ''}`,
-                rowData.remarks || ''
+                cleanForExport(rowData.remarks) || ''
             ];
             data.push(row);
         });
 
         return data;
+    }
+
+    // Function to clean content for export
+    function cleanForExport(content) {
+        if (!content) return '';
+        
+        if (typeof content === 'string') {
+            // If it's HTML, clean it
+            if (content.includes('<') && content.includes('>')) {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = content;
+                content = tempDiv.textContent || tempDiv.innerText || '';
+            }
+            
+            // Clean up whitespace and remove [+] symbols
+            content = content.replace(/\s*\[\+\]\s*$/, '')
+                            .replace(/\s*\[\-\]\s*$/, '')
+                            .replace(/\s+/g, ' ')
+                            .trim();
+        }
+        
+        return content;
     }
 
 
@@ -1165,7 +1260,7 @@
         const mergeInfo = [];
         $('#monthly-booking-body tr').each(function() {
             const rowMerges = [];
-            let colIndex = 6; // start from month columns
+            let colIndex = 7; // start from month columns
 
             $(this).find('td').slice(6).each(function() {
                 const colspan = parseInt($(this).attr('colspan')) || 1;
@@ -1262,7 +1357,7 @@
         headerHtml += '<th>Location</th>';
         headerHtml += '<th>Area</th>';
         headerHtml += '<th>New/Existing</th>';
-        headerHtml += '<th>Type</th>';
+        headerHtml += '<th>Traffic Volume</th>';
         headerHtml += '<th>Size</th>';
         months.forEach(month => {
             headerHtml += `<th>${month} '${shortYear}</th>`;
@@ -1314,7 +1409,7 @@
                         </td>
                         <td class="border border-gray-300">${row.area}</td>
                         <td class="border border-gray-300">${row.site_type}</td>
-                        <td class="border border-gray-300">${row.type}</td>
+                        <td class="border border-gray-300">${row.traffic_volume}</td>
                         <td class="border border-gray-300">${row.size}</td>`;
                     
                     // row.months.forEach(month => {
@@ -1339,8 +1434,11 @@
                     });
 
                     html += `</tr>`;
-                    tbody.append(html);
-                });
+		    const $newRow = $(html);
+                    // Store the full row data object on the <tr> element
+                    $newRow.data('fullRowData', row);
+                    tbody.append($newRow);
+                    });
             },
             error: function (xhr) {
                 console.error("AJAX error:", xhr.responseText);
@@ -2225,14 +2323,14 @@
         }
 
         // Open Delete Modal
-        $(document).on('click', '[data-toggle="modal"][data-target="#billboardBookingDeleteModal"]', function(e) {
-            e.preventDefault();
-            // Store the ID of the record to delete
-            window.deleteRecordId = $(this).attr('id').replace('delete-', ''); // Assumes ID format is 'delete-{id}'
-            $("#billboardBookingDeleteModal").removeClass("hidden");
-            // Optionally, prevent body scroll when this specific modal is open
-            document.body.style.overflow = 'hidden';
-        });
+        // $(document).on('click', '[data-toggle="modal"][data-target="#billboardBookingDeleteModal"]', function(e) {
+        //     e.preventDefault();
+        //     // Store the ID of the record to delete
+        //     window.deleteRecordId = $(this).attr('id').replace('delete-', ''); // Assumes ID format is 'delete-{id}'
+        //     $("#billboardBookingDeleteModal").removeClass("hidden");
+        //     // Optionally, prevent body scroll when this specific modal is open
+        //     document.body.style.overflow = 'hidden';
+        // });
 
         // Open modal
         // Replace the existing openAltEditorModal function
@@ -2396,22 +2494,57 @@
 
         
 
-       //  Add this new handler near your other event handlers
-        $(document).on('click', '#cancelDeleteButton', function() {
-            console.log('tekannn'); // This confirms the button click is caught
+        // Attach the cancel button click handler using event delegation
+        $(document).on('click', '#cancelDeleteButton', function(e) {
+            console.log('Cancel button clicked in delegated handler.');
 
             // Find the modal element directly using its ID
             const $modalElement = $('#billboardBookingDeleteModal');
 
             // Check if jQuery found the element
             if ($modalElement.length > 0) {
-                // Add the 'hidden' class to hide the modal
-                $modalElement.removeClass('show').addClass('hidden');
-                // Re-enable body scroll
+                // Method 1: Add the 'hidden' class (your Tailwind approach)
+                $modalElement.addClass('hidden').removeClass('show');
+                
+                // Method 2: Force inline style as a fallback (high specificity)
+                $modalElement.css('display', 'none'); // Directly set display to none
+
+                // Method 3: Trigger a reflow to potentially force style recalculation
+                // This line might not be strictly necessary but can sometimes help
+                $modalElement[0].offsetHeight; // Reading a layout property triggers reflow
+
+                // Re-enable body scroll if it was disabled
                 document.body.style.overflow = '';
-                console.log("Modal closed by adding 'hidden' class.");
+
+                // Optional: Clear the stored ID if you set it when opening
+                // window.deleteRecordId = null; // Only if deleteRecordId is a global variable
+
+                console.log("Modal closed by adding 'hidden' class, removing 'show', and setting inline display: none.");
             } else {
-                console.error("Modal element #billboardBookingDeleteModal not found by jQuery.");
+                console.error("Modal element #billboardBookingDeleteModal not found by jQuery during cancel.");
+            }
+        });
+
+        // Your existing click handler for opening the modal (adjusted to potentially clear inline styles)
+        $(document).on('click', '[data-toggle="modal"][data-target="#billboardBookingDeleteModal"]', function(e) {
+            e.preventDefault();
+            // Store the ID of the record to delete
+            window.deleteRecordId = $(this).attr('id').replace('delete-', ''); // Assumes ID format is 'delete-{id}'
+            
+            const $modalElement = $("#billboardBookingDeleteModal");
+            $modalElement.removeClass("hidden").removeClass('show'); // Ensure clean state, remove classes
+            $modalElement.css('display', ''); // Clear any previous inline display style
+            // Optionally, prevent body scroll when this specific modal is open
+            document.body.style.overflow = 'hidden';
+            console.log("Modal opened, hidden/show classes removed, inline display cleared.");
+        });
+
+        // Optional: Close modal if clicked outside the content area (only if not using a library that handles this)
+        $(document).on('click', '#billboardBookingDeleteModal', function(e) {
+            // Check if the click target is the modal backdrop itself (not the content)
+            if (e.target === this) {
+                $(this).addClass('hidden').css('display', 'none'); // Add class and inline style
+                document.body.style.overflow = ''; // Re-enable scrolling
             }
         });
 

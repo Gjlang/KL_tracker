@@ -65,8 +65,6 @@ class BillboardAvailabilityController extends Controller
     {
         $user = Auth::user();
 
-        logger('sini boi: ');
-
         $columns = array(
             0 => 'site_number',
             1 => 'company_name',
@@ -108,7 +106,8 @@ class BillboardAvailabilityController extends Controller
             });
         }
 
-        $query->orderBy('locations.name', 'asc')
+        $query->orderBy('districts.name', 'asc')
+        ->orderBy('locations.name', 'asc')
         ->orderBy($orderColumnName, $orderDirection);
 
         
@@ -159,7 +158,26 @@ class BillboardAvailabilityController extends Controller
     {
         $filters = $this->extractFilters($request);
         $billboards = $this->queryFilteredBillboards($filters);
-
+	
+	// Define state abbreviations map
+        $stateAbbrMap = [
+            'Kuala Lumpur' => 'KL',
+            'Selangor' => 'SEL',
+            'Negeri Sembilan' => 'N9',
+            'Melaka' => 'MLK',
+            'Johor' => 'JHR',
+            'Perak' => 'PRK',
+            'Pahang' => 'PHG',
+            'Terengganu' => 'TRG',
+            'Kelantan' => 'KTN',
+            'Perlis' => 'PLS',
+            'Kedah' => 'KDH',
+            'Penang' => 'PNG',
+            'Sarawak' => 'SWK',
+            'Sabah' => 'SBH',
+            'Labuan' => 'LBN',
+            'Putrajaya' => 'PJY',
+        ];
         $results = [];
         foreach ($billboards as $index => $billboard) {
 
@@ -171,13 +189,34 @@ class BillboardAvailabilityController extends Controller
 
             // Build monthly blocks between start and end date
             $months = $this->buildMonthlyBlocks($billboard, $startDate, $endDate);
+	    
+	    // Format the area name
+            $districtName = $billboard->location->district->name ?? '';
+            $stateName = $billboard->location->district->state->name ?? '';
+            $fullAreaName = $districtName . ', ' . $stateName;
+
+            // Apply formatting: "District, State" -> "STATE_ABBR - District"
+            $parts = explode(',', $fullAreaName);
+            if (count($parts) >= 2) {
+                $areaName = trim($parts[0]); // e.g., "Petaling"
+                $stateName = trim($parts[1]); // e.g., "Selangor"
+                $stateAbbr = $stateAbbrMap[$stateName] ?? strtoupper(substr($stateName, 0, 3)); // Fallback to first 3 letters
+                $formattedArea = $stateAbbr . ' - ' . $areaName;
+            } else {
+                // If format doesn't match, use original
+                $formattedArea = $fullAreaName;
+            }
 
             $results[] = [
                 'site_number'        => $billboard->site_number,
                 'location'           => $billboard->location?->name ?? '',
-                'area'               => $billboard->location->district->name . ', ' . $billboard->location->district->state->name,
+                'area'               => $formattedArea,
                 'site_type'          => $billboard->site_type ?? '-',
+		        'gps_latitude'       => $billboard->gps_latitude,
+                'gps_longitude'      => $billboard->gps_longitude,
+                'gps_url'            => $billboard->gps_url,
                 'type'               => $billboard->type ?? '-',
+                'traffic_volume'     => $billboard->traffic_volume ?? '-',
                 'size'               => $billboard->size ?? '-',
                 'remarks'            => $billboard->remarks ?? '',
                 'is_available'       => $isAvailable,
@@ -187,6 +226,8 @@ class BillboardAvailabilityController extends Controller
         }
 
         $results = $this->sortAvailability($results);
+
+        logger('sorting??: ' . json_encode($results));
 
         return response()->json([
             'draw'            => intval($request->input('draw')),
@@ -210,7 +251,7 @@ class BillboardAvailabilityController extends Controller
             );
 
             // ✅ take the first booking’s status if exists
-            // $bookingStatus = $billboard->bookings->first()->status ?? null;
+            $bookingStatus = $billboard->bookings->first()->status ?? null;
 
             $results[] = [
                 'id'              => $billboard->id,
@@ -229,7 +270,7 @@ class BillboardAvailabilityController extends Controller
                 'state_name'      => $billboard->location->district->state->name ?? '',
 
                 'is_available'    => $isAvailable,
-                // 'status'          => $bookingStatus, // ✅ actual booking status
+                'status'          => $bookingStatus, // ✅ actual booking status
                 'next_available_raw' => $isAvailable ? null : $nextAvailableDate,
                 'next_available'  => $isAvailable ? null : optional($nextAvailableDate)->format('d/m/Y'),
             ];
@@ -288,11 +329,11 @@ class BillboardAvailabilityController extends Controller
         ->when($filters['location'], fn($q) => $q->where('location_id', $filters['location']))
         ->when($filters['type'], fn($q) => $q->where('prefix', $filters['type']))
         ->when($filters['site_type'], fn($q) => $q->where('billboards.site_type', $filters['site_type']))
-        // ->when($filters['status'], function ($q) use ($filters) {
-        //     $q->whereHas('bookings', function ($q2) use ($filters) {
-        //         $q2->where('status', $filters['status']);
-        //     });
-        // })
+        ->when($filters['status'], function ($q) use ($filters) {
+            $q->whereHas('outdoorItems', function ($q2) use ($filters) {
+                $q2->where('status', $filters['status']);
+            });
+        })
         ->when(!empty($filters['search_value']), function ($q) use ($filters) {
             $search = $filters['search_value'];
             $q->where(function ($q2) use ($search) {
@@ -342,14 +383,22 @@ class BillboardAvailabilityController extends Controller
     {
         return collect($items)
             ->sort(function ($a, $b) {
-                // 1️⃣ Not available first
+                // 1️⃣ Sort by availability status first (Not available first)
                 $availabilityA = $a['is_available'] ? 1 : 0;
                 $availabilityB = $b['is_available'] ? 1 : 0;
                 if ($availabilityA !== $availabilityB) {
-                    return $availabilityA <=> $availabilityB;
+                    return $availabilityA <=> $availabilityB; // Available (1) comes after Not available (0)
                 }
 
-                // 2️⃣ Sort by location name safely
+                // 2️⃣ If availability is the same, sort by 'area' alphabetically
+                $areaA = $a['area'] ?? '';
+                $areaB = $b['area'] ?? '';
+                $areaComparison = strcmp($areaA, $areaB);
+                if ($areaComparison !== 0) {
+                    return $areaComparison;
+                }
+
+                // 3️⃣ If 'area' is also the same, sort by 'location' alphabetically
                 $locA = $a['location'] ?? '';
                 $locB = $b['location'] ?? '';
                 return strcmp($locA, $locB);
