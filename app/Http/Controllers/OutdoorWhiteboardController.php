@@ -37,33 +37,39 @@ class OutdoorWhiteboardController extends Controller
     $sub = in_array($sub, $allowedSubs, true) ? $sub : '';
 
     // --- Master files + ONLY active outdoor items (no completed whiteboard) ---
-    $masterFiles = MasterFile::query()
+    $masterFiles = MasterFile::with([
+            'billboard.location',    // ← Eager load billboard->location relationship
+            'outdoorItems' => function ($q) use ($sub) {
+                $q->select(
+                    'outdoor_items.id',
+                    'outdoor_items.master_file_id',
+                    'outdoor_items.site',
+                    'outdoor_items.start_date',
+                    'outdoor_items.end_date'
+                )
+                // Apply Sub Product filter (per-site)
+                ->when($sub !== '', fn ($qq) => $qq->where('outdoor_items.sub_product', $sub))
+                // Exclude items that already have a completed whiteboard
+                ->whereNotExists(function ($qq) {
+                    $qq->select(DB::raw(1))
+                       ->from('outdoor_whiteboards as ow')
+                       ->whereColumn('ow.outdoor_item_id', 'outdoor_items.id')
+                       ->whereNotNull('ow.completed_at');
+                });
+            }
+        ])
         ->when($search !== '', function ($q) use ($search) {
             $like = "%{$search}%";
             $q->where(function ($qq) use ($like) {
                 $qq->where('company',  'like', $like)
                    ->orWhere('product', 'like', $like)
-                   ->orWhere('location','like', $like);
+                   ->orWhere('location','like', $like)
+                   // Optional: search by billboard location name too
+                   ->orWhereHas('billboard.location', function ($x) use ($like) {
+                       $x->where('name', 'like', $like);
+                   });
             });
         })
-        ->with(['outdoorItems' => function ($q) use ($sub) {
-            $q->select(
-                'outdoor_items.id',
-                'outdoor_items.master_file_id',
-                'outdoor_items.site',
-                'outdoor_items.start_date',
-                'outdoor_items.end_date'
-            )
-            // Apply Sub Product filter (per-site)
-            ->when($sub !== '', fn ($qq) => $qq->where('outdoor_items.sub_product', $sub))
-            // Exclude items that already have a completed whiteboard
-            ->whereNotExists(function ($qq) {
-                $qq->select(DB::raw(1))
-                   ->from('outdoor_whiteboards as ow')
-                   ->whereColumn('ow.outdoor_item_id', 'outdoor_items.id')
-                   ->whereNotNull('ow.completed_at');
-            });
-        }])
         ->orderByDesc('created_at')
         ->get();
 

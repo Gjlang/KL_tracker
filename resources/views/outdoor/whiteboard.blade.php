@@ -182,28 +182,29 @@
         </td>
 
         @php
-  // asumsikan variabel tiap baris = $mf (MasterFile)
-  $locationName = $mf->billboard->location->name ?? '-';   // from location.name
-  // Area: pakai yang tersedia di billboard (pilih sesuai skema kamu)
-  $areaValue    = $mf->billboard->code
-               ?? $mf->billboard->area
-               ?? $mf->billboard->site_number  // fallback kalau kamu mau tampilkan code/site
-               ?? '-';
+  // Null-safe to avoid errors if billboard/location is missing
+  $locationName = $mf->billboard?->location?->name ?? '-';   // LOCATION from location.name
+
+  // AREA from billboard (choose your preferred field order)
+  $areaValue = $mf->billboard?->code
+           ?? $mf->billboard?->area
+           ?? $mf->billboard?->site_number
+           ?? '-';
 @endphp
 
-<!-- LOCATION (from master_files -> billboard -> location -> name) -->
-<td class="px-4 py-3 text-sm">
+<!-- 7) Location -->
+<td class="px-4 py-3 text-sm column-data" data-column="7">
   <div class="truncate max-w-[240px]" title="{{ $locationName }}">{{ $locationName }}</div>
 </td>
 
-<!-- AREA (separate) -->
-<td class="px-4 py-3 text-sm">
+<!-- 8) Area -->
+<td class="px-4 py-3 text-sm column-data" data-column="8">
   <div class="truncate max-w-[240px]" title="{{ $areaValue }}">{{ $areaValue }}</div>
 </td>
 
 
         <!-- 8) Duration (from master_files) -->
-        <td class="px-4 py-3 text-sm column-data" data-column="8">
+        <td class="px-4 py-3 text-sm column-data" data-column="9">
           <div class="ink">
             @if(!empty($mf->duration_text))
               {{ $mf->duration_text }}
@@ -225,18 +226,18 @@
         </td>
 
         <!-- 9) Installation (ambil dari master_files.date) -->
-        <td class="px-4 py-3 text-sm column-data" data-column="9">
+        <td class="px-4 py-3 text-sm column-data" data-column="10">
         <div class="ink">{{ $mf->date?->format('m/d/y') }}</div>
         </td>
 
         <!-- 10) Dismantle (ambil dari master_files.date_finish) -->
-        <td class="px-4 py-3 text-sm column-data" data-column="10">
+        <td class="px-4 py-3 text-sm column-data" data-column="11">
         <div class="ink">{{ $mf->date_finish?->format('m/d/y') }}</div>
         </td>
 
 
         <!-- 11) Supplier -->
-        <td class="px-4 py-3 text-sm column-data" data-column="11">
+        <td class="px-4 py-3 text-sm column-data" data-column="12">
           <div class="space-y-2">
             <input type="text" name="supplier_text" class="wb-field ledger-input w-36" placeholder="Supplier note..." value="{{ old('supplier_text', $wb?->supplier_text) }}">
             <input type="date" name="supplier_date" class="wb-field ledger-input w-36" value="{{ old('supplier_date', $supplierDate) }}">
@@ -244,7 +245,7 @@
         </td>
 
         <!-- 12) Storage -->
-        <td class="px-4 py-3 text-sm column-data" data-column="12">
+        <td class="px-4 py-3 text-sm column-data" data-column="13">
           <div class="space-y-2">
             <input type="text" name="storage_text" class="wb-field ledger-input w-36" placeholder="Storage note..." value="{{ old('storage_text', $wb?->storage_text) }}">
             <input type="date" name="storage_date" class="wb-field ledger-input w-36" value="{{ old('storage_date', $storageDate) }}">
@@ -252,7 +253,7 @@
         </td>
 
         <!-- 13) Actions -->
-        <td class="px-4 py-3 text-sm column-data text-center" data-column="13">
+        <td class="px-4 py-3 text-sm column-data text-center" data-column="14">
           <div class="space-y-2">
             <div class="text-xs">
               <span class="save-state text-neutral-500">Idle</span>
@@ -291,7 +292,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
   // ===== Column pagination =====
-  const COLUMNS_PER_PAGE = 13;
+  const COLUMNS_PER_PAGE = 14;
   let currentColumnPage = 1;
 
   const columnHeaders = [
