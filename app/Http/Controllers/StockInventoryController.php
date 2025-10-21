@@ -83,6 +83,7 @@ class StockInventoryController extends Controller
 
     // Create one if still missing
     $newId = DB::table('contractors')->insertGetId([
+        'company_name' => 'BGOC', // 👈 REQUIRED FIELD
         'name' => 'BGOC',
         'created_at' => now(),
         'updated_at' => now(),

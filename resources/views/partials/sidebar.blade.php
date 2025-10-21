@@ -134,9 +134,9 @@
           Outdoor Whiteboard
         </a>
         @endif
-        <a href="{{ route('dashboard.outdoor') }}"
+        <a href="{{ route('stockInventory.index') }}"
            @click="if (window.matchMedia('(max-width: 767px)').matches) close()"
-           class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('dashboard.outdoor') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
+           class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('stockInventory.*') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
           Vendor Stock Inventory
         </a>
       </div>
@@ -173,13 +173,6 @@
             class="block mt-1 mx-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('contractors.*') ? 'bg-[#22255b] text-white' : 'hover:bg-neutral-50' }}">
             Contractors
         </a>
-
-        <a href="{{ route('stockInventory.index') }}"
-        class="side-menu {{ request()->routeIs('stockInventory.*') ? 'side-menu--active' : '' }}">
-            <div class="side-menu__icon"><i data-lucide="boxes"></i></div>
-            <div class="side-menu__title">Stock Inventory</div>
-        </a>
-
       </div>
     </div>
 

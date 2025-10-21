@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('head')
-<title>BGOC Outdoor System - Stock Inventory</title>
+<title>BGOC Outdoor System - Vendor Stock Inventory</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -130,22 +130,15 @@
     }
 
     #inventory_table {
-        border-collapse: separate;
+        border-collapse: collapse;
         border-spacing: 0;
+        border: 1px solid #e5e7eb;
         width: 100%;
     }
 
-    #inventory_table thead th {
-        background: var(--surface);
-        color: var(--muted);
-        font-weight: 600;
-        text-align: left;
-        padding: 1rem 0.75rem;
-        border-bottom: 2px solid var(--hairline);
-        font-size: 11px;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        white-space: nowrap;
+    #inventory_table th,
+    #inventory_table td {
+        border: 1px solid #e5e7eb;
     }
 
     #inventory_table tbody td {
@@ -165,6 +158,67 @@
         background: #FAFAFA;
         transform: translateY(-1px);
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    }
+
+    #inventory_table_paginate {
+        display: flex !important;
+        justify-content: center;
+        /* center horizontally */
+        align-items: center;
+        gap: 0.5rem;
+        /* spacing between buttons */
+    }
+
+    /* Make each button horizontal-friendly */
+    #inventory_table_paginate .paginate_button {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Optional: style current/active page */
+    #inventory_table_paginate .paginate_button.current {
+        background-color: #e5e7eb;
+        /* Tailwind neutral-200 */
+        border-radius: 0.375rem;
+        font-weight: 600;
+    }
+
+    /* Base header style */
+    .table-header {
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    text-align: left;
+    padding: 1rem 0.75rem;
+    border-right: 1px solid var(--hairline);
+    }
+
+    /* No. & Action — Dark Blue (#003366) */
+    .no-header,
+    .action-header {
+    background-color: #003366;
+    color: white;
+    }
+
+    /* Stock In — Orange (#FF6600) */
+    .stock-in-header {
+    background-color: #FF6600;
+    color: white;
+    }
+
+    /* Balance — Gold/Yellow (#FFD700) */
+    .balance-header {
+    background-color: #FFD700;
+    color: #000; /* Black for contrast */
+    }
+
+    /* Stock Out — Green (#00994C) */
+    .stock-out-header {
+    background-color: #00994C;
+    color: white;
     }
 
     .section-header {
@@ -307,8 +361,8 @@
     <div class="mb-8">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-                <h1 class="text-3xl serif font-semibold text-ink mb-1">Stock Inventory</h1>
-                <p class="text-sm text-muted">Manage your stock transactions and balances</p>
+                <h1 class="text-3xl serif font-semibold text-ink mb-1">Vendor Stock Inventory</h1>
+                <p class="text-sm text-muted">Manage vendor stock inventory transactions and balances</p>
             </div>
             <div class="flex flex-wrap gap-3">
                 <a href="javascript:;"
@@ -363,32 +417,40 @@
         <div class="overflow-x-auto">
             <table class="table table-report" id="inventory_table">
                 <thead>
-                    <tr class="bg-theme-1 text-white">
-                        <th width="5%">No.</th>
-                        <th class="bg-orange-500 text-white">Contractor</th>
-                        <th class="bg-orange-500 text-white">Client</th>
-                        <th class="bg-orange-500 text-white">Site</th>
-                        <th class="bg-orange-500 text-white">Type</th>
-                        <th class="bg-orange-500 text-white">Size</th>
-                        <th class="bg-orange-500 text-white">Quantity</th>
-                        <th class="bg-orange-500 text-white">Remarks</th>
-                        <th class="bg-orange-500 text-white">Date In</th>
-                        <th class="bg-yellow-400 text-black">Bal - Contractor</th>
-                        <th class="bg-green-600 text-white">Date Out</th>
-                        <th class="bg-green-600 text-white">Quantity</th>
-                        <th class="bg-green-600 text-white">Size</th>
-                        <th class="bg-green-600 text-white">Type</th>
-                        <th class="bg-green-600 text-white">Site</th>
-                        <th class="bg-green-600 text-white">Client</th>
-                        <th class="bg-green-600 text-white">Remarks</th>
-                        <th width="10%">Action</th>
+                    <tr>
+                        <!-- No. -->
+                        <th class="px-4 py-4 table-header no-header border-r border-neutral-300">No.</th>
+
+                        <!-- Stock In Group -->
+                        <th class="px-4 py-4 table-header stock-in-header border-r border-neutral-300">Contractor</th>
+                        <th class="px-4 py-4 table-header stock-in-header border-r min-w-[180px] border-neutral-300">Client</th>
+                        <th class="px-4 py-4 table-header stock-in-header border-r min-w-[200px] border-neutral-300">Site</th>
+                        <th class="px-4 py-4 table-header stock-in-header border-r border-neutral-300">Type</th>
+                        <th class="px-4 py-4 table-header stock-in-header border-r border-neutral-300">Size</th>
+                        <th class="px-4 py-4 table-header stock-in-header border-r border-neutral-300">Quantity</th>
+                        <th class="px-4 py-4 table-header stock-in-header border-r min-w-[180px] border-neutral-300">Remarks</th>
+                        <th class="px-4 py-4 table-header stock-in-header border-r border-neutral-300">Date In</th>
+
+                        <!-- Balance -->
+                        <th class="px-4 py-4 table-header balance-header border-r border-neutral-300">Bal - Contractor</th>
+
+                        <!-- Stock Out Group -->
+                        <th class="px-4 py-4 table-header stock-out-header border-r border-neutral-300">Date Out</th>
+                        <th class="px-4 py-4 table-header stock-out-header border-r border-neutral-300">Quantity</th>
+                        <th class="px-4 py-4 table-header stock-out-header border-r border-neutral-300">Size</th>
+                        <th class="px-4 py-4 table-header stock-out-header border-r border-neutral-300">Type</th>
+                        <th class="px-4 py-4 table-header stock-out-header border-r min-w-[200px] border-neutral-300">Site</th>
+                        <th class="px-4 py-4 table-header stock-out-header border-r min-w-[180px] border-neutral-300">Client</th>
+                        <th class="px-4 py-4 table-header stock-out-header border-r min-w-[180px] border-neutral-300">Remarks</th>
+
+                        <!-- Action -->
+                        <th class="px-4 py-4 table-header action-header">Action</th>
                     </tr>
-                </thead>
+                    </thead>
                 <tbody></tbody>
             </table>
         </div>
     </div>
-
 </div>
 @endsection
 
@@ -396,7 +458,7 @@
 <!-- BEGIN: Inventory Add Modal -->
 <div class="modal items-center justify-center" id="inventoryAddModal">
     <div class="modal-content-elegant">
-        <div class="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
+        <div class="modal-header">
             <h2 class="text-2xl serif font-semibold">Add Stock Inventory</h2>
         </div>
 
@@ -411,168 +473,155 @@
                 </select>
             </div>
 
-            <div class="grid grid-cols-2 gap-8">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- LEFT: STOCK IN -->
+                <div class="stock-panel stock-in-panel">
+                    <h3 class="stock-panel-title">Stock In Inventory</h3>
 
-                <!-- LEFT COLUMN: IN INVENTORY -->
-                <div class="bg-orange-50 p-4 rounded-lg">
-                    <h3 class="font-bold text-orange-600 mb-3">Stock In Inventory</h3>
-
-                    <div class="mb-3">
-                        <label class="block small-caps">Balance - Contractor</label>
+                    <div class="mb-4">
+                        <label class="small-caps block mb-2">Balance - Contractor</label>
                         <input type="number" class="input-elegant w-full" id="balContractor" readonly>
                     </div>
-                    <div class="mb-3">
-                        <label class="block small-caps">Date In</label>
+                    <div class="mb-4">
+                        <label class="small-caps block mb-2">Date In</label>
                         <input type="date" class="input-elegant w-full" id="inputDateIn">
                     </div>
-
-                    <div class="mb-3">
-                        <label class="block small-caps">Remarks</label>
+                    <div class="mb-4">
+                        <label class="small-caps block mb-2">Remarks</label>
                         <input type="text" class="input-elegant w-full" id="inputRemarksIn">
                     </div>
-                    <div class="flex items-center sm:py-3 border-gray-200 dark:border-dark-5">
-                        <h2 class="font-medium text-base mr-auto">Add Sites</h2>
+
+                    <div class="panel-section-header">
+                        <span>Add Sites</span>
                     </div>
+
                     <div id="siteInContainer">
-                        <div class="siteIn">
+                        <div class="siteIn site-group">
+                            <!-- Site fields -->
                             <div class="mb-3">
-                                <label class="block small-caps">Client/Contractor</label>
-                                <select class="select-elegant w-full select2" name="clients_in[]">
-                                    <option selected value="">Select an option</option>
+                                <label class="small-caps block mb-1">Client/Contractor</label>
+                                <select class="select2 w-full" name="clients_in[]">
+                                    <option value="">Select an option</option>
                                     <optgroup label="Clients">
                                         @foreach ($clientcompany as $clientcomp)
-                                            <option value="client-{{ $clientcomp->id }}">
-                                                {{ $clientcomp->name }}
-                                            </option>
+                                            <option value="client-{{ $clientcomp->id }}">{{ $clientcomp->name }}</option>
                                         @endforeach
                                     </optgroup>
                                     <optgroup label="Contractors">
                                         @foreach ($contractors as $contractor)
-                                            <option value="contractor-{{ $contractor->id }}">
-                                                {{ $contractor->name }}
-                                            </option>
+                                            <option value="contractor-{{ $contractor->id }}">{{ $contractor->name }}</option>
                                         @endforeach
                                     </optgroup>
                                 </select>
                             </div>
                             <div class="mb-3">
-                                <label class="block small-caps">Site</label>
-                                <select class="select-elegant w-full select2" name="sites_in[]">
-                                    <option selected value="">Select an option</option>
+                                <label class="small-caps block mb-1">Site</label>
+                                <select class="select2 w-full" name="sites_in[]">
+                                    <option value="">Select an option</option>
                                     @foreach ($billboards as $billboard)
-                                        <option
-                                            value="{{ $billboard->id }}"
-                                            data-type="{{ $billboard->type }}"
-                                            data-size="{{ $billboard->size }}">
+                                        <option value="{{ $billboard->id }}" data-type="{{ $billboard->type }}" data-size="{{ $billboard->size }}">
                                             {{ $billboard->site_number }} - {{ $billboard->name }}
                                         </option>
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="mb-3">
-                                <label class="block small-caps">Type</label>
-                                <input type="text" class="input-elegant w-full" name="types_in[]" readonly>
+                            <div class="grid grid-cols-2 gap-3 mb-3">
+                                <div>
+                                    <label class="small-caps block mb-1">Type</label>
+                                    <input type="text" class="input-elegant w-full" name="types_in[]" readonly>
+                                </div>
+                                <div>
+                                    <label class="small-caps block mb-1">Size</label>
+                                    <input type="text" class="input-elegant w-full" name="sizes_in[]" readonly>
+                                </div>
                             </div>
                             <div class="mb-3">
-                                <label class="block small-caps">Size</label>
-                                <input type="text" class="input-elegant w-full" name="sizes_in[]" readonly>
+                                <label class="small-caps block mb-1"><strong>Quantity In</strong></label>
+                                <input type="number" class="input-elegant w-full" name="qtys_in[]" min="1">
                             </div>
-                            <div class="mb-3">
-                                <label class="block small-caps"><strong>Quantity In</strong></label>
-                                <input type="number" class="input-elegant w-full" name="qtys_in[]" min="1" required>
-
-                            </div>
-                            <div class="mb-3">
-                                <a href="javascript:void(0);" class="btn-destructive text-sm" onclick="removeSiteIn(this)">
-                                    Remove
-                                </a>
+                            <div>
+                                <a href="javascript:void(0);" class="btn-destructive text-sm" onclick="removeSiteIn(this)">Remove</a>
                             </div>
                         </div>
                     </div>
-                    <button type="button" onclick="siteInAdd()" class="btn-primary">Add Site</button>
+                    <button type="button" onclick="siteInAdd()" class="btn-primary mt-3">+ Add Site</button>
                 </div>
 
-                <!-- RIGHT COLUMN: OUT INVENTORY -->
-                <div class="bg-green-50 p-4 rounded-lg">
-                    <h3 class="font-bold text-green-600 mb-3">Stock Out Inventory</h3>
+                <!-- RIGHT: STOCK OUT -->
+                <div class="stock-panel stock-out-panel">
+                    <h3 class="stock-panel-title">Stock Out Inventory</h3>
 
-                    <div class="mb-3">
-                        <label class="block small-caps">Bal - BGOC</label>
+                    <div class="mb-4">
+                        <label class="small-caps block mb-2">Bal - BGOC</label>
                         <input type="number" class="input-elegant w-full" id="balBgoc" readonly>
                     </div>
-
-                    <div class="mb-3">
-                        <label class="block small-caps">Date Out</label>
+                    <div class="mb-4">
+                        <label class="small-caps block mb-2">Date Out</label>
                         <input type="date" class="input-elegant w-full" id="inputDateOut">
                     </div>
-
-                    <div class="mb-3">
-                        <label class="block small-caps">Remarks</label>
+                    <div class="mb-4">
+                        <label class="small-caps block mb-2">Remarks</label>
                         <input type="text" class="input-elegant w-full" id="inputRemarksOut">
                     </div>
-                    <div class="flex items-center sm:py-3 border-gray-200 dark:border-dark-5">
-                        <h2 class="font-medium text-base mr-auto">Add Sites</h2>
+
+                    <div class="panel-section-header">
+                        <span>Add Sites</span>
                     </div>
+
                     <div id="siteOutContainer">
-                        <div class="siteOut">
+                        <div class="siteOut site-group">
+                            <!-- Same structure as above -->
                             <div class="mb-3">
-                                <label class="block small-caps">Client/Contractor</label>
-                                <select class="select-elegant w-full select2" name="clients_out[]">
-                                    <option selected value="">Select an option</option>
+                                <label class="small-caps block mb-1">Client/Contractor</label>
+                                <select class="select2 w-full" name="clients_out[]">
+                                    <option value="">Select an option</option>
                                     <optgroup label="Clients">
                                         @foreach ($clientcompany as $clientcomp)
-                                            <option value="client-{{ $clientcomp->id }}">
-                                                {{ $clientcomp->name }}
-                                            </option>
+                                            <option value="client-{{ $clientcomp->id }}">{{ $clientcomp->name }}</option>
                                         @endforeach
                                     </optgroup>
                                     <optgroup label="Contractors">
                                         @foreach ($contractors as $contractor)
-                                            <option value="contractor-{{ $contractor->id }}">
-                                                {{ $contractor->name }}
-                                            </option>
+                                            <option value="contractor-{{ $contractor->id }}">{{ $contractor->name }}</option>
                                         @endforeach
                                     </optgroup>
                                 </select>
                             </div>
                             <div class="mb-3">
-                                <label class="block small-caps">Site</label>
-                                <select class="select-elegant w-full select2" name="sites_out[]">
-                                    <option selected value="">Select an option</option>
+                                <label class="small-caps block mb-1">Site</label>
+                                <select class="select2 w-full" name="sites_out[]">
+                                    <option value="">Select an option</option>
                                     @foreach ($billboards as $billboard)
-                                        <option
-                                            value="{{ $billboard->id }}"
-                                            data-type="{{ $billboard->type }}"
-                                            data-size="{{ $billboard->size }}">
+                                        <option value="{{ $billboard->id }}" data-type="{{ $billboard->type }}" data-size="{{ $billboard->size }}">
                                             {{ $billboard->site_number }} - {{ $billboard->name }}
                                         </option>
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="mb-3">
-                                <label class="block small-caps">Type</label>
-                                <input type="text" class="input-elegant w-full" name="types_out[]" readonly>
+                            <div class="grid grid-cols-2 gap-3 mb-3">
+                                <div>
+                                    <label class="small-caps block mb-1">Type</label>
+                                    <input type="text" class="input-elegant w-full" name="types_out[]" readonly>
+                                </div>
+                                <div>
+                                    <label class="small-caps block mb-1">Size</label>
+                                    <input type="text" class="input-elegant w-full" name="sizes_out[]" readonly>
+                                </div>
                             </div>
                             <div class="mb-3">
-                                <label class="block small-caps">Size</label>
-                                <input type="text" class="input-elegant w-full" name="sizes_out[]" readonly>
+                                <label class="small-caps block mb-1"><strong>Quantity Out</strong></label>
+                                <input type="number" class="input-elegant w-full" name="qtys_out[]" min="1">
                             </div>
-                            <div class="mb-3">
-                                <label class="block small-caps"><strong>Quantity Out</strong></label>
-                                <input type="number" class="input-elegant w-full" name="qtys_out[]" min="1" required>
-                            </div>
-                            <div class="mb-3">
-                                <a href="javascript:void(0);" class="btn-destructive text-sm" onclick="removeSiteOut(this)">
-                                    Remove
-                                </a>
+                            <div>
+                                <a href="javascript:void(0);" class="btn-destructive text-sm" onclick="removeSiteOut(this)">Remove</a>
                             </div>
                         </div>
                     </div>
-                    <button type="button" onclick="siteOutAdd()" class="btn-primary">Add Site</button>
+                    <button type="button" onclick="siteOutAdd()" class="btn-primary mt-3">+ Add Site</button>
                 </div>
             </div>
 
-            <div class="mt-8 flex justify-end gap-3">
+            <div class="modal-footer">
                 <button type="button" data-dismiss="modal" class="btn-secondary">Cancel</button>
                 <button type="submit" class="btn-primary">Save</button>
             </div>
@@ -588,6 +637,12 @@
         </div>
 
         <form id="inventoryEditForm">
+            {{-- <input type="hidden" id="editTransactionInId">
+            <input type="hidden" id="editTransactionOutId">
+            <input type="hidden" id="editStockInventoryId"> --}}
+            <input id="editTransactionInId">
+            <input id="editTransactionOutId">
+            <input id="editStockInventoryId">
             <div class="mb-6">
                 <label class="small-caps block mb-2">Contractor</label>
                 <input type="text" class="input-elegant w-full sm:w-64" id="editContractorName" readonly>
@@ -646,6 +701,12 @@
                         <label class="block small-caps">Remarks</label>
                         <input type="text" class="input-elegant w-full" id="editRemarksIn">
                     </div>
+                    <!-- Add Delete Button for IN -->
+                    <div class="flex justify-end mt-2">
+                        <button type="button" class="btn-destructive text-sm px-3 py-1" id="deleteInButton">
+                            Delete IN Inventory
+                        </button>
+                    </div>
                 </div>
 
                 <!-- RIGHT COLUMN: OUT INVENTORY -->
@@ -698,6 +759,12 @@
                         <label class="block small-caps">Remarks</label>
                         <input type="text" class="input-elegant w-full" id="editRemarksOut">
                     </div>
+                    <!-- Add Delete Button for OUT -->
+                    <div class="flex justify-end mt-2">
+                        <button type="button" class="btn-destructive text-sm px-3 py-1" id="deleteOutButton">
+                            Delete OUT Inventory
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -711,16 +778,31 @@
 
 <!-- BEGIN: Inventory Delete Modal -->
 <div class="modal" id="inventoryDeleteModal">
-    <div class="modal__content">
-        <div class="p-5 text-center">
-            <i data-feather="x-circle" class="w-16 h-16 text-theme-6 mx-auto mt-3"></i>
-            <div class="text-3xl mt-5">Are you sure?</div>
-            <div class="text-gray-600 mt-2">Confirm deleting this transaction? This process cannot be undone.</div>
+    <div class="modal-content-elegant modal-content-compact max-w-xs w-full mx-auto">
+        <div class="text-center py-6 px-6">
+            <!-- Icon -->
+            <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-100 mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+
+            <!-- Title -->
+            <h3 class="text-lg font-semibold text-ink mb-2">Are you sure?</h3>
+
+            <!-- Description -->
+            <p class="text-muted text-sm leading-tight">
+                This action will permanently delete the transaction.<br />
+                <span class="font-medium">This cannot be undone.</span>
+            </p>
         </div>
-        <div class="px-5 pb-8 text-center">
-            <button type="button" data-dismiss="modal" class="btn-secondary mr-2">Cancel</button>
-            <button type="button"
-            class="btn-destructive" id="inventoryDeleteButton">Delete</button>
+
+        <!-- Actions -->
+        <div class="flex justify-center gap-3 pt-4 pb-6 px-6 border-t border-gray-200">
+            <button type="button" data-dismiss="modal" class="btn-secondary text-sm px-4 py-2">Cancel</button>
+            <button type="button" class="btn-destructive text-sm px-4 py-2" id="inventoryDeleteButton">
+                Delete
+            </button>
         </div>
     </div>
 </div>
@@ -739,6 +821,26 @@ let lastClickedLink = null;
 let stockInventoryId = null;
 let transactionInId = null;
 let transactionOutId = null;
+
+document.addEventListener('DOMContentLoaded', function () {
+    // Initialize Select2 on all .select2 inside the modal
+    $('#inventoryAddModal').on('shown.bs.modal', function () {
+        // If using Bootstrap modal
+        $(this).find('select.select2').select2({
+            placeholder: "Select an option",
+            allowClear: true,
+            width: '100%',
+            dropdownAutoWidth: true
+        });
+    });
+
+    // OR if you're not using Bootstrap modals, just init on load:
+    $('#inventoryAddModal select.select2').select2({
+        placeholder: "Select an option",
+        allowClear: true,
+        width: '100%'
+    });
+});
 
 // ============================================
 // DATE VALIDATION
@@ -1017,6 +1119,74 @@ function inventoryDeleteButton() {
         }
     });
 }
+
+// Delete IN Inventory
+$('#deleteInButton').on('click', function () {
+    const transactionId = $('#editTransactionInId').val();
+    if (!transactionId) {
+        alert('No IN transaction to delete.');
+        return;
+    }
+
+    if (!confirm('Are you sure you want to delete this IN inventory record?')) return;
+
+    $.ajax({
+        url: "{{ route('stockInventory.delete') }}",
+        method: 'POST',
+        data: {
+            _token: $('meta[name="csrf-token"]').attr('content'),
+            id: transactionId,
+            type: 'in' // optional: for server-side logging
+        },
+        success: function () {
+            window.showSubmitToast("IN inventory deleted successfully.", "#91C714");
+            $('#inventory_table').DataTable().ajax.reload();
+            closeAltEditorModal("#inventoryEditModal");
+        },
+        error: function (xhr) {
+            let msg = "Failed to delete IN inventory.";
+            try {
+                const response = JSON.parse(xhr.responseText);
+                msg = response.error || msg;
+            } catch(e) {}
+            window.showSubmitToast(msg, "#D32929");
+        }
+    });
+});
+
+// Delete OUT Inventory
+$('#deleteOutButton').on('click', function () {
+    const transactionId = $('#editTransactionOutId').val();
+    if (!transactionId) {
+        alert('No OUT transaction to delete.');
+        return;
+    }
+
+    if (!confirm('Are you sure you want to delete this OUT inventory record?')) return;
+
+    $.ajax({
+        url: "{{ route('stockInventory.delete') }}",
+        method: 'POST',
+        data: {
+            _token: $('meta[name="csrf-token"]').attr('content'),
+            id: transactionId,
+            type: 'out' // optional
+        },
+        success: function () {
+            window.showSubmitToast("OUT inventory deleted successfully.", "#91C714");
+            $('#inventory_table').DataTable().ajax.reload();
+            closeAltEditorModal("#inventoryEditModal");
+        },
+        error: function (xhr) {
+            let msg = "Failed to delete OUT inventory.";
+            try {
+                const response = JSON.parse(xhr.responseText);
+                msg = response.error || msg;
+            } catch(e) {}
+            window.showSubmitToast(msg, "#D32929");
+        }
+    });
+});
 
 // ============================================
 // DOCUMENT READY
@@ -1375,15 +1545,58 @@ $('#inventory_table').DataTable({
                 $('td:eq(9)', rows[j]).hide();
             }
         }
+
+        $("#inventory_table_paginate")
+            .addClass("flex justify-center items-center gap-2");
+
+        $("#inventory_table_paginate .paginate_button")
+            .addClass("inline-flex items-center justify-center px-2 py-1 border rounded text-xs");
+
+        $("#inventory_table_paginate .paginate_button.current")
+            .addClass("bg-neutral-200 font-semibold");
+    },
+    initComplete: function(settings, json) {
+        // Style the info div (showing X to Y of Z entries)
+        var infoDiv = document.getElementById("inventory_table_info");
+        if (infoDiv) {
+            infoDiv.classList.add('text-sm', 'text-gray-600', 'mt-2');
+            // You can also wrap the text in a span or adjust spacing if needed
+        }
+
+        // Style the pagination div
+        var paginateDiv = document.getElementById("inventory_table_paginate");
+        if (paginateDiv) {
+            paginateDiv.classList.add('flex', 'items-center', 'justify-center', 'space-x-2', 'mt-2');
+
+            // Style the individual page links
+            $(paginateDiv).find('a').addClass('px-3', 'py-1', 'border', 'border-gray-300', 'rounded', 'hover:bg-gray-100', 'focus:outline-none', 'focus:ring-2', 'focus:ring-blue-500', 'focus:border-blue-500');
+            $(paginateDiv).find('span').addClass('px-3', 'py-1', 'bg-gray-200', 'border', 'border-gray-300', 'rounded', 'font-bold');
+
+            // Style the "First", "Previous", "Next", "Last" links
+            $(paginateDiv).find('a').filter(function() {
+                return $(this).text().trim() === 'First' || $(this).text().trim() === 'Previous' || $(this).text().trim() === 'Next' || $(this).text().trim() === 'Last';
+            }).addClass('px-3', 'py-1', 'border', 'border-gray-300', 'rounded', 'hover:bg-gray-100', 'focus:outline-none', 'focus:ring-2', 'focus:ring-blue-500', 'focus:border-blue-500');
+        }
     }
 });
 
     // EDIT INVENTORY CLICK
     $(document).on('click', '.edit-inventory', function () {
+        const $btn = $(this);
 
-        stockInventoryId = $(this).data('stock-inventory-id');
-        transactionInId  = $(this).data('transaction-in-id') || null;
-        transactionOutId = $(this).data('transaction-out-id') || null;
+        // Extract IDs from data attributes
+        const transactionInId = $btn.data('transaction-in-id') || null;
+        const transactionOutId = $btn.data('transaction-out-id') || null;
+        const stockInventoryId = $btn.data('stock-inventory-id') || null;
+
+        // Populate hidden fields
+        $('#editTransactionInId').val(transactionInId);
+        $('#editTransactionOutId').val(transactionOutId);
+        $('#editStockInventoryId').val(stockInventoryId);
+
+        // Enable/disable delete buttons based on existence
+        $('#deleteInButton').prop('disabled', !transactionInId).toggle(!!transactionInId);
+        $('#deleteOutButton').prop('disabled', !transactionOutId).toggle(!!transactionOutId);
 
         $.get(`/inventory/${stockInventoryId}/edit`, {
             transaction_in_id: transactionInId,

@@ -886,3 +886,218 @@ a:focus-visible {
         color: #000;
     }
 }
+
+/* === MODAL: Add Stock Inventory === */
+.modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.modal.show {
+    display: flex !important;
+}
+
+.modal-content-elegant {
+    background: var(--surface);
+    border-radius: 1rem;
+    padding: 2rem;
+    max-width: 90rem;
+    width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+/* Modal header */
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--hairline);
+}
+
+/* Stock In / Out panels */
+.stock-panel {
+    padding: 1.25rem;
+    border-radius: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.stock-in-panel {
+    background-color: rgba(251, 146, 60, 0.1); /* orange-400 @ 10% */
+    border: 1px solid rgba(251, 146, 60, 0.3);
+}
+
+.stock-out-panel {
+    background-color: rgba(34, 197, 94, 0.1); /* green-500 @ 10% */
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.stock-panel-title {
+    font-weight: 600;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--hairline);
+}
+
+.stock-in-panel .stock-panel-title {
+    color: #ea580c; /* orange-600 */
+}
+
+.stock-out-panel .stock-panel-title {
+    color: #059669; /* green-600 */
+}
+
+/* Site group spacing */
+.site-group {
+    margin-bottom: 1.25rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px dashed var(--hairline);
+}
+
+.site-group:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+/* Panel header (Add Sites) */
+.panel-section-header {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 0;
+    margin: 1.25rem 0 0.75rem;
+    border-top: 1px solid var(--hairline);
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--ink);
+}
+
+/* Form buttons */
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: 2rem;
+}
+
+/* === STYLING FOR DROPDOWN SELECTS IN MODAL === */
+
+/* Base select style */
+.select-modal {
+    width: 100%;
+    height: 2.75rem;
+    padding: 0 1rem;
+    font-size: 0.875rem;
+    border: 1px solid #D1D5DB; /* Tailwind neutral-300 */
+    border-radius: 0.75rem;
+    background-color: white;
+    color: var(--ink);
+    transition: all 150ms ease;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+}
+
+.select-modal:focus {
+    outline: none;
+    border-color: #4bbbed; /* brand-light */
+    box-shadow: 0 0 0 3px rgba(75, 187, 237, 0.1);
+}
+
+/* Placeholder text style */
+.select-modal option[value=""] {
+    color: #9CA3AF; /* Tailwind neutral-400 */
+    font-style: italic;
+}
+
+/* Custom arrow icon (optional if you want to replace default) */
+.select-modal::-ms-expand {
+    display: none;
+}
+
+/* Optional: Add custom down arrow via pseudo-element (advanced) */
+/* If you want full control over the arrow, use JS + div wrapper — but for now, native is fine */
+
+/* === SELECT2 OVERRIDES === */
+.select2-container--default .select2-selection--single {
+    height: 2.75rem !important;
+    border: 1px solid #D1D5DB !important;
+    border-radius: 0.75rem !important;
+    padding: 0 1rem !important;
+    background-color: white !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    color: var(--ink) !important;
+    line-height: 1.5 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__placeholder {
+    color: #9CA3AF !important;
+    font-style: italic !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 2.75rem !important;
+    width: 1.5rem !important;
+    position: absolute !important;
+    right: 0.5rem !important;
+    top: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow b {
+    border-color: #9CA3AF transparent transparent transparent !important;
+    border-width: 4px 4px 0 4px !important;
+}
+
+/* Dropdown menu */
+.select2-dropdown {
+    border: 1px solid #D1D5DB !important;
+    border-radius: 0.75rem !important;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1) !important;
+}
+
+.select2-results__option {
+    padding: 0.5rem 1rem !important;
+    font-size: 0.875rem !important;
+}
+
+.select2-results__option--highlighted[aria-selected] {
+    background-color: #EFF6FF !important; /* blue-50 */
+    color: #1D4ED8 !important; /* blue-700 */
+}
+
+.select2-results__option[aria-selected="true"] {
+    background-color: #DBEAFE !important; /* blue-100 */
+}
+
+/* Compact modal for delete confirmation */
+.modal-content-compact {
+    max-width: 400px !important;
+    width: 90vw !important;
+    padding: 1.5rem !important;
+}
+
+.modal-content-compact .modal-header {
+    padding: 0 !important;
+    margin-bottom: 1rem !important;
+}
+
+.modal-content-compact .modal-footer {
+    padding: 0.75rem 1.5rem !important;
+}
