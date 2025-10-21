@@ -479,7 +479,8 @@
                             </div>
                             <div class="mb-3">
                                 <label class="block small-caps"><strong>Quantity In</strong></label>
-                                <input type="number" class="input-elegant w-full" name="qtys_in[]">
+                                <input type="number" class="input-elegant w-full" name="qtys_in[]" min="1" required>
+
                             </div>
                             <div class="mb-3">
                                 <a href="javascript:void(0);" class="btn-destructive text-sm" onclick="removeSiteIn(this)">
@@ -558,7 +559,7 @@
                             </div>
                             <div class="mb-3">
                                 <label class="block small-caps"><strong>Quantity Out</strong></label>
-                                <input type="number" class="input-elegant w-full" name="qtys_out[]">
+                                <input type="number" class="input-elegant w-full" name="qtys_out[]" min="1" required>
                             </div>
                             <div class="mb-3">
                                 <a href="javascript:void(0);" class="btn-destructive text-sm" onclick="removeSiteOut(this)">
@@ -590,6 +591,8 @@
             <div class="mb-6">
                 <label class="small-caps block mb-2">Contractor</label>
                 <input type="text" class="input-elegant w-full sm:w-64" id="editContractorName" readonly>
+                <input type="hidden" id="editContractorId">
+
             </div>
 
             <div class="grid grid-cols-2 gap-8">
@@ -824,7 +827,7 @@ window.siteInAdd = function () {
             </div>
             <div>
                 <label class="small-caps block mb-2">Quantity In</label>
-                <input type="number" class="input-elegant w-full" name="qtys_in[]">
+                <input type="number" class="input-elegant w-full" name="qtys_in[]" min="1" required>
             </div>
             <div>
                 <a href="javascript:void(0);" class="btn-destructive text-sm" onclick="removeSiteIn(this)">
@@ -896,7 +899,8 @@ window.siteOutAdd = function () {
             </div>
             <div>
                 <label class="small-caps block mb-2">Quantity Out</label>
-                <input type="number" class="input-elegant w-full" name="qtys_out[]">
+                <input type="number" class="input-elegant w-full" name="qtys_out[]" min="1" required>
+
             </div>
             <div>
                 <a href="javascript:void(0);" class="btn-destructive text-sm" onclick="removeSiteOut(this)">
@@ -1059,7 +1063,7 @@ $(document).ready(function() {
             stock_inventory_id: stockInventoryId,
             transaction_in_id: transactionInId,
             transaction_out_id: transactionOutId,
-            contractor_id: $('#editContractorName').val(),
+            contractor_id: $('#editContractorId').val(),
             date_in: $('#editDateIn').val(),
             date_out: $('#editDateOut').val(),
             remarks_in: $('#editRemarksIn').val(),
@@ -1121,25 +1125,22 @@ function inventoryAddButton() {
     $("#siteInContainer .siteIn").each(function () {
         let siteId = $(this).find("select[name='sites_in[]']").val();
         let rawVal = $(this).find("select[name='clients_in[]']").val();
-        if (!rawVal) return;
+let clientType = null, clientId = null;
 
-        let clientType = null, clientId = null;
-        if (rawVal.startsWith("client-")) {
-            clientType = "client";
-            clientId = rawVal.replace("client-", "");
-        } else if (rawVal.startsWith("contractor-")) {
-            clientType = "contractor";
-            clientId = rawVal.replace("contractor-", "");
-        }
+if (rawVal) {
+  if (rawVal.startsWith("client-"))      { clientType = "client";     clientId = rawVal.replace("client-",""); }
+  else if (rawVal.startsWith("contractor-")) { clientType = "contractor"; clientId = rawVal.replace("contractor-",""); }
+}
 
-        sites_in.push({
-            id: siteId || null,
-            client_type: clientType || null,
-            client_id: clientId || null,
-            type: $(this).find("input[name='types_in[]']").val(),
-            size: $(this).find("input[name='sizes_in[]']").val(),
-            qty: parseInt($(this).find("input[name='qtys_in[]']").val()) || 0
-        });
+sites_in.push({
+  id: siteId || null,
+  client_type: clientType,
+  client_id: clientId,
+  type: $(this).find("input[name='types_in[]']").val(),
+  size: $(this).find("input[name='sizes_in[]']").val(),
+  qty: parseInt($(this).find("input[name='qtys_in[]']").val()) || 0
+});
+
     });
 
     let sites_out = [];
@@ -1379,6 +1380,7 @@ $('#inventory_table').DataTable({
 
     // EDIT INVENTORY CLICK
     $(document).on('click', '.edit-inventory', function () {
+
         stockInventoryId = $(this).data('stock-inventory-id');
         transactionInId  = $(this).data('transaction-in-id') || null;
         transactionOutId = $(this).data('transaction-out-id') || null;
