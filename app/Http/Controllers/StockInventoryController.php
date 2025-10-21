@@ -70,6 +70,27 @@ class StockInventoryController extends Controller
         return view('stockInventory.index', compact('clients', 'users', 'clientcompany',  'contractors', 'billboards'));
     }
 
+    protected function getBgocContractorId(): int
+{
+    // Prefer env/config; fallback to row named "BGOC"; last resort = 1
+    $id = (int) (config('app.bgoc_contractor_id') ?? env('BGOC_CONTRACTOR_ID', 0));
+    if ($id > 0 && DB::table('contractors')->where('id', $id)->exists()) {
+        return $id;
+    }
+
+    $named = DB::table('contractors')->where('name', 'like', '%BGOC%')->value('id');
+    if ($named) return (int)$named;
+
+    // Create one if still missing
+    $newId = DB::table('contractors')->insertGetId([
+        'name' => 'BGOC',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+    return (int) $newId;
+}
+
+
     public function list(Request $request)
     {
         $limit = $request->input('length');
@@ -186,62 +207,63 @@ class StockInventoryController extends Controller
         $totalData = $query->count();
 
         $data = $query->skip($start)->take($limit)->get()->flatMap(function($d){
-            // IN data
-            $inIds     = $d->transaction_in_ids ? explode(',', $d->transaction_in_ids) : [];
-            $inDates = $d->date_in ? explode(',', $d->date_in) : [];
-            $inRemarks = $d->remarks_in ? explode(', ', $d->remarks_in) : [];
-            $inQty = $d->quantity_in ? explode(',', $d->quantity_in) : [];
-            $inClients = $d->client_in_name ? explode(',', $d->client_in_name) : [];
-            $inSites = $d->site_in ? explode(',', $d->site_in) : [];
-            $inTypes   = $d->billboard_type_in ? explode(',', $d->billboard_type_in) : [];
-            $inSizes   = $d->billboard_size_in ? explode(',', $d->billboard_size_in) : [];
+    // IN data
+    $inIds     = $d->transaction_in_ids ? explode(',', $d->transaction_in_ids) : [];
+    $inDates   = $d->date_in ? explode(',', $d->date_in) : [];
+    $inRemarks = $d->remarks_in ? explode(', ', $d->remarks_in) : [];
+    $inQty     = $d->quantity_in ? explode(',', $d->quantity_in) : [];
+    $inClients = $d->client_in_name ? explode(',', $d->client_in_name) : [];
+    $inSites   = $d->site_in ? explode(',', $d->site_in) : [];
+    $inTypes   = $d->billboard_type_in ? explode(',', $d->billboard_type_in) : [];
+    $inSizes   = $d->billboard_size_in ? explode(',', $d->billboard_size_in) : [];
 
-            // OUT data
-            $outIds     = $d->transaction_out_ids ? explode(',', $d->transaction_out_ids) : [];
-            $outDates = $d->date_out ? explode(',', $d->date_out) : [];
-            $outRemarks = $d->remarks_out ? explode(', ', $d->remarks_out) : [];
-            $outQty = $d->quantity_out ? explode(',', $d->quantity_out) : [];
-            $outClients = $d->client_out_name ? explode(',', $d->client_out_name) : [];
-            $outSites = $d->site_out ? explode(',', $d->site_out) : [];
-            $outTypes   = $d->billboard_type_out ? explode(',', $d->billboard_type_out) : [];
-            $outSizes   = $d->billboard_size_out ? explode(',', $d->billboard_size_out) : [];
+    // OUT data
+    $outIds     = $d->transaction_out_ids ? explode(',', $d->transaction_out_ids) : [];
+    $outDates   = $d->date_out ? explode(',', $d->date_out) : [];
+    $outRemarks = $d->remarks_out ? explode(', ', $d->remarks_out) : [];
+    $outQty     = $d->quantity_out ? explode(',', $d->quantity_out) : [];
+    $outClients = $d->client_out_name ? explode(',', $d->client_out_name) : [];
+    $outSites   = $d->site_out ? explode(',', $d->site_out) : [];
+    $outTypes   = $d->billboard_type_out ? explode(',', $d->billboard_type_out) : [];
+    $outSizes   = $d->billboard_size_out ? explode(',', $d->billboard_size_out) : [];
 
-            // Max number of rows between IN and OUT
-            $rowCount = max(count($inDates), count($outDates), 1);
+    // Calculate rows needed
+    $rowCount = max(count($inDates), count($outDates), 1);
 
-            $rows = [];
-            for ($i = 0; $i < $rowCount; $i++) {
-                $rows[] = [
-                    'contractor' => $d->contractor_company . ' (' . $d->contractor_name . ')',
-                    'balance_contractor' => $d->balance_contractor,
-                    'balance_bgoc' => $d->balance_bgoc,
+    $rows = [];
+    for ($i = 0; $i < $rowCount; $i++) {
+        $rows[] = [
+            'contractor' => ($d->contractor_company ?? '') . ' (' . ($d->contractor_name ?? '') . ')',
+            'balance_contractor' => $d->balance_contractor ?? 0,
+            'balance_bgoc' => $d->balance_bgoc ?? 0,
 
-                    // IN columns
-                    'transaction_in_id' => $inIds[$i] ?? '',
-                    'date_in' => $inDates[$i] ?? '' ? Carbon::parse($inDates[$i])->format('d/m/y') : '',
-                    'remarks_in' => $inRemarks[$i] ?? '',
-                    'quantity_in' => $inQty[$i] ?? '',
-                    'client_in_name' => $inClients[$i] ?? '',
-                    'site_in' => $inSites[$i] ?? '',
-                    'billboard_type_in' => $inTypes[$i] ?? '',
-                    'billboard_size_in' => $inSizes[$i] ?? '',
+            // IN columns
+            'transaction_in_id' => $inIds[$i] ?? '',
+            'date_in' => isset($inDates[$i]) && $inDates[$i] ? Carbon::parse($inDates[$i])->format('d/m/y') : '',
+            'remarks_in' => $inRemarks[$i] ?? '',
+            'quantity_in' => $inQty[$i] ?? '',
+            'client_in_name' => $inClients[$i] ?? '',
+            'site_in' => $inSites[$i] ?? '',
+            'billboard_type_in' => $inTypes[$i] ?? '',
+            'billboard_size_in' => $inSizes[$i] ?? '',
 
-                    // OUT columns
-                    'transaction_out_id' => $outIds[$i] ?? '',
-                    'date_out' => $outDates[$i] ?? '' ? Carbon::parse($outDates[$i])->format('d/m/y') : '',
-                    'remarks_out' => $outRemarks[$i] ?? '',
-                    'quantity_out' => $outQty[$i] ?? '',
-                    'client_out_name' => $outClients[$i] ?? '',
-                    'site_out' => $outSites[$i] ?? '',
-                    'billboard_type_out' => $outTypes[$i] ?? '',
-                    'billboard_size_out' => $outSizes[$i] ?? '',
+            // OUT columns
+            'transaction_out_id' => $outIds[$i] ?? '',
+            'date_out' => isset($outDates[$i]) && $outDates[$i] ? Carbon::parse($outDates[$i])->format('d/m/y') : '',
+            'remarks_out' => $outRemarks[$i] ?? '',
+            'quantity_out' => $outQty[$i] ?? '',
+            'client_out_name' => $outClients[$i] ?? '',
+            'site_out' => $outSites[$i] ?? '',
+            'billboard_type_out' => $outTypes[$i] ?? '',
+            'billboard_size_out' => $outSizes[$i] ?? '',
 
-                    'stock_inventory_id' => $d->id
-                ];
-            }
+            'stock_inventory_id' => $d->id
+        ];
+    }
 
-            return $rows;
-        });
+    return $rows;
+});
+
 
         logger('list data: ' . $data);
 
@@ -518,7 +540,8 @@ class StockInventoryController extends Controller
                     $inventory->save();
 
                     // Update BGOC contractor (id = 1) stock if that is your convention
-                    $bgocInventory = StockInventory::firstOrNew(['contractor_id' => 1]);
+                    $bgocId = $this->getBgocContractorId();
+                    $bgocInventory = StockInventory::firstOrNew(['contractor_id' => $bgocId]);
                     $bgocInventory->balance_contractor = $bgocInventory->balance_contractor ?? 0;
                     $bgocInventory->balance_contractor += $qty;
                     $bgocInventory->save();

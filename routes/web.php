@@ -440,7 +440,7 @@ Route::group(['middleware' => ['auth']], function () {
     Route::post('/inventory/list', [StockInventoryController::class, 'list'])->name('stockInventory.list');
     Route::post('/inventory/create', [StockInventoryController::class, 'create'])->name('stockInventory.create');
     Route::post('/inventory/edit', [StockInventoryController::class, 'edit'])->name('stockInventory.edit');
-    Route::get('/inventory/{transaction}/edit', [StockInventoryController::class, 'editData']);
+    Route::get('/inventory/{transaction}/edit', [StockInventoryController::class, 'editData'])->name('stockInventory.editData');
     Route::post('/inventory/delete', [StockInventoryController::class, 'delete'])->name('stockInventory.delete');
 
 

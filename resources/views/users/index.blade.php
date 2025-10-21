@@ -732,15 +732,16 @@ $(document).on('click', '[data-dismiss="modal"]', function() {
                     $('#users_table').DataTable().ajax.reload();
                 },
                 error: function (xhr) {
-                let msg = 'Unexpected error';
-                try {
-                    const r = JSON.parse(xhr.responseText);
-                    msg = r.error || r.message || msg;
-                } catch (e) {
-                    msg = (xhr.status + ' ' + xhr.statusText) || msg;
-                }
-                window.showSubmitToast(msg, "#D32929");
-                }
+            let msg = 'Unexpected error';
+            try {
+                const r = JSON.parse(xhr.responseText);
+                msg = r.error || r.message || msg;
+            } catch (e) {
+                msg = (xhr.status + ' ' + xhr.statusText) || msg;
+            }
+            window.showSubmitToast(msg, "#D32929");
+            }
+
             });
         }
 
