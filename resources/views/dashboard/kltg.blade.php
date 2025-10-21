@@ -336,19 +336,19 @@
                 $fmt = function($v, $fallbackYear) {
                     if (!$v) return '';
                     try {
-                    if ($v instanceof \Carbon\Carbon) return $v->format('d/m/Y');
+                    if ($v instanceof \Carbon\Carbon) return $v->format('d/m/y');
 
                     $s = trim((string)$v);
 
                     if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $s)) {
-                        return \Carbon\Carbon::parse($s)->format('d/m/Y');          // 2026-08-07
+                        return \Carbon\Carbon::parse($s)->format('d/m/y');          // 2026-08-07
                     }
                     if (preg_match('/^\d{1,2}\/\d{1,2}\/\d{4}$/', $s)) {
-                        return \Carbon\Carbon::createFromFormat('d/m/Y', $s)->format('d/m/Y'); // 07/08/2026
+                        return \Carbon\Carbon::createFromFormat('d/m/y', $s)->format('d/m/y'); // 07/08/2026
                     }
                     if (preg_match('/^\d{1,2}\/\d{1,2}$/', $s)) {
                         // only day/month provided → fall back to the row's year, not current year
-                        return \Carbon\Carbon::createFromFormat('d/m/Y', $s.'/'.$fallbackYear)->format('d/m/Y');
+                        return \Carbon\Carbon::createFromFormat('d/m/y', $s.'/'.$fallbackYear)->format('d/m/y');
                     }
                     } catch (\Throwable $e) {}
                     return $s;

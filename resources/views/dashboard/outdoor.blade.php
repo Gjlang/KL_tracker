@@ -343,8 +343,9 @@
                     <tr class="hover:bg-neutral-50 hover-lift transition-all duration-150" data-idx="{{ $loop->index }}">
                     <td class="px-3 py-2 text-right tabular-nums">{{ $loop->iteration }}</td>
                       <td class="px-4 py-3 sans text-sm text-neutral-600 tabular-nums">
-                        {{ df($row->created_at) }}
-                      </td>
+  {{ $row->created_at ? \Carbon\Carbon::parse($row->created_at)->format('d/m/y') : '' }}
+</td>
+
                       <td class="px-4 py-3 sans text-sm font-medium ink">
                         <div class="max-w-[200px] truncate" title="{{ $company }}">
                           {{ $company }}
@@ -362,10 +363,12 @@
                         </span>
                       </td>
                       <td class="px-4 py-3 sans text-sm text-neutral-700 tabular-nums">
-                        {{ $startDisp }}
+                        {{ $startDisp ? \Carbon\Carbon::createFromFormat('d/m/Y', $startDisp)->format('d/m/y') : '' }}
+
                       </td>
                       <td class="px-4 py-3 sans text-sm text-[#d33831] tabular-nums font-medium">
-                        {{ $endDisp }}
+                        {{ $endDisp ? \Carbon\Carbon::createFromFormat('d/m/Y', $endDisp)->format('d/m/y') : '' }}
+
                       </td>
 
                       {{-- Month cells --}}

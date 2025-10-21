@@ -371,7 +371,7 @@
                     @if(isset($masterFiles) && $masterFiles->count() > 0)
                         @foreach($masterFiles as $file)
                             <tr class="table-row {{ $loop->iteration % 2 === 0 ? 'bg-white' : 'bg-gray-50' }}">
-                                <td class="px-6 py-4 text-sm ink">{{ $file->created_at ? $file->created_at->format('M d, Y') : '-' }}</td>
+                                <td class="px-6 py-4 text-sm ink">{{ $file->created_at ? $file->created_at->format('d/m/y') : '-' }}</td>
                                 <td class="px-6 py-4 text-sm ink">{{ $file->sales_person ?? '-' }}</td>
                                 <td class="px-6 py-4 text-sm">
                                     @can('masterfile.show')
@@ -380,7 +380,7 @@
                                     </a>
                                     @else
                                     <div class="max-w-[200px] truncate" title="{{ $file->clientCompany->name ?? 'No Company' }}">{{ $file->clientCompany->name ?? 'No Company' }}</div>
-                                    @endcan   
+                                    @endcan
                                 </td>
                                 <td class="px-6 py-4 text-sm ink">{{ $file->client->name ?? '-' }}</td>
                                 <td class="px-6 py-4 text-sm text-gray-600">{{ $file->email ?? '-' }}</td>
@@ -388,8 +388,8 @@
                                 <td class="px-6 py-4 text-sm ink">{{ $file->contact_number ?? '-' }}</td>
                                 <td class="px-6 py-4 text-sm ink">{{ $file->product ?? '-' }}</td>
                                 <td class="px-6 py-4 text-sm ink">{{ $file->month ?? '-' }}</td>
-                                <td class="px-6 py-4 text-sm ink">{{ $file->date ? \Carbon\Carbon::parse($file->date)->format('d/m/Y') : '-' }}</td>
-                                <td class="px-6 py-4 text-sm ink">{{ $file->date_finish ? \Carbon\Carbon::parse($file->date_finish)->format('d/m/Y') : '-' }}</td>
+                                <td class="px-6 py-4 text-sm ink">{{ $file->date ? \Carbon\Carbon::parse($file->date)->format('d/m/y') : '-' }}</td>
+                                <td class="px-6 py-4 text-sm ink">{{ $file->date_finish ? \Carbon\Carbon::parse($file->date_finish)->format('d/m/y') : '-' }}</td>
                                 <td class="px-6 py-4 text-sm ink">{{ $file->duration ?? '-' }}</td>
                                 <td class="px-6 py-4 text-sm">
                                     <span class="inline-flex px-3 py-1 text-xs font-semibold rounded-full
@@ -400,7 +400,7 @@
                                 <td class="px-6 py-4 text-sm ink">{{ $file->job_number ?? '-' }}</td>
                                 <td class="px-6 py-4 text-sm ink">{{ $file->artwork ?? '-' }}</td>
                                 <td class="px-6 py-4 text-sm ink">{{ $file->traffic ?? '-' }}</td>
-                                <td class="px-6 py-4 text-sm ink">{{ $file->invoice_date ?? '-' }}</td>
+                                <td class="px-6 py-4 text-sm ink">{{ $file->invoice_date ? \Carbon\Carbon::parse($file->invoice_date)->format('d/m/y') : '-' }}</td>
                                 <td class="px-6 py-4 text-sm ink">{{ $file->invoice_number ?? '-' }}</td>
                                 <td class="px-6 py-4 text-sm ink">{{ $file->remarks ?? '-' }}</td>
                             </tr>

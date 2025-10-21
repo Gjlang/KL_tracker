@@ -153,7 +153,7 @@
 
         <!-- 2) Created -->
         <td class="px-4 py-3 text-sm column-data" data-column="2">
-          <div class="ink font-medium">{{ $mf->created_at?->format('m/d/Y') }}</div>
+          <div class="ink font-medium">{{ $mf->created_at?->format('m/d/y') }}</div>
         </td>
 
         <!-- 3) INV number -->
@@ -181,10 +181,26 @@
           <div class="ink truncate max-w-[140px]" title="{{ $mf->product }}">{{ $mf->product }}</div>
         </td>
 
-        <!-- 7) Location -->
-        <td class="px-4 py-3 text-sm column-data" data-column="7">
-          <div class="ink truncate max-w-[180px]" title="{{ $item->site }}">{{ $item->site }}</div>
-        </td>
+        @php
+  // asumsikan variabel tiap baris = $mf (MasterFile)
+  $locationName = $mf->billboard->location->name ?? '-';   // from location.name
+  // Area: pakai yang tersedia di billboard (pilih sesuai skema kamu)
+  $areaValue    = $mf->billboard->code
+               ?? $mf->billboard->area
+               ?? $mf->billboard->site_number  // fallback kalau kamu mau tampilkan code/site
+               ?? '-';
+@endphp
+
+<!-- LOCATION (from master_files -> billboard -> location -> name) -->
+<td class="px-4 py-3 text-sm">
+  <div class="truncate max-w-[240px]" title="{{ $locationName }}">{{ $locationName }}</div>
+</td>
+
+<!-- AREA (separate) -->
+<td class="px-4 py-3 text-sm">
+  <div class="truncate max-w-[240px]" title="{{ $areaValue }}">{{ $areaValue }}</div>
+</td>
+
 
         <!-- 8) Duration (from master_files) -->
         <td class="px-4 py-3 text-sm column-data" data-column="8">
@@ -210,12 +226,12 @@
 
         <!-- 9) Installation (ambil dari master_files.date) -->
         <td class="px-4 py-3 text-sm column-data" data-column="9">
-        <div class="ink">{{ $mf->date?->format('m/d/Y') }}</div>
+        <div class="ink">{{ $mf->date?->format('m/d/y') }}</div>
         </td>
 
         <!-- 10) Dismantle (ambil dari master_files.date_finish) -->
         <td class="px-4 py-3 text-sm column-data" data-column="10">
-        <div class="ink">{{ $mf->date_finish?->format('m/d/Y') }}</div>
+        <div class="ink">{{ $mf->date_finish?->format('m/d/y') }}</div>
         </td>
 
 
@@ -286,6 +302,7 @@ document.addEventListener('DOMContentLoaded', function () {
     { title: 'Company', key: 'company' },
     { title: 'Product', key: 'product' },
     { title: 'Location', key: 'location' },
+    { title: 'Area', key: 'area' },
     { title: 'Duration', key: 'duration' },
     { title: 'Installation', key: 'installation' },
     { title: 'Dismantle', key: 'dismantle' },
