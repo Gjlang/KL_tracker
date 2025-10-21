@@ -91,190 +91,190 @@ class StockInventoryController extends Controller
 }
 
 
-    public function list(Request $request)
-    {
-        $limit = $request->input('length');
-        $start = $request->input('start');
-        $search = $request->input('search.value');
 
-        // Subquery for IN transactions aggregated per stock_inventory
-        $inSub = DB::table('stock_inventory_transactions as t_in')
-            ->select(
-                't_in.stock_inventory_id',
-                DB::raw("GROUP_CONCAT(t_in.id SEPARATOR ',') as transaction_in_ids"),
-                DB::raw("GROUP_CONCAT(quantity SEPARATOR ',') as quantity_in"),
-                DB::raw("GROUP_CONCAT(remarks SEPARATOR ', ') as remarks_in"),
-                DB::raw("GROUP_CONCAT(transaction_date SEPARATOR ',') as date_in"),
-                DB::raw('GROUP_CONCAT(DISTINCT client_companies.id) as client_in_ids'),
-                DB::raw("GROUP_CONCAT(client_companies.name SEPARATOR ',') as client_in_name"),
-                DB::raw("GROUP_CONCAT(CONCAT(billboards.site_number, ' - ', locations.name) SEPARATOR ',') as site_in"),
-                DB::raw("GROUP_CONCAT(billboards.type SEPARATOR ',') as billboard_type_in"),
-                DB::raw("GROUP_CONCAT(billboards.size SEPARATOR ',') as billboard_size_in")
+public function list(Request $request)
+{
+    $limit = $request->input('length');
+    $start = $request->input('start');
+    $search = $request->input('search.value');
 
-            )
-            ->leftJoin('client_companies', 'client_companies.id', '=', 't_in.client_id')
-            ->leftJoin('billboards', 'billboards.id', '=', 't_in.billboard_id')
-            ->leftJoin('locations', 'locations.id', '=', 'billboards.location_id')
-            ->where('t_in.type', 'in')
-            ->groupBy('t_in.stock_inventory_id');
-
-        // Subquery for OUT transactions aggregated per stock_inventory
-        $outSub = DB::table('stock_inventory_transactions as t_out')
-            ->select(
-                't_out.stock_inventory_id',
-                DB::raw("GROUP_CONCAT(t_out.id SEPARATOR ',') as transaction_out_ids"),
-                DB::raw("GROUP_CONCAT(quantity SEPARATOR ',') as quantity_out"),
-                DB::raw("GROUP_CONCAT(remarks SEPARATOR ', ') as remarks_out"),
-                DB::raw("GROUP_CONCAT(transaction_date SEPARATOR ',') as date_out"),
-                DB::raw('GROUP_CONCAT(DISTINCT client_companies.id) as client_out_ids'),
-                DB::raw("GROUP_CONCAT(client_companies.name SEPARATOR ',') as client_out_name"),
-                DB::raw("GROUP_CONCAT(CONCAT(billboards.site_number, ' - ', locations.name) SEPARATOR ',') as site_out"),
-                DB::raw("GROUP_CONCAT(billboards.type SEPARATOR ',') as billboard_type_out"),
-                DB::raw("GROUP_CONCAT(billboards.size SEPARATOR ',') as billboard_size_out")
-
-            )
-            ->leftJoin('client_companies', 'client_companies.id', '=', 't_out.client_id')
-            ->leftJoin('billboards', 'billboards.id', '=', 't_out.billboard_id')
-            ->leftJoin('locations', 'locations.id', '=', 'billboards.location_id')
-            ->where('t_out.type', 'out')
-            ->groupBy('t_out.stock_inventory_id');
-
-        // 🔎 Apply date filter INSIDE subqueries so it works for all transactions
-        if ($request->filled('start_date') && $request->filled('end_date')) {
-            $startDate = $request->start_date;
-            $endDate   = $request->end_date;
-
-            $inSub->whereBetween('t_in.transaction_date', [$startDate, $endDate]);
-            $outSub->whereBetween('t_out.transaction_date', [$startDate, $endDate]);
-        }
-
-        $query = StockInventory::select(
-            'stock_inventories.*',
-            'contractors.name as contractor_name',
-            'contractors.company_name as contractor_company',
-            'contractors.phone as contractor_phone',
-            'in_agg.transaction_in_ids',
-            'in_agg.quantity_in',
-            'in_agg.remarks_in',
-            'in_agg.date_in',
-            'in_agg.client_in_name',
-            'in_agg.site_in',
-            'in_agg.billboard_type_in',
-            'in_agg.billboard_size_in',
-            'out_agg.transaction_out_ids',
-            'out_agg.quantity_out',
-            'out_agg.remarks_out',
-            'out_agg.date_out',
-            'out_agg.client_out_name',
-            'out_agg.site_out',
-            'out_agg.billboard_type_out',
-            'out_agg.billboard_size_out'
+    // Subquery for IN transactions aggregated per stock_inventory
+    $inSub = DB::table('stock_inventory_transactions as t_in')
+        ->select(
+            't_in.stock_inventory_id',
+            DB::raw("GROUP_CONCAT(t_in.id ORDER BY t_in.id SEPARATOR '|||') as transaction_in_ids"),
+            DB::raw("GROUP_CONCAT(quantity ORDER BY t_in.id SEPARATOR '|||') as quantity_in"),
+            DB::raw("GROUP_CONCAT(COALESCE(remarks, '') ORDER BY t_in.id SEPARATOR '|||') as remarks_in"),
+            DB::raw("GROUP_CONCAT(transaction_date ORDER BY t_in.id SEPARATOR '|||') as date_in"),
+            DB::raw("GROUP_CONCAT(COALESCE(client_companies.id, '') ORDER BY t_in.id SEPARATOR '|||') as client_in_ids"),
+            DB::raw("GROUP_CONCAT(COALESCE(client_companies.name, '') ORDER BY t_in.id SEPARATOR '|||') as client_in_name"),
+            DB::raw("GROUP_CONCAT(COALESCE(CONCAT(billboards.site_number, ' - ', locations.name), '') ORDER BY t_in.id SEPARATOR '|||') as site_in"),
+            DB::raw("GROUP_CONCAT(COALESCE(billboards.type, '') ORDER BY t_in.id SEPARATOR '|||') as billboard_type_in"),
+            DB::raw("GROUP_CONCAT(COALESCE(billboards.size, '') ORDER BY t_in.id SEPARATOR '|||') as billboard_size_in")
         )
-        ->leftJoinSub($inSub, 'in_agg', function($join){
-            $join->on('in_agg.stock_inventory_id', '=', 'stock_inventories.id');
-        })
-        ->leftJoinSub($outSub, 'out_agg', function($join){
-            $join->on('out_agg.stock_inventory_id', '=', 'stock_inventories.id');
-        })
-        ->leftJoin('contractors', 'contractors.id', '=', 'stock_inventories.contractor_id')
-        ->orderBy('stock_inventories.id', 'asc');
+        ->leftJoin('client_companies', 'client_companies.id', '=', 't_in.client_id')
+        ->leftJoin('billboards', 'billboards.id', '=', 't_in.billboard_id')
+        ->leftJoin('locations', 'locations.id', '=', 'billboards.location_id')
+        ->where('t_in.type', 'in')
+        ->groupBy('t_in.stock_inventory_id');
 
-        // 🔎 Apply Filters
-        if ($request->filled('contractor_id')) {
-            $query->where('stock_inventories.contractor_id', $request->contractor_id);
-        }
+    // Subquery for OUT transactions aggregated per stock_inventory
+    $outSub = DB::table('stock_inventory_transactions as t_out')
+        ->select(
+            't_out.stock_inventory_id',
+            DB::raw("GROUP_CONCAT(t_out.id ORDER BY t_out.id SEPARATOR '|||') as transaction_out_ids"),
+            DB::raw("GROUP_CONCAT(quantity ORDER BY t_out.id SEPARATOR '|||') as quantity_out"),
+            DB::raw("GROUP_CONCAT(COALESCE(remarks, '') ORDER BY t_out.id SEPARATOR '|||') as remarks_out"),
+            DB::raw("GROUP_CONCAT(transaction_date ORDER BY t_out.id SEPARATOR '|||') as date_out"),
+            DB::raw("GROUP_CONCAT(COALESCE(client_companies.id, '') ORDER BY t_out.id SEPARATOR '|||') as client_out_ids"),
+            DB::raw("GROUP_CONCAT(COALESCE(client_companies.name, '') ORDER BY t_out.id SEPARATOR '|||') as client_out_name"),
+            DB::raw("GROUP_CONCAT(COALESCE(CONCAT(billboards.site_number, ' - ', locations.name), '') ORDER BY t_out.id SEPARATOR '|||') as site_out"),
+            DB::raw("GROUP_CONCAT(COALESCE(billboards.type, '') ORDER BY t_out.id SEPARATOR '|||') as billboard_type_out"),
+            DB::raw("GROUP_CONCAT(COALESCE(billboards.size, '') ORDER BY t_out.id SEPARATOR '|||') as billboard_size_out")
+        )
+        ->leftJoin('client_companies', 'client_companies.id', '=', 't_out.client_id')
+        ->leftJoin('billboards', 'billboards.id', '=', 't_out.billboard_id')
+        ->leftJoin('locations', 'locations.id', '=', 'billboards.location_id')
+        ->where('t_out.type', 'out')
+        ->groupBy('t_out.stock_inventory_id');
 
-        if ($request->filled('client_id')) {
-            $query->where(function ($q) use ($request) {
-                $q->whereRaw('FIND_IN_SET(?, in_agg.client_in_ids)', [$request->client_id])
-                ->orWhereRaw('FIND_IN_SET(?, out_agg.client_out_ids)', [$request->client_id]);
-            });
-        }
+    // Apply date filter INSIDE subqueries
+    if ($request->filled('start_date') && $request->filled('end_date')) {
+        $startDate = $request->start_date;
+        $endDate   = $request->end_date;
 
-        if (!empty($search)) {
-            $query->where(function ($q) use ($search) {
-                $q->where('contractors.name', 'like', "%{$search}%")
-                ->orWhere('contractors.company_name', 'like', "%{$search}%")
-                ->orWhere('in_agg.client_in_name', 'like', "%{$search}%")
-                ->orWhere('out_agg.client_out_name', 'like', "%{$search}%")
-                ->orWhere('in_agg.site_in', 'like', "%{$search}%")
-                ->orWhere('out_agg.site_out', 'like', "%{$search}%")
-                ->orWhere('in_agg.remarks_in', 'like', "%{$search}%")
-                ->orWhere('out_agg.remarks_out', 'like', "%{$search}%");
-            });
-        }
-
-        $totalData = $query->count();
-
-        $data = $query->skip($start)->take($limit)->get()->flatMap(function($d){
-    // IN data
-    $inIds     = $d->transaction_in_ids ? explode(',', $d->transaction_in_ids) : [];
-    $inDates   = $d->date_in ? explode(',', $d->date_in) : [];
-    $inRemarks = $d->remarks_in ? explode(', ', $d->remarks_in) : [];
-    $inQty     = $d->quantity_in ? explode(',', $d->quantity_in) : [];
-    $inClients = $d->client_in_name ? explode(',', $d->client_in_name) : [];
-    $inSites   = $d->site_in ? explode(',', $d->site_in) : [];
-    $inTypes   = $d->billboard_type_in ? explode(',', $d->billboard_type_in) : [];
-    $inSizes   = $d->billboard_size_in ? explode(',', $d->billboard_size_in) : [];
-
-    // OUT data
-    $outIds     = $d->transaction_out_ids ? explode(',', $d->transaction_out_ids) : [];
-    $outDates   = $d->date_out ? explode(',', $d->date_out) : [];
-    $outRemarks = $d->remarks_out ? explode(', ', $d->remarks_out) : [];
-    $outQty     = $d->quantity_out ? explode(',', $d->quantity_out) : [];
-    $outClients = $d->client_out_name ? explode(',', $d->client_out_name) : [];
-    $outSites   = $d->site_out ? explode(',', $d->site_out) : [];
-    $outTypes   = $d->billboard_type_out ? explode(',', $d->billboard_type_out) : [];
-    $outSizes   = $d->billboard_size_out ? explode(',', $d->billboard_size_out) : [];
-
-    // Calculate rows needed
-    $rowCount = max(count($inDates), count($outDates), 1);
-
-    $rows = [];
-    for ($i = 0; $i < $rowCount; $i++) {
-        $rows[] = [
-            'contractor' => ($d->contractor_company ?? '') . ' (' . ($d->contractor_name ?? '') . ')',
-            'balance_contractor' => $d->balance_contractor ?? 0,
-            'balance_bgoc' => $d->balance_bgoc ?? 0,
-
-            // IN columns
-            'transaction_in_id' => $inIds[$i] ?? '',
-            'date_in' => isset($inDates[$i]) && $inDates[$i] ? Carbon::parse($inDates[$i])->format('d/m/y') : '',
-            'remarks_in' => $inRemarks[$i] ?? '',
-            'quantity_in' => $inQty[$i] ?? '',
-            'client_in_name' => $inClients[$i] ?? '',
-            'site_in' => $inSites[$i] ?? '',
-            'billboard_type_in' => $inTypes[$i] ?? '',
-            'billboard_size_in' => $inSizes[$i] ?? '',
-
-            // OUT columns
-            'transaction_out_id' => $outIds[$i] ?? '',
-            'date_out' => isset($outDates[$i]) && $outDates[$i] ? Carbon::parse($outDates[$i])->format('d/m/y') : '',
-            'remarks_out' => $outRemarks[$i] ?? '',
-            'quantity_out' => $outQty[$i] ?? '',
-            'client_out_name' => $outClients[$i] ?? '',
-            'site_out' => $outSites[$i] ?? '',
-            'billboard_type_out' => $outTypes[$i] ?? '',
-            'billboard_size_out' => $outSizes[$i] ?? '',
-
-            'stock_inventory_id' => $d->id
-        ];
+        $inSub->whereBetween('t_in.transaction_date', [$startDate, $endDate]);
+        $outSub->whereBetween('t_out.transaction_date', [$startDate, $endDate]);
     }
 
-    return $rows;
-});
+    $query = StockInventory::select(
+        'stock_inventories.*',
+        'contractors.name as contractor_name',
+        'contractors.company_name as contractor_company',
+        'contractors.phone as contractor_phone',
+        'in_agg.transaction_in_ids',
+        'in_agg.quantity_in',
+        'in_agg.remarks_in',
+        'in_agg.date_in',
+        'in_agg.client_in_name',
+        'in_agg.site_in',
+        'in_agg.billboard_type_in',
+        'in_agg.billboard_size_in',
+        'out_agg.transaction_out_ids',
+        'out_agg.quantity_out',
+        'out_agg.remarks_out',
+        'out_agg.date_out',
+        'out_agg.client_out_name',
+        'out_agg.site_out',
+        'out_agg.billboard_type_out',
+        'out_agg.billboard_size_out'
+    )
+    ->leftJoinSub($inSub, 'in_agg', function($join){
+        $join->on('in_agg.stock_inventory_id', '=', 'stock_inventories.id');
+    })
+    ->leftJoinSub($outSub, 'out_agg', function($join){
+        $join->on('out_agg.stock_inventory_id', '=', 'stock_inventories.id');
+    })
+    ->leftJoin('contractors', 'contractors.id', '=', 'stock_inventories.contractor_id')
+    // ✅ Only show stock inventories that have at least one transaction
+    // ->where(function($q) {
+    //     $q->whereNotNull('in_agg.transaction_in_ids')
+    //       ->orWhereNotNull('out_agg.transaction_out_ids');
+    // })
+    ->orderBy('stock_inventories.id', 'asc');
 
-
-        logger('list data: ' . $data);
-
-
-        return response()->json([
-            "draw" => intval($request->input('draw')),
-            "recordsTotal" => $totalData,
-            "recordsFiltered" => $totalData,
-            "data" => $data,
-        ]);
+    // Apply Filters
+    if ($request->filled('contractor_id')) {
+        $query->where('stock_inventories.contractor_id', $request->contractor_id);
     }
+
+    if ($request->filled('client_id')) {
+        $query->where(function ($q) use ($request) {
+            $q->whereRaw('FIND_IN_SET(?, in_agg.client_in_ids)', [$request->client_id])
+              ->orWhereRaw('FIND_IN_SET(?, out_agg.client_out_ids)', [$request->client_id]);
+        });
+    }
+
+    if (!empty($search)) {
+        $query->where(function ($q) use ($search) {
+            $q->where('contractors.name', 'like', "%{$search}%")
+              ->orWhere('contractors.company_name', 'like', "%{$search}%")
+              ->orWhere('in_agg.client_in_name', 'like', "%{$search}%")
+              ->orWhere('out_agg.client_out_name', 'like', "%{$search}%")
+              ->orWhere('in_agg.site_in', 'like', "%{$search}%")
+              ->orWhere('out_agg.site_out', 'like', "%{$search}%")
+              ->orWhere('in_agg.remarks_in', 'like', "%{$search}%")
+              ->orWhere('out_agg.remarks_out', 'like', "%{$search}%");
+        });
+    }
+
+    $totalData = $query->count();
+
+    $data = $query->skip($start)->take($limit)->get()->flatMap(function($d){
+        // IN data
+        $inIds     = $d->transaction_in_ids ? explode('|||', $d->transaction_in_ids) : [];
+        $inDates   = $d->date_in ? explode('|||', $d->date_in) : [];
+        $inRemarks = $d->remarks_in ? explode('|||', $d->remarks_in) : [];
+        $inQty     = $d->quantity_in ? explode('|||', $d->quantity_in) : [];
+        $inClients = $d->client_in_name ? explode('|||', $d->client_in_name) : [];
+        $inSites   = $d->site_in ? explode('|||', $d->site_in) : [];
+        $inTypes   = $d->billboard_type_in ? explode('|||', $d->billboard_type_in) : [];
+        $inSizes   = $d->billboard_size_in ? explode('|||', $d->billboard_size_in) : [];
+
+        // OUT data
+        $outIds     = $d->transaction_out_ids ? explode('|||', $d->transaction_out_ids) : [];
+        $outDates   = $d->date_out ? explode('|||', $d->date_out) : [];
+        $outRemarks = $d->remarks_out ? explode('|||', $d->remarks_out) : [];
+        $outQty     = $d->quantity_out ? explode('|||', $d->quantity_out) : [];
+        $outClients = $d->client_out_name ? explode('|||', $d->client_out_name) : [];
+        $outSites   = $d->site_out ? explode('|||', $d->site_out) : [];
+        $outTypes   = $d->billboard_type_out ? explode('|||', $d->billboard_type_out) : [];
+        $outSizes   = $d->billboard_size_out ? explode('|||', $d->billboard_size_out) : [];
+
+        // Calculate rows needed
+        $rowCount = max(count($inIds), count($outIds), 1);
+
+        $rows = [];
+        for ($i = 0; $i < $rowCount; $i++) {
+            $rows[] = [
+                'contractor' => ($d->contractor_company ?? '') . ' (' . ($d->contractor_name ?? '') . ')',
+                'balance_contractor' => $d->balance_contractor ?? 0,
+                'balance_bgoc' => $d->balance_bgoc ?? 0,
+
+                // IN columns
+                'transaction_in_id' => $inIds[$i] ?? '',
+                'date_in' => isset($inDates[$i]) && $inDates[$i] ? Carbon::parse($inDates[$i])->format('d/m/y') : '',
+                'remarks_in' => $inRemarks[$i] ?? '',
+                'quantity_in' => $inQty[$i] ?? '',
+                'client_in_name' => $inClients[$i] ?? '',
+                'site_in' => $inSites[$i] ?? '',
+                'billboard_type_in' => $inTypes[$i] ?? '',
+                'billboard_size_in' => $inSizes[$i] ?? '',
+
+                // OUT columns
+                'transaction_out_id' => $outIds[$i] ?? '',
+                'date_out' => isset($outDates[$i]) && $outDates[$i] ? Carbon::parse($outDates[$i])->format('d/m/y') : '',
+                'remarks_out' => $outRemarks[$i] ?? '',
+                'quantity_out' => $outQty[$i] ?? '',
+                'client_out_name' => $outClients[$i] ?? '',
+                'site_out' => $outSites[$i] ?? '',
+                'billboard_type_out' => $outTypes[$i] ?? '',
+                'billboard_size_out' => $outSizes[$i] ?? '',
+
+                'stock_inventory_id' => $d->id
+            ];
+        }
+
+        return $rows;
+    });
+
+    return response()->json([
+        "draw" => intval($request->input('draw')),
+        "recordsTotal" => $totalData,
+        "recordsFiltered" => $totalData,
+        "data" => $data,
+    ]);
+}
 
     public function editData($stockInventoryId, Request $request)
     {
@@ -390,139 +390,139 @@ class StockInventoryController extends Controller
 
         $validated = $validator->validate();
 
-        try {
-            $userId = Auth::id() ?? 1;
+            try {
+                $userId = Auth::id() ?? 1;
 
-            $inventory = DB::transaction(function () use ($validated, $userId) {
-                $sourceId = (int)$validated['contractor_id'];
+                $inventory = DB::transaction(function () use ($validated, $userId) {
+                    $sourceId = (int)$validated['contractor_id'];
 
-                // Detect contractor-to-contractor transfer in either list
-                $isContractorTransfer =
-                    collect($validated['sites_in'] ?? [])->contains(fn ($r) => ($r['client_type'] ?? null) === 'contractor' && !empty($r['client_id'])) ||
-                    collect($validated['sites_out'] ?? [])->contains(fn ($r) => ($r['client_type'] ?? null) === 'contractor' && !empty($r['client_id']));
+                    // Detect contractor-to-contractor transfer in either list
+                    $isContractorTransfer =
+                        collect($validated['sites_in'] ?? [])->contains(fn ($r) => ($r['client_type'] ?? null) === 'contractor' && !empty($r['client_id'])) ||
+                        collect($validated['sites_out'] ?? [])->contains(fn ($r) => ($r['client_type'] ?? null) === 'contractor' && !empty($r['client_id']));
 
-                $returnInventory = null;
+                    $returnInventory = null;
 
-                if ($isContractorTransfer) {
-                    // Source contractor inventory (e.g., Waqas)
-                    $from = StockInventory::firstOrNew(['contractor_id' => $sourceId]);
-                    $from->balance_contractor = $from->balance_contractor ?? 0;
-                    $from->balance_bgoc       = $from->balance_bgoc ?? 0;
-                    $from->save();
+                    if ($isContractorTransfer) {
+                        // Source contractor inventory (e.g., Waqas)
+                        $from = StockInventory::firstOrNew(['contractor_id' => $sourceId]);
+                        $from->balance_contractor = $from->balance_contractor ?? 0;
+                        $from->balance_bgoc       = $from->balance_bgoc ?? 0;
+                        $from->save();
 
-                    // Helper to move qty from source to a target contractor
-                    $transferToContractor = function (array $row) use (&$from, $validated, $userId, $sourceId, &$returnInventory) {
-                        $qty = (int)($row['qty'] ?? 0);
-                        if ($qty <= 0) return;
+                        // Helper to move qty from source to a target contractor
+                        $transferToContractor = function (array $row) use (&$from, $validated, $userId, $sourceId, &$returnInventory) {
+                            $qty = (int)($row['qty'] ?? 0);
+                            if ($qty <= 0) return;
 
-                        $targetId = (int)($row['client_id'] ?? 0);
-                        if ($targetId <= 0) return;
+                            $targetId = (int)($row['client_id'] ?? 0);
+                            if ($targetId <= 0) return;
 
-                        if ($from->balance_contractor < $qty) {
-                            $contractorName = Contractor::find($sourceId)?->name ?? "Unknown Contractor";
-                            throw new \Exception("Error: Insufficient stock balance for contractor {$contractorName}.");
+                            if ($from->balance_contractor < $qty) {
+                                $contractorName = Contractor::find($sourceId)?->name ?? "Unknown Contractor";
+                                throw new \Exception("Error: Insufficient stock balance for contractor {$contractorName}.");
+                            }
+
+                            // Target contractor inventory (e.g., Arun)
+                            $to = StockInventory::firstOrNew(['contractor_id' => $targetId]);
+                            $to->balance_contractor = $to->balance_contractor ?? 0;
+                            $to->balance_bgoc       = $to->balance_bgoc ?? 0;
+                            $to->save();
+
+                            // 1) Debit source
+                            $from->balance_contractor -= $qty;
+                            $from->save();
+                            $from->transactions()->create([
+                                'billboard_id'       => $row['id'] ?? null,
+                                'from_contractor_id' => $sourceId,
+                                'to_contractor_id'   => $targetId,
+                                'type'               => 'out',
+                                'quantity'           => $qty,
+                                'transaction_date'   => !empty($validated['date_out'])
+                                                        ? Carbon::parse($validated['date_out'])->format('Y-m-d H:i:s')
+                                                        : now(),
+                                'remarks'            => $validated['remarks_out'] ?? ($validated['remarks_in'] ?? null),
+                                'created_by'         => $userId,
+                            ]);
+
+                            // 2) Credit target
+                            $to->balance_contractor += $qty;
+                            $to->save();
+                            $to->transactions()->create([
+                                'billboard_id'       => $row['id'] ?? null,
+                                'from_contractor_id' => $sourceId,
+                                'to_contractor_id'   => $targetId,
+                                'type'               => 'in',
+                                'quantity'           => $qty,
+                                'transaction_date'   => !empty($validated['date_in'])
+                                                        ? Carbon::parse($validated['date_in'])->format('Y-m-d H:i:s')
+                                                        : now(),
+                                'remarks'            => $validated['remarks_in'] ?? ($validated['remarks_out'] ?? null),
+                                'created_by'         => $userId,
+                            ]);
+
+                            // so the response can include the latest target inventory updated
+                            $returnInventory = $to;
+                        };
+
+                        // Process any contractor-target rows in sites_in (your sample uses this)
+                        foreach ($validated['sites_in'] ?? [] as $row) {
+                            if (($row['client_type'] ?? null) === 'contractor' && !empty($row['client_id'])) {
+                                $transferToContractor($row);
+                            }
                         }
 
-                        // Target contractor inventory (e.g., Arun)
-                        $to = StockInventory::firstOrNew(['contractor_id' => $targetId]);
-                        $to->balance_contractor = $to->balance_contractor ?? 0;
-                        $to->balance_bgoc       = $to->balance_bgoc ?? 0;
-                        $to->save();
+                        // Also support contractor-target rows in sites_out (mirrored behavior)
+                        foreach ($validated['sites_out'] ?? [] as $row) {
+                            if (($row['client_type'] ?? null) === 'contractor' && !empty($row['client_id'])) {
+                                $transferToContractor($row);
+                            }
+                        }
 
-                        // 1) Debit source
-                        $from->balance_contractor -= $qty;
-                        $from->save();
-                        $from->transactions()->create([
-                            'billboard_id'       => $row['id'] ?? null,
-                            'from_contractor_id' => $sourceId,
-                            'to_contractor_id'   => $targetId,
-                            'type'               => 'out',
-                            'quantity'           => $qty,
-                            'transaction_date'   => !empty($validated['date_out'])
-                                                    ? Carbon::parse($validated['date_out'])->format('Y-m-d H:i:s')
-                                                    : now(),
-                            'remarks'            => $validated['remarks_out'] ?? ($validated['remarks_in'] ?? null),
-                            'created_by'         => $userId,
-                        ]);
+                        // Return the last updated target inventory so UI can show recipient’s IN record
+                        return $returnInventory ?? $from;
+                    }
 
-                        // 2) Credit target
-                        $to->balance_contractor += $qty;
-                        $to->save();
-                        $to->transactions()->create([
-                            'billboard_id'       => $row['id'] ?? null,
+                    // -------------------------
+                    // Default (BGOC) mode below
+                    // -------------------------
+                    $inventory = StockInventory::firstOrNew(['contractor_id' => $sourceId]);
+                    $inventory->balance_contractor = $inventory->balance_contractor ?? 0;
+                    $inventory->balance_bgoc       = $inventory->balance_bgoc ?? 0;
+                    $inventory->save();
+
+                    // IN (from BGOC/client to contractor)
+                    foreach ($validated['sites_in'] ?? [] as $site) {
+                        if (($site['client_type'] ?? 'client') === 'contractor') {
+                            // already handled in transfer-block (won't reach here),
+                            // but keep guard for safety.
+                            continue;
+                        }
+
+                        $qty = (int)($site['qty'] ?? 0);
+                        if ($qty <= 0) continue;
+
+                        $inventory->balance_contractor += $qty;
+
+                        if (($inventory->balance_bgoc ?? 0) > 0) {
+                            $inventory->balance_bgoc -= $qty;
+                            if ($inventory->balance_bgoc < 0) $inventory->balance_bgoc = 0;
+                        }
+                        $inventory->save();
+
+                        $inventory->transactions()->create([
+                            'billboard_id'       => $site['id'] ?? null,
+                            'client_id'          => $site['client_id'] ?? null,
                             'from_contractor_id' => $sourceId,
-                            'to_contractor_id'   => $targetId,
                             'type'               => 'in',
                             'quantity'           => $qty,
                             'transaction_date'   => !empty($validated['date_in'])
                                                     ? Carbon::parse($validated['date_in'])->format('Y-m-d H:i:s')
                                                     : now(),
-                            'remarks'            => $validated['remarks_in'] ?? ($validated['remarks_out'] ?? null),
+                            'remarks'            => $validated['remarks_in'] ?? null,
                             'created_by'         => $userId,
                         ]);
-
-                        // so the response can include the latest target inventory updated
-                        $returnInventory = $to;
-                    };
-
-                    // Process any contractor-target rows in sites_in (your sample uses this)
-                    foreach ($validated['sites_in'] ?? [] as $row) {
-                        if (($row['client_type'] ?? null) === 'contractor' && !empty($row['client_id'])) {
-                            $transferToContractor($row);
-                        }
                     }
-
-                    // Also support contractor-target rows in sites_out (mirrored behavior)
-                    foreach ($validated['sites_out'] ?? [] as $row) {
-                        if (($row['client_type'] ?? null) === 'contractor' && !empty($row['client_id'])) {
-                            $transferToContractor($row);
-                        }
-                    }
-
-                    // Return the last updated target inventory so UI can show recipient’s IN record
-                    return $returnInventory ?? $from;
-                }
-
-                // -------------------------
-                // Default (BGOC) mode below
-                // -------------------------
-                $inventory = StockInventory::firstOrNew(['contractor_id' => $sourceId]);
-                $inventory->balance_contractor = $inventory->balance_contractor ?? 0;
-                $inventory->balance_bgoc       = $inventory->balance_bgoc ?? 0;
-                $inventory->save();
-
-                // IN (from BGOC/client to contractor)
-                foreach ($validated['sites_in'] ?? [] as $site) {
-                    if (($site['client_type'] ?? 'client') === 'contractor') {
-                        // already handled in transfer-block (won't reach here),
-                        // but keep guard for safety.
-                        continue;
-                    }
-
-                    $qty = (int)($site['qty'] ?? 0);
-                    if ($qty <= 0) continue;
-
-                    $inventory->balance_contractor += $qty;
-
-                    if (($inventory->balance_bgoc ?? 0) > 0) {
-                        $inventory->balance_bgoc -= $qty;
-                        if ($inventory->balance_bgoc < 0) $inventory->balance_bgoc = 0;
-                    }
-                    $inventory->save();
-
-                    $inventory->transactions()->create([
-                        'billboard_id'       => $site['id'] ?? null,
-                        'client_id'          => $site['client_id'] ?? null,
-                        'from_contractor_id' => $sourceId,
-                        'type'               => 'in',
-                        'quantity'           => $qty,
-                        'transaction_date'   => !empty($validated['date_in'])
-                                                ? Carbon::parse($validated['date_in'])->format('Y-m-d H:i:s')
-                                                : now(),
-                        'remarks'            => $validated['remarks_in'] ?? null,
-                        'created_by'         => $userId,
-                    ]);
-                }
 
                 // OUT (to BGOC/client)
                 foreach ($validated['sites_out'] ?? [] as $site) {

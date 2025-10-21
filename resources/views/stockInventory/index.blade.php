@@ -402,10 +402,14 @@
 
         <form id="addStockInventoryForm">
             <div class="mb-6">
-    <label class="small-caps block mb-2">Contractor</label>
-    <input type="text" class="input-elegant w-full sm:w-64" id="editContractorName" readonly>
-    <input type="hidden" id="editContractorId">
-</div>
+                <label class="small-caps block mb-2">Contractor</label>
+                <select class="select-elegant w-full sm:w-64" id="inputContractorName" required>
+                    <option selected value="">Select an option</option>
+                    @foreach ($contractors as $contractor)
+                        <option value="{{ $contractor->id }}">{{ $contractor->name }}</option>
+                    @endforeach
+                </select>
+            </div>
 
             <div class="grid grid-cols-2 gap-8">
 
@@ -1052,10 +1056,10 @@ $(document).ready(function() {
 
         let formData = {
             _token: $('meta[name="csrf-token"]').attr('content'),
-    stock_inventory_id: stockInventoryId,
-    transaction_in_id: transactionInId,
-    transaction_out_id: transactionOutId,
-    contractor_id: $('#editContractorId').val(),
+            stock_inventory_id: stockInventoryId,
+            transaction_in_id: transactionInId,
+            transaction_out_id: transactionOutId,
+            contractor_id: $('#editContractorName').val(),
             date_in: $('#editDateIn').val(),
             date_out: $('#editDateOut').val(),
             remarks_in: $('#editRemarksIn').val(),
@@ -1104,291 +1108,274 @@ $(document).ready(function() {
     }
 
     // ADD INVENTORY FUNCTION
-    function inventoryAddButton() {
-        let contractor_id = $("#inputContractorName").val();
-        let date_in = $("#inputDateIn").val();
-        let date_out = $("#inputDateOut").val();
-        let remarks_in = $("#inputRemarksIn").val();
-        let remarks_out = $("#inputRemarksOut").val();
-        let balance_contractor = $("#balContractor").val();
-        let balance_bgoc = $("#balBgoc").val();
+function inventoryAddButton() {
+    let contractor_id = $("#inputContractorName").val();
+    let date_in = $("#inputDateIn").val();
+    let date_out = $("#inputDateOut").val();
+    let remarks_in = $("#inputRemarksIn").val();
+    let remarks_out = $("#inputRemarksOut").val();
+    let balance_contractor = $("#balContractor").val();
+    let balance_bgoc = $("#balBgoc").val();
 
-        let sites_in = [];
-        $("#siteInContainer .siteIn").each(function () {
-            let siteId = $(this).find("select[name='sites_in[]']").val();
-            let rawVal = $(this).find("select[name='clients_in[]']").val();
-            if (!rawVal) return;
+    let sites_in = [];
+    $("#siteInContainer .siteIn").each(function () {
+        let siteId = $(this).find("select[name='sites_in[]']").val();
+        let rawVal = $(this).find("select[name='clients_in[]']").val();
+        if (!rawVal) return;
 
-            let clientType = null, clientId = null;
-            if (rawVal.startsWith("client-")) {
-                clientType = "client";
-                clientId = rawVal.replace("client-", "");
-            } else if (rawVal.startsWith("contractor-")) {
-                clientType = "contractor";
-                clientId = rawVal.replace("contractor-", "");
-            }
+        let clientType = null, clientId = null;
+        if (rawVal.startsWith("client-")) {
+            clientType = "client";
+            clientId = rawVal.replace("client-", "");
+        } else if (rawVal.startsWith("contractor-")) {
+            clientType = "contractor";
+            clientId = rawVal.replace("contractor-", "");
+        }
 
-            sites_in.push({
-                id: siteId || null,
-                client_type: clientType || null,
-                client_id: clientId || null,
-                type: $(this).find("input[name='types_in[]']").val(),
-                size: $(this).find("input[name='sizes_in[]']").val(),
-                qty: parseInt($(this).find("input[name='qtys_in[]']").val()) || 0
-            });
+        sites_in.push({
+            id: siteId || null,
+            client_type: clientType || null,
+            client_id: clientId || null,
+            type: $(this).find("input[name='types_in[]']").val(),
+            size: $(this).find("input[name='sizes_in[]']").val(),
+            qty: parseInt($(this).find("input[name='qtys_in[]']").val()) || 0
         });
+    });
 
-        let sites_out = [];
-        $("#siteOutContainer .siteOut").each(function () {
-            let siteId = $(this).find("select[name='sites_out[]']").val();
-            let rawVal = $(this).find("select[name='clients_out[]']").val();
-            if (!rawVal) return;
+    let sites_out = [];
+    $("#siteOutContainer .siteOut").each(function () {
+        let siteId = $(this).find("select[name='sites_out[]']").val();
+        let rawVal = $(this).find("select[name='clients_out[]']").val();
+        if (!rawVal) return;
 
-            let clientType = null, clientId = null;
-            if (rawVal.startsWith("client-")) {
-                clientType = "client";
-                clientId = rawVal.replace("client-", "");
-            } else if (rawVal.startsWith("contractor-")) {
-                clientType = "contractor";
-                clientId = rawVal.replace("contractor-", "");
-            }
+        let clientType = null, clientId = null;
+        if (rawVal.startsWith("client-")) {
+            clientType = "client";
+            clientId = rawVal.replace("client-", "");
+        } else if (rawVal.startsWith("contractor-")) {
+            clientType = "contractor";
+            clientId = rawVal.replace("contractor-", "");
+        }
 
-            sites_out.push({
-                id: siteId || null,
-                client_type: clientType || null,
-                client_id: clientId || null,
-                type: $(this).find("input[name='types_out[]']").val(),
-                size: $(this).find("input[name='sizes_out[]']").val(),
-                qty: parseInt($(this).find("input[name='qtys_out[]']").val()) || 0
-            });
+        sites_out.push({
+            id: siteId || null,
+            client_type: clientType || null,
+            client_id: clientId || null,
+            type: $(this).find("input[name='types_out[]']").val(),
+            size: $(this).find("input[name='sizes_out[]']").val(),
+            qty: parseInt($(this).find("input[name='qtys_out[]']").val()) || 0
         });
+    });
 
-        $.ajax({
-            type: 'POST',
-            url: "{{ route('stockInventory.create') }}",
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
-            contentType: 'application/json; charset=utf-8',
-            dataType: 'json',
-            data: JSON.stringify({
-                contractor_id: contractor_id,
-                date_in: date_in,
-                date_out: date_out,
-                remarks_in: remarks_in,
-                remarks_out: remarks_out,
-                sites_in: sites_in,
-                sites_out: sites_out,
-                balance_contractor: balance_contractor,
-                balance_bgoc: balance_bgoc
-            }),
-           success: function(response) {
-    closeAltEditorModal("#inventoryAddModal");
-    window.showSubmitToast("Successfully added.", "#91C714");
+    // 🔍 DEBUG LOGS - ADD THIS SECTION
+    console.log('=== FORM DATA BEFORE SUBMIT ===');
+    console.log('Contractor ID:', contractor_id);
+    console.log('Date In:', date_in);
+    console.log('Date Out:', date_out);
+    console.log('Sites IN:', sites_in);
+    console.log('Sites OUT:', sites_out);
+    console.log('Site In Container Count:', $("#siteInContainer .siteIn").length);
+    console.log('Site Out Container Count:', $("#siteOutContainer .siteOut").length);
+    console.log('================================');
 
-    // Clear form
-    $('#addStockInventoryForm')[0].reset();
-    $('#inventoryAddModal select').val('').trigger('change');
-    $('#siteInContainer').empty();
-    $('#siteOutContainer').empty();
-    $('#balContractor').val('');
-    $('#balBgoc').val('');
-
-    // Re-add initial site rows
-    siteInAdd();
-    siteOutAdd();
-
-    // Force complete reload with callback
-    var table = $('#inventory_table').DataTable();
-    table.ajax.reload(function() {
-        console.log('Table reloaded successfully');
-    }, true); // true = reset paging
-},
-            error: function(xhr, status, error) {
-                console.error("AJAX Error:", xhr.responseText);
-
-                let message = "An error occurred while saving data.";
-                try {
-                    const response = JSON.parse(xhr.responseText);
-                    if (response.error) message = response.error;
-                } catch (e) {
-                    message = xhr.responseText || message;
-                }
-
-                window.showSubmitToast("Error: " + message, "#D32929");
-            }
-        });
-    }
-
-    // DATATABLE INITIALIZATION
-    $('#inventory_table').DataTable({
-        processing: true,
-        serverSide: true,
-        ajax: {
-            url: "{{ route('stockInventory.list') }}",
-            type: "POST",
-            cache: false,
-            data: function (d) {
-                d._token = "{{ csrf_token() }}";
-                d.contractor_id = $('#filterStockContractor').val();
-                d.client_id = $('#filterStockClient').val();
-                d.start_date = $('#filterStockStartDate').val();
-                d.end_date = $('#filterStockEndDate').val();
-                return d;
-            },
-            dataSrc: function(json) {
-                let newData = [];
-                json.data.forEach(row => {
-                    let inClients = row.client_in_name ? row.client_in_name.split(',') : [];
-                    let inSites = row.site_in ? row.site_in.split(',') : [];
-                    let inDates = row.date_in ? row.date_in.split(',') : [];
-                    let inRemarks = row.remarks_in ? row.remarks_in.split(',') : [];
-                    let inQty = row.quantity_in ? row.quantity_in.split(',') : [];
-
-                    let outClients = row.client_out_name ? row.client_out_name.split(',') : [];
-                    let outSites = row.site_out ? row.site_out.split(',') : [];
-                    let outDates = row.date_out ? row.date_out.split(',') : [];
-                    let outRemarks = row.remarks_out ? row.remarks_out.split(',') : [];
-                    let outQty = row.quantity_out ? row.quantity_out.split(',') : [];
-
-                    let rowCount = Math.max(inDates.length, outDates.length, 1);
-
-                    for (let i = 0; i < rowCount; i++) {
-                        newData.push({
-                            contractor: row.contractor,
-                            balance_contractor: row.balance_contractor,
-                            client_in_name: inClients[i] || '',
-                            site_in: inSites[i] || '',
-                            date_in: inDates[i] || '',
-                            remarks_in: inRemarks[i] || '',
-                            quantity_in: inQty[i] || '',
-                            billboard_type_in: row.billboard_type_in || '',
-                            billboard_size_in: row.billboard_size_in || '',
-                            client_out_name: outClients[i] || '',
-                            site_out: outSites[i] || '',
-                            date_out: outDates[i] || '',
-                            remarks_out: outRemarks[i] || '',
-                            quantity_out: outQty[i] || '',
-                            billboard_type_out: row.billboard_type_out || '',
-                            billboard_size_out: row.billboard_size_out || '',
-                            stock_inventory_id: row.stock_inventory_id,
-                            transaction_in_id: row.transaction_in_id,
-                            transaction_out_id: row.transaction_out_id,
-                            contractor_id: row.contractor_id,
-                            client_in_id: row.client_in_id,
-                            client_out_id: row.client_out_id,
-                            site_in_id: row.site_in_id,
-                            site_out_id: row.site_out_id,
-                            type_in: row.type_in,
-                            size_in: row.size_in,
-                            type_out: row.type_out,
-                            size_out: row.size_out
-                        });
-                    }
-                });
-                return newData;
-            }
+    $.ajax({
+        type: 'POST',
+        url: "{{ route('stockInventory.create') }}",
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
         },
-        columns: [
-            {
-                data: null,
-                name: 'no',
-                orderable: false,
-                searchable: false,
-                render: function (data, type, row, meta) {
-                    return meta.row + meta.settings._iDisplayStart + 1;
-                }
-            },
-            { data: 'contractor', name: 'contractors.name' },
-            { data: 'client_in_name', name: 'client_companies.name' },
-            { data: 'site_in', name: 'site_in.name' },
-            { data: 'billboard_type_in', name: 'billboards.type' },
-            { data: 'billboard_size_in', name: 'billboards.size' },
-            { data: 'quantity_in', name: 'transactions_in.quantity', className: 'numeric-col' },
-            { data: 'remarks_in', name: 'transactions_in.remarks' },
-            { data: 'date_in', name: 'transactions_in.transaction_date' },
-            { data: 'balance_contractor', name: 'stock_inventories.balance_contractor', className: 'numeric-col' },
-            { data: 'date_out', name: 'transactions_out.transaction_date' },
-            { data: 'quantity_out', name: 'transactions_out.quantity', className: 'numeric-col' },
-            { data: 'billboard_size_out', name: 'billboards.size' },
-            { data: 'billboard_type_out', name: 'billboards.type' },
-            { data: 'site_out', name: 'site_out.name' },
-            { data: 'client_out_name', name: 'client_companies.name' },
-            { data: 'remarks_out', name: 'transactions_out.remarks' },
-            {
-                data: null,
-                orderable: false,
-                render: function(data, type, row) {
-                    let transId = row.transaction_in_id || row.transaction_out_id;
-                    let typeLabel = row.transaction_in_id ? 'IN' : 'OUT';
+        contentType: 'application/json; charset=utf-8',
+        dataType: 'json',
+        data: JSON.stringify({
+            contractor_id: contractor_id,
+            date_in: date_in,
+            date_out: date_out,
+            remarks_in: remarks_in,
+            remarks_out: remarks_out,
+            sites_in: sites_in,
+            sites_out: sites_out,
+            balance_contractor: balance_contractor,
+            balance_bgoc: balance_bgoc
+        }),
+        success: function(response) {
+            console.log('✅ SUCCESS RESPONSE:', response); // 🔍 ADD THIS
+            closeAltEditorModal("#inventoryAddModal");
+            window.showSubmitToast("Successfully added.", "#91C714");
 
-                    // Only show buttons if there's a valid transaction ID
-                    if (!transId || transId === '' || transId === 'null') {
-                        return '<div class="flex items-center justify-center">—</div>';
-                    }
+            $('#inventoryAddModal input[type="text"], #inventoryAddModal input[type="number"], #inventoryAddModal input[type="date"]').val('');
+            $('#inventoryAddModal select').val('').trigger('change');
+            $('#siteInContainer').empty();
+            $('#siteOutContainer').empty();
 
-                    return `
-                        <div class="flex items-center justify-center space-x-3">
-                            <a href="javascript:;" class="btn-primary text-xs px-3 py-1 edit-inventory"
-                            data-transaction-in-id="${row.transaction_in_id || ''}"
-                            data-transaction-out-id="${row.transaction_out_id || ''}"
-                            data-stock-inventory-id="${row.stock_inventory_id}">
-                            Edit
-                            </a>
-                            <a href="javascript:;" class="text-red-600 hover:text-red-800 delete-inventory"
-                                data-transaction-id="${transId}"
-                                data-transaction-type="${typeLabel}"
-                                id="delete-${transId}"
-                                title="Delete ${typeLabel} Transaction">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <polyline points="3 6 5 6 21 6"></polyline>
-                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                                    <line x1="10" y1="11" x2="10" y2="17"></line>
-                                    <line x1="14" y1="11" x2="14" y2="17"></line>
-                                </svg>
-                            </a>
-                        </div>
-                    `;
-                }
-            },
-        ],
-        order: [[0, 'asc']],
-        drawCallback: function(settings) {
-            let api = this.api();
-            let rows = api.rows({ page: 'current' }).nodes();
-            let lastStockId = null;
-            let groupStart = null;
+            // Re-add initial site rows
+            siteInAdd();
+            siteOutAdd();
 
-            api.rows({ page: 'current' }).every(function(rowIdx) {
-                let data = this.data();
-                let stockId = data.stock_inventory_id;
+            $('#inventory_table').DataTable().ajax.reload(null, false);
+        },
+        error: function(xhr, status, error) {
+            console.error("❌ AJAX Error:", xhr.responseText); // Already here
 
-                if (stockId !== lastStockId) {
-                    if (groupStart !== null) {
-                        let rowCount = rowIdx - groupStart;
-                        $('td:eq(1)', rows[groupStart]).attr('rowspan', rowCount);
-                        $('td:eq(9)', rows[groupStart]).attr('rowspan', rowCount);
-                        for (let j = groupStart + 1; j < rowIdx; j++) {
-                            $('td:eq(1)', rows[j]).hide();
-                            $('td:eq(9)', rows[j]).hide();
-                        }
-                    }
-                    groupStart = rowIdx;
-                    lastStockId = stockId;
-                }
-            });
-
-            if (groupStart !== null) {
-                let rowCount = rows.length - groupStart;
-                $('td:eq(1)', rows[groupStart]).attr('rowspan', rowCount);
-                $('td:eq(9)', rows[groupStart]).attr('rowspan', rowCount);
-                for (let j = groupStart + 1; j < rows.length; j++) {
-                    $('td:eq(1)', rows[j]).hide();
-                    $('td:eq(9)', rows[j]).hide();
-                }
+            let message = "An error occurred while saving data.";
+            try {
+                const response = JSON.parse(xhr.responseText);
+                if (response.error) message = response.error;
+            } catch (e) {
+                message = xhr.responseText || message;
             }
+
+            window.showSubmitToast("Error: " + message, "#D32929");
         }
     });
+}
+
+    // DATATABLE INITIALIZATION
+    // 🔍 DEBUG - Check backend response first
+$.ajax({
+    url: "{{ route('stockInventory.list') }}",
+    type: "POST",
+    data: {
+        _token: "{{ csrf_token() }}",
+        draw: 1,
+        start: 0,
+        length: 10
+    },
+    success: function(response) {
+        console.log('=== BACKEND RESPONSE ===');
+        console.log('Total records:', response.recordsTotal);
+        console.log('Data array length:', response.data.length);
+        console.log('First item:', response.data[0]);
+        console.log('Full data:', response.data);
+        console.log('========================');
+    },
+    error: function(xhr) {
+        console.error('AJAX Error:', xhr.responseText);
+    }
+});
+
+// DataTable initialization
+$('#inventory_table').DataTable({
+    processing: true,
+    serverSide: true,
+    ajax: {
+        url: "{{ route('stockInventory.list') }}",
+        type: "POST",
+        data: function (d) {
+            d._token = "{{ csrf_token() }}";
+            d.contractor_id = $('#filterStockContractor').val();
+            d.client_id = $('#filterStockClient').val();
+            d.start_date = $('#filterStockStartDate').val();
+            d.end_date = $('#filterStockEndDate').val();
+            return d;
+        },
+        dataSrc: function(json) {
+            console.log('=== DATATABLE RECEIVED ===');
+            console.log('Records:', json.recordsTotal);
+            console.log('Data items:', json.data.length);
+            console.log('First row:', json.data[0]);
+            console.log('==========================');
+            return json.data;
+        }
+    },
+    columns: [
+        {
+            data: null,
+            name: 'no',
+            orderable: false,
+            searchable: false,
+            render: function (data, type, row, meta) {
+                return meta.row + meta.settings._iDisplayStart + 1;
+            }
+        },
+        { data: 'contractor', name: 'contractors.name' },
+        { data: 'client_in_name', name: 'client_companies.name' },
+        { data: 'site_in', name: 'site_in.name' },
+        { data: 'billboard_type_in', name: 'billboards.type' },
+        { data: 'billboard_size_in', name: 'billboards.size' },
+        { data: 'quantity_in', name: 'transactions_in.quantity', className: 'numeric-col' },
+        { data: 'remarks_in', name: 'transactions_in.remarks' },
+        { data: 'date_in', name: 'transactions_in.transaction_date' },
+        { data: 'balance_contractor', name: 'stock_inventories.balance_contractor', className: 'numeric-col' },
+        { data: 'date_out', name: 'transactions_out.transaction_date' },
+        { data: 'quantity_out', name: 'transactions_out.quantity', className: 'numeric-col' },
+        { data: 'billboard_size_out', name: 'billboards.size' },
+        { data: 'billboard_type_out', name: 'billboards.type' },
+        { data: 'site_out', name: 'site_out.name' },
+        { data: 'client_out_name', name: 'client_companies.name' },
+        { data: 'remarks_out', name: 'transactions_out.remarks' },
+        {
+            data: null,
+            orderable: false,
+            render: function(data, type, row) {
+                let transId = row.transaction_in_id || row.transaction_out_id;
+                let typeLabel = row.transaction_in_id ? 'IN' : 'OUT';
+
+                if (!transId || transId === '' || transId === 'null') {
+                    return '<div class="flex items-center justify-center">—</div>';
+                }
+
+                return `
+                    <div class="flex items-center justify-center space-x-3">
+                        <a href="javascript:;" class="btn-primary text-xs px-3 py-1 edit-inventory"
+                        data-transaction-in-id="${row.transaction_in_id || ''}"
+                        data-transaction-out-id="${row.transaction_out_id || ''}"
+                        data-stock-inventory-id="${row.stock_inventory_id}">
+                        Edit
+                        </a>
+                        <a href="javascript:;" class="text-red-600 hover:text-red-800 delete-inventory"
+                            data-transaction-id="${transId}"
+                            data-transaction-type="${typeLabel}"
+                            id="delete-${transId}"
+                            title="Delete ${typeLabel} Transaction">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                <line x1="10" y1="11" x2="10" y2="17"></line>
+                                <line x1="14" y1="11" x2="14" y2="17"></line>
+                            </svg>
+                        </a>
+                    </div>
+                `;
+            }
+        },
+    ],
+    order: [[0, 'asc']],
+    drawCallback: function(settings) {
+        let api = this.api();
+        let rows = api.rows({ page: 'current' }).nodes();
+        let lastStockId = null;
+        let groupStart = null;
+
+        api.rows({ page: 'current' }).every(function(rowIdx) {
+            let data = this.data();
+            let stockId = data.stock_inventory_id;
+
+            if (stockId !== lastStockId) {
+                if (groupStart !== null) {
+                    let rowCount = rowIdx - groupStart;
+                    $('td:eq(1)', rows[groupStart]).attr('rowspan', rowCount);
+                    $('td:eq(9)', rows[groupStart]).attr('rowspan', rowCount);
+                    for (let j = groupStart + 1; j < rowIdx; j++) {
+                        $('td:eq(1)', rows[j]).hide();
+                        $('td:eq(9)', rows[j]).hide();
+                    }
+                }
+                groupStart = rowIdx;
+                lastStockId = stockId;
+            }
+        });
+
+        if (groupStart !== null) {
+            let rowCount = rows.length - groupStart;
+            $('td:eq(1)', rows[groupStart]).attr('rowspan', rowCount);
+            $('td:eq(9)', rows[groupStart]).attr('rowspan', rowCount);
+            for (let j = groupStart + 1; j < rows.length; j++) {
+                $('td:eq(1)', rows[j]).hide();
+                $('td:eq(9)', rows[j]).hide();
+            }
+        }
+    }
+});
 
     // EDIT INVENTORY CLICK
     $(document).on('click', '.edit-inventory', function () {
@@ -1397,16 +1384,15 @@ $(document).ready(function() {
         transactionOutId = $(this).data('transaction-out-id') || null;
 
         $.get(`/inventory/${stockInventoryId}/edit`, {
-    transaction_in_id: transactionInId,
-    transaction_out_id: transactionOutId
-}, function (data) {
-    let source = data.in || data.out;
-    if (source) {
-        $('#editContractorName').val(source.contractor_name || '');
-        $('#editContractorId').val(source.contractor_id || '');
-        $('#editBalanceContractor').val(source.balance_contractor || 0);
-        $('#editBalanceBgoc').val(source.balance_bgoc || 0);
-    }
+            transaction_in_id: transactionInId,
+            transaction_out_id: transactionOutId
+        }, function (data) {
+            let source = data.in || data.out;
+            if (source) {
+                $('#editContractorName').val(source.contractor_name || '');
+                $('#editBalanceContractor').val(source.balance_contractor || 0);
+                $('#editBalanceBgoc').val(source.balance_bgoc || 0);
+            }
 
             if (data.in) {
                 $('#editDateIn').val(data.in.transaction_date || '');
