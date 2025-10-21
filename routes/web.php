@@ -449,7 +449,8 @@ Route::group(['middleware' => ['auth']], function () {
 
 
 
-
+Route::patch('/outdoor-items/{item}/status', [MasterFileController::class, 'updateOutdoorItemStatus'])
+    ->name('outdoor-items.status');
 
 
 

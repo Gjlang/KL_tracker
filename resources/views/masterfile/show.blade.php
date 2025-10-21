@@ -133,7 +133,8 @@
                     <!-- Center: Entity Title & Meta -->
                     <div class="text-center">
                         <h1 class="text-2xl font-serif text-[#1C1E26] font-semibold">
-                            {{ $file->clientCompany->name ?: '' }}
+                            {{ optional($file->clientCompany)->name ?? 'No Company' }}
+
                         </h1>
                         <p class="text-sm text-neutral-500 mt-1">
                             ID: #{{ $file->id }} • Created: {{ $file->created_at ? $file->created_at->format('M d, Y') : '' }}
@@ -421,52 +422,141 @@
                             <p>No outdoor placements added yet.</p>
                         </div>
                     @else
-                        <table class="w-full text-sm">
-                            <thead class="bg-emerald-50/50">
-                                <tr class="text-left border-b border-neutral-200">
-                                    <th class="px-4 py-3 font-medium text-neutral-600">#</th>
-                                    <th class="px-4 py-3 font-medium text-neutral-600">Sub Product</th>
-                                    <th class="px-4 py-3 font-medium text-neutral-600">Site Number</th>
-                                    <th class="px-4 py-3 font-medium text-neutral-600">Size</th>
-                                    <th class="px-4 py-3 font-medium text-neutral-600">Start</th>
-                                    <th class="px-4 py-3 font-medium text-neutral-600">End</th>
-                                    <th class="px-4 py-3 font-medium text-neutral-600">Area</th>
-                                    <th class="px-4 py-3 font-medium text-neutral-600">Coordinates</th>
-                                    <th class="px-4 py-3 font-medium text-neutral-600 text-right">Qty</th>
-                                    <th class="px-4 py-3 font-medium text-neutral-600">Remarks</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-neutral-100">
-                                @foreach($file->outdoorItems as $i => $item)
-                                    <tr class="hover:bg-neutral-50/50 transition-colors duration-150">
-                                        <td class="px-4 py-3 text-neutral-600 tabular">{{ $i + 1 }}</td>
-                                        <td class="px-4 py-3 text-neutral-900">{{ $item->sub_product ?: '' }}</td>
-                                        <td class="px-4 py-3 text-neutral-900">{{ $item->site ?: '' }}</td>
-                                        <td class="px-4 py-3 text-neutral-900">{{ $item->size ?: '' }}</td>
-                                        <td class="px-4 py-3 text-neutral-900">
-                                            {{ $item->start_date?->format('d/m/Y') ?? '' }}
-                                        </td>
-                                        <td class="px-4 py-3 text-neutral-900">
-                                            {{ $item->end_date?->format('d/m/Y') ?? '' }}
-                                        </td>
-                                        <td class="px-4 py-3 text-neutral-900">{{ $item->district_council ?: '' }}</td>
-                                        <td class="px-4 py-3">
-                                            @if($item->coordinates)
-                                                <a href="https://maps.google.com/?q={{ urlencode($item->coordinates) }}"
-                                                   target="_blank"
-                                                   class="text-[#4bbbed] hover:underline focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:ring-opacity-50 rounded">
-                                                    {{ $item->coordinates }}
-                                                </a>
-                                            @else
-                                                <span class="text-neutral-400"></span>
-                                            @endif
-                                        </td>
-                                        <td class="px-4 py-3 text-right tabular text-neutral-900">{{ $item->qty ?? 1 }}</td>
-                                        <td class="px-4 py-3 text-neutral-900">{{ $item->remarks ?: '' }}</td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                       <table class="w-full text-sm">
+    <thead class="bg-emerald-50/50">
+        <tr class="text-left border-b border-neutral-200">
+            <th class="px-4 py-3 font-medium text-neutral-600">#</th>
+            <th class="px-4 py-3 font-medium text-neutral-600">Sub Product</th>
+            <th class="px-4 py-3 font-medium text-neutral-600">Site Number</th>
+            <th class="px-4 py-3 font-medium text-neutral-600">Location</th>
+            <th class="px-4 py-3 font-medium text-neutral-600">Area</th>
+            <th class="px-4 py-3 font-medium text-neutral-600">Size</th>
+            <th class="px-4 py-3 font-medium text-neutral-600">Start Date</th>
+            <th class="px-4 py-3 font-medium text-neutral-600">End Date</th>
+            <th class="px-4 py-3 font-medium text-neutral-600">Coordinates</th>
+            <th class="px-4 py-3 font-medium text-neutral-600 text-right">Qty</th>
+            <th class="px-4 py-3 font-medium text-neutral-600">Status</th>
+            <th class="px-4 py-3 font-medium text-neutral-600">Remarks</th>
+        </tr>
+    </thead>
+    <tbody class="divide-y divide-neutral-100">
+        @foreach($file->outdoorItems as $i => $item)
+            @php
+                $bb  = $item->billboard;
+                $loc = $bb?->location;
+
+                // Build "Area": e.g., "KL – Bukit Bintang"
+                // Prefer council/district relations if available; else fallback to item->district_council or loc->name.
+                $councilName  = $loc?->council?->name ?? null;   // requires Location::council()
+                $districtName = $loc?->district?->name ?? null;  // requires Location::district()
+
+                $areaLabel = null;
+                if ($councilName || $districtName) {
+                    $areaLabel = trim(($councilName ? $councilName : '') . ($districtName ? ' – '.$districtName : ''), ' –');
+                } else {
+                    // legacy fallback (what you're showing now like "2|13")
+                    $areaLabel = $item->district_council ?: ($loc?->name ?? '');
+                }
+
+                // Location: use location.name (specific site locality name)
+                $locationLabel = $loc?->name ?? '';
+
+                // Coordinates: prefer billboard lat/lng; else item->coordinates
+                $lat  = $bb?->gps_latitude;
+                $lng  = $bb?->gps_longitude;
+                $mapQ = $lat && $lng ? ($lat.','.$lng) : ($item->coordinates ?: null);
+
+                // Size: prefer billboard.size; fallback to item->size
+                $sizeLabel = $bb?->size ?? ($item->size ?: '');
+
+                // Site Number: from billboard (fallback to item->site)
+                $siteNumber = $bb?->site_number ?? ($item->site ?: '');
+
+                // Status: from billboard.status (fallback to outdoor_items.status if you later add it)
+                $statusLabel = $bb?->status ?? ($item->status ?? '');
+            @endphp
+
+            <tr class="hover:bg-neutral-50/50 transition-colors duration-150">
+                <td class="px-4 py-3 text-neutral-600 tabular">{{ $i + 1 }}</td>
+                <td class="px-4 py-3 text-neutral-900">{{ $item->sub_product ?: '' }}</td>
+                <td class="px-4 py-3 text-neutral-900">{{ $siteNumber }}</td>
+
+                {{-- Location (location.name) --}}
+                <td class="px-4 py-3 text-neutral-900">{{ $locationLabel }}</td>
+
+                {{-- Area (Council – District) --}}
+                <td class="px-4 py-3 text-neutral-900">
+  {{ $item->billboard?->area_label ?? '-' }}
+</td>
+
+                {{-- Size --}}
+                <td class="px-4 py-3 text-neutral-900">{{ $sizeLabel }}</td>
+
+                {{-- Start/End from outdoor_items (as requested) --}}
+                <td class="px-4 py-3 text-neutral-900">{{ $item->start_date?->format('d/m/y') ?? '' }}</td>
+                <td class="px-4 py-3 text-neutral-900">{{ $item->end_date?->format('d/m/y') ?? '' }}</td>
+
+                {{-- Coordinates link --}}
+                <td class="px-4 py-3">
+                    @if($mapQ)
+                        <a href="https://maps.google.com/?q={{ urlencode($mapQ) }}"
+                           target="_blank"
+                           class="text-[#4bbbed] hover:underline focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:ring-opacity-50 rounded">
+                            {{ $lat && $lng ? ($lat.', '.$lng) : $item->coordinates }}
+                        </a>
+                    @else
+                        <span class="text-neutral-400"></span>
+                    @endif
+                </td>
+
+                <td class="px-4 py-3 text-right tabular text-neutral-900">{{ $item->qty ?? 1 }}</td>
+
+                {{-- Status --}}
+                <td class="px-4 py-3 text-neutral-900" x-data="{
+                    v: '{{ $item->status ?? '' }}',
+                    saving: false,
+                    async save(val){
+                        this.saving = true;
+                        try {
+                            const res = await fetch('{{ route('outdoor-items.status', $item->id) }}', {
+                                method: 'PATCH',
+                                headers: {
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                    'Content-Type': 'application/json',
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                },
+                                body: JSON.stringify({ status: val }),
+                            });
+                            if (!res.ok) throw new Error();
+                            const data = await res.json();
+                            this.v = data.status;
+                        } catch (e) {
+                            alert('Gagal update status');
+                        } finally {
+                            this.saving = false;
+                        }
+                    }
+                }">
+                    <div class="inline-flex items-center gap-2">
+                        <select x-model="v"
+                                @change="save($event.target.value)"
+                                class="h-9 rounded-lg border border-neutral-300 px-3 text-sm focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]">
+                            <option value="">-</option>
+                            <option value="pending_payment">pending_payment</option>
+                            <option value="pending_install">pending_install</option>
+                            <option value="ongoing">ongoing</option>
+                            <option value="completed">completed</option>
+                            <option value="dismantle">dismantle</option>
+                        </select>
+                        <span x-show="saving" class="text-xs text-neutral-400">Saving…</span>
+                    </div>
+                </td>
+
+                <td class="px-4 py-3 text-neutral-900">{{ $item->remarks ?: '' }}</td>
+            </tr>
+        @endforeach
+    </tbody>
+</table>
                     @endif
                 </div>
             </div>

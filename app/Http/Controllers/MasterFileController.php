@@ -25,6 +25,7 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use App\Models\OutdoorItem;
 use Illuminate\Support\Arr;
 use App\Models\Billboard;
+use Illuminate\Database\QueryException;
 
 
 
@@ -1085,12 +1086,36 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
         $companyId   = null;
         $companyName = null;
         if (is_string($companyRaw) && str_starts_with($companyRaw, 'new:')) {
-            $companyName = trim(substr($companyRaw, 4));
-            $companyModel = \App\Models\ClientCompany::create([
-                'company' => $companyName,
-            ]);
-            $companyId   = $companyModel->id;
-            $companyName = $getCompanyName($companyModel);
+    $companyName = trim(substr($companyRaw, 4));
+
+    // pilih kolom nama yang tersedia
+    $companyCol = $this->pickColumn('client_companies', ['name','company','company_name']) ?? 'name';
+
+    // normalisasi + cari dulu case-insensitive
+    $normalize = function (?string $s) {
+        $s = trim((string)$s);
+        return preg_replace('/\s+/', ' ', $s);
+    };
+    $targetName = $normalize($companyName);
+
+    $companyModel = \App\Models\ClientCompany::whereRaw("LOWER($companyCol) = ?", [mb_strtolower($targetName)])->first();
+
+    if (!$companyModel && $targetName !== '') {
+        try {
+            $companyModel = \App\Models\ClientCompany::create([$companyCol => $targetName]);
+        } catch (QueryException $e) {
+            // race condition: duplikat unik
+            if ($e->getCode() === '23000') {
+                $companyModel = \App\Models\ClientCompany::whereRaw("LOWER($companyCol) = ?", [mb_strtolower($targetName)])->first();
+            } else {
+                throw $e;
+            }
+        }
+    }
+
+    $companyId   = optional($companyModel)->id;
+    $companyName = $companyModel ? $getCompanyName($companyModel) : $targetName;
+
         } elseif (is_string($companyRaw) && ctype_digit($companyRaw)) {
             $companyModel = \App\Models\ClientCompany::find($companyRaw);
             if ($companyModel) {
@@ -1102,19 +1127,34 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
         } else {
             $typed = trim((string)$companyRaw);
             if ($typed !== '') {
-                $companyModel = \App\Models\ClientCompany::where('company', $typed)
-                    ->orWhere('company_name', $typed)
-                    ->orWhere('name', $typed)
-                    ->first();
-                if (!$companyModel) {
-                    $companyModel = \App\Models\ClientCompany::create([
-                        'company' => $typed,
-                    ]);
+                $companyCol = $this->pickColumn('client_companies', ['name','company','company_name']) ?? 'name';
+
+        // normalisasi + cari dulu case-insensitive
+        $normalize = function (?string $s) {
+            $s = trim((string)$s);
+            return preg_replace('/\s+/', ' ', $s);
+        };
+        $targetName = $normalize($typed);
+
+        $companyModel = \App\Models\ClientCompany::whereRaw("LOWER($companyCol) = ?", [mb_strtolower($targetName)])->first();
+
+        if (!$companyModel) {
+            try {
+                $companyModel = \App\Models\ClientCompany::create([$companyCol => $targetName]); // ⬅️ pakai $typed/targetName, bukan $companyName
+            } catch (QueryException $e) {
+                if ($e->getCode() === '23000') {
+                    $companyModel = \App\Models\ClientCompany::whereRaw("LOWER($companyCol) = ?", [mb_strtolower($targetName)])->first();
+                } else {
+                    throw $e;
                 }
-                $companyId   = $companyModel->id;
-                $companyName = $getCompanyName($companyModel);
             }
         }
+
+        $companyId   = optional($companyModel)->id;
+        $companyName = $companyModel ? $getCompanyName($companyModel) : $targetName;
+    }
+}
+
 
         // Resolve / create Client (PIC) attached to companyId when possible
         $clientId   = null;
@@ -1186,7 +1226,6 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
             }
         }
 
-        // Auto-fill contact & email from client model if not provided in request
         $autoContact = $request->filled('contact_number')
             ? $request->input('contact_number')
             : optional($clientModel)->phone;     // ✅ safe even if $clientModel is null
@@ -1195,40 +1234,58 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
             ? $request->input('email')
             : optional($clientModel)->email;     // ✅ safe even if $clientModel is null
 
-        // Merge resolved IDs and names back to request
-        $request->merge([
-            'company_id'     => $companyId,      // ✅ NEW: save company ID
-            'client_id'      => $clientId,       // ✅ NEW: save client ID
-            'company'        => $companyName ?? (string)$companyRaw,
-            'client'         => $clientName  ?? (string)$clientRaw,
-            'contact_number' => $autoContact,
-            'email'          => $autoEmail,
-        ]);
+if (!$clientId && empty($clientName) && $companyId) {
+    $fallbackClient = \App\Models\Client::where('company_id', $companyId)
+        ->orderByDesc('id')
+        ->first();
+
+    if ($fallbackClient) {
+        $clientId   = $fallbackClient->id;
+        $clientName = $fallbackClient->name;
+        $autoContact = $request->filled('contact_number') ? $request->input('contact_number') : $fallbackClient->phone;
+        $autoEmail   = $request->filled('email') ? $request->input('email') : $fallbackClient->email;
+    }
+}
+
+$request->merge([
+    'company_id'     => $companyId,
+    'client_id'      => $clientId,
+    'company'        => $companyName ?? (string)$companyRaw,
+    'client'         => $clientName  ?? (string)$clientRaw,
+    'contact_number' => $autoContact,
+    'email'          => $autoEmail,
+]);
+
 
         // ---- 1) VALIDASI ----
         $data = $request->validate([
-            'month' => ['required', 'string', 'max:255'],
-            'date' => ['required', 'date'],
-            'company' => ['required', 'string', 'max:255'],
-            'company_id' => ['nullable', 'integer', 'exists:client_companies,id'],  // ✅ NEW
-            'client_id' => ['nullable', 'integer', 'exists:clients,id'],            // ✅ NEW
-            'product' => ['required', 'string', 'max:255'],
-            'product_category' => ['nullable', 'string', 'max:255'],
-            'location' => ['nullable', 'string', 'max:255'],
-            'traffic' => ['required', 'string', 'max:255'],
-            'duration' => ['nullable', 'string', 'max:255'],
-            'amount' => ['nullable', 'numeric', 'between:0,999999999.99'],
-            'status' => ['required', 'string', 'max:255'],
-            'remarks' => ['nullable', 'string'],
-            'client' => ['required', 'string', 'max:255'],
-            'sales_person' => ['nullable', 'string', 'max:255'],
-            'date_finish' => ['nullable', 'date'],
-            'job_number' => ['nullable', 'string', 'max:255'],
-            'artwork' => ['nullable', 'string', 'max:255'],
-            'invoice_date' => ['nullable', 'date'],
-            'invoice_number' => ['nullable', 'string', 'max:255'],
-            'contact_number' => ['nullable', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255'],
+    'month' => ['required', 'string', 'max:255'],
+    'date' => ['required', 'date'],
+
+    'company' => ['required_without:company_id', 'string', 'max:255'],
+    'company_id' => ['nullable', 'integer', 'exists:client_companies,id'],
+
+    'client'    => ['nullable', 'string', 'max:255'],
+'client_id' => ['nullable', 'integer', 'exists:clients,id'],
+
+
+    'product' => ['required', 'string', 'max:255'],
+    'product_category' => ['nullable', 'string', 'max:255'],
+    'location' => ['nullable', 'string', 'max:255'],
+    'traffic' => ['required', 'string', 'max:255'],
+    'duration' => ['nullable', 'string', 'max:255'],
+    'amount' => ['nullable', 'numeric', 'between:0,999999999.99'],
+    'status' => ['required', 'string', 'max:255'],
+    'remarks' => ['nullable', 'string'],
+    'sales_person' => ['nullable', 'string', 'max:255'],
+    'date_finish' => ['nullable', 'date'],
+    'job_number' => ['nullable', 'string', 'max:255'],
+    'artwork' => ['nullable', 'string', 'max:255'],
+    'invoice_date' => ['nullable', 'date'],
+    'invoice_number' => ['nullable', 'string', 'max:255'],
+    'contact_number' => ['nullable', 'string', 'max:255'],
+    'email' => ['nullable', 'email', 'max:255'],
+
 
             'kltg_industry' => ['nullable', 'string', 'max:255'],
             'kltg_x' => ['nullable', 'string', 'max:255'],
@@ -1252,6 +1309,7 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
         ]);
 
         // ---- 2) CHECK FOR OVERLAPPING BOOKINGS BEFORE TRANSACTION ----
+        $locationsToProcess = [];
         $isOutdoor = ($data['product_category'] ?? '') === 'Outdoor';
 
         // Check for overlapping bookings in repeater mode
@@ -1287,10 +1345,9 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
                         ->exists();
 
                     if ($overlap) {
-                        if ($overlap) {
-                            return redirect()->back()->withInput()->with('error', 'This billboard is already booked for the selected date range.');
-                        }
-                    }
+    return redirect()->back()->withInput()->with('error', 'This billboard is already booked for the selected date range.');
+}
+
                 }
 
                 // Store the validated location for processing inside the transaction
@@ -1304,7 +1361,7 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
             }
         }
 
-    
+
 
         // ---- 2) TRANSACTION + OUTDOOR LOGIC ----
         // If we reach here, no overlaps were found, proceed with transaction
@@ -2466,7 +2523,10 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
         Log::info('🚀 updateTimeline triggered', ['id' => $id]);
         logger('disini');
 
-        $file = MasterFile::findOrFail($id);
+        $file = MasterFile::with([
+    'outdoorItems.billboard.location',   // location has council_id, district_id, name
+    // optional, if your Location model has these relations:
+])->findOrFail($id);
 
         $data = [];
 
@@ -2577,6 +2637,23 @@ protected function firstExistingColumn(string $table, array $candidates): ?strin
             return response()->json(['success' => false, 'error' => 'Server error'], 500);
         }
     }
+
+
+    public function updateOutdoorItemStatus(Request $request, OutdoorItem $item)
+{
+    $request->validate([
+        'status' => 'required|in:pending_payment,pending_install,ongoing,completed,dismantle',
+    ]);
+
+    $item->status = $request->status;
+    $item->save();
+
+    return response()->json([
+        'ok' => true,
+        'id' => $item->id,
+        'status' => $item->status,
+    ]);
+}
 
 
 

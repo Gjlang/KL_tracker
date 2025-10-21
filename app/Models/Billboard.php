@@ -85,8 +85,9 @@ class Billboard extends Model
 
     public function location()
     {
-        return $this->belongsTo(Location::class);
+        return $this->belongsTo(Location::class, 'location_id');
     }
+
 
     public function createdBy()
     {
@@ -97,5 +98,40 @@ class Billboard extends Model
     {
         return $this->belongsTo(User::class, 'updated_by');
     }
+
+    public function getAreaCodeAttribute(): ?string
+{
+    $name = $this->location?->district?->state?->name;
+    if (!$name) return null;
+
+    $map = [
+        'Kuala Lumpur' => 'KL',
+        'Selangor' => 'SEL',
+        'Negeri Sembilan' => 'N9',
+        'Melaka' => 'MLK',
+        'Johor' => 'JHR',
+        'Perak' => 'PRK',
+        'Pahang' => 'PHG',
+        'Terengganu' => 'TRG',
+        'Kelantan' => 'KTN',
+        'Perlis' => 'PLS',
+        'Kedah' => 'KDH',
+        'Penang' => 'PNG',
+        'Sarawak' => 'SWK',
+        'Sabah' => 'SBH',
+        'Labuan' => 'LBN',
+        'Putrajaya' => 'PJY',
+    ];
+    return $map[$name] ?? $name; // fallback ke nama penuh kalau tak ada di map
+}
+
+public function getAreaLabelAttribute(): ?string
+{
+    $code = $this->area_code;
+    $district = $this->location?->district?->name;
+    if (!$code || !$district) return null;
+    return "{$code} - {$district}";
+}
+
 
 }
