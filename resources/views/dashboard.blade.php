@@ -351,8 +351,8 @@
                         <th class="px-6 py-4 text-left small-caps text-gray-600 font-medium min-w-[220px] whitespace-nowrap">Company Name</th>
                         <th class="px-6 py-4 text-left small-caps text-gray-600 font-medium min-w-[170px] whitespace-nowrap">Person In Charge</th>
                         <th class="px-6 py-4 text-left small-caps text-gray-600 font-medium min-w-[220px] whitespace-nowrap">Email</th>
-                        <th class="px-6 py-4 text-right small-caps text-gray-600 font-medium min-w-[220px] whitespace-nowrap">Amount</th>
                         <th class="px-6 py-4 text-left small-caps text-gray-600 font-medium min-w-[170px] whitespace-nowrap">Contact Number</th>
+                        <th class="px-6 py-4 text-right small-caps text-gray-600 font-medium min-w-[220px] whitespace-nowrap">Amount</th>
                         <th class="px-6 py-4 text-left small-caps text-gray-600 font-medium min-w-[120px] whitespace-nowrap">Product</th>
                         <th class="px-6 py-4 text-left small-caps text-gray-600 font-medium min-w-[120px] whitespace-nowrap">Month</th>
                         <th class="px-6 py-4 text-left small-caps text-gray-600 font-medium min-w-[120px] whitespace-nowrap">Start Date</th>
@@ -384,8 +384,8 @@
                                 </td>
                                 <td class="px-6 py-4 text-sm ink">{{ $file->client->name ?? '-' }}</td>
                                 <td class="px-6 py-4 text-sm text-gray-600">{{ $file->email ?? '-' }}</td>
-                                <td class="px-6 py-4 text-sm ink text-right tabular-nums font-medium">{{ $file->amount ?? '-' }}</td>
                                 <td class="px-6 py-4 text-sm ink">{{ $file->contact_number ?? '-' }}</td>
+                                <td class="px-6 py-4 text-sm ink text-right tabular-nums font-medium">{{ $file->amount ?? '-' }}</td>
                                 <td class="px-6 py-4 text-sm ink">{{ $file->product ?? '-' }}</td>
                                 <td class="px-6 py-4 text-sm ink">{{ $file->month ?? '-' }}</td>
                                 <td class="px-6 py-4 text-sm ink">{{ $file->date ? \Carbon\Carbon::parse($file->date)->format('d/m/y') : '-' }}</td>

@@ -9,6 +9,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Color; // <-- ADD
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class KltgMatrixExport
@@ -34,14 +35,17 @@ class KltgMatrixExport
         return ['January','February','March','April','May','June','July','August','September','October','November','December'];
     }
 
+    /**
+     * Fallback warna kalau DB tidak punya color (berdasar teks status).
+     * Menghasilkan ARGB (contoh: 'FFFF0000')
+     */
     private function statusColor(?string $status): ?string
     {
         if (!$status) return null;
         $map = [
-            // dropdown utama
             'Artwork'      => 'FFFFFF00', // yellow
             'Installation' => 'FFFF0000', // red
-            'Dismantle'    => 'FF7F7F7F', // gray (spelling benar)
+            'Dismantle'    => 'FF7F7F7F', // gray
             'Dismantel'    => 'FF7F7F7F', // tolerate typo
             'Payment'      => 'FFFF0000', // red
             'Ongoing'      => 'FF00B0F0', // blue
@@ -50,7 +54,6 @@ class KltgMatrixExport
             'Material'     => 'FFFFC000', // orange
             'Whatsapp'     => 'FF92D050', // light green
             'Posted'       => 'FF7F7F7F', // gray
-            // umum
             'In Progress'  => 'FF00B0F0',
             'Hold'         => 'FFFFC000',
             'Cancelled'    => 'FF7F7F7F',
@@ -60,6 +63,27 @@ class KltgMatrixExport
             if (strcasecmp($k, $status) === 0) return $argb;
         }
         return null;
+    }
+
+    /** --- Helpers untuk konversi HEX DB -> ARGB & kontras font --- */
+    private function hexToARGB(?string $hex): ?string
+    {
+        if (!$hex) return null;
+        $h = ltrim(trim($hex), '#');
+        if (strlen($h) === 6) return 'FF'.strtoupper($h); // tambah alpha
+        if (strlen($h) === 8) return strtoupper($h);      // sudah ARGB
+        return null;
+    }
+
+    private function contrastFontColor(string $hex): string
+    {
+        $h = ltrim($hex, '#');
+        if (strlen($h) < 6) return Color::COLOR_BLACK;
+        $r = hexdec(substr($h,0,2));
+        $g = hexdec(substr($h,2,2));
+        $b = hexdec(substr($h,4,2));
+        $yiq = (($r*299)+($g*587)+($b*114))/1000;
+        return $yiq >= 150 ? Color::COLOR_BLACK : Color::COLOR_WHITE;
     }
 
     /** ---------- SINGLE YEAR (tetap seperti punyamu) ---------- */
@@ -76,7 +100,7 @@ class KltgMatrixExport
         $row = 3;
         foreach ($this->records as $rec) {
             $row = $this->writeRecord($sheet, $row, $rec, $lastColIdx);
-            $row += 0; // next row already set by writeRecord
+            $row += 0;
         }
 
         // Autosize + freeze
@@ -91,13 +115,11 @@ class KltgMatrixExport
     /** ---------- MULTI YEAR (blok “YEAR – 2025”, dst.) ---------- */
     public function downloadByYear(array $byYear, string $filename): StreamedResponse
     {
-        // $byYear = [ 2025 => [ ['summary'=>..., 'matrix'=>...], ... ], 2026 => [...], ... ]
         $ss    = new Spreadsheet();
         $sheet = $ss->getActiveSheet();
         $sheet->setTitle('Export');
 
         $months = null;
-        // coba ambil dari year pertama yang ada data, else default
         foreach ($byYear as $records) {
             if (!empty($records)) { $months = array_column($records[0]['matrix'], 'monthName'); break; }
         }
@@ -109,7 +131,7 @@ class KltgMatrixExport
         $row = 1;
 
         foreach ($byYear as $year => $records) {
-            // Title row (kuning) merged full width
+            // Title row
             $sheet->setCellValue("A{$row}", "YEAR - {$year}");
             $sheet->mergeCells("A{$row}:{$lastCol}{$row}");
             $sheet->getStyle("A{$row}:{$lastCol}{$row}")
@@ -120,13 +142,12 @@ class KltgMatrixExport
                 ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setVertical(Alignment::VERTICAL_CENTER);
             $row += 1;
 
-            // Header 2 baris untuk blok ini
+            // Header 2 baris
             [$lastColIdx, $lastCol] = $this->writeHeader($sheet, $row, $months);
             $row += 2;
 
             // Data rows
             if (empty($records)) {
-                // minimal 1 baris kosong biar bloknya kelihatan
                 $sheet->getStyle("A{$row}:{$lastCol}{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
                 $row += 2;
             } else {
@@ -135,11 +156,9 @@ class KltgMatrixExport
                 }
             }
 
-            // pemisah kosong antar tahun
-            $row += 1;
+            $row += 1; // spacer antar tahun
         }
 
-        // Autosize
         for ($i=1; $i<=$lastColIdx; $i++) $sheet->getColumnDimension($this->col($i))->setAutoSize(true);
 
         return response()->streamDownload(function () use ($ss) {
@@ -212,17 +231,37 @@ class KltgMatrixExport
             $colIdx++;
         }
 
-        // kanan: 12 bulan × n kategori → baris status & baris tanggal
+        // 12 bulan × n kategori → baris status (row) & baris tanggal (row+1)
         foreach ($rec['matrix'] as $m) {
             foreach ($this->catKeys as $k) {
                 $cell = $this->col($colIdx).$row;
-                $val  = (string)($m['cats'][$k]['status'] ?? '');
+
+                $val    = (string)($m['cats'][$k]['status'] ?? '');
+                $hex    = $m['cats'][$k]['color'] ?? null; // <-- warna dari DB (kolom color)
                 $sheet->setCellValue($cell, $val);
-                if ($argb = $this->statusColor($val)) {
+
+                // 1) Prioritas: pakai HEX dari DB
+                if ($hex) {
+                    $argb = $this->hexToARGB($hex);
+                    if ($argb) {
+                        $sheet->getStyle($cell)->getFill()->setFillType(Fill::FILL_SOLID)
+                              ->getStartColor()->setARGB($argb);
+                        // font kontras agar kebaca saat di print
+                        $sheet->getStyle($cell)->getFont()->getColor()
+                              ->setARGB($this->contrastFontColor($hex));
+                    }
+                }
+                // 2) Fallback: pakai peta status (kalau tidak ada color)
+                elseif ($argb = $this->statusColor($val)) {
                     $sheet->getStyle($cell)->getFill()->setFillType(Fill::FILL_SOLID)
                           ->getStartColor()->setARGB($argb);
+                    // pakai kontras kasar berdasar fallback rgb (drop 'FF' alpha)
+                    $rgb = substr($argb, 2);
+                    $sheet->getStyle($cell)->getFont()->getColor()
+                          ->setARGB($this->contrastFontColor('#'.$rgb));
                 }
 
+                // Tanggal (di baris berikutnya)
                 $dateStr = '';
                 if (!empty($m['cats'][$k]['start'])) {
                     $dateStr = Carbon::parse($m['cats'][$k]['start'])->format('m/d/Y');
@@ -231,6 +270,7 @@ class KltgMatrixExport
                     $dateStr = trim($dateStr.' – '.Carbon::parse($m['cats'][$k]['end'])->format('m/d/Y'));
                 }
                 $sheet->setCellValue($this->col($colIdx).($row+1), $dateStr);
+
                 $colIdx++;
             }
         }

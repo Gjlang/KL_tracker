@@ -24,6 +24,7 @@ class KltgMonthlyController extends Controller
         'type'           => 'required|string|in:PUBLICATION,EDITION,STATUS,START,END',
         'field_type'     => 'nullable|string|in:text,date',
         'value'          => 'nullable|string',
+        'color'          => ['nullable','string','max:9','regex:/^#?[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/'],
     ]);
 
     // Normalize
@@ -71,13 +72,22 @@ class KltgMonthlyController extends Controller
         'status'     => 'ACTIVE',
     ];
 
+    if ($data['type'] === 'STATUS') {
+    $attrs['status'] = $valueText; // simpan teks status
+}
+
+// Simpan color kalau dikirim
+if (!empty($data['color'])) {
+    $attrs['color'] = $data['color'];
+}
+
     $row = KltgMonthlyDetail::updateOrCreate($key, $attrs);
 
     return response()->json([
         'ok'   => true,
         'id'   => $row->id,
         'item' => $row->only([
-            'master_file_id','year','month','category','type','field_type','value_text','value_date','is_date','status'
+            'master_file_id','year','month','category','type','field_type','value_text','value_date','is_date','status','color'
         ]),
     ]);
 }
@@ -101,6 +111,7 @@ class KltgMonthlyController extends Controller
                 'date' => $detail->value_date,
                 'value' => $fieldType === 'date' ? $detail->value_date : $detail->value_text,
                 'id' => $detail->id,
+                'color' => (strtoupper($detail->type) === 'STATUS') ? ($detail->color ?? null) : null,
             ];
         }
 
@@ -207,7 +218,7 @@ if ($masterIdsForYear->isEmpty()) {
             ->where('year', $activeYear)
             ->get([
                 'id','master_file_id','year','month','category','type',
-                'field_type','value','value_text','value_date'
+                'field_type','value','value_text','value_date','color','status'
             ])
         : collect();
 
@@ -238,23 +249,28 @@ if ($masterIdsForYear->isEmpty()) {
         }
 
         if (!isset($map[$mf][$yr][$mo][$cat][$typ])) {
-            $map[$mf][$yr][$mo][$cat][$typ] = ['value'=>null,'text'=>null,'date'=>null];
-        }
+    $map[$mf][$yr][$mo][$cat][$typ] = ['value'=>null,'text'=>null,'date'=>null];
+}
 
-        if (!empty($d->value)) {
-            $map[$mf][$yr][$mo][$cat][$typ]['value'] = $d->value;
-        }
-        if (!empty($d->value_text)) {
-            $map[$mf][$yr][$mo][$cat][$typ]['text'] = $d->value_text;
-        }
-        if (!empty($d->value_date)) {
-            // STRIP TIMESTAMP - only keep YYYY-MM-DD for <input type="date">
-            $dateValue = $d->value_date;
-            if (strlen($dateValue) > 10) {
-                $dateValue = substr($dateValue, 0, 10); // Get only YYYY-MM-DD part
-            }
-            $map[$mf][$yr][$mo][$cat][$typ]['date'] = $dateValue;
-        }
+if (!empty($d->value)) {
+    $map[$mf][$yr][$mo][$cat][$typ]['value'] = $d->value;
+}
+if (!empty($d->value_text)) {
+    $map[$mf][$yr][$mo][$cat][$typ]['text'] = $d->value_text;
+}
+if (!empty($d->value_date)) {
+    $dateValue = $d->value_date;
+    if (strlen($dateValue) > 10) $dateValue = substr($dateValue, 0, 10);
+    $map[$mf][$yr][$mo][$cat][$typ]['date'] = $dateValue;
+}
+
+if ($typ === 'STATUS' && !empty($d->color)) {
+    $map[$mf][$yr][$mo][$cat][$typ]['color'] = $d->color;
+}
+
+if ($typ === 'STATUS' && empty($map[$mf][$yr][$mo][$cat][$typ]['text']) && !empty($d->status)) {
+    $map[$mf][$yr][$mo][$cat][$typ]['text'] = $d->status;
+}
     }
 
     $categories = ['KLTG','VIDEO','ARTICLE','LB','EM'];
@@ -290,11 +306,14 @@ if ($masterIdsForYear->isEmpty()) {
                 if (isset($map[$mf->id][$activeYear][$m][$cat]['END']['date'])) {
                     $end = $map[$mf->id][$activeYear][$m][$cat]['END']['date'];
                 }
+                $color = $map[$mf->id][$activeYear][$m][$cat]['STATUS']['color'] ?? '';
+
 
                 $grid[$gridKey] = [
                     'status' => $status,
                     'start'  => $start,  // YYYY-MM-DD → renders in <input type="date">
-                    'end'    => $end,    // YYYY-MM-DD
+                    'end'    => $end,
+                    'color'  => $color,    // YYYY-MM-DD
                 ];
             }
         }
@@ -388,6 +407,7 @@ public function cloneYear(Request $request)
                'is_date'        => $k->field_type === 'date' ? 1 : 0,
                'client'         => null,                          // optional columns left empty
                'status'         => null,
+               'color'         => null,
                'created_at'     => $now,
                'updated_at'     => $now,
            ];
@@ -397,7 +417,7 @@ public function cloneYear(Request $request)
        DB::table('kltg_monthly_details')->upsert(
            $payload,
            ['master_file_id','year','month','category','type','field_type'],
-           ['value','value_text','value_date','is_date','client','status','updated_at']
+           ['value','value_text','value_date','is_date','client','status','color','updated_at']
        );
 
        return redirect()->route('kltg.index', ['year' => $targetYear])
@@ -453,36 +473,28 @@ public function cloneYear(Request $request)
     }
 
 
- public function exportMatrix(Request $req)
+    public function exportMatrix(Request $req)
 {
-    // Kalau user kasih ?year=2026 kita tetap export SEMUA tahun yang relevan
-    // (berdasarkan overlap date/date_finish dan tahun di details) supaya mirip screenshot.
     $baseYear = (int)($req->input('year') ?: now('Asia/Kuala_Lumpur')->year);
 
-    // Ambil semua KLTG master yang relevan
+    // Remove 'color' from master_files query - it doesn't exist there
     $masters = DB::table('master_files')
         ->whereRaw("UPPER(TRIM(COALESCE(product_category, ''))) = 'KLTG'")
         ->get([
             'id','month','date','date_finish','company','product','status','created_at'
         ]);
 
-    // Ambil semua details untuk master2 di atas (semua tahun supaya dapat set tahun penuh)
+    // Ambil semua details dengan color (color ada di tabel ini)
     $detailRows = DB::table('kltg_monthly_details')
         ->whereIn('master_file_id', $masters->pluck('id'))
         ->get([
             'id','master_file_id','year','month','category','type',
-            'field_type','value','value_text','value_date','status'
+            'field_type','value','value_text','value_date','status','color'
         ]);
 
-    // Set tahun yang akan diexport = union:
-    // - Semua tahun yang muncul di details.year
-    // - Semua tahun yang di-overlap oleh (date .. date_finish) setiap master
     $years = collect();
-
-    // dari details
     $years = $years->merge($detailRows->pluck('year')->unique()->values());
 
-    // dari overlap date range
     foreach ($masters as $m) {
         if ($m->date && $m->date_finish) {
             $startY = (int)Carbon::parse($m->date)->year;
@@ -492,10 +504,8 @@ public function cloneYear(Request $request)
     }
     $years = $years->unique()->sort()->values();
 
-    // Kalau kosong fallback minimal ke $baseYear
     if ($years->isEmpty()) $years = collect([$baseYear]);
 
-    // Helper
     $catLabels = ['KLTG','Video','Article','LB','EM'];
     $catKeys   = ['KLTG','VIDEO','ARTICLE','LB','EM'];
     $monthsMap = collect(range(1,12))
@@ -507,23 +517,22 @@ public function cloneYear(Request $request)
             $m[$num] = [
                 'monthName'=>$name,
                 'cats'=>collect($catKeys)->mapWithKeys(
-                    fn($k)=>[$k=>['status'=>null,'start'=>null,'end'=>null]]
+                    fn($k)=>[$k=>['status'=>null,'start'=>null,'end'=>null,'color'=>null]]
                 )->all()
             ];
         }
         return $m;
     };
+
     $parseMonth = function($v){
         if(is_numeric($v)) return (int)$v;
         try { return (int)Carbon::parse("1 ".$v." 2000")->format('n'); }
         catch(\Throwable $e){ return null; }
     };
 
-    // Group details by master
     $detailsByMaster = $detailRows->groupBy('master_file_id');
     $mastersById     = $masters->keyBy('id');
 
-    // Build records per YEAR (setiap master yang overlap tahun tsb akan dibuat 1 row utk tahun itu)
     $recordsByYear = [];
     foreach ($years as $year) {
         $yearStart = Carbon::create($year,1,1)->startOfDay();
@@ -533,21 +542,17 @@ public function cloneYear(Request $request)
         $no = 1;
 
         foreach ($masters as $mrow) {
-            // overlap check (start <= Dec 31, Y) AND (finish >= Jan 1, Y)
             $overlap = ($mrow->date && $mrow->date_finish)
                 ? (Carbon::parse($mrow->date) <= $yearEnd && Carbon::parse($mrow->date_finish) >= $yearStart)
                 : false;
 
             $rows = $detailsByMaster[$mrow->id] ?? collect();
-
-            // build matrix ONLY for this year and detect real content
             $matrix = $makeEmptyMatrix();
             $hasContent = false;
 
             foreach ($rows as $r) {
                 if ((int)$r->year !== (int)$year) continue;
 
-                // exclude month=0 from "content" test
                 $mn = $parseMonth($r->month);
                 if (!$mn || $mn < 1 || $mn > 12 || !isset($matrix[$mn])) continue;
 
@@ -563,10 +568,17 @@ public function cloneYear(Request $request)
                         }
                     }
                 }
+
                 if (empty($matrix[$mn]['cats'][$key]['status']) && !empty($r->status)) {
                     $matrix[$mn]['cats'][$key]['status'] = $r->status;
                     $hasContent = true;
                 }
+
+                // Store color from details table
+                if (!empty($r->color)) {
+                    $matrix[$mn]['cats'][$key]['color'] = $r->color;
+                }
+
                 if ($r->field_type === 'date' && $r->value_date) {
                     $t = strtoupper((string)$r->type);
                     if ($t === 'START') $matrix[$mn]['cats'][$key]['start'] = substr($r->value_date,0,10);
@@ -575,13 +587,12 @@ public function cloneYear(Request $request)
                 }
             }
 
-            // ➜ hanya include jika overlap tahun ini ATAU ada isi nyata di tahun ini
             if (!$overlap && !$hasContent) continue;
 
-            // Publication/Edition (month=0, tahun ini)
             $publication = optional($rows->first(function($x) use ($year){
                 return (int)$x->year === (int)$year && $x->field_type==='text' && strtoupper((string)$x->type)==='PUBLICATION';
             }))->value_text;
+
             $edition = optional($rows->first(function($x) use ($year){
                 return (int)$x->year === (int)$year && $x->field_type==='text' && strtoupper((string)$x->type)==='EDITION';
             }))->value_text;
@@ -599,14 +610,12 @@ public function cloneYear(Request $request)
                 'end'         => $mrow->date_finish ? Carbon::parse($mrow->date_finish)->format('Y-m-d') : '',
             ];
 
-            // ⬅️ push SEKALI saja
             $records[] = ['summary' => $summary, 'matrix' => array_values($matrix)];
         }
 
         $recordsByYear[$year] = $records;
     }
 
-    // Buat file
     $fileName = 'kltg_matrix_'.now('Asia/Kuala_Lumpur')->format('Ymd_His').'.xlsx';
     $export = new KltgMatrixExport([], $catLabels, $catKeys);
     return $export->downloadByYear($recordsByYear, $fileName);

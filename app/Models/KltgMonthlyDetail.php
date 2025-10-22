@@ -50,9 +50,9 @@ class KltgMonthlyDetail extends Model
 
     // Allow mass-assign only the columns we actually write
     protected $fillable = [
-        'master_file_id','year','month','category','type','field_type',
-        'value','value_text','value_date','is_date','status',
-    ];
+  'master_file_id','year','client','month','category','field_type',
+  'value','value_text','value_date','is_date','type','status','color'
+];
 
     protected $casts = [
         'year'       => 'integer',

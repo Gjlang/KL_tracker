@@ -1715,8 +1715,8 @@ $request->merge([
             'Company Name',
             'Person In Charge',
             'Email',
-            'Amount',
             'Contact Number',
+            'Amount',
             'Product',
             'Month',
             'Start Date',
@@ -1783,18 +1783,18 @@ $request->merge([
             $put($row->company);
             $put($row->client);
             $put($row->email ?? '');
-            $put($row->amount ?? '');
             $put($row->contact_number ?? '');
+            $put($row->amount ?? '');
             $put($row->product);
             $put($row->month);
-            $put($fmtDate($row->start_date));
-            $put($fmtDate($row->end_date));
+            $put($row->start_date ? Carbon::parse($row->start_date)->format('d/m/y') : '');
+            $put($row->end_date ? Carbon::parse($row->end_date)->format('d/m/y') : '');
             $put($row->duration);
             $put($row->status);
             $put($row->job_number);
             $put($row->artwork);
             $put($row->traffic);
-            $put($fmtDate($row->invoice_date));
+            $put($row->invoice_date ? Carbon::parse($row->invoice_date)->format('d/m/y') : '');
             $put($row->invoice_number);
             $r++;
         }

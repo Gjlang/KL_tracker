@@ -392,28 +392,43 @@
                               $gridKey = sprintf('%02d_%s', $m, $c['code']);
                             @endphp
 
-                            <!-- Status Select -->
-                            <select
-                              class="form-input text-xs status-select"
-                              data-input="text"
-                              data-master="{{ $r['id'] ?? '' }}"
-                              data-year="{{ $year ?? date('Y') }}"
-                              data-month="{{ $m }}"
-                              data-category="{{ $c['code'] }}"
-                              data-type="STATUS"
-                              onchange="saveCell(this); setDropdownColor(this);">
-                                <option value=""></option>
-                                <option value="Installation" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Installation' ? 'selected' : '' }}>Installation</option>
-                                <option value="Dismantle" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Dismantle' ? 'selected' : '' }}>Dismantle</option>
-                                <option value="Artwork" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Artwork' ? 'selected' : '' }}>Artwork</option>
-                                <option value="Payment" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Payment' ? 'selected' : '' }}>Payment</option>
-                                <option value="Ongoing" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Ongoing' ? 'selected' : '' }}>Ongoing</option>
-                                <option value="Renewal" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Renewal' ? 'selected' : '' }}>Renewal</option>
-                                <option value="Completed" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Completed' ? 'selected' : '' }}>Completed</option>
-                                <option value="Material" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Material' ? 'selected' : '' }}>Material</option>
-                                <option value="Whatsapp" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Whatsapp' ? 'selected' : '' }}>Whatsapp</option>
-                                <option value="Posted" {{ ($r['grid'][$gridKey]['status'] ?? '') == 'Posted' ? 'selected' : '' }}>Posted</option>
-                            </select>
+                        <div class="flex items-center gap-2">
+  <!-- STATUS -->
+  <input
+    type="text"
+    class="form-input text-xs status-input flex-1"
+    value="{{ $r['grid'][$gridKey]['status'] ?? '' }}"
+    placeholder="Type status…"
+    data-input="text"
+    data-master="{{ $r['id'] ?? '' }}"
+    data-year="{{ $year ?? date('Y') }}"
+    data-month="{{ $m }}"
+    data-category="{{ $c['code'] }}"
+    data-type="STATUS"
+    data-color="{{ $r['grid'][$gridKey]['color'] ?? '' }}"
+    onchange="saveCell(this); setStatusColor(this);"
+    onblur="saveCell(this); setStatusColor(this);"
+  />
+
+  <!-- COLOR PICKER -->
+  <input
+    type="color"
+    class="color-picker w-6 h-8 rounded cursor-pointer"
+    value="{{ $r['grid'][$gridKey]['color'] ?? '#ffffff' }}"
+    data-input="color"
+    data-master="{{ $r['id'] ?? '' }}"
+    data-year="{{ $year ?? date('Y') }}"
+    data-month="{{ $m }}"
+    data-category="{{ $c['code'] }}"
+    data-type="COLOR"
+    data-color-target="prev"
+    onchange="saveColor(this);"
+    title="Pick input color"
+  />
+</div>
+
+
+
 
                             @php
                               $inputIdStart = "date-start-y{$year}-m{$m}-{$c['code']}-{$r['id']}-" . uniqid();
@@ -620,14 +635,17 @@
       }
 
       const payload = {
-        master_file_id: master,
-        year,
-        month,
-        category,
-        type,
-        field_type: isDate ? 'date' : 'text',
-        value
-      };
+  master_file_id: master,
+  year,
+  month,
+  category,
+  type,
+  field_type: isDate ? 'date' : 'text',
+  value,
+  // include hex if this is the STATUS input (or it carries a color)
+  color: (el.dataset.color || (el.classList.contains('status-input') ? el.dataset.color : '') || '').trim() || null
+};
+
 
       el.classList.add('opacity-50');
       el.disabled = true;
@@ -764,6 +782,167 @@
       // Initial filter run
       filterTable();
     });
+
+
+// Fungsi helper untuk localStorage
+function getColorStorageKey(master, year, month, category) {
+  return `kltg_color_${master}_${year}_${month}_${category}`;
+}
+
+function saveColorToStorage(master, year, month, category, color) {
+  const key = getColorStorageKey(master, year, month, category);
+  try {
+    localStorage.setItem(key, color);
+    return true;
+  } catch (e) {
+    console.error('localStorage error:', e);
+    return false;
+  }
+}
+
+function getColorFromStorage(master, year, month, category) {
+  const key = getColorStorageKey(master, year, month, category);
+  try {
+    return localStorage.getItem(key) || '';
+  } catch (e) {
+    console.error('localStorage error:', e);
+    return '';
+  }
+}
+
+async function saveColor(el) {
+  const csrfToken = getCSRFToken();
+  const master = parseInt(el.dataset.master, 10);
+  const year = parseInt(el.dataset.year, 10);
+  const month = parseInt(el.dataset.month, 10);
+  const category = (el.dataset.category || '').toUpperCase();
+  const colorValue = el.value || '#ffffff';
+
+  if (!csrfToken) { alert('Missing CSRF token'); return; }
+  if (!Number.isInteger(master) || !Number.isInteger(year) || !Number.isInteger(month) || !category) {
+    console.error('Missing required data:', { master, year, month, category });
+    alert('Error: Missing required data for saving color');
+    return;
+  }
+
+  // Find paired STATUS input for the same cell
+  let targetInput = el.previousElementSibling;
+  if (!targetInput || !targetInput.classList.contains('status-input')) {
+    targetInput = el.closest('.flex')?.querySelector('.status-input');
+  }
+
+  // Optimistic UI
+  if (targetInput) {
+    applyStatusInputColor(targetInput, colorValue);
+    targetInput.dataset.color = colorValue;
+  }
+
+  // Persist to DB (type is STATUS; we attach the current status text)
+  const payload = {
+    master_file_id: master,
+    year: year,
+    month: month,
+    category: category,
+    type: 'STATUS',
+    field_type: 'text',
+    value: (targetInput?.value ?? null),
+    color: colorValue
+  };
+
+  el.classList.add('opacity-50');
+
+  try {
+    const res = await fetch(UPDATE_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-TOKEN': csrfToken,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { throw new Error('Invalid JSON response'); }
+    if (!res.ok) throw new Error(data?.message || `HTTP ${res.status}`);
+
+    // (Optional) also stash in localStorage as a UI fallback
+    saveColorToStorage(master, year, month, category, colorValue);
+
+    el.classList.add('ring-2','ring-[#4bbbed]');
+    setTimeout(() => el.classList.remove('ring-2','ring-[#4bbbed]'), 600);
+  } catch (err) {
+    console.error(err);
+    el.classList.add('ring-2','ring-[#d33831]');
+    setTimeout(() => el.classList.remove('ring-2','ring-[#d33831]'), 1000);
+    alert('Failed to save color');
+  } finally {
+    el.classList.remove('opacity-50');
+  }
+}
+
+
+
+function contrastText(hex) {
+  if (!hex) return '#111827'; // default neutral-800
+  const h = hex.replace('#','');
+  if (h.length !== 6) return '#111827';
+  const r = parseInt(h.substr(0,2), 16);
+  const g = parseInt(h.substr(2,2), 16);
+  const b = parseInt(h.substr(4,2), 16);
+  // YIQ
+  const yiq = ((r*299)+(g*587)+(b*114))/1000;
+  return yiq >= 150 ? '#111827' : '#ffffff';
+}
+
+function applyStatusInputColor(inputEl, hex) {
+  if (!inputEl) return;
+  if (!hex || hex === '#ffffff') {
+    inputEl.style.backgroundColor = '';
+    inputEl.style.color = '';
+    inputEl.dataset.color = '';
+    return;
+  }
+  inputEl.style.backgroundColor = hex;
+  inputEl.style.color = contrastText(hex);
+  inputEl.dataset.color = hex;
+}
+
+function setStatusColor(inputEl) {
+  const saved = inputEl.dataset.color;
+  if (saved) {
+    applyStatusInputColor(inputEl, saved);
+    return;
+  }
+  const v = (inputEl.value || '').toLowerCase();
+  const map = {
+    installation:'#fee2e2', dismantle:'#ffe4e6', artwork:'#fef3c7',
+    payment:'#e0f2fe', ongoing:'#e0e7ff', renewal:'#dcfce7',
+    completed:'#bbf7d0', material:'#fde68a', whatsapp:'#f1f5f9', posted:'#f5d0fe'
+  };
+  const key = Object.keys(map).find(k => v.includes(k));
+  applyStatusInputColor(inputEl, key ? map[key] : '');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Apply saved colors to status inputs
+  document.querySelectorAll('.status-input').forEach(inp => {
+    const hex = (inp.dataset.color || '').trim();
+    if (hex) {
+      applyStatusInputColor(inp, hex);
+    }
+  });
+
+  // Sync color pickers with data-color (if server sends it)
+  document.querySelectorAll('.color-picker').forEach(p => {
+    const target = p.previousElementSibling;
+    if (target && target.classList.contains('status-input') && target.dataset.color) {
+      p.value = target.dataset.color;
+    }
+  });
+});
   </script>
 
 </x-app-shell>
