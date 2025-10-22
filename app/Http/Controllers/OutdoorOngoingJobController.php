@@ -302,30 +302,42 @@ public function exportMatrix(Request $req)
 
     // 1) Base query: per-site rows
     $sitesQ = DB::table('master_files as mf')
-        ->join('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
-        ->when($product !== '', function ($q) use ($product) {
-            $q->where('mf.product', $product);
-        })
-        ->where(function ($w) use ($year) {
-            $w->whereYear('mf.date', $year)
-              ->orWhereYear('mf.date_finish', $year)
-              ->orWhereYear('mf.created_at', $year);
-        })
-        // ✅ sort alphabetically
-        ->orderByRaw('LOWER(mf.company) ASC')
-        ->orderByRaw('LOWER(oi.site) ASC');
+    ->join('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
+    // NEW: pull billboard site code + district name for consistent "Site(s)" display
+    ->leftJoin('billboards as bb', 'bb.id', '=', 'oi.billboard_id')
+    ->leftJoin('locations as loc', 'loc.id', '=', 'bb.location_id')
+    ->leftJoin('districts as d', 'd.id', '=', 'loc.district_id')
+
+    ->when($product !== '', function ($q) use ($product) {
+        $q->where('mf.product', $product);
+    })
+    ->where(function ($w) use ($year) {
+        $w->whereYear('mf.date', $year)
+          ->orWhereYear('mf.date_finish', $year)
+          ->orWhereYear('mf.created_at', $year);
+    })
+
+    // Sort: company → site_number (nulls last) → road name (nulls last)
+    ->orderByRaw('LOWER(mf.company) ASC')
+    ->orderByRaw('bb.site_number IS NULL, LOWER(bb.site_number) ASC')
+    ->orderByRaw('oi.site IS NULL, LOWER(oi.site) ASC');
 
     $siteRows = $sitesQ->get([
-        'mf.id           as master_file_id',
-        'oi.id           as outdoor_item_id', // 🔑
-        'mf.company',
-        'mf.product',
-        'mf.product_category',
-        'mf.created_at   as created_at',      // ✅ use created_at
-        'mf.date         as start',
-        'mf.date_finish  as end',
-        'oi.site',
-    ]);
+    'mf.id              as master_file_id',
+    'oi.id              as outdoor_item_id',
+    'mf.company',
+    'mf.product',
+    'mf.product_category',
+    'mf.created_at      as created_at',
+    'mf.date            as start',
+    'mf.date_finish     as end',
+
+    // For "Site(s)" display parity with the Blade
+    'oi.site            as road_raw',        // e.g., street/mall name (fallback)
+    'bb.site_number     as site_code',       // e.g., TB-SEL-0022-MDSK-A
+    'd.name             as district_name',   // e.g., Seri Kembangan
+]);
+
 
     // 5) File naming - MOVED UP
     $title = "Outdoor - Monthly - {$today} - {$year}";
@@ -376,30 +388,57 @@ public function exportMatrix(Request $req)
     // 4) Build records
     $records = [];
     foreach ($siteRows as $r) {
-        $itemId = (int)$r->outdoor_item_id;
-        $months = $monthsByItem[$itemId] ?? (function () {
-            $m = [];
-            for ($i=1; $i<=12; $i++) $m[$i] = ['status'=>'','date'=>null];
-            return $m;
-        })();
+    $itemId = (int)$r->outdoor_item_id;
 
-        $records[] = [
-            'summary' => [
-                'date'     => $r->created_at,       // ✅ created_at for "date created"
-                'company'  => $r->company,
-                'product'  => $r->product,
-                'site'     => $r->site,
-                'category' => $r->product_category ?: 'Outdoor',
-                'start'    => $r->start,
-                'end'      => $r->end,
-            ],
-            'months' => $months,
-        ];
-    }
+    $months = $monthsByItem[$itemId] ?? (function () {
+        $m = []; for ($i=1; $i<=12; $i++) $m[$i] = ['status'=>'','date'=>null]; return $m;
+    })();
+
+    $siteDisplay = self::composeSiteDisplay($r->site_code ?? '', $r->road_raw ?? '', $r->district_name ?? '');
+
+
+    $records[] = [
+        'summary' => [
+            'date'     => $r->created_at,                        // "Date Created"
+            'company'  => $r->company,
+            'product'  => $r->product,
+            'site'     => $siteDisplay,                          // ✅ same as Blade "Site(s)"
+            'category' => $r->product_category ?: 'Outdoor',
+            'start'    => $r->start,
+            'end'      => $r->end,
+        ],
+        'months' => $months,
+    ];
+}
+
 
     return (new OutdoorMatrixExport($records, $title))->download($file);  // ✅ Pass title
 }
 
+private static function composeSiteDisplay(?string $siteCode, ?string $roadRaw, ?string $district): string
+{
+    $norm = function ($s) {
+        return preg_replace('/[^a-z0-9]/i', '', strtolower((string)($s ?? '')));
+    };
+
+    $siteCode = (string)($siteCode ?? '');
+    $roadRaw  = (string)($roadRaw  ?? '');
+    $district = (string)($district ?? '');
+
+    $isDup = $norm($siteCode) !== '' && $norm($siteCode) === $norm($roadRaw);
+
+    if ($siteCode !== '') {
+        $parts = $isDup
+            ? array_filter([$siteCode, $district], fn ($x) => $x !== '')
+            : array_filter([$siteCode, $district], fn ($x) => $x !== '');
+        $res = implode(' - ', $parts);
+        return $res !== '' ? $res : $siteCode;
+    }
+
+    if ($district !== '') return $district;
+    if ($roadRaw  !== '') return $roadRaw;
+    return '—';
+}
 
 
   public function upsert(Request $req)

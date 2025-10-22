@@ -667,138 +667,172 @@ public function upsert(Request $request)
                        ->with('info', 'No new outdoor master files found to create tracking records.');
     }
 
-    public function export(Request $request): StreamedResponse
-    {
-        Log::info('Export started', [
-            'month_requested' => $request->integer('month'),
-            'all_params' => $request->all()
-        ]);
+   public function export(Request $request): StreamedResponse
+{
+    Log::info('Export started', [
+        'month_requested' => $request->integer('month'),
+        'year_requested'  => $request->integer('year'),
+        'all_params'      => $request->all(),
+    ]);
 
-        $month = $request->integer('month'); // 1-12
-        $totalRows = DB::table('outdoor_coordinator_trackings')->count();
-        Log::info("Total rows in outdoor_coordinator_trackings: {$totalRows}");
+    $month = $request->integer('month'); // 1..12 or null
+    $year  = $request->integer('year') ?: now()->year;
 
-        // Base query with all date and note fields
-        $q = DB::table('outdoor_coordinator_trackings as oct')
-        ->leftJoin('master_files as mf', 'mf.id', '=', 'oct.master_file_id')
-        ->leftJoin('outdoor_items as oi', 'oi.id', '=', 'oct.outdoor_item_id')
-        ->select([
-            // Wajib: sumber kolom header utama
-            DB::raw('mf.company as company'),
-            DB::raw('COALESCE(mf.client, oct.client) as person_in_charge'), // "client" = PIC
-            DB::raw('mf.product as product'),
-            DB::raw('oi.site as site'),
+    // === BASE: SAME AS INDEX (master_files → outdoor_items) + billboard joins ===
+    $q = DB::table('master_files as mf')
+    ->leftJoin('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
+    ->leftJoin('billboards as bb', 'bb.id', '=', 'oi.billboard_id')
+    ->leftJoin('locations  as loc', 'loc.id', '=', 'bb.location_id')
+    ->leftJoin('districts  as d',   'd.id',   '=', 'loc.district_id')
+    // ⬇️ 1) sama persis seperti di index()
+    ->where(function ($w) {
+        $w->whereRaw('LOWER(mf.product_category) REGEXP ?', ['(^|[^a-z])(outdoor|billboard)([^a-z]|$)'])
+          ->orWhereRaw('LOWER(mf.product) REGEXP ?',          ['(^|[^a-z])(outdoor|billboard)([^a-z]|$)']);
+    })
+    // ⬇️ 2) pastikan benar-benar ada outdoor_item (biar non-outdoor otomatis gugur)
+    ->whereNotNull('oi.id');
 
-            // (opsional) bawa kolom lain yang kamu butuh di file export
-            'oct.id',
-            'oct.year',
-            'oct.month',
-            'oct.status',
-            'oct.payment', 'oct.payment_date',
-            'oct.material', 'oct.material_date',
-            'oct.artwork', 'oct.artwork_date',
-            'oct.received_approval', 'oct.received_approval_note',
-            'oct.sent_to_printer', 'oct.sent_to_printer_note',
-            'oct.collection_printer', 'oct.collection_printer_note',
-            'oct.installation', 'oct.installation_note',
-            'oct.dismantle', 'oct.dismantle_note',
-            'oct.remarks',
-            'oct.next_follow_up', 'oct.next_follow_up_note',
-            'oct.created_at', 'oct.updated_at',
-        ])
-        // urutkan rapi (opsional)
-        ->orderByRaw('LOWER(mf.company) ASC')
-        ->orderByRaw('LOWER(oi.site) ASC');
+    // Optional search (kept)
+    if ($s = trim(strtolower((string)$request->get('search','')))) {
+        $like = '%'.$s.'%';
+        $q->where(function ($w) use ($like) {
+            $w->whereRaw('LOWER(mf.company) LIKE ?', [$like])
+              ->orWhereRaw('LOWER(mf.product) LIKE ?', [$like])
+              ->orWhereRaw('LOWER(oi.site) LIKE ?', [$like])
+              ->orWhereRaw('LOWER(oi.district_council) LIKE ?', [$like])
+              ->orWhereRaw('LOWER(oi.coordinates) LIKE ?', [$like]);
+        });
+    }
 
-        if ($month) {
-            Log::info("Filtering by month: {$month}");
-            $q->where(function ($query) use ($month) {
-                $query->whereRaw("MONTH(oct.material_date) = ?", [$month])
-                    ->orWhereRaw("MONTH(oct.artwork_date) = ?", [$month])
-                    ->orWhereRaw("MONTH(oct.received_approval) = ?", [$month])
-                    ->orWhereRaw("MONTH(oct.sent_to_printer) = ?", [$month])
-                    ->orWhereRaw("MONTH(oct.collection_printer) = ?", [$month])
-                    ->orWhereRaw("MONTH(oct.installation) = ?", [$month])
-                    ->orWhereRaw("MONTH(oct.dismantle) = ?", [$month]);
-            });
-            $filteredCount = $q->count();
-            Log::info("Rows matching month filter: {$filteredCount}");
-        }
+    // === Month-aware join (mirror of index) ===
+    if ($month) {
+        $omd = DB::table('outdoor_monthly_details as md')
+            ->select([
+                'md.outdoor_item_id',
+                DB::raw("MAX(CASE WHEN md.field_key='status'        AND md.field_type='text' THEN md.value_text END) AS status"),
+                DB::raw("MAX(CASE WHEN md.field_key='remarks'       AND md.field_type='text' THEN md.value_text END) AS remarks"),
+                DB::raw("MAX(CASE WHEN md.field_key='payment'       AND md.field_type='text' THEN md.value_text END) AS payment"),
+                DB::raw("MAX(CASE WHEN md.field_key='material'      AND md.field_type='text' THEN md.value_text END) AS material"),
+                DB::raw("MAX(CASE WHEN md.field_key='artwork'       AND md.field_type='text' THEN md.value_text END) AS artwork"),
+                DB::raw("MAX(CASE WHEN md.field_key='site'          AND md.field_type='text' THEN md.value_text END) AS site_text"),
+                DB::raw("MAX(CASE WHEN md.field_key='site_date'     AND md.field_type='date' THEN md.value_date END) AS site_date"),
+                DB::raw("MAX(CASE WHEN md.field_key='payment_date'  AND md.field_type='date' THEN md.value_date END) AS payment_date"),
+                DB::raw("MAX(CASE WHEN md.field_key='material_date' AND md.field_type='date' THEN md.value_date END) AS material_date"),
+                DB::raw("MAX(CASE WHEN md.field_key='artwork_date'  AND md.field_type='date' THEN md.value_date END) AS artwork_date"),
+                DB::raw("MAX(CASE WHEN md.field_key='received_approval' AND md.field_type='date' THEN md.value_date END) AS received_approval"),
+                DB::raw("MAX(CASE WHEN md.field_key='sent_to_printer'  AND md.field_type='date' THEN md.value_date END) AS sent_to_printer"),
+                DB::raw("MAX(CASE WHEN md.field_key='collection_printer' AND md.field_type='date' THEN md.value_date END) AS collection_printer"),
+                DB::raw("MAX(CASE WHEN md.field_key='installation'  AND md.field_type='date' THEN md.value_date END) AS installation"),
+                DB::raw("MAX(CASE WHEN md.field_key='dismantle'     AND md.field_type='date' THEN md.value_date END) AS dismantle"),
+                DB::raw("MAX(CASE WHEN md.field_key='next_follow_up'AND md.field_type='date' THEN md.value_date END) AS next_follow_up"),
+                DB::raw("MAX(CASE WHEN md.field_key='received_approval_note'  AND md.field_type='text' THEN md.value_text END) AS received_approval_note"),
+                DB::raw("MAX(CASE WHEN md.field_key='sent_to_printer_note'    AND md.field_type='text' THEN md.value_text END) AS sent_to_printer_note"),
+                DB::raw("MAX(CASE WHEN md.field_key='collection_printer_note' AND md.field_type='text' THEN md.value_text END) AS collection_printer_note"),
+                DB::raw("MAX(CASE WHEN md.field_key='installation_note'       AND md.field_type='text' THEN md.value_text END) AS installation_note"),
+                DB::raw("MAX(CASE WHEN md.field_key='dismantle_note'          AND md.field_type='text' THEN md.value_text END) AS dismantle_note"),
+                DB::raw("MAX(CASE WHEN md.field_key='next_follow_up_note'     AND md.field_type='text' THEN md.value_text END) AS next_follow_up_note"),
+                DB::raw("MAX(md.id) AS tracking_id"),
+            ])
+            ->where('md.year',  $year)
+            ->where('md.month', $month)
+            ->groupBy('md.outdoor_item_id');
 
-        $rows = $q->orderBy('oct.id')->get();
+        $q->leftJoinSub($omd, 'md', 'md.outdoor_item_id', '=', 'oi.id');
+    } else {
+        $octLatest = DB::table('outdoor_coordinator_trackings as oct')
+            ->select(['oct.master_file_id','oct.outdoor_item_id', DB::raw('MAX(oct.id) AS oct_id')])
+            ->groupBy('oct.master_file_id','oct.outdoor_item_id');
 
-        if ($rows->isEmpty()) {
-    Log::info("No filtered data found, exporting ALL data with same join");
-    $rows = DB::table('outdoor_coordinator_trackings as oct')
-        ->leftJoin('master_files as mf', 'mf.id', '=', 'oct.master_file_id')
-        ->leftJoin('outdoor_items as oi', 'oi.id', '=', 'oct.outdoor_item_id')
-        ->select([
-            DB::raw('mf.company as company'),
-            DB::raw('COALESCE(mf.client, oct.client) as person_in_charge'),
-            DB::raw('mf.product as product'),
-            DB::raw('oi.site as site'),
-            'oct.payment', 'oct.payment_date',
-            'oct.material', 'oct.material_date',
-            'oct.artwork', 'oct.artwork_date',
-            'oct.received_approval', 'oct.received_approval_note',
-            'oct.sent_to_printer', 'oct.sent_to_printer_note',
-            'oct.collection_printer', 'oct.collection_printer_note',
-            'oct.installation', 'oct.installation_note',
-            'oct.dismantle', 'oct.dismantle_note',
-            'oct.next_follow_up', 'oct.next_follow_up_note',
-            'oct.status',
-            'oct.id',
-        ])
-        ->orderByRaw('LOWER(mf.company) ASC')
-        ->orderByRaw('LOWER(oi.site) ASC')
-        ->orderBy('oct.id', 'asc')
-        ->get();
-    Log::info("All data export returned rows: " . $rows->count());
+        $q->leftJoinSub($octLatest, 'ox', function ($j) {
+            $j->on('ox.master_file_id','=','mf.id')->on('ox.outdoor_item_id','=','oi.id');
+        });
+        $q->leftJoin('outdoor_coordinator_trackings as oct', 'oct.id', '=', 'ox.oct_id');
+    }
+
+    // === SELECTS (mirror of index) ===
+    $q->select([
+        'mf.id as master_file_id',
+        'mf.company as company',
+        DB::raw('COALESCE(mf.client, oct.client) as person_in_charge'),
+        'mf.product as product',
+
+        DB::raw('oi.id as outdoor_item_id'),
+        DB::raw('oi.site as site'),                                // road fallback
+        DB::raw('bb.site_number as site_code'),                    // CODE
+        DB::raw('COALESCE(d.name, oi.district_council) as district'),
+
+        // month columns or baseline columns
+        DB::raw(($month ? 'md.status'  : 'oct.status as status')),
+        DB::raw(($month ? 'md.remarks' : 'oct.remarks as remarks')),
+
+        DB::raw(($month ? 'md.payment'       : 'oct.payment as payment')),
+        DB::raw(($month ? 'md.payment_date'  : 'oct.payment_date as payment_date')),
+        DB::raw(($month ? 'md.material'      : 'oct.material as material')),
+        DB::raw(($month ? 'md.material_date' : 'oct.material_date as material_date')),
+        DB::raw(($month ? 'md.artwork'       : 'oct.artwork as artwork')),
+        DB::raw(($month ? 'md.artwork_date'  : 'oct.artwork_date as artwork_date')),
+
+        DB::raw(($month ? 'md.received_approval'      : 'oct.received_approval as received_approval')),
+        DB::raw(($month ? 'md.received_approval_note' : 'oct.received_approval_note as received_approval_note')),
+        DB::raw(($month ? 'md.sent_to_printer'        : 'oct.sent_to_printer as sent_to_printer')),
+        DB::raw(($month ? 'md.sent_to_printer_note'   : 'oct.sent_to_printer_note as sent_to_printer_note')),
+        DB::raw(($month ? 'md.collection_printer'     : 'oct.collection_printer as collection_printer')),
+        DB::raw(($month ? 'md.collection_printer_note': 'oct.collection_printer_note as collection_printer_note')),
+        DB::raw(($month ? 'md.installation'           : 'oct.installation as installation')),
+        DB::raw(($month ? 'md.installation_note'      : 'oct.installation_note as installation_note')),
+        DB::raw(($month ? 'md.dismantle'              : 'oct.dismantle as dismantle')),
+        DB::raw(($month ? 'md.dismantle_note'         : 'oct.dismantle_note as dismantle_note')),
+        DB::raw(($month ? 'md.next_follow_up'         : 'oct.next_follow_up as next_follow_up')),
+        DB::raw(($month ? 'md.next_follow_up_note'    : 'oct.next_follow_up_note as next_follow_up_note')),
+    ]);
+
+    // sort exactly like index
+    $q->orderByRaw('LOWER(mf.company)')
+      ->orderByRaw('LOWER(COALESCE(bb.site_number, oi.site))');
+
+    $rows = $q->get();
+
+    // === Build the SAME site display as in Blade ===
+    foreach ($rows as $r) {
+        $siteCode = strtoupper(trim((string)($r->site_code ?? '')));
+        $road     = trim((string)($r->site ?? ''));
+        $district = trim((string)($r->district ?? ''));
+
+        $primary = $siteCode !== '' ? $siteCode : $road;
+
+        $norm = function($s) { return preg_replace('/[^a-z0-9]/i', '', strtolower((string)$s)); };
+        $dupPD = ($primary !== '' && $district !== '' && $norm($primary) === $norm($district));
+
+        $parts = [];
+        if ($primary !== '') $parts[] = $primary;
+        if ($district !== '' && !$dupPD) $parts[] = $district;
+
+        $r->site_display = $parts ? implode(' - ', $parts) : '';
+    }
+
+    // === Classify for sheets (kept) ===
+    $classifiedData = ['BB'=>[], 'TB'=>[], 'Buting'=>[], 'Other'=>[]];
+    foreach ($rows as $row) {
+        $p = strtoupper($row->product ?? '');
+        if (str_contains($p,'BB'))       $classifiedData['BB'][] = $row;
+        elseif (str_contains($p,'TB'))   $classifiedData['TB'][] = $row;
+        elseif (str_contains($p,'BUTING')) $classifiedData['Buting'][] = $row;
+        else                             $classifiedData['Other'][] = $row;
+    }
+
+    $monthName  = $month ? "month-{$month}" : 'all';
+    $filename   = "outdoor-coordinator-{$monthName}.xlsx";
+    $monthLabel = $month ? Carbon::createFromDate($year,$month,1)->format('F Y') : null;
+
+    return response()->streamDownload(function () use ($classifiedData, $monthLabel) {
+        $this->generateOutdoorCoordinatorXlsx($classifiedData, $monthLabel);
+    }, $filename, [
+        'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        'Cache-Control'       => 'no-cache, no-store, max-age=0',
+    ]);
 }
 
-
-        // Classify products into sub-products
-        $classifiedData = [
-            'BB' => [],
-            'TB' => [],
-            'Buting' => [],
-            'Other' => []
-        ];
-
-        foreach ($rows as $row) {
-            $product = strtoupper($row->product ?? '');
-
-            if (str_contains($product, 'BB')) {
-                $classifiedData['BB'][] = $row;
-            } elseif (str_contains($product, 'TB')) {
-                $classifiedData['TB'][] = $row;
-            } elseif (str_contains($product, 'BUTING')) {
-                $classifiedData['Buting'][] = $row;
-            } else {
-                $classifiedData['Other'][] = $row;
-            }
-        }
-
-        // File name + second-row month label
-        $monthName = $month ? "month-{$month}" : 'all';
-        $filename = "outdoor-coordinator-{$monthName}.xlsx";
-        $monthLabel = null;
-        if ($month) {
-            try {
-                $monthLabel = Carbon::createFromDate(now()->year, $month, 1)->format('F Y');
-            } catch (Throwable $e) {
-                $monthLabel = "Month {$month}";
-            }
-        }
-
-        return response()->streamDownload(function () use ($classifiedData, $monthLabel) {
-            $this->generateOutdoorCoordinatorXlsx($classifiedData, $monthLabel);
-        }, $filename, [
-            'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-            'Cache-Control'       => 'no-cache, no-store, max-age=0',
-        ]);
-    }
 
     /**
      * Generate outdoor coordinator XLSX with two-stack format (date/note pairs)
