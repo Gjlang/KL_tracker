@@ -1084,7 +1084,7 @@ class StockInventoryController extends Controller
                 ];
 
                 $balanceHeaderStyle = [
-                    'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                    'font' => ['bold' => true, 'color' => ['rgb' => '000000']],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFD700']],
                 ];
