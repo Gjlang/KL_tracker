@@ -761,3 +761,5 @@ Route::prefix('users')
 
 
 
+Route::post('/outdoor-whiteboard/{item}/complete', [OutdoorWhiteboardController::class, 'complete'])
+     ->name('outdoor.whiteboard.complete');

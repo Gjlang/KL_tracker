@@ -49,7 +49,7 @@
               >
             </div>
 
-            {{-- Sub Product --}}
+                        {{-- Sub Product --}}
             <div>
               <label class="small-caps text-neutral-600 block mb-2">Sub Product</label>
               <select name="sub" class="elegant-input w-full">
@@ -61,6 +61,17 @@
                 @endforeach
               </select>
             </div>
+
+            {{-- Status --}}
+            <div>
+              <label class="small-caps text-neutral-600 block mb-2">Status</label>
+              <select name="status" class="elegant-input w-full" onchange="this.form.submit()">
+                <option value="open"      {{ $status === 'open' ? 'selected' : '' }}>Open ({{ $openCount }})</option>
+                <option value="completed" {{ $status === 'completed' ? 'selected' : '' }}>Completed ({{ $completedCount }})</option>
+                <option value="all"       {{ $status === 'all' ? 'selected' : '' }}>All ({{ $openCount + $completedCount }})</option>
+              </select>
+            </div>
+
 
             {{-- Apply --}}
             <div class="flex items-end">
@@ -181,30 +192,41 @@
           <div class="ink truncate max-w-[140px]" title="{{ $mf->product }}">{{ $mf->product }}</div>
         </td>
 
-        @php
-  // Null-safe to avoid errors if billboard/location is missing
-  $locationName = $mf->billboard?->location?->name ?? '-';   // LOCATION from location.name
+      @php
+  // Sources:
+  // - Code:      billboards.site_number
+  // - Road:      outdoor_items.site
+  // - District:  billboards.location.district.name
 
-  // AREA from billboard (choose your preferred field order)
-  $areaValue = $mf->billboard?->code
-           ?? $mf->billboard?->area
-           ?? $mf->billboard?->site_number
-           ?? '-';
+  $bb        = $item->billboard ?? null;
+  $siteCode  = $bb?->site_number ?? '';
+  $roadRaw   = $item->site ?? '';
+  $district  = $bb?->location?->district?->name ?? '';
+
+  // Normalize for comparison: lowercase, remove non-alphanumerics
+  $normalize = function ($s) {
+      return preg_replace('/[^a-z0-9]/i', '', strtolower((string)$s));
+  };
+
+  $isDuplicate = $normalize($siteCode) !== '' && $normalize($siteCode) === $normalize($roadRaw);
+
+  // If duplicate, drop the road name
+  $parts = $isDuplicate
+      ? array_filter([$siteCode, $district], fn($x) => $x !== '' && $x !== '-')
+      : array_filter([$siteCode, $roadRaw, $district], fn($x) => $x !== '' && $x !== '-');
+
+  $locationDisplay = $parts ? implode(' - ', $parts) : '-';
 @endphp
 
-<!-- 7) Location -->
 <td class="px-4 py-3 text-sm column-data" data-column="7">
-  <div class="truncate max-w-[240px]" title="{{ $locationName }}">{{ $locationName }}</div>
+  <div class="truncate max-w-[360px]" title="{{ $locationDisplay }}">{{ $locationDisplay }}</div>
 </td>
 
-<!-- 8) Area -->
-<td class="px-4 py-3 text-sm column-data" data-column="8">
-  <div class="truncate max-w-[240px]" title="{{ $areaValue }}">{{ $areaValue }}</div>
-</td>
+
 
 
         <!-- 8) Duration (from master_files) -->
-        <td class="px-4 py-3 text-sm column-data" data-column="9">
+        <td class="px-4 py-3 text-sm column-data" data-column="8">
           <div class="ink">
             @if(!empty($mf->duration_text))
               {{ $mf->duration_text }}
@@ -226,18 +248,18 @@
         </td>
 
         <!-- 9) Installation (ambil dari master_files.date) -->
-        <td class="px-4 py-3 text-sm column-data" data-column="10">
+        <td class="px-4 py-3 text-sm column-data" data-column="9">
         <div class="ink">{{ $mf->date?->format('m/d/y') }}</div>
         </td>
 
         <!-- 10) Dismantle (ambil dari master_files.date_finish) -->
-        <td class="px-4 py-3 text-sm column-data" data-column="11">
+        <td class="px-4 py-3 text-sm column-data" data-column="10">
         <div class="ink">{{ $mf->date_finish?->format('m/d/y') }}</div>
         </td>
 
 
         <!-- 11) Supplier -->
-        <td class="px-4 py-3 text-sm column-data" data-column="12">
+        <td class="px-4 py-3 text-sm column-data" data-column="11">
           <div class="space-y-2">
             <input type="text" name="supplier_text" class="wb-field ledger-input w-36" placeholder="Supplier note..." value="{{ old('supplier_text', $wb?->supplier_text) }}">
             <input type="date" name="supplier_date" class="wb-field ledger-input w-36" value="{{ old('supplier_date', $supplierDate) }}">
@@ -245,7 +267,7 @@
         </td>
 
         <!-- 12) Storage -->
-        <td class="px-4 py-3 text-sm column-data" data-column="13">
+        <td class="px-4 py-3 text-sm column-data" data-column="12">
           <div class="space-y-2">
             <input type="text" name="storage_text" class="wb-field ledger-input w-36" placeholder="Storage note..." value="{{ old('storage_text', $wb?->storage_text) }}">
             <input type="date" name="storage_date" class="wb-field ledger-input w-36" value="{{ old('storage_date', $storageDate) }}">
@@ -253,17 +275,25 @@
         </td>
 
         <!-- 13) Actions -->
-        <td class="px-4 py-3 text-sm column-data text-center" data-column="14">
-          <div class="space-y-2">
-            <div class="text-xs">
-              <span class="save-state text-neutral-500">Idle</span>
-            </div>
-            <button type="button"
-              class="complete-btn text-xs px-3 py-1.5 rounded-full bg-[#22255b] text-white hover:bg-[#1a1e4a]">
-              Mark Completed
-            </button>
-          </div>
-        </td>
+<td class="px-4 py-3 text-sm column-data text-center" data-column="13">
+  <div class="space-y-2">
+    <div class="text-xs">
+      <span class="save-state text-neutral-500">Idle</span>
+    </div>
+
+    @if ($status === 'open')
+      <button type="button"
+        class="complete-btn text-xs px-3 py-1.5 rounded-full bg-[#22255b] text-white hover:bg-[#1a1e4a]">
+        Mark Completed
+      </button>
+    @else
+      <span class="ml-2 text-xs px-2 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 inline-block">
+        Completed
+      </span>
+    @endif
+  </div>
+</td>
+
       </tr>
       @php $row++; @endphp
     @endforeach
@@ -296,21 +326,20 @@ document.addEventListener('DOMContentLoaded', function () {
   let currentColumnPage = 1;
 
   const columnHeaders = [
-    { title: 'No.', key: 'no' },
-    { title: 'Created', key: 'created' },
-    { title: 'INV Number', key: 'inv' },
-    { title: 'Purchase Order', key: 'po' },
-    { title: 'Company', key: 'company' },
-    { title: 'Product', key: 'product' },
-    { title: 'Location', key: 'location' },
-    { title: 'Area', key: 'area' },
-    { title: 'Duration', key: 'duration' },
-    { title: 'Installation', key: 'installation' },
-    { title: 'Dismantle', key: 'dismantle' },
-    { title: 'Supplier', key: 'supplier' },
-    { title: 'Storage', key: 'storage' },
-    { title: 'Actions', key: 'actions' },
-  ];
+  { title: 'No.', key: 'no' },
+  { title: 'Created', key: 'created' },
+  { title: 'INV Number', key: 'inv' },
+  { title: 'Purchase Order', key: 'po' },
+  { title: 'Company', key: 'company' },
+  { title: 'Product', key: 'product' },
+  { title: 'Location', key: 'location' },
+  { title: 'Duration', key: 'duration' },
+  { title: 'Installation', key: 'installation' },
+  { title: 'Dismantle', key: 'dismantle' },
+  { title: 'Supplier', key: 'supplier' },
+  { title: 'Storage', key: 'storage' },
+  { title: 'Actions', key: 'actions' },
+];
 
   function updateColumnDisplay() {
     const startCol = (currentColumnPage - 1) * COLUMNS_PER_PAGE + 1;

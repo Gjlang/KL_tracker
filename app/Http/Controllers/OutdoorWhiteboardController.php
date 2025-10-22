@@ -24,10 +24,9 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 class OutdoorWhiteboardController extends Controller
 {
 
-  public function index(Request $request)
+ public function index(Request $request)
 {
     // --- Inputs ---
-    // Search (escaped for LIKE)
     $search = (string) $request->query('q', '');
     $search = str_replace(['\\','%','_'], ['\\\\','\\%','\\_'], $search);
 
@@ -36,52 +35,92 @@ class OutdoorWhiteboardController extends Controller
     $sub = (string) $request->query('sub', '');
     $sub = in_array($sub, $allowedSubs, true) ? $sub : '';
 
-    // --- Master files + ONLY active outdoor items (no completed whiteboard) ---
-    $masterFiles = MasterFile::with([
-            'billboard.location',    // ← Eager load billboard->location relationship
-            'outdoorItems' => function ($q) use ($sub) {
-                $q->select(
-                    'outdoor_items.id',
-                    'outdoor_items.master_file_id',
-                    'outdoor_items.site',
-                    'outdoor_items.start_date',
-                    'outdoor_items.end_date'
-                )
-                // Apply Sub Product filter (per-site)
-                ->when($sub !== '', fn ($qq) => $qq->where('outdoor_items.sub_product', $sub))
-                // Exclude items that already have a completed whiteboard
-                ->whereNotExists(function ($qq) {
-                    $qq->select(DB::raw(1))
-                       ->from('outdoor_whiteboards as ow')
-                       ->whereColumn('ow.outdoor_item_id', 'outdoor_items.id')
-                       ->whereNotNull('ow.completed_at');
-                });
-            }
-        ])
-        ->when($search !== '', function ($q) use ($search) {
-            $like = "%{$search}%";
-            $q->where(function ($qq) use ($like) {
-                $qq->where('company',  'like', $like)
-                   ->orWhere('product', 'like', $like)
-                   ->orWhere('location','like', $like)
-                   // Optional: search by billboard location name too
-                   ->orWhereHas('billboard.location', function ($x) use ($like) {
-                       $x->where('name', 'like', $like);
-                   });
-            });
-        })
-        ->orderByDesc('created_at')
-        ->get();
+    // Status filter: open | completed | all
+    $status = (string) $request->query('status', 'open');
+    if (! in_array($status, ['open','completed','all'], true)) {
+        $status = 'open';
+    }
 
-    // (Optional) hide MasterFiles that end up with zero active items:
-    // $masterFiles = $masterFiles->filter(fn ($mf) => $mf->outdoorItems->isNotEmpty())->values();
+    // --- Main list (MasterFile with nested Outdoor Items) ---
+    $masterFiles = MasterFile::with([
+        'outdoorItems' => function ($q) use ($sub, $status) {
+            $q->select(
+                'outdoor_items.id',
+                'outdoor_items.master_file_id',
+                'outdoor_items.site',           // road / place name (from item)
+                'outdoor_items.start_date',
+                'outdoor_items.end_date',
+                'outdoor_items.billboard_id'    // to traverse → billboard
+            )
+            ->with([
+                'billboard' => function ($b) {
+                    // IMPORTANT: only select columns that truly exist
+                    $b->select(
+                        'billboards.id',
+                        'billboards.location_id',
+                        'billboards.site_number'   // e.g., TB-SEL-0001-MPKJ-A
+                    )
+                    ->with([
+                        'location' => function ($l) {
+                            // keep it lean; we only need district_id here
+                            $l->select('locations.id','locations.district_id');
+                        },
+                        'location.district' => function ($d) {
+                            $d->select('districts.id','districts.name'); // e.g., Klang
+                        },
+                    ]);
+                }
+            ])
+            ->when($sub !== '', fn ($qq) => $qq->where('outdoor_items.sub_product', $sub))
+            // Status logic
+            ->when($status === 'open', function ($qq) {
+                $qq->whereNotExists(function ($x) {
+                    $x->select(DB::raw(1))
+                      ->from('outdoor_whiteboards as ow')
+                      ->whereColumn('ow.outdoor_item_id', 'outdoor_items.id')
+                      ->whereNotNull('ow.completed_at');
+                });
+            })
+            ->when($status === 'completed', function ($qq) {
+                $qq->whereExists(function ($x) {
+                    $x->select(DB::raw(1))
+                      ->from('outdoor_whiteboards as ow')
+                      ->whereColumn('ow.outdoor_item_id', 'outdoor_items.id')
+                      ->whereNotNull('ow.completed_at');
+                });
+            });
+        }
+    ])
+    ->when($search !== '', function ($q) use ($search) {
+        $like = "%{$search}%";
+
+        $q->where(function ($qq) use ($like) {
+            // Search on master_files basic text fields
+            $qq->where('company',  'like', $like)
+               ->orWhere('product', 'like', $like)
+
+               // Search within ITEM fields
+               ->orWhereHas('outdoorItems', function ($qi) use ($like) {
+                   $qi->where('outdoor_items.site', 'like', $like) // road / place
+                      ->orWhereHas('billboard', function ($qb) use ($like) {
+                          $qb->where('billboards.site_number', 'like', $like) // TB-SEL-...
+                             ->orWhereHas('location.district', function ($qd) use ($like) {
+                                 $qd->where('districts.name', 'like', $like); // district name
+                             });
+                      });
+               });
+        });
+    })
+    ->orderByDesc('created_at')
+    ->get();
 
     // --- Active item ids actually rendered ---
     $itemIds = $masterFiles->pluck('outdoorItems')->flatten()->pluck('id')->unique()->values();
 
     // --- Prefill for active items (so values show after refresh) ---
+    // For OPEN view we keep prefill; for COMPLETED/ALL it's not needed
     $existing = collect();
-    if ($itemIds->isNotEmpty()) {
+    if ($itemIds->isNotEmpty() && $status === 'open') {
         $existing = OutdoorWhiteboard::query()
             ->whereIn('outdoor_item_id', $itemIds)
             ->whereNull('completed_at')
@@ -89,21 +128,28 @@ class OutdoorWhiteboardController extends Controller
             ->keyBy('outdoor_item_id');
     }
 
-    // --- Badge count for Completed link (global, not filtered) ---
+    // --- Counts for badges/tabs ---
+    $openCount      = OutdoorWhiteboard::whereNull('completed_at')->count();
     $completedCount = OutdoorWhiteboard::whereNotNull('completed_at')->count();
 
-    // --- Helper list: current open whiteboards (kept if your Blade uses it) ---
+    // --- Helper list: whiteboards respecting status filter ---
     $whiteboards = OutdoorWhiteboard::query()
-        ->whereNull('completed_at')
+        ->when($status === 'open', fn ($q) => $q->whereNull('completed_at'))
+        ->when($status === 'completed', fn ($q) => $q->whereNotNull('completed_at'))
         ->leftJoin('outdoor_items', 'outdoor_items.id', '=', 'outdoor_whiteboards.outdoor_item_id')
         ->leftJoin('master_files', 'master_files.id', '=', 'outdoor_items.master_file_id')
+        // Optional: join billboards/locations/districts so search here behaves similarly
+        ->leftJoin('billboards', 'billboards.id', '=', 'outdoor_items.billboard_id')
+        ->leftJoin('locations', 'locations.id', '=', 'billboards.location_id')
+        ->leftJoin('districts', 'districts.id', '=', 'locations.district_id')
         ->when($search !== '', function ($q) use ($search) {
             $like = "%{$search}%";
             $q->where(function ($qq) use ($like) {
-                $qq->where('master_files.company',  'like', $like)
-                   ->orWhere('master_files.product', 'like', $like)
-                   ->orWhere('master_files.location','like', $like)
-                   ->orWhere('outdoor_items.site',    'like', $like);
+                $qq->where('master_files.company',        'like', $like)
+                   ->orWhere('master_files.product',      'like', $like)
+                   ->orWhere('outdoor_items.site',        'like', $like)
+                   ->orWhere('billboards.site_number',    'like', $like)
+                   ->orWhere('districts.name',            'like', $like);
             });
         })
         // Apply Sub Product filter here too for consistency
@@ -111,10 +157,11 @@ class OutdoorWhiteboardController extends Controller
         ->select([
             'outdoor_whiteboards.*',
             'outdoor_items.id as oi_id',
-            'outdoor_items.site',
+            'outdoor_items.site as oi_site',
             'master_files.company',
             'master_files.product',
-            'master_files.location',
+            'billboards.site_number as bb_site_number',
+            'districts.name as district_name',
         ])
         ->orderByDesc('outdoor_whiteboards.created_at')
         ->get();
@@ -123,12 +170,30 @@ class OutdoorWhiteboardController extends Controller
         'masterFiles',
         'existing',
         'search',
+        'status',
+        'openCount',
         'completedCount',
         'whiteboards',
         'sub' // pass current filter to Blade
     ));
 }
 
+
+public function complete($outdoorItemId)
+{
+    // ensure one OW row per item (your schema has unique(outdoor_item_id))
+    $ow = OutdoorWhiteboard::firstOrCreate(
+        ['outdoor_item_id' => $outdoorItemId],
+        [] // fill other default fields if you want
+    );
+
+    if (is_null($ow->completed_at)) {
+        $ow->completed_at = now();
+        $ow->save();
+    }
+
+    return back()->with('success', 'Marked as completed.');
+}
 
 
    public function exportLedgerXlsx(): StreamedResponse
