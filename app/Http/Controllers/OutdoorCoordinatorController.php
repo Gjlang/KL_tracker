@@ -50,11 +50,14 @@ public function index(Request $request)
 
     // -------- Base set: all Outdoor sites (mf JOIN oi) --------
     $q = DB::table('master_files as mf')
-        ->leftJoin('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
-        ->where(function ($w) {
-            $w->whereRaw('LOWER(mf.product_category) REGEXP ?', ['(^|[^a-z])(outdoor|billboard)([^a-z]|$)'])
-              ->orWhereRaw('LOWER(mf.product) REGEXP ?',          ['(^|[^a-z])(outdoor|billboard)([^a-z]|$)']);
-        });
+    ->leftJoin('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
+    ->leftJoin('billboards as bb', 'bb.id', '=', 'oi.billboard_id')              // site_number
+    ->leftJoin('locations as loc', 'loc.id', '=', 'bb.location_id')              // location
+    ->leftJoin('districts as d', 'd.id', '=', 'loc.district_id')                 // district name
+    ->where(function ($w) {
+        $w->whereRaw('LOWER(mf.product_category) REGEXP ?', ['(^|[^a-z])(outdoor|billboard)([^a-z]|$)'])
+          ->orWhereRaw('LOWER(mf.product) REGEXP ?',          ['(^|[^a-z])(outdoor|billboard)([^a-z]|$)']);
+    });
 
     // -------- Search --------
     if ($search !== '') {
@@ -135,10 +138,16 @@ public function index(Request $request)
         'mf.product as product',
         'mf.product_category as product_category',
         DB::raw('oi.id as outdoor_item_id'),
+
+        // original outdoor fields (kept)
         DB::raw('oi.site as site'),
         DB::raw('oi.district_council as district_council'),
         DB::raw('oi.coordinates as coordinates'),
         DB::raw('oi.size as size'),
+
+        // NEW: for display formatting in Blade
+        DB::raw('bb.site_number as site_code'),
+        DB::raw('COALESCE(d.name, oi.district_council) as district'),
 
         // kolom-kolom bulan (NULL kalau tidak ada OMD di bulan tsb, atau OCT data saat All Months)
         DB::raw(($month !== null) ? 'md.status'              : 'oct.status as status'),
@@ -169,7 +178,8 @@ public function index(Request $request)
         DB::raw(($month !== null) ? 'md.tracking_id'         : 'oct.id as tracking_id'),
     ]);
 
-    $q->orderBy('mf.company')->orderBy('oi.site');
+    $q->orderBy('mf.company')
+  ->orderByRaw('LOWER(COALESCE(bb.site_number, oi.site))');
 
     // -------- Paginate + page correction --------
     $rows = $q->paginate(50)->withQueryString(); // even if empty, paginator is safe

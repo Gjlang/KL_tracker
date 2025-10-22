@@ -354,9 +354,27 @@
                       <td class="px-4 py-3 sans text-sm text-neutral-700">
                         {{ $row->product }}
                       </td>
-                      <td class="px-4 py-3 sans text-sm text-neutral-700">
-                        {{ $row->site ?? '—' }}
-                      </td>
+                      @php
+  // 1) Prefer JOIN aliases if controller selected them:
+  $siteCode = isset($row->site_code) ? (string)$row->site_code : '';
+  $district = isset($row->district_name) ? (string)$row->district_name : '';
+
+  // 2) If still empty, try Eloquent relations (when ->with(...) was used)
+  if (($siteCode === '' || $district === '') && isset($row->billboard)) {
+      $bb = $row->billboard;
+      if ($siteCode === '')  $siteCode = (string)($bb?->site_number ?? '');
+      if ($district === '')  $district = (string)($bb?->location?->district?->name ?? '');
+  }
+
+  // 3) Compose display
+  $siteDisplay = ($siteCode !== '' && $district !== '')
+      ? ($siteCode.' - '.$district)
+      : ($siteCode !== '' ? $siteCode : ($district !== '' ? $district : '—'));
+@endphp
+<td class="px-4 py-3 sans text-sm text-neutral-700" title="{{ $siteDisplay }}">
+  {{ $siteDisplay }}
+</td>
+
                       <td class="px-4 py-3">
                         <span class="chip text-[#22255b] bg-[#22255b]/10">
                           {{ $row->product_category ?? 'Outdoor' }}

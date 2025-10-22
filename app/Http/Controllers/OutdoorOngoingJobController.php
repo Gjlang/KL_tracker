@@ -55,28 +55,36 @@ public function index(Request $request)
         ->where('year', $year)
         ->distinct();
 
-    $q = DB::table('master_files as mf')
-        ->leftJoin('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
-        ->leftJoinSub($d, 'd', function($j){
-            $j->on('d.outdoor_item_id','=','oi.id');
-        })
-        // Only Outdoor category (robust)
-        ->where(function ($w) {
-            $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
-              ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%']);
-        });
+   $q = DB::table('master_files as mf')
+    ->leftJoin('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
+    ->leftJoinSub($d, 'd', function($j){
+        $j->on('d.outdoor_item_id','=','oi.id');
+    })
+    // NEW joins to fetch site_number & district name
+    ->leftJoin('billboards as bb', 'bb.id', '=', 'oi.billboard_id')
+    ->leftJoin('locations as loc', 'loc.id', '=', 'bb.location_id')
+    ->leftJoin('districts as dist', 'dist.id', '=', 'loc.district_id')
+    // Only Outdoor category (robust)
+    ->where(function ($w) {
+        $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
+          ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%']);
+    });
 
     // Text search (optional)
     if ($search !== '') {
-        $like = '%'.strtolower($search).'%';
-        $q->where(function ($w) use ($like) {
-            $w->whereRaw('LOWER(mf.company) LIKE ?', [$like])
-              ->orWhereRaw('LOWER(mf.product) LIKE ?', [$like])
-              ->orWhereRaw('LOWER(oi.site) LIKE ?',   [$like])
-              ->orWhereRaw('LOWER(COALESCE(oi.coordinates,"")) LIKE ?',     [$like])
-              ->orWhereRaw('LOWER(COALESCE(oi.district_council,"")) LIKE ?',[$like]);
-        });
-    }
+    $like = '%'.strtolower($search).'%';
+    $q->where(function ($w) use ($like) {
+        $w->whereRaw('LOWER(mf.company) LIKE ?', [$like])
+          ->orWhereRaw('LOWER(mf.product) LIKE ?', [$like])
+          ->orWhereRaw('LOWER(oi.site) LIKE ?',   [$like])
+          ->orWhereRaw('LOWER(COALESCE(oi.coordinates,"")) LIKE ?',     [$like])
+          ->orWhereRaw('LOWER(COALESCE(oi.district_council,"")) LIKE ?',[$like])
+          // NEW:
+          ->orWhereRaw('LOWER(COALESCE(bb.site_number,"")) LIKE ?',     [$like])
+          ->orWhereRaw('LOWER(COALESCE(dist.name,"")) LIKE ?',          [$like]);
+    });
+}
+
 
     // Subproduct filter (BB/TB/…)
     if ($sub !== '' && in_array($sub, $subproducts, true)) {
@@ -119,16 +127,21 @@ public function index(Request $request)
               });
         });
     }
+$rows = $q->select([
+        'mf.id',
+        'mf.company','mf.product','mf.product_category',
+        'mf.date','mf.date_finish','mf.month','mf.created_at',
+        'oi.id as outdoor_item_id','oi.site','oi.size','oi.coordinates','oi.district_council',
+        // NEW aliases for Blade:
+        'bb.site_number as site_code',
+        'dist.name      as district_name',
+    ])
+    ->whereNotNull('oi.id')
+    // optional: sort by company then site_number if ada, else oi.site
+    ->orderByRaw('LOWER(mf.company) ASC')
+    ->orderByRaw('LOWER(COALESCE(bb.site_number, oi.site)) ASC')
+    ->get();
 
-    $rows = $q->select([
-            'mf.id',
-            'mf.company','mf.product','mf.product_category',
-            'mf.date','mf.date_finish','mf.month','mf.created_at',
-            'oi.id as outdoor_item_id','oi.site','oi.size','oi.coordinates','oi.district_council',
-        ])
-        ->whereNotNull('oi.id')
-        ->orderBy('mf.company')->orderBy('oi.site')
-        ->get();
 
     // Load monthly details for the selected year (+ optional month)
     $details = DB::table('outdoor_monthly_details')

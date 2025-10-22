@@ -281,12 +281,36 @@
                     </div>
                 </td>
 
-                {{-- Site --}}
-                <td class="bg-white hairline border-r px-4 py-4 min-w-[180px] w-[180px]">
-                    <div class="field-readonly truncate">
-                    {{ $row->site ?? '—' }}
-                    </div>
-                </td>
+                {{-- Site (format: CODE - District, fallback ke road/district_council) --}}
+@php
+    $siteCode = strtoupper(trim((string)($row->site_code ?? '')));
+    $road     = trim((string)($row->site ?? ''));
+    $district = trim((string)($row->district ?? ''));
+
+    $normalize = function ($s) {
+        return preg_replace('/[^a-z0-9]/i', '', strtolower((string)$s));
+    };
+
+    // Pilih primary (lebih prefer code)
+    $primary = $siteCode !== '' ? $siteCode : $road;
+
+    // Hindari duplikat kalau primary == district
+    $isDupPrimaryDistrict = $primary !== '' && $district !== '' &&
+                            $normalize($primary) === $normalize($district);
+
+    $parts = [];
+    if ($primary !== '') $parts[] = $primary;
+    if ($district !== '' && !$isDupPrimaryDistrict) $parts[] = $district;
+
+    $locationDisplay = $parts ? implode(' - ', $parts) : '—';
+@endphp
+
+<td class="bg-white hairline border-r px-4 py-4 min-w-[180px] w-[180px]">
+    <div class="field-readonly truncate" title="{{ $locationDisplay }}">
+        {{ $locationDisplay }}
+    </div>
+</td>
+
 
                   {{-- PAYMENT (text + date) --}}
                     <td class="px-4 py-4 hairline border-b align-top">
