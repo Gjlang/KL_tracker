@@ -20,6 +20,16 @@ use App\Models\StockInventoryTransaction;
 use Spatie\Permission\Models\Permission;
 use Carbon\Carbon;
 
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Font;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Color;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+
 
 class StockInventoryController extends Controller
 {
@@ -1007,5 +1017,285 @@ class StockInventoryController extends Controller
             DB::rollback();
             return response()->json(['error' => $e->getMessage()], 422);
         }
+    }
+
+
+
+
+
+
+    public function downloadExcel(Request $request)
+    {
+        $contractorId = $request->input('contractor_id');
+        $clientId = $request->input('client_id');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        $query = StockInventory::with([
+            'contractor',
+            'transactions' => function ($q) {
+                $q->with(['client', 'billboard']);
+            }
+        ]);
+
+        if ($contractorId) {
+            $query->where('contractor_id', $contractorId);
+        }
+
+        if ($clientId) {
+            $query->whereHas('transactions', function ($q) use ($clientId) {
+                $q->where('client_id', $clientId);
+            });
+        }
+
+        if ($startDate) {
+            $query->whereHas('transactions', function ($q) use ($startDate) {
+                $q->whereDate('transaction_date', '>=', $startDate);
+            });
+        }
+
+        if ($endDate) {
+            $query->whereHas('transactions', function ($q) use ($endDate) {
+                $q->whereDate('transaction_date', '<=', $endDate);
+            });
+        }
+
+        $stockInventories = $query->get();
+
+        $filename = 'Vendor_Stock_Inventory_' . date('YmdHis') . '.xlsx';
+
+        return new StreamedResponse(
+            function () use ($stockInventories, $filename) {
+                $spreadsheet = new Spreadsheet();
+                $sheet = $spreadsheet->getActiveSheet();
+                $sheet->setTitle('Vendor Stock Inventory');
+
+                // === Styles ===
+                $headerStyle = [
+                    'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '003366']],
+                ];
+
+                $stockInHeaderStyle = [
+                    'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FF6600']],
+                ];
+
+                $balanceHeaderStyle = [
+                    'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFD700']],
+                ];
+
+                $stockOutHeaderStyle = [
+                    'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '00994C']],
+                ];
+
+                // Border style
+                $borderStyle = [
+                    'borders' => [
+                        'allBorders' => [
+                            'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                            'color' => ['rgb' => '000000']
+                        ]
+                    ]
+                ];
+
+                // === Column widths ===
+                $widths = [
+                    'A' => 5,
+                    'B' => 25,
+                    'C' => 25,
+                    'D' => 40,
+                    'E' => 15,
+                    'F' => 10,
+                    'G' => 10,
+                    'H' => 20,
+                    'I' => 15,
+                    'J' => 15,
+                    'K' => 15,
+                    'L' => 10,
+                    'M' => 10,
+                    'N' => 15,
+                    'O' => 40,
+                    'P' => 25,
+                    'Q' => 20,
+                ];
+                foreach ($widths as $col => $w) {
+                    $sheet->getColumnDimension($col)->setWidth($w);
+                }
+
+                // === Headers ===
+                $headers = [
+                    'No.',
+                    'Contractor',
+                    'Client',
+                    'Site',
+                    'Type',
+                    'Size',
+                    'Quantity',
+                    'Remarks',
+                    'Date In',
+                    'Bal - Contractor',
+                    'Date Out',
+                    'Quantity',
+                    'Size',
+                    'Type',
+                    'Site',
+                    'Client',
+                    'Remarks'
+                ];
+
+                $rowNumber = 1;
+                $colIndex = 'A';
+                foreach ($headers as $header) {
+                    $cell = $sheet->getCell($colIndex . $rowNumber);
+                    $cell->setValue($header);
+                    switch ($colIndex) {
+                        case 'A':
+                            $cell->getStyle()->applyFromArray($headerStyle);
+                            break;
+                        case 'B':
+                        case 'C':
+                        case 'D':
+                        case 'E':
+                        case 'F':
+                        case 'G':
+                        case 'H':
+                        case 'I':
+                            $cell->getStyle()->applyFromArray($stockInHeaderStyle);
+                            break;
+                        case 'J':
+                            $cell->getStyle()->applyFromArray($balanceHeaderStyle);
+                            break;
+                        default:
+                            $cell->getStyle()->applyFromArray($stockOutHeaderStyle);
+                            break;
+                    }
+                    $colIndex++;
+                }
+
+                // === Data Rows ===
+                $rowNumber = 2;
+                $currentContractor = null;
+                $groupStartRow = 2;
+
+                foreach ($stockInventories as $inventory) {
+                    $contractorName = $inventory->contractor ? $inventory->contractor->name : '';
+
+                    // detect contractor change
+                    if ($currentContractor !== $contractorName) {
+                        if ($currentContractor !== null && $groupStartRow < $rowNumber) {
+                            $sheet->mergeCells('B' . $groupStartRow . ':B' . ($rowNumber - 1));
+                            $sheet->mergeCells('J' . $groupStartRow . ':J' . ($rowNumber - 1));
+                            $sheet->getStyle('B' . $groupStartRow . ':B' . ($rowNumber - 1))
+                                ->getAlignment()->setVertical(Alignment::VERTICAL_CENTER)
+                                ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                            $sheet->getStyle('J' . $groupStartRow . ':J' . ($rowNumber - 1))
+                                ->getAlignment()->setVertical(Alignment::VERTICAL_CENTER)
+                                ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                        }
+
+                        $currentContractor = $contractorName;
+                        $groupStartRow = $rowNumber;
+                    }
+
+                    $inTransactions = $inventory->transactions->where('type', 'in');
+                    $outTransactions = $inventory->transactions->where('type', 'out');
+
+                    // Stock IN
+                    if ($inTransactions && $inTransactions->count() > 0) {
+                        foreach ($inTransactions as $inTransaction) {
+                            $col = 'A';
+                            $sheet->setCellValue($col++ . $rowNumber, $rowNumber - 1);
+                            $sheet->setCellValue($col++ . $rowNumber, $contractorName);
+                            $sheet->setCellValue($col++ . $rowNumber, optional($inTransaction->client)->name);
+                            $siteNumber = optional($inTransaction->billboard)->site_number;
+                            $locationName = optional(optional($inTransaction->billboard)->location)->name;
+                            $siteLocation = trim(($locationName ? $locationName : ''), ' -');
+                            $sheet->setCellValue($col++ . $rowNumber, $siteLocation);
+                            $sheet->setCellValue($col++ . $rowNumber, optional($inTransaction->billboard)->type);
+                            $sheet->setCellValue($col++ . $rowNumber, optional($inTransaction->billboard)->size);
+                            $sheet->setCellValue($col++ . $rowNumber, $inTransaction->quantity);
+                            $sheet->setCellValue($col++ . $rowNumber, $inTransaction->remarks);
+                            $sheet->setCellValue($col++ . $rowNumber, $inTransaction->transaction_date
+                                ? \Carbon\Carbon::parse($inTransaction->transaction_date)->format('d/m/Y') : '');
+                            $sheet->setCellValue($col++ . $rowNumber, $inventory->balance_contractor);
+                            $rowNumber++;
+                        }
+                    }
+
+                    // Stock OUT
+                    if ($outTransactions && $outTransactions->count() > 0) {
+                        foreach ($outTransactions as $outTransaction) {
+                            $col = 'A';
+                            $sheet->setCellValue($col++ . $rowNumber, $rowNumber - 1);
+                            $sheet->setCellValue($col++ . $rowNumber, $contractorName);
+                            $sheet->setCellValue($col++ . $rowNumber, optional($outTransaction->client)->name);
+                            $siteNumber = optional($outTransaction->billboard)->site_number;
+                            $locationName = optional(optional($outTransaction->billboard)->location)->name;
+                            $siteLocation = trim(($locationName ? $locationName : ''), ' -');
+                            $sheet->setCellValue($col++ . $rowNumber, $siteLocation);
+                            $sheet->setCellValue($col++ . $rowNumber, optional($outTransaction->billboard)->type);
+                            $sheet->setCellValue($col++ . $rowNumber, optional($outTransaction->billboard)->size);
+                            $sheet->setCellValue($col++ . $rowNumber, '');
+                            $sheet->setCellValue($col++ . $rowNumber, '');
+                            $sheet->setCellValue($col++ . $rowNumber, '');
+                            $sheet->setCellValue($col++ . $rowNumber, $inventory->balance_contractor);
+                            $sheet->setCellValue($col++ . $rowNumber, $outTransaction->transaction_date
+                                ? \Carbon\Carbon::parse($outTransaction->transaction_date)->format('d/m/Y') : '');
+                            $sheet->setCellValue($col++ . $rowNumber, $outTransaction->quantity);
+                            $sheet->setCellValue($col++ . $rowNumber, optional($outTransaction->billboard)->size);
+                            $sheet->setCellValue($col++ . $rowNumber, optional($outTransaction->billboard)->type);
+                            $sheet->setCellValue($col++ . $rowNumber, $siteLocation);
+                            $sheet->setCellValue($col++ . $rowNumber, optional($outTransaction->client)->name);
+                            $sheet->setCellValue($col++ . $rowNumber, $outTransaction->remarks);
+                            $rowNumber++;
+                        }
+                    }
+                }
+
+                // merge final contractor group
+                if ($currentContractor !== null && $groupStartRow < $rowNumber) {
+                    $sheet->mergeCells('B' . $groupStartRow . ':B' . ($rowNumber - 1));
+                    $sheet->mergeCells('J' . $groupStartRow . ':J' . ($rowNumber - 1));
+                    $sheet->getStyle('B' . $groupStartRow . ':B' . ($rowNumber - 1))
+                        ->getAlignment()->setVertical(Alignment::VERTICAL_CENTER)
+                        ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $sheet->getStyle('J' . $groupStartRow . ':J' . ($rowNumber - 1))
+                        ->getAlignment()->setVertical(Alignment::VERTICAL_CENTER)
+                        ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                }
+
+                // ✅ Apply borders to the whole data range
+                $lastRow = $rowNumber - 1;
+                $sheet->getStyle("A1:Q{$lastRow}")->applyFromArray($borderStyle);
+
+                // ✅ Center-align specific columns: Contractor (B), Quantity (G, L), Bal - Contractor (J)
+                $sheet->getStyle("B2:B{$lastRow}")
+                    ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle("G2:G{$lastRow}")
+                    ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle("J2:J{$lastRow}")
+                    ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle("L2:L{$lastRow}")
+                    ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+                // === Output ===
+                $writer = new Xlsx($spreadsheet);
+                $writer->save('php://output');
+            },
+            200,
+            [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Cache-Control' => 'max-age=0',
+                'Pragma' => 'public',
+            ]
+        );
     }
 }

@@ -442,8 +442,7 @@ Route::group(['middleware' => ['auth']], function () {
     Route::post('/inventory/edit', [StockInventoryController::class, 'edit'])->name('stockInventory.edit');
     Route::get('/inventory/{transaction}/edit', [StockInventoryController::class, 'editData'])->name('stockInventory.editData');
     Route::post('/inventory/delete', [StockInventoryController::class, 'delete'])->name('stockInventory.delete');
-
-
+    Route::post('/stock-inventory/download-excel', [StockInventoryController::class, 'downloadExcel'])->name('stockInventory.downloadExcel');
 });
 
 
@@ -747,7 +746,7 @@ Route::get('/outdoor/coords', [MasterFileController::class, 'getOutdoorCoords'])
 // USERS ROUTES
 // ===============================================
 Route::prefix('users')
-    ->middleware(['web','auth'])   // <- remove 'permission:users.view'
+    ->middleware(['web', 'auth'])   // <- remove 'permission:users.view'
     ->name('users.')
     ->group(function () {
         Route::get('/',        [UsersController::class, 'index'])->name('index');
@@ -762,4 +761,4 @@ Route::prefix('users')
 
 
 Route::post('/outdoor-whiteboard/{item}/complete', [OutdoorWhiteboardController::class, 'complete'])
-     ->name('outdoor.whiteboard.complete');
+    ->name('outdoor.whiteboard.complete');

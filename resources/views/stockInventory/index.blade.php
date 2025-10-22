@@ -383,7 +383,20 @@
                     <p @class(['text-sm', 'text-muted'])>Manage vendor stock inventory transactions and balances</p>
                 </div>
                 <div @class(['flex', 'flex-wrap', 'gap-3'])>
-                    <a href="javascript:;" data-toggle="modal" data-target="#inventoryAddModal" @class(['btn-primary', 'inline-flex', 'items-center', 'gap-2'])>
+                    <a href="javascript:;" id="downloadExcelButton" class="btn-primary inline-flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" class="mr-1">
+                            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <path d="M9 13h6"></path>
+                            <path d="M9 17h6"></path>
+                            <path d="M9 9h6"></path>
+                        </svg>
+                        Download Excel
+                    </a>
+                    <a href="javascript:;" data-toggle="modal" data-target="#inventoryAddModal"
+                        @class(['btn-primary', 'inline-flex', 'items-center', 'gap-2'])>
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
                             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                             stroke-linejoin="round">
@@ -768,7 +781,8 @@
                                 </div>
                                 <div @class(['mb-3'])>
                                     <label @class(['small-caps', 'block', 'mb-1'])><strong>Quantity Out</strong></label>
-                                    <input type="number" @class(['input-elegant', 'w-full']) name="qtys_out[]" min="1">
+                                    <input type="number" @class(['input-elegant', 'w-full']) name="qtys_out[]"
+                                        min="1">
                                 </div>
                                 <div>
                                     <a href="javascript:void(0);" @class(['btn-destructive', 'text-sm'])
@@ -1003,7 +1017,22 @@
 @section('scripts')
     <!-- searchable dropdown -->
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <!-- DataTables Core CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <!-- DataTables Buttons CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css">
+
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <!-- DataTables Core JS -->
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <!-- DataTables Buttons JS -->
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+    <!-- JSZip for Excel (required by Buttons extension) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- Buttons HTML5 export (includes Excel) -->
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+    <!-- Buttons Print (optional, included for completeness) -->
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
 
     <script>
         // ============================================
@@ -1013,7 +1042,6 @@
         let stockInventoryId = null;
         let transactionInId = null;
         let transactionOutId = null;
-
         document.addEventListener('DOMContentLoaded', function() {
             // Initialize Select2 on all .select2 inside the modal
             $('#inventoryAddModal').on('shown.bs.modal', function() {
@@ -1025,7 +1053,6 @@
                     dropdownAutoWidth: true
                 });
             });
-
             // OR if you're not using Bootstrap modals, just init on load:
             $('#inventoryAddModal select.select2').select2({
                 placeholder: "Select an option",
@@ -1033,13 +1060,11 @@
                 width: '100%'
             });
         });
-
         // ============================================
         // DATE VALIDATION
         // ============================================
         const startDateInput = document.getElementById("filterStockStartDate");
         const endDateInput = document.getElementById("filterStockEndDate");
-
         if (startDateInput && endDateInput) {
             startDateInput.addEventListener("change", function() {
                 endDateInput.min = this.value;
@@ -1047,7 +1072,6 @@
                     endDateInput.value = this.value;
                 }
             });
-
             endDateInput.addEventListener("change", function() {
                 startDateInput.max = this.value;
                 if (startDateInput.value && startDateInput.value > this.value) {
@@ -1055,7 +1079,6 @@
                 }
             });
         }
-
         // ============================================
         // HELPER FUNCTIONS
         // ============================================
@@ -1068,7 +1091,6 @@
             const id = selector.startsWith('#') ? selector.slice(1) : selector;
             window.closeModal(id);
         }
-
         // ============================================
         // ADD SITE FUNCTIONS
         // ============================================
@@ -1129,7 +1151,6 @@
                 </a>
             </div>
         </div>`;
-
             $("#siteInContainer").append(html);
             const $addModal = $('#inventoryAddModal');
             $("#siteInContainer .select2").select2({
@@ -1138,12 +1159,10 @@
             });
             updateTotalIn();
         }
-
         window.removeSiteIn = function(el) {
             el.closest(".siteIn").remove();
             updateTotalIn();
         }
-
         window.siteOutAdd = function() {
             let html = `
         <br><div @class(['siteOut', 'space-y-4'])>
@@ -1194,7 +1213,6 @@
             <div>
                 <label @class(['small-caps', 'block', 'mb-2'])>Quantity Out</label>
                 <input type="number" @class(['input-elegant', 'w-full']) name="qtys_out[]" min="1">
-
             </div>
             <div>
                 <a href="javascript:void(0);" @class(['btn-destructive', 'text-sm']) onclick="removeSiteOut(this)">
@@ -1202,7 +1220,6 @@
                 </a>
             </div>
         </div>`;
-
             $("#siteOutContainer").append(html);
             const $addModal = $('#inventoryAddModal');
             $("#siteOutContainer .select2").select2({
@@ -1211,12 +1228,10 @@
             });
             updateTotalOut();
         }
-
         window.removeSiteOut = function(el) {
             el.closest(".siteOut").remove();
             updateTotalOut();
         }
-
         // ============================================
         // AUTO-FILL TYPE & SIZE
         // ============================================
@@ -1228,7 +1243,6 @@
             row.find('input[name="types_in[]"], input[name="types_out[]"]').val(type);
             row.find('input[name="sizes_in[]"], input[name="sizes_out[]"]').val(size);
         });
-
         // ============================================
         // TOTAL CALCULATIONS
         // ============================================
@@ -1249,7 +1263,6 @@
             });
             document.getElementById("balBgoc").value = total;
         }
-
         $(document).on("input", "input[name='qtys_in[]']", updateTotalIn);
         $(document).on("input", "input[name='qtys_out[]']", updateTotalOut);
 
@@ -1270,7 +1283,6 @@
             const elem = document.getElementById("editBalanceBgoc");
             if (elem) elem.value = total;
         }
-
         // ============================================
         // DELETE FUNCTION
         // ============================================
@@ -1280,15 +1292,12 @@
                 window.showSubmitToast("No transaction ID found to delete.", "#D32929");
                 return;
             }
-
             const id = lastClickedLink.split("-")[1];
-
             if (!id || id === 'undefined' || id === 'null' || id === '') {
                 closeAltEditorModal("#inventoryDeleteModal");
                 window.showSubmitToast("Invalid transaction ID.", "#D32929");
                 return;
             }
-
             $.ajax({
                 type: 'POST',
                 url: "{{ route('stockInventory.delete') }}",
@@ -1315,7 +1324,6 @@
                 }
             });
         }
-
         // Delete IN Inventory
         $('#deleteInButton').on('click', function() {
             const transactionId = $('#editTransactionInId').val();
@@ -1323,9 +1331,7 @@
                 alert('No IN transaction to delete.');
                 return;
             }
-
             if (!confirm('Are you sure you want to delete this IN inventory record?')) return;
-
             $.ajax({
                 url: "{{ route('stockInventory.delete') }}",
                 method: 'POST',
@@ -1349,7 +1355,6 @@
                 }
             });
         });
-
         // Delete OUT Inventory
         $('#deleteOutButton').on('click', function() {
             const transactionId = $('#editTransactionOutId').val();
@@ -1357,9 +1362,7 @@
                 alert('No OUT transaction to delete.');
                 return;
             }
-
             if (!confirm('Are you sure you want to delete this OUT inventory record?')) return;
-
             $.ajax({
                 url: "{{ route('stockInventory.delete') }}",
                 method: 'POST',
@@ -1383,29 +1386,24 @@
                 }
             });
         });
-
         // ============================================
         // DOCUMENT READY
         // ============================================
         $(document).ready(function() {
             const delBtn = document.getElementById("inventoryDeleteButton");
             if (delBtn) delBtn.addEventListener("click", inventoryDeleteButton);
-
             const $addModal = $('#inventoryAddModal');
             const $editModal = $('#inventoryEditModal');
-
             // DECLARE VARIABLES TO HOLD THE IDs SCOPED TO THE DOCUMENT READY FUNCTION
             let transactionInId = null;
             let transactionOutId = null;
             let stockInventoryId = null;
-
             $('.select2').select2({
                 placeholder: "Select an option",
                 allowClear: true,
                 width: '100%',
                 dropdownParent: $addModal
             });
-
             // Initialize Select2 for Edit Modal
             $('#editClientIn, #editBillboardIn, #editClientOut, #editBillboardOut').select2({
                 placeholder: "Select an option",
@@ -1413,36 +1411,29 @@
                 width: '100%',
                 dropdownParent: $editModal
             });
-
             // ADD FORM SUBMIT
             $('#addStockInventoryForm').off('submit').on('submit', function(e) {
                 e.preventDefault();
                 inventoryAddButton();
             });
-
             // EDIT FORM SUBMIT
             $('#inventoryEditForm').off('submit').on('submit', function(e) {
                 e.preventDefault();
-
                 console.log("Editing Stock Inventory ID (before check):", transactionInId, transactionOutId,
                     stockInventoryId);
-
                 // Determine which transaction type(s) we are trying to edit based on form fields
                 // This assumes that if a transaction was loaded for editing, its key fields (like ID, site, qty) would be populated.
                 // We use the presence of 'site' and 'qty' > 0 as indicators that this part of the form is active.
                 const hasInData = $('#editBillboardIn').val() && parseInt($('#editQtyIn').val() || 0) > 0;
                 const hasOutData = $('#editBillboardOut').val() && parseInt($('#editQtyOut').val() || 0) >
                     0;
-
                 // Optional: Prevent submission if neither side has data
                 if (!hasInData && !hasOutData) {
                     alert('Please fill in at least one site and quantity (In or Out) to update.');
                     return; // Stop submission if no data is present to update
                 }
-
                 console.log("Editing Stock Inventory ID:", transactionInId, transactionOutId,
                     stockInventoryId);
-
                 // Optional: Prevent submission if a transaction ID is expected but missing for an active side
                 // This might happen if the modal was opened incorrectly.
                 if (hasInData && !transactionInId) {
@@ -1453,7 +1444,6 @@
                     alert('Transaction ID for OUT record is missing. Cannot update.');
                     return;
                 }
-
                 // Build the form data payload conditionally
                 let formData = {
                     _token: $('meta[name="csrf-token"]').attr('content'),
@@ -1469,7 +1459,6 @@
                     balance_bgoc: $('#editBalanceBgoc')
                         .val(), // Included, though backend might not use it directly for balance calculation
                 };
-
                 // Conditionally add IN data if active
                 if (hasInData) {
                     formData = {
@@ -1483,7 +1472,6 @@
                         qty_in: $('#editQtyIn').val(), // Required to calculate difference
                     };
                 }
-
                 // Conditionally add OUT data if active
                 if (hasOutData) {
                     formData = {
@@ -1497,10 +1485,8 @@
                         qty_out: $('#editQtyOut').val(), // Required to calculate difference
                     };
                 }
-
                 // Optional: Log the data being sent for debugging
                 console.log("Sending edit data:", formData);
-
                 $.ajax({
                     url: "{{ route('stockInventory.edit') }}",
                     type: "POST",
@@ -1523,14 +1509,11 @@
                         console.error('Status:', status); // e.g., 'error'
                         console.error('Error:', error); // e.g., 'Bad Request'
                         console.error('Response Text:', xhr.responseText); // The raw response
-
                         let message = "Update failed!"; // Default message
-
                         // Attempt to parse the error response from Laravel
                         if (xhr.responseText) {
                             try {
                                 const responseObj = JSON.parse(xhr.responseText);
-
                                 // Check for the standard Laravel validation error format first
                                 // Structure: { "message": "...", "errors": { "field": ["msg1", "msg2"] } }
                                 if (responseObj && typeof responseObj.message === 'string' &&
@@ -1566,19 +1549,16 @@
                                 message = xhr.responseText; // Use the raw response text
                             }
                         }
-
                         // Display the determined message (specific or fallback)
                         window.showSubmitToast("Error: " + message, "#D32929");
                     }
                 });
             });
-
             // AUTO FILTER SETUP
             function setupAutoFilter() {
                 const tableElement = $('#inventory_table');
                 const filterSelectors =
                     '#filterStockContractor, #filterStockClient, #filterStockStartDate, #filterStockEndDate';
-
                 if ($.fn.DataTable.isDataTable(tableElement)) {
                     const table = tableElement.DataTable();
                     $(filterSelectors).on('change', function() {
@@ -1586,7 +1566,6 @@
                     });
                 }
             }
-
             // ADD INVENTORY FUNCTION
             function inventoryAddButton() {
                 let contractor_id = $("#inputContractorName").val();
@@ -1596,14 +1575,12 @@
                 let remarks_out = $("#inputRemarksOut").val();
                 let balance_contractor = $("#balContractor").val();
                 let balance_bgoc = $("#balBgoc").val();
-
                 let sites_in = [];
                 $("#siteInContainer .siteIn").each(function() {
                     let siteId = $(this).find("select[name='sites_in[]']").val();
                     let rawVal = $(this).find("select[name='clients_in[]']").val();
                     let clientType = null,
                         clientId = null;
-
                     if (rawVal) {
                         if (rawVal.startsWith("client-")) {
                             clientType = "client";
@@ -1613,7 +1590,6 @@
                             clientId = rawVal.replace("contractor-", "");
                         }
                     }
-
                     sites_in.push({
                         id: siteId || null,
                         client_type: clientType,
@@ -1622,15 +1598,12 @@
                         size: $(this).find("input[name='sizes_in[]']").val(),
                         qty: parseInt($(this).find("input[name='qtys_in[]']").val()) || 0
                     });
-
                 });
-
                 let sites_out = [];
                 $("#siteOutContainer .siteOut").each(function() {
                     let siteId = $(this).find("select[name='sites_out[]']").val();
                     let rawVal = $(this).find("select[name='clients_out[]']").val();
                     if (!rawVal) return;
-
                     let clientType = null,
                         clientId = null;
                     if (rawVal.startsWith("client-")) {
@@ -1640,7 +1613,6 @@
                         clientType = "contractor";
                         clientId = rawVal.replace("contractor-", "");
                     }
-
                     sites_out.push({
                         id: siteId || null,
                         client_type: clientType || null,
@@ -1650,7 +1622,6 @@
                         qty: parseInt($(this).find("input[name='qtys_out[]']").val()) || 0
                     });
                 });
-
                 // 🔍 DEBUG LOGS - ADD THIS SECTION
                 console.log('=== FORM DATA BEFORE SUBMIT ===');
                 console.log('Contractor ID:', contractor_id);
@@ -1661,7 +1632,6 @@
                 console.log('Site In Container Count:', $("#siteInContainer .siteIn").length);
                 console.log('Site Out Container Count:', $("#siteOutContainer .siteOut").length);
                 console.log('================================');
-
                 $.ajax({
                     type: 'POST',
                     url: "{{ route('stockInventory.create') }}",
@@ -1685,17 +1655,14 @@
                         console.log('✅ SUCCESS RESPONSE:', response); // 🔍 ADD THIS
                         closeAltEditorModal("#inventoryAddModal");
                         window.showSubmitToast("Successfully added.", "#91C714");
-
                         $('#inventoryAddModal input[type="text"], #inventoryAddModal input[type="number"], #inventoryAddModal input[type="date"]')
                             .val('');
                         $('#inventoryAddModal select').val('').trigger('change');
                         $('#siteInContainer').empty();
                         $('#siteOutContainer').empty();
-
                         // Re-add initial site rows
                         siteInAdd();
                         siteOutAdd();
-
                         $('#inventory_table').DataTable().ajax.reload(null, false);
                     },
                     error: function(xhr, status, error) {
@@ -1704,14 +1671,11 @@
                         console.error("Error:", error); // e.g., "Bad Request"
                         console.error("Response Text:", xhr.responseText); // The raw response
                         console.error("Response Object:", xhr); // The full object
-
                         let message = "An error occurred while saving data."; // Default message
-
                         // Attempt to parse the error response from Laravel
                         if (xhr.responseText) {
                             try {
                                 const responseObj = JSON.parse(xhr.responseText);
-
                                 // Check for the standard Laravel validation error format first
                                 // Structure: { "message": "...", "errors": { "field": ["msg1", "msg2"] } }
                                 if (responseObj && typeof responseObj.message === 'string' &&
@@ -1747,13 +1711,11 @@
                                 message = xhr.responseText; // Use the raw response text
                             }
                         }
-
                         // Display the determined message (specific or fallback)
                         window.showSubmitToast("Error: " + message, "#D32929");
                     }
                 });
             }
-
             // DATATABLE INITIALIZATION
             // 🔍 DEBUG - Check backend response first
             $.ajax({
@@ -1777,7 +1739,6 @@
                     console.error('AJAX Error:', xhr.responseText);
                 }
             });
-
             // DataTable initialization
             $('#inventory_table').DataTable({
                 processing: true,
@@ -1885,11 +1846,9 @@
                         render: function(data, type, row) {
                             let transId = row.transaction_in_id || row.transaction_out_id;
                             let typeLabel = row.transaction_in_id ? 'IN' : 'OUT';
-
                             if (!transId || transId === '' || transId === 'null') {
                                 return '<div @class(['flex', 'items-center', 'justify-center'])>—</div>';
                             }
-
                             return `
                     <div @class(['flex', 'items-center', 'justify-center', 'space-x-3'])>
                         <a href="javascript:;" @class(['btn-primary', 'text-xs', 'px-3', 'py-1', 'edit-inventory'])
@@ -1898,7 +1857,6 @@
                         data-stock-inventory-id="${row.stock_inventory_id}">
                         Edit
                         </a>
-                        
                     </div>
                 `;
                         }
@@ -1914,13 +1872,11 @@
                     }).nodes();
                     let lastStockId = null;
                     let groupStart = null;
-
                     api.rows({
                         page: 'current'
                     }).every(function(rowIdx) {
                         let data = this.data();
                         let stockId = data.stock_inventory_id;
-
                         if (stockId !== lastStockId) {
                             if (groupStart !== null) {
                                 let rowCount = rowIdx - groupStart;
@@ -1935,7 +1891,6 @@
                             lastStockId = stockId;
                         }
                     });
-
                     if (groupStart !== null) {
                         let rowCount = rows.length - groupStart;
                         $('td:eq(1)', rows[groupStart]).attr('rowspan', rowCount);
@@ -1945,14 +1900,11 @@
                             $('td:eq(9)', rows[j]).hide();
                         }
                     }
-
                     $("#inventory_table_paginate")
                         .addClass("flex justify-center items-center gap-2");
-
                     $("#inventory_table_paginate .paginate_button")
                         .addClass(
                             "inline-flex items-center justify-center px-2 py-1 border rounded text-xs");
-
                     $("#inventory_table_paginate .paginate_button.current")
                         .addClass("bg-neutral-200 font-semibold");
                 },
@@ -1963,7 +1915,6 @@
                         infoDiv.classList.add('text-sm', 'text-gray-600', 'mt-2');
                         // You can also wrap the text in a span or adjust spacing if needed
                     }
-
                     // Style the pagination div
                     var paginateDiv = document.getElementById("inventory_table_paginate");
                     if (paginateDiv) {
@@ -1984,7 +1935,6 @@
                             'hover:bg-gray-100', 'focus:outline-none', 'focus:ring-2',
                             'focus:ring-blue-500', 'focus:border-blue-500');
                     }
-
                     // --- FIX: Make the search bar visible and correctly styled ---
                     // Get the search input container
                     var searchContainer = $('#inventory_table_filter');
@@ -1992,7 +1942,6 @@
                         // Ensure it's visible and styled
                         searchContainer.show();
                         searchContainer.addClass('mb-4'); // Add some margin for better layout
-
                         // Get the actual input element
                         var searchInput = searchContainer.find('input[type="search"]');
                         if (searchInput.length) {
@@ -2005,29 +1954,87 @@
                             searchInput.attr('placeholder', 'Search...');
                         }
                     }
+                    // --- ADD BUTTONS CONTAINER AFTER FILTER ---
+                    // Find the table wrapper div (added by DataTables)
+                    var tableWrapper = $('#inventory_table_wrapper');
+                    // Find the filter div (contains the search box)
+                    var filterDiv = tableWrapper.find('.dataTables_filter');
+                    // Create a container div for the buttons
+                    var buttonsContainer = $('<div class="dt-buttons"></div>');
+                    // Append the buttons container *after* the filter div
+                    filterDiv.after(buttonsContainer);
+                    // Initialize the buttons and attach them to the container
+                    $('#inventory_table').DataTable().buttons().container().appendTo(buttonsContainer);
                 }
             });
+
+            // --- ADD JAVASCRIPT FOR TOP BAR BUTTON (Server-Side) ---
+            $('#downloadExcelButton').on('click', function() {
+                // Get the current filter values
+                const contractorId = $('#filterStockContractor').val();
+                const clientId = $('#filterStockClient').val();
+                const startDate = $('#filterStockStartDate').val();
+                const endDate = $('#filterStockEndDate').val();
+
+                // Create a form dynamically to submit the filters
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = "{{ route('stockInventory.downloadExcel') }}";
+
+                // Add CSRF token
+                const csrfToken = document.createElement('input');
+                csrfToken.type = 'hidden';
+                csrfToken.name = '_token';
+                csrfToken.value = $('meta[name="csrf-token"]').attr('content');
+                form.appendChild(csrfToken);
+
+                // Add filter parameters
+                const contractorInput = document.createElement('input');
+                contractorInput.type = 'hidden';
+                contractorInput.name = 'contractor_id';
+                contractorInput.value = contractorId;
+                form.appendChild(contractorInput);
+
+                const clientInput = document.createElement('input');
+                clientInput.type = 'hidden';
+                clientInput.name = 'client_id';
+                clientInput.value = clientId;
+                form.appendChild(clientInput);
+
+                const startInput = document.createElement('input');
+                startInput.type = 'hidden';
+                startInput.name = 'start_date';
+                startInput.value = startDate;
+                form.appendChild(startInput);
+
+                const endInput = document.createElement('input');
+                endInput.type = 'hidden';
+                endInput.name = 'end_date';
+                endInput.value = endDate;
+                form.appendChild(endInput);
+
+                // Append the form to the body and submit it
+                document.body.appendChild(form);
+                form.submit();
+                document.body.removeChild(form); // Clean up
+            });
+
 
             // EDIT INVENTORY CLICK
             $(document).on('click', '.edit-inventory', function() {
                 const $btn = $(this);
-
                 console.log('Edit button clicked:', $btn);
-
                 // Extract IDs from data attributes
                 transactionInId = $btn.data('transaction-in-id') || null;
                 transactionOutId = $btn.data('transaction-out-id') || null;
                 stockInventoryId = $btn.data('stock-inventory-id') || null;
-
                 // Populate hidden fields
                 $('#editTransactionInId').val(transactionInId);
                 $('#editTransactionOutId').val(transactionOutId);
                 $('#editStockInventoryId').val(stockInventoryId);
-
                 // Enable/disable delete buttons based on existence
                 $('#deleteInButton').prop('disabled', !transactionInId).toggle(!!transactionInId);
                 $('#deleteOutButton').prop('disabled', !transactionOutId).toggle(!!transactionOutId);
-
                 $.get(`/inventory/${stockInventoryId}/edit`, {
                     transaction_in_id: transactionInId,
                     transaction_out_id: transactionOutId
@@ -2038,7 +2045,6 @@
                         $('#editBalanceContractor').val(source.balance_contractor || 0);
                         $('#editBalanceBgoc').val(source.balance_bgoc || 0);
                     }
-
                     if (data.in) {
                         $('#editDateIn').val(data.in.transaction_date || '');
                         $('#editClientIn').val(data.in.client_id).trigger('change');
@@ -2051,7 +2057,6 @@
                         $('#editDateIn, #editClientIn, #editBillboardIn, #editTypeIn, #editSizeIn, #editQtyIn, #editRemarksIn')
                             .val('').trigger('change');
                     }
-
                     if (data.out) {
                         $('#editDateOut').val(data.out.transaction_date || '');
                         $('#editClientOut').val(data.out.client_id).trigger('change');
@@ -2064,30 +2069,25 @@
                         $('#editDateOut, #editClientOut, #editBillboardOut, #editTypeOut, #editSizeOut, #editQtyOut, #editRemarksOut')
                             .val('').trigger('change');
                     }
-
                     openAltEditorModal("#inventoryEditModal");
                 });
             });
-
             // AUTO-FILL TYPE & SIZE FOR EDIT MODAL
             $(document).on('change', '#editBillboardIn', function() {
                 let selected = $(this).find(':selected');
                 $('#editTypeIn').val(selected.data('type') || '');
                 $('#editSizeIn').val(selected.data('size') || '');
             });
-
             $(document).on('change', '#editBillboardOut', function() {
                 let selected = $(this).find(':selected');
                 $('#editTypeOut').val(selected.data('type') || '');
                 $('#editSizeOut').val(selected.data('size') || '');
             });
-
             // DELETE CLICK HANDLER
             $(document).on('click', '.delete-inventory', function() {
                 lastClickedLink = $(this).attr('id');
                 openAltEditorModal('#inventoryDeleteModal');
             });
-
             setupAutoFilter();
         });
     </script>
