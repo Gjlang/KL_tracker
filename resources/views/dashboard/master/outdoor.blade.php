@@ -34,10 +34,9 @@
         'columns' => $columns,
 
         'editable' => [
-            'outdoor_size'             => 'text',
-            'outdoor_district_council' => 'text',
-            'outdoor_coordinates'      => 'text',
-        ],
+    'outdoor_size'        => 'text',
+    'outdoor_coordinates' => 'text',
+],
 
         // ⬇️ use the new controller route
         'updateUrl'          => route('outdoor.inline.update'),

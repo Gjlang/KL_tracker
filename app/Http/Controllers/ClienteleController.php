@@ -10,228 +10,433 @@ use Illuminate\Support\Facades\Log;
 class ClienteleController extends Controller
 {
     /**
-     * Inline update for cells from master_files.
+     * Display outdoor listing with proper JOIN logic
+     */
+    public function outdoor(Request $request)
+{
+    try {
+        $query = DB::table('outdoor_items as oi')
+            ->leftJoin('master_files as mf', 'mf.id', '=', 'oi.master_file_id')
+            ->leftJoin('billboards as bb', 'bb.id', '=', 'oi.billboard_id')
+            ->leftJoin('locations as loc', 'loc.id', '=', 'bb.location_id')
+            ->leftJoin('districts as d', 'd.id', '=', 'loc.district_id')
+            ->leftJoin('states as s', 's.id', '=', 'd.state_id')
+            ->select([
+                // IDs needed for inline updates
+                'oi.id as outdoor_item_id',
+                'mf.id as master_file_id',
+                'oi.billboard_id',
+
+                // Master file fields
+                'mf.company',
+                'mf.product',
+                'mf.product_category',
+                'mf.date as start',
+                'mf.date_finish as end',
+                'mf.duration',
+                'mf.amount',
+                'mf.status',
+                'mf.remarks',
+                'mf.client',
+                'mf.sales_person',
+                'mf.month',
+
+                // Outdoor size from outdoor_items
+                'oi.size as outdoor_size',
+
+                // LOCATION: bb.site_number + loc.name
+                DB::raw("
+                    CASE
+                        WHEN bb.site_number IS NOT NULL AND loc.name IS NOT NULL
+                            THEN CONCAT(bb.site_number, ' - ', loc.name)
+                        WHEN bb.site_number IS NOT NULL THEN bb.site_number
+                        WHEN loc.name IS NOT NULL THEN loc.name
+                        ELSE NULL
+                    END as location
+                "),
+
+                // AREA: STATE_ABBR - district
+                DB::raw("
+                    CASE
+                        WHEN s.name IS NOT NULL AND d.name IS NOT NULL THEN CONCAT(
+                            CASE
+                                WHEN s.name = 'Kuala Lumpur' THEN 'KL'
+                                WHEN s.name = 'Selangor' THEN 'SEL'
+                                WHEN s.name = 'Negeri Sembilan' THEN 'N9'
+                                WHEN s.name = 'Melaka' THEN 'MLK'
+                                WHEN s.name = 'Johor' THEN 'JHR'
+                                WHEN s.name = 'Perak' THEN 'PRK'
+                                WHEN s.name = 'Pahang' THEN 'PHG'
+                                WHEN s.name = 'Terengganu' THEN 'TRG'
+                                WHEN s.name = 'Kelantan' THEN 'KTN'
+                                WHEN s.name = 'Perlis' THEN 'PLS'
+                                WHEN s.name = 'Kedah' THEN 'KDH'
+                                WHEN s.name = 'Penang' THEN 'PNG'
+                                WHEN s.name = 'Sarawak' THEN 'SWK'
+                                WHEN s.name = 'Sabah' THEN 'SBH'
+                                WHEN s.name = 'Labuan' THEN 'LBN'
+                                WHEN s.name = 'Putrajaya' THEN 'PJY'
+                                ELSE s.name
+                            END, ' - ', d.name
+                        )
+                        ELSE NULL
+                    END as area
+                "),
+
+                // COORDINATES: bb.gps_latitude/longitude (fallback to oi.coordinates)
+                DB::raw("
+                    CASE
+                        WHEN bb.gps_latitude IS NOT NULL AND bb.gps_longitude IS NOT NULL
+                            THEN CONCAT(bb.gps_latitude, ', ', bb.gps_longitude)
+                        ELSE oi.coordinates
+                    END as outdoor_coordinates
+                "),
+            ]);
+
+        // Filters
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function($q) use ($search) {
+                $q->where('mf.company', 'like', "%{$search}%")
+                  ->orWhere('mf.product', 'like', "%{$search}%")
+                  ->orWhere('mf.client', 'like', "%{$search}%")
+                  ->orWhere('loc.name', 'like', "%{$search}%")
+                  ->orWhere('bb.site_number', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('company')) {
+            $query->where('mf.company', $request->input('company'));
+        }
+
+        if ($request->filled('status')) {
+            $query->where('mf.status', $request->input('status'));
+        }
+
+        if ($request->filled('month')) {
+            $query->where('mf.month', $request->input('month'));
+        }
+
+        // Ordering (MariaDB-safe: no NULLS LAST)
+        $query->orderByRaw('(mf.company IS NULL), LOWER(mf.company) ASC')
+              ->orderBy('mf.date', 'desc');
+
+        $rows = $query->get();
+
+        // Column definitions
+        $columns = [
+            'location'            => 'LOCATION',
+            'area'                => 'AREA',
+            'duration'            => 'DURATION',
+            'start'               => 'DATE',
+            'end'                 => 'DATE FINISH',
+            'outdoor_size'        => 'OUTDOOR SIZE',
+            'outdoor_coordinates' => 'OUTDOOR COORDINATES',
+        ];
+
+        return view('outdoor', compact('rows', 'columns'));
+
+    } catch (\Throwable $e) {
+        Log::error('Error in outdoor listing', [
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ]);
+        return back()->with('error', 'Failed to load outdoor data.');
+    }
+}
+    /**
+     * Inline update for cells from master_files and outdoor_items.
      * Expected payload: { id, column, value, scope: 'outdoor'|'kltg', outdoor_item_id? }
      */
     public function inlineUpdate(Request $request)
-    {
-        try {
-            // 1) Validate + pull raw value (avoid ConvertEmptyStringsToNull surprise)
-            $data = $request->validate([
-                'id'     => 'required|integer|min:1',
-                'column' => 'required|string',
-                'value'  => 'nullable',                 // keep raw
-                'scope'  => 'nullable|in:outdoor,kltg',
-                'outdoor_item_id' => 'nullable|integer|min:1', // Add validation for outdoor_item_id
-            ]);
+{
+    try {
+        // 1) Validate + pull raw value
+        $data = $request->validate([
+            'id'     => 'required|integer|min:1',
+            'column' => 'required|string',
+            'value'  => 'nullable',
+            'scope'  => 'nullable|in:outdoor,kltg',
+            'outdoor_item_id' => 'nullable|integer|min:1',
+        ]);
 
-            $raw = $request->all();
-            $col = $data['column'];
-            $id  = (int)$data['id'];
-            $scope = $data['scope'] ?? null;
+        $raw = $request->all();
+        $col = $data['column'];
+        $id  = (int)$data['id'];
+        $scope = $data['scope'] ?? null;
 
-            // Log the incoming request for debugging
-            Log::info('InlineUpdate Request', [
-                'id' => $id,
-                'column' => $col,
-                'raw_value' => $raw['value'] ?? 'NOT_SET',
-                'scope' => $scope,
-                'outdoor_item_id' => $raw['outdoor_item_id'] ?? 'NOT_SET'
-            ]);
+        Log::info('InlineUpdate Request', [
+            'id' => $id,
+            'column' => $col,
+            'raw_value' => $raw['value'] ?? 'NOT_SET',
+            'scope' => $scope,
+            'outdoor_item_id' => $raw['outdoor_item_id'] ?? 'NOT_SET'
+        ]);
 
-            // ---- WHITELISTS ----
-            $allowedBase = [
-                'month','date','company','product','product_category','location','traffic','duration',
-                'amount','status','remarks','client','sales_person','barter',
-                'date_finish','job_number','artwork','invoice_date','invoice_number',
-                'contact_number','email',
-            ];
-            $allowedOutdoor = ['outdoor_size','outdoor_district_council','outdoor_coordinates'];
-            $allowedKltg    = [
-                'kltg_industry','kltg_x','kltg_edition','kltg_material_cbp','kltg_print',
-                'kltg_article','kltg_video','kltg_leaderboard','kltg_qr_code','kltg_blog','kltg_em',
-                'kltg_remarks',
-            ];
+        // ---- WHITELISTS ----
+        $allowedBase = [
+            'month','date','company','product','product_category','traffic','duration',
+            'amount','status','remarks','client','sales_person','barter',
+            'date_finish','job_number','artwork','invoice_date','invoice_number',
+            'contact_number','email',
+        ];
+        // ✅ FIXED: Only allow fields that are actually editable
+        $allowedOutdoor = ['size', 'outdoor_coordinates']; // 'size' not 'outdoor_size'
+        $allowedKltg    = [
+            'kltg_industry','kltg_x','kltg_edition','kltg_material_cbp','kltg_print',
+            'kltg_article','kltg_video','kltg_leaderboard','kltg_qr_code','kltg_blog','kltg_em',
+            'kltg_remarks',
+        ];
 
-            $allowed = $allowedBase;
-            if ($scope === 'outdoor') $allowed = array_merge($allowed, $allowedOutdoor);
-            if ($scope === 'kltg')    $allowed = array_merge($allowed, $allowedKltg);
+        $allowed = $allowedBase;
+        if ($scope === 'outdoor') $allowed = array_merge($allowed, $allowedOutdoor);
+        if ($scope === 'kltg')    $allowed = array_merge($allowed, $allowedKltg);
 
-            if (!in_array($col, $allowed, true)) {
-                Log::warning('Column not allowed', ['column' => $col, 'allowed' => $allowed]);
-                return response()->json(['ok' => false, 'message' => 'Column not editable.'], 422);
-            }
+        if (!in_array($col, $allowed, true)) {
+            Log::warning('Column not allowed', ['column' => $col, 'allowed' => $allowed]);
+            return response()->json(['ok' => false, 'message' => 'Column not editable.'], 422);
+        }
 
-            // 2) Normalize value carefully
-            $value = array_key_exists('value', $raw) ? $raw['value'] : null;
+        // 2) Normalize value carefully
+        $value = array_key_exists('value', $raw) ? $raw['value'] : null;
 
-            // block empty for NOT NULL columns (adjust list if needed)
-            $notNullable = ['product','company','client'];
-            if (in_array($col, $notNullable, true) && ($value === null || trim((string)$value) === '')) {
-                Log::warning('NOT NULL column cannot be empty', ['column' => $col, 'value' => $value]);
-                return response()->json(['ok' => false, 'message' => ucfirst($col).' cannot be empty.'], 422);
-            }
+        // Block empty for NOT NULL columns
+        $notNullable = ['product','company','client'];
+        if (in_array($col, $notNullable, true) && ($value === null || trim((string)$value) === '')) {
+            Log::warning('NOT NULL column cannot be empty', ['column' => $col, 'value' => $value]);
+            return response()->json(['ok' => false, 'message' => ucfirst($col).' cannot be empty.'], 422);
+        }
 
-            // If value comes as null because of empty string, and the column allows blank, store ''
-            if ($value === null && !in_array($col, $notNullable, true)) {
-                $value = '';
-            }
+        // If value comes as null and column allows blank, store ''
+        if ($value === null && !in_array($col, $notNullable, true)) {
+            $value = '';
+        }
 
-            // Type helpers
-            $ymdCols      = ['date_finish','invoice_date']; // DATE columns
-            $freeDateLike = ['date'];                       // VARCHAR date-like
-            $amountCols   = ['amount'];
+        // Type helpers
+        $ymdCols      = ['date_finish','invoice_date'];
+        $freeDateLike = ['date'];
+        $amountCols   = ['amount'];
 
-            // Store original value for logging
-            $originalValue = $value;
+        $originalValue = $value;
 
-            // FIXED: Better amount handling
-            if (in_array($col, $amountCols, true)) {
-                if ($value === '' || $value === null) {
-                    $value = null; // Allow null for amount
+        // Amount handling
+        if (in_array($col, $amountCols, true)) {
+            if ($value === '' || $value === null) {
+                $value = null;
+            } else {
+                $cleanValue = str_replace([',', ' '], '', (string)$value);
+                if (is_numeric($cleanValue)) {
+                    $value = (float)$cleanValue;
                 } else {
-                    // Clean the value first (remove commas, spaces)
-                    $cleanValue = str_replace([',', ' '], '', (string)$value);
-                    if (is_numeric($cleanValue)) {
-                        $value = (float)$cleanValue;
-                    } else {
-                        Log::warning('Invalid amount value', ['column' => $col, 'value' => $value]);
-                        return response()->json(['ok' => false, 'message' => 'Amount must be a valid number.'], 422);
-                    }
+                    Log::warning('Invalid amount value', ['column' => $col, 'value' => $value]);
+                    return response()->json(['ok' => false, 'message' => 'Amount must be a valid number.'], 422);
                 }
             }
+        }
 
-            // FIXED: Better date handling with error catching
-            if (in_array($col, $ymdCols, true)) {
-                if ($value === '' || $value === null) {
-                    $value = null;
-                } else {
-                    try {
-                        $value = Carbon::parse($value)->format('Y-m-d');
-                    } catch (\Throwable $e) {
-                        Log::warning('Invalid date format', ['column' => $col, 'value' => $value, 'error' => $e->getMessage()]);
-                        return response()->json(['ok' => false, 'message' => 'Invalid date format for ' . $col], 422);
-                    }
-                }
-            }
-
-            if (in_array($col, $freeDateLike, true) && $value) {
+        // Date handling
+        if (in_array($col, $ymdCols, true)) {
+            if ($value === '' || $value === null) {
+                $value = null;
+            } else {
                 try {
-                    $value = Carbon::parse($value)->format('n/j/y');
+                    $value = Carbon::parse($value)->format('Y-m-d');
                 } catch (\Throwable $e) {
-                    Log::warning('Could not parse free date', ['column' => $col, 'value' => $value]);
-                    // Keep original value if parsing fails for free date
+                    Log::warning('Invalid date format', ['column' => $col, 'value' => $value, 'error' => $e->getMessage()]);
+                    return response()->json(['ok' => false, 'message' => 'Invalid date format for ' . $col], 422);
                 }
             }
+        }
 
-            Log::info('Value after normalization', [
-                'column' => $col,
-                'original' => $originalValue,
-                'normalized' => $value
-            ]);
+        if (in_array($col, $freeDateLike, true) && $value) {
+            try {
+                $value = Carbon::parse($value)->format('n/j/y');
+            } catch (\Throwable $e) {
+                Log::warning('Could not parse free date', ['column' => $col, 'value' => $value]);
+            }
+        }
 
-            // Check if record exists first
-            $recordExists = DB::table('master_files')->where('id', $id)->exists();
-            if (!$recordExists) {
-                Log::warning('Record not found', ['id' => $id]);
-                return response()->json(['ok' => false, 'message' => 'Record not found.'], 404);
+        Log::info('Value after normalization', [
+            'column' => $col,
+            'original' => $originalValue,
+            'normalized' => $value
+        ]);
+
+        // --- SPECIAL HANDLING FOR OUTDOOR FIELDS ---
+
+        // ✅ 1) size -> outdoor_items.size
+        if ($scope === 'outdoor' && $col === 'size') {
+            $oiId = isset($raw['outdoor_item_id']) ? (int)$raw['outdoor_item_id'] : 0;
+            if ($oiId <= 0) {
+                Log::warning('Missing outdoor_item_id for size', ['master_file_id' => $id]);
+                return response()->json(['ok' => false, 'message' => 'Missing outdoor_item_id for size edit.'], 422);
             }
 
-            // Get current value to compare
-            $currentRecord = DB::table('master_files')->where('id', $id)->first([$col]);
-            $currentValue = $currentRecord ? $currentRecord->$col : null;
+            // Verify ownership
+            $belongs = DB::table('outdoor_items')
+                ->where('id', $oiId)
+                ->where('master_file_id', $id)
+                ->exists();
+            if (!$belongs) {
+                return response()->json(['ok' => false, 'message' => 'Outdoor item mismatch.'], 422);
+            }
 
-            Log::info('Comparison', [
-                'current_value' => $currentValue,
-                'new_value' => $value,
-                'are_same' => $currentValue === $value
+            $affected = DB::table('outdoor_items')
+                ->where('id', $oiId)
+                ->update(['size' => $value, 'updated_at' => now()]);
+
+            Log::info('Updated outdoor_items.size', [
+                'outdoor_item_id' => $oiId,
+                'value' => $value,
+                'affected_rows' => $affected
             ]);
 
-            // 3) Route outdoor columns to outdoor_items table
-            $outdoorMap = [
-                'outdoor_size'             => 'size',
-                'outdoor_district_council' => 'district_council',
-                'outdoor_coordinates'      => 'coordinates',
-            ];
+            return response()->json([
+                'ok' => true,
+                'affected' => (int)$affected,
+                'message' => $affected > 0 ? 'Size updated successfully' : 'No change needed'
+            ]);
+        }
 
-            if ($scope === 'outdoor' && array_key_exists($col, $outdoorMap)) {
-                $outdoorColumn = $outdoorMap[$col];
+        // ✅ 2) outdoor_coordinates -> billboards.gps_latitude + gps_longitude
+        if ($scope === 'outdoor' && $col === 'outdoor_coordinates') {
+            $oiId = isset($raw['outdoor_item_id']) ? (int)$raw['outdoor_item_id'] : 0;
+            if ($oiId <= 0) {
+                return response()->json(['ok' => false, 'message' => 'Missing outdoor_item_id for coordinates edit.'], 422);
+            }
 
-                // New: require explicit outdoor_item_id for OUTDOOR edits
-                $oiId = isset($raw['outdoor_item_id']) ? (int)$raw['outdoor_item_id'] : 0;
-                if ($oiId <= 0) {
-                    Log::warning('Missing outdoor_item_id for OUTDOOR inline update', [
-                        'master_file_id' => $id, 'column' => $col,
-                    ]);
-                    return response()->json(['ok' => false, 'message' => 'Missing outdoor_item_id for OUTDOOR edit.'], 422);
+            // ✅ Allow empty coordinates (clear them)
+            if ($value === '' || $value === null) {
+                // Find the billboard
+                $oi = DB::table('outdoor_items')->where('id', $oiId)->first(['billboard_id', 'master_file_id']);
+                if (!$oi) {
+                    return response()->json(['ok' => false, 'message' => 'Outdoor item not found.'], 404);
                 }
 
-                // Optional sanity check: ensure this outdoor item belongs to the same master_file (defense-in-depth)
-                $belongs = DB::table('outdoor_items')
-                    ->where('id', $oiId)
-                    ->where('master_file_id', $id)
-                    ->exists();
-                if (!$belongs) {
-                    Log::warning('outdoor_item_id does not belong to master_file_id', [
-                        'outdoor_item_id' => $oiId, 'master_file_id' => $id,
-                    ]);
+                if (!$oi->billboard_id) {
+                    return response()->json(['ok' => false, 'message' => 'No billboard linked to this outdoor item.'], 422);
+                }
+
+                // Verify ownership
+                if ($oi->master_file_id != $id) {
                     return response()->json(['ok' => false, 'message' => 'Outdoor item mismatch.'], 422);
                 }
 
-                $affected = DB::table('outdoor_items')
-                    ->where('id', $oiId)
-                    ->update([$outdoorColumn => $value, 'updated_at' => now()]);
+                // Clear coordinates
+                $affected = DB::table('billboards')
+                    ->where('id', $oi->billboard_id)
+                    ->update([
+                        'gps_latitude'  => null,
+                        'gps_longitude' => null,
+                        'updated_at' => now()
+                    ]);
 
-                Log::info('Updated outdoor_items by id (inline)', [
-                    'outdoor_item_id' => $oiId,
-                    'column' => $outdoorColumn,
-                    'value' => $value,
+                Log::info('Cleared billboards GPS coordinates', [
+                    'billboard_id' => $oi->billboard_id,
                     'affected_rows' => $affected
                 ]);
-
-                if ($affected === 0) {
-                    return response()->json(['ok' => false, 'message' => 'No row changed.'], 200);
-                }
 
                 return response()->json([
                     'ok' => true,
                     'affected' => (int)$affected,
-                    'message' => 'Updated successfully'
-                ]);
-            } else {
-                // Regular update to master_files table
-                $affected = DB::table('master_files')
-                    ->where('id', $id)
-                    ->update([$col => $value, 'updated_at' => now()]);
-
-                Log::info('Updated master_files', [
-                    'id' => $id,
-                    'column' => $col,
-                    'value' => $value,
-                    'affected_rows' => $affected
+                    'message' => 'Coordinates cleared successfully'
                 ]);
             }
 
-            // If same value → 0 rows affected; still OK
+            // Parse "lat, long" format
+            $parts = array_map('trim', explode(',', (string)$value));
+            if (count($parts) !== 2) {
+                return response()->json(['ok' => false, 'message' => 'Coordinates must be in "latitude, longitude" format (e.g., 3.1234, 101.5678).'], 422);
+            }
+
+            [$lat, $lng] = $parts;
+
+            // Validate numeric
+            if (!is_numeric($lat) || !is_numeric($lng)) {
+                return response()->json(['ok' => false, 'message' => 'Coordinates must be numeric values.'], 422);
+            }
+
+            // Validate range
+            if ($lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
+                return response()->json(['ok' => false, 'message' => 'Coordinates out of valid range (lat: -90 to 90, lng: -180 to 180).'], 422);
+            }
+
+            // Find the billboard linked to this outdoor_item
+            $oi = DB::table('outdoor_items')->where('id', $oiId)->first(['billboard_id', 'master_file_id']);
+            if (!$oi) {
+                return response()->json(['ok' => false, 'message' => 'Outdoor item not found.'], 404);
+            }
+
+            if (!$oi->billboard_id) {
+                return response()->json(['ok' => false, 'message' => 'No billboard linked to this outdoor item. Please link a billboard first.'], 422);
+            }
+
+            // Verify ownership
+            if ($oi->master_file_id != $id) {
+                return response()->json(['ok' => false, 'message' => 'Outdoor item mismatch.'], 422);
+            }
+
+            // Update billboards table
+            $affected = DB::table('billboards')
+                ->where('id', $oi->billboard_id)
+                ->update([
+                    'gps_latitude'  => (string)$lat,
+                    'gps_longitude' => (string)$lng,
+                    'updated_at' => now()
+                ]);
+
+            Log::info('Updated billboards GPS coordinates', [
+                'billboard_id' => $oi->billboard_id,
+                'latitude' => $lat,
+                'longitude' => $lng,
+                'affected_rows' => $affected
+            ]);
+
             return response()->json([
                 'ok' => true,
                 'affected' => (int)$affected,
-                'message' => $affected > 0 ? 'Updated successfully' : 'No change needed (same value)'
+                'message' => 'Coordinates updated successfully'
             ]);
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            Log::error('Validation error', ['errors' => $e->errors()]);
-            return response()->json(['ok' => false, 'message' => 'Validation failed', 'errors' => $e->errors()], 422);
-        } catch (\Throwable $e) {
-            Log::error('Unexpected error in inlineUpdate', [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'request' => $request->all()
-            ]);
-            return response()->json(['ok' => false, 'message' => 'Server error: ' . $e->getMessage()], 500);
         }
+
+        // ✅ 3) Regular master_files update
+        $recordExists = DB::table('master_files')->where('id', $id)->exists();
+        if (!$recordExists) {
+            Log::warning('Record not found', ['id' => $id]);
+            return response()->json(['ok' => false, 'message' => 'Record not found.'], 404);
+        }
+
+        $affected = DB::table('master_files')
+            ->where('id', $id)
+            ->update([$col => $value, 'updated_at' => now()]);
+
+        Log::info('Updated master_files', [
+            'id' => $id,
+            'column' => $col,
+            'value' => $value,
+            'affected_rows' => $affected
+        ]);
+
+        return response()->json([
+            'ok' => true,
+            'affected' => (int)$affected,
+            'message' => $affected > 0 ? 'Updated successfully' : 'No change needed (same value)'
+        ]);
+
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        Log::error('Validation error', ['errors' => $e->errors()]);
+        return response()->json(['ok' => false, 'message' => 'Validation failed', 'errors' => $e->errors()], 422);
+    } catch (\Throwable $e) {
+        Log::error('Unexpected error in inlineUpdate', [
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'request' => $request->all()
+        ]);
+        return response()->json(['ok' => false, 'message' => 'Server error: ' . $e->getMessage()], 500);
     }
+}
 
     public function batchUpdate(Request $request)
     {
@@ -242,31 +447,19 @@ class ClienteleController extends Controller
                 'changes.*.id'     => 'required|integer|exists:master_files,id',
                 'changes.*.column' => 'required|string',
                 'changes.*.value'  => 'nullable',
-                // Outdoor (optional; only for oi.* columns)
                 'changes.*.outdoor_item_id' => 'nullable|integer|exists:outdoor_items,id',
             ]);
 
-            // Lists reused from inlineUpdate
-            $boolCols   = []; // (none in your KLTG/outdoor set right now; add if you use tinyint flags)
+            $boolCols   = [];
             $amountCols = ['amount'];
             $ymdCols    = ['date_finish','invoice_date'];
-            $freeDateLike = ['date','invoice_number_date']; // 'date' is varchar in your schema
-
-            // Define NOT NULL columns
+            $freeDateLike = ['date','invoice_number_date'];
             $notNullable = ['product', 'company', 'client'];
-
-            // Column routing rules for OUTDOOR scope
-            $outdoorMap = [
-                'location'                 => ['table' => 'outdoor_items', 'col' => 'site'],
-                'outdoor_size'             => ['table' => 'outdoor_items', 'col' => 'size'],
-                'outdoor_district_council' => ['table' => 'outdoor_items', 'col' => 'district_council'],
-                'outdoor_coordinates'      => ['table' => 'outdoor_items', 'col' => 'coordinates'],
-                // everything else -> master_files as-is
-            ];
 
             $changes  = $data['changes'];
             $scope    = $data['scope'];
-            $ok = 0; $failed = [];
+            $ok = 0;
+            $failed = [];
 
             Log::info('BatchUpdate started', ['scope' => $scope, 'changes_count' => count($changes)]);
 
@@ -285,12 +478,11 @@ class ClienteleController extends Controller
                             throw new \RuntimeException(ucfirst($colIn).' cannot be empty.');
                         }
 
-                        // If null, convert to empty string for nullable columns
                         if ($val === null && !in_array($colIn, $notNullable, true)) {
                             $val = '';
                         }
 
-                        // Normalize value like inlineUpdate
+                        // Normalize value
                         if (in_array($colIn, $boolCols, true)) {
                             $val = (in_array($val, [1,'1',true,'true','on','yes'], true)) ? 1 : 0;
                         }
@@ -317,21 +509,47 @@ class ClienteleController extends Controller
                         }
 
                         if (in_array($colIn, $freeDateLike, true) && $val) {
-                            try { $val = Carbon::parse($val)->format('n/j/y'); } catch (\Throwable $e) { /* leave as is */ }
+                            try { $val = Carbon::parse($val)->format('n/j/y'); } catch (\Throwable $e) {}
                         }
 
-                        if ($scope === 'outdoor' && isset($outdoorMap[$colIn])) {
-                            // update outdoor_items
+                        // Special handling for outdoor fields
+                        if ($scope === 'outdoor' && $colIn === 'outdoor_size') {
                             $oiId = isset($c['outdoor_item_id']) ? (int)$c['outdoor_item_id'] : 0;
-                            if ($oiId <= 0) throw new \RuntimeException('Missing outdoor_item_id for column '.$colIn);
+                            if ($oiId <= 0) throw new \RuntimeException('Missing outdoor_item_id for size');
 
                             $affected = DB::table('outdoor_items')
                                 ->where('id', $oiId)
-                                ->update([$outdoorMap[$colIn]['col'] => $val, 'updated_at' => now()]);
+                                ->update(['size' => $val, 'updated_at' => now()]);
 
-                            Log::info("Updated outdoor_items", ['id' => $oiId, 'affected' => $affected]);
-                        } else {
-                            // update master_files
+                            Log::info("Updated outdoor_items.size", ['id' => $oiId, 'affected' => $affected]);
+                        }
+                        elseif ($scope === 'outdoor' && $colIn === 'outdoor_coordinates') {
+                            $oiId = isset($c['outdoor_item_id']) ? (int)$c['outdoor_item_id'] : 0;
+                            if ($oiId <= 0) throw new \RuntimeException('Missing outdoor_item_id for coordinates');
+
+                            // Parse coordinates
+                            $parts = array_map('trim', explode(',', (string)$val));
+                            if (count($parts) !== 2) throw new \RuntimeException('Invalid coordinates format');
+
+                            [$lat, $lng] = $parts;
+                            if (!is_numeric($lat) || !is_numeric($lng)) throw new \RuntimeException('Coordinates must be numeric');
+                            if ($lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) throw new \RuntimeException('Coordinates out of range');
+
+                            $oi = DB::table('outdoor_items')->where('id', $oiId)->first(['billboard_id']);
+                            if (!$oi || !$oi->billboard_id) throw new \RuntimeException('No billboard linked');
+
+                            $affected = DB::table('billboards')
+                                ->where('id', $oi->billboard_id)
+                                ->update([
+                                    'gps_latitude' => (string)$lat,
+                                    'gps_longitude' => (string)$lng,
+                                    'updated_at' => now()
+                                ]);
+
+                            Log::info("Updated billboards GPS", ['billboard_id' => $oi->billboard_id, 'affected' => $affected]);
+                        }
+                        else {
+                            // Regular master_files update
                             $affected = DB::table('master_files')
                                 ->where('id', $id)
                                 ->update([$colIn => $val, 'updated_at' => now()]);

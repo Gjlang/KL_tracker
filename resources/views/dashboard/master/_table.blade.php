@@ -9,7 +9,7 @@
     /** @var string|null $updateUrl     // e.g. route('clientele.inline.update') */
     /** @var array $updatePayloadExtra  // optional: extra keys to send (e.g. ['scope'=>'outdoor']) */
 
-    $updateUrl = $updateUrl ?? url('/inline-update');      // fallback
+    $updateUrl = $updateUrl ?? url('/inline-update');
     $updatePayloadExtra = $updatePayloadExtra ?? [];
 
     // default date columns
@@ -30,12 +30,11 @@
         if (in_array($col, $dateCols, true)) {
             try {
                 $dt = $val instanceof \DateTimeInterface ? $val : Carbon::parse($val);
-                return $dt->format('d/m/Y');   // <-- changed from n/j/y
+                return $dt->format('d/m/Y');
             } catch (\Throwable $e) { return (string)$val; }
         }
         return is_scalar($val) ? (string)$val : '—';
     };
-
 
     // RAW value for input fields
     $raw = function (string $col, $val) use ($dateCols) {
@@ -49,7 +48,7 @@
     };
 
     // what type to render if editable
-    $editable = $editable ?? []; // e.g. ['company'=>'text', 'date'=>'date', 'outdoor_size'=>'text']
+    $editable = $editable ?? [];
 @endphp
 
 <div class="overflow-x-auto rounded-xl border border-gray-200">
@@ -58,18 +57,18 @@
             <tr>
                 @foreach($columns as $c)
                     @php
-                        $key = is_array($c) ? ($c['key'] ?? '') : $c;
-                        $label = is_array($c)
-                            ? ($c['label'] ?? Str::headline($key))
-                            : ($column_labels[$c] ?? Str::headline($c));
+    $key = is_array($c) ? ($c['key'] ?? '') : $c;
+    $label = is_array($c)
+        ? ($c['label'] ?? Str::headline($key))
+        : ($column_labels[$c] ?? Str::headline($c));
 
-                        // ✅ Define wider columns for specific fields
-                        $isWideColumn = in_array($key, [
-                            'company_name', 'company', 'product', 'product_category',
-                            'kltg_industry', 'kltg_material_cbp', 'kltg_article', 'kltg_remarks',
-                            'outdoor_district_council', 'outdoor_coordinates', 'remarks'
-                        ]);
-                    @endphp
+    // Wide columns (displayed/editable multi-word fields)
+    $isWideColumn = in_array($key, [
+        'location', 'area', 'outdoor_coordinates',
+        'company', 'product', 'product_category', 'remarks',
+        'kltg_industry', 'kltg_material_cbp', 'kltg_article', 'kltg_remarks',
+    ]);
+@endphp
                     <th class="px-4 py-3 text-left font-semibold text-gray-700 uppercase tracking-wider {{ $isWideColumn ? 'min-w-48' : 'whitespace-nowrap' }}">
                         {{ $label }}
                     </th>
@@ -82,49 +81,44 @@
                 <tr class="hover:bg-gray-50">
                     @foreach($columns as $c)
                         @php
-                            $colKey      = is_array($c) ? ($c['key'] ?? '') : $c;
-                            $isEditable  = array_key_exists($colKey, $editable);
-                            $type        = $isEditable ? ($editable[$colKey] ?? 'text') : null;
+    $colKey      = is_array($c) ? ($c['key'] ?? '') : $c;
+    $isEditable  = array_key_exists($colKey, $editable);
+    $type        = $isEditable ? ($editable[$colKey] ?? 'text') : null;
 
-                            // ✅ FIXED: Use fallback to master_file_id for outdoor rows
-                            $rowId       = data_get($row, 'id')
-                                ?? data_get($row, 'master_file_id')
-                                ?? data_get($row, 'mf_id')
-                                ?? null;
+    // Use master_file_id for outdoor rows
+    $rowId       = data_get($row, 'master_file_id')
+        ?? data_get($row, 'id')
+        ?? null;
 
-                            // detect child row (joined outdoor_items) — your code already carries this id
-                            $isChildRow  = isset($row['outdoor_item_id']) || isset($row->outdoor_item_id);
+    // Detect outdoor row
+    $isChildRow  = isset($row['outdoor_item_id']) || isset($row->outdoor_item_id);
 
-                            // if child row, rewrite master date cols to child date cols
-                            $effectiveKey = ($isChildRow && isset($childDateRewrite[$colKey]))
-                                ? $childDateRewrite[$colKey]
-                                : $colKey;
+    // Date column rewrites (if using child dates)
+    $effectiveKey = ($isChildRow && isset($childDateRewrite[$colKey]))
+        ? $childDateRewrite[$colKey]
+        : $colKey;
 
-                            // === Kolom yang DIKIRIM ke server (sendCol) ===
-                            // - Child row: tanggal ikut rewrite (start_date/end_date)
-                            //             selain itu buang prefix "outdoor_"
-                            // - Non-child : kirim effectiveKey apa adanya
-                            $sendCol = $effectiveKey;
-                            if ($isChildRow) {
-                                if (isset($childDateRewrite[$colKey])) {
-                                    $sendCol = $childDateRewrite[$colKey]; // start_date / end_date
-                                } else {
-                                    $sendCol = \Illuminate\Support\Str::startsWith($colKey, 'outdoor_')
-                                        ? \Illuminate\Support\Str::after($colKey, 'outdoor_')
-                                        : $colKey;
-                                }
-                            }
+    // What column name to send to backend
+    $sendCol = $colKey; // ✅ Default: send original key
 
-                            // fetch value using the effective key
-                            $cellValue   = data_get($row, $effectiveKey);
+    if ($isChildRow && $colKey === 'outdoor_size') {
+        // outdoor_size -> 'size' (for outdoor_items.size)
+        $sendCol = 'size';
+    } elseif ($isChildRow && $colKey === 'outdoor_coordinates') {
+        // Keep as 'outdoor_coordinates' (backend routes to billboards)
+        $sendCol = 'outdoor_coordinates';
+    }
 
-                            // ✅ Check if this is a wide column that needs more space
-                            $isWideColumn = in_array($colKey, [
-                                'company_name', 'company', 'product', 'product_category',
-                                'kltg_industry', 'kltg_material_cbp', 'kltg_article', 'kltg_remarks',
-                                'outdoor_district_council', 'outdoor_coordinates', 'remarks'
-                            ]);
-                        @endphp
+    // Fetch value
+    $cellValue   = data_get($row, $effectiveKey);
+
+    // Wide columns
+    $isWideColumn = in_array($colKey, [
+        'location', 'area', 'outdoor_coordinates',
+        'company', 'product', 'product_category', 'remarks',
+        'kltg_industry', 'kltg_material_cbp', 'kltg_article', 'kltg_remarks',
+    ]);
+@endphp
 
                         <td class="px-4 py-3 text-gray-800 {{ $isWideColumn ? 'min-w-48' : 'whitespace-nowrap' }}">
                             @if($isEditable && $rowId)
@@ -237,19 +231,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!url || !id || !col) return;
 
-        // ✅ NEW: explicit guard for missing outdoor_item_id
+        // ✅ Explicit guard for missing outdoor_item_id on outdoor scope
         if ((extra?.scope === 'outdoor') && !outdoorItemId) {
             alert('Save failed: outdoor_item_id is missing in this row. Make sure your query selects oi.id AS outdoor_item_id and the cell has data-outdoor-item-id.');
             el.classList.add('ring-2','ring-red-200');
             return;
         }
 
-        // Fallback guard: kalau scope outdoor & child row & masih ada prefix 'outdoor_', buang prefix
-        if ((extra?.scope === 'outdoor') && outdoorItemId && /^outdoor_/.test(col)) {
-            col = col.replace(/^outdoor_/, '');
-        }
+        // ✅ REMOVED: No longer stripping outdoor_ prefix here
+        // The blade template already handles this correctly via $sendCol
+        // outdoor_coordinates will stay as outdoor_coordinates
+        // outdoor_size will be sent as 'size'
 
-        // ✅ BUILD PAYLOAD - Log what we're sending for debugging
+        // ✅ BUILD PAYLOAD
         const payload = Object.assign(
             {},
             extra,
@@ -257,10 +251,10 @@ document.addEventListener('DOMContentLoaded', () => {
             outdoorItemId ? { outdoor_item_id: outdoorItemId } : {}
         );
 
-        // 🔍 DEBUG: Log the payload being sent
+        // 🔍 DEBUG: Log what we're sending
         console.log('🚀 SENDING PAYLOAD:', payload);
         console.log('📍 URL:', url);
-        console.log('🎯 Element data attributes:', {
+        console.log('🎯 Element data:', {
             id: el.dataset.id,
             col: el.dataset.col,
             sendCol: el.dataset.sendCol,
@@ -288,7 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('📥 RESPONSE STATUS:', res.status);
             console.log('📥 RESPONSE DATA:', json);
 
-            // Check if request failed or server returned error
+            // Check if request failed
             if (!res.ok) {
                 // ✅ Better error handling for 422 validation errors
                 if (res.status === 422 && json.errors) {
@@ -302,8 +296,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (json && json.ok === false) {
-                // Treat "No row changed" as no-op success (nilai sama)
-                if (/no row changed/i.test(json.message || '')) {
+                // Treat "No row changed" as no-op success
+                if (/no row changed|no change needed/i.test(json.message || '')) {
                     el.classList.add('ring-2','ring-green-200');
                 } else {
                     throw new Error(json.message || 'Save failed');
@@ -315,7 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('❌ SAVE ERROR:', e);
             el.classList.add('ring-2','ring-red-200');
 
-            // Show more specific error message
+            // Show specific error message
             const errorMsg = e.message || 'Save failed. Check console / server logs.';
             alert(`Save failed: ${errorMsg}`);
         } finally {
@@ -324,7 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // change + debounced input (good UX for text fields)
+    // change + debounced input
     document.body.addEventListener('change', (e) => {
         if (e.target.classList.contains('mf-edit')) save(e.target);
     });
