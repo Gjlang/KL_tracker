@@ -77,7 +77,7 @@ class StockInventoryController extends Controller
         // Get billboard data
         $billboards = Billboard::leftJoin('locations', 'billboards.location_id', '=', 'locations.id')->get();
 
-        return view('stockInventory.index', compact('clients', 'users', 'clientcompany',  'contractors', 'billboards'));
+        return response()->view('stockInventory.index', compact('clients', 'users', 'clientcompany',  'contractors', 'billboards'));
     }
 
     protected function getBgocContractorId(): int
@@ -104,242 +104,310 @@ class StockInventoryController extends Controller
 
 
     public function list(Request $request)
-    {
-        $limit = $request->input('length');
-        $start = $request->input('start');
-        $originalSearch = $request->input('search.value');
-        $search = $originalSearch; // Use the original search term for the initial DB filter attempt
+{
+    $limit = $request->input('length');
+    $start = $request->input('start');
+    $originalSearch = $request->input('search.value');
+    $search = $originalSearch;
 
-        // Subquery for IN transactions aggregated per stock_inventory
-        $inSub = DB::table('stock_inventory_transactions as t_in')
-            ->select(
-                't_in.stock_inventory_id',
-                DB::raw("GROUP_CONCAT(t_in.id ORDER BY t_in.id SEPARATOR '|||') as transaction_in_ids"),
-                DB::raw("GROUP_CONCAT(quantity ORDER BY t_in.id SEPARATOR '|||') as quantity_in"),
-                DB::raw("GROUP_CONCAT(COALESCE(remarks, '') ORDER BY t_in.id SEPARATOR '|||') as remarks_in"),
-                DB::raw("GROUP_CONCAT(transaction_date ORDER BY t_in.id SEPARATOR '|||') as date_in"),
-                DB::raw("GROUP_CONCAT(COALESCE(client_companies.id, '') ORDER BY t_in.id SEPARATOR '|||') as client_in_ids"),
-                DB::raw("GROUP_CONCAT(COALESCE(client_companies.name, '') ORDER BY t_in.id SEPARATOR '|||') as client_in_name"),
-                DB::raw("GROUP_CONCAT(COALESCE(CONCAT(billboards.site_number, ' - ', locations.name), '') ORDER BY t_in.id SEPARATOR '|||') as site_in"),
-                DB::raw("GROUP_CONCAT(COALESCE(billboards.type, '') ORDER BY t_in.id SEPARATOR '|||') as billboard_type_in"),
-                DB::raw("GROUP_CONCAT(COALESCE(billboards.size, '') ORDER BY t_in.id SEPARATOR '|||') as billboard_size_in")
-            )
-            ->leftJoin('client_companies', 'client_companies.id', '=', 't_in.client_id')
-            ->leftJoin('billboards', 'billboards.id', '=', 't_in.billboard_id')
-            ->leftJoin('locations', 'locations.id', '=', 'billboards.location_id')
-            ->where('t_in.type', 'in')
-            ->groupBy('t_in.stock_inventory_id');
-
-        // Subquery for OUT transactions aggregated per stock_inventory
-        $outSub = DB::table('stock_inventory_transactions as t_out')
-            ->select(
-                't_out.stock_inventory_id',
-                DB::raw("GROUP_CONCAT(t_out.id ORDER BY t_out.id SEPARATOR '|||') as transaction_out_ids"),
-                DB::raw("GROUP_CONCAT(quantity ORDER BY t_out.id SEPARATOR '|||') as quantity_out"),
-                DB::raw("GROUP_CONCAT(COALESCE(remarks, '') ORDER BY t_out.id SEPARATOR '|||') as remarks_out"),
-                DB::raw("GROUP_CONCAT(transaction_date ORDER BY t_out.id SEPARATOR '|||') as date_out"),
-                DB::raw("GROUP_CONCAT(COALESCE(client_companies.id, '') ORDER BY t_out.id SEPARATOR '|||') as client_out_ids"),
-                DB::raw("GROUP_CONCAT(COALESCE(client_companies.name, '') ORDER BY t_out.id SEPARATOR '|||') as client_out_name"),
-                DB::raw("GROUP_CONCAT(COALESCE(CONCAT(billboards.site_number, ' - ', locations.name), '') ORDER BY t_out.id SEPARATOR '|||') as site_out"),
-                DB::raw("GROUP_CONCAT(COALESCE(billboards.type, '') ORDER BY t_out.id SEPARATOR '|||') as billboard_type_out"),
-                DB::raw("GROUP_CONCAT(COALESCE(billboards.size, '') ORDER BY t_out.id SEPARATOR '|||') as billboard_size_out")
-            )
-            ->leftJoin('client_companies', 'client_companies.id', '=', 't_out.client_id')
-            ->leftJoin('billboards', 'billboards.id', '=', 't_out.billboard_id')
-            ->leftJoin('locations', 'locations.id', '=', 'billboards.location_id')
-            ->where('t_out.type', 'out')
-            ->groupBy('t_out.stock_inventory_id');
-
-        // Apply date filter INSIDE subqueries
-        if ($request->filled('start_date') && $request->filled('end_date')) {
-            $startDate = $request->start_date;
-            $endDate   = $request->end_date;
-
-            $inSub->whereBetween('t_in.transaction_date', [$startDate, $endDate]);
-            $outSub->whereBetween('t_out.transaction_date', [$startDate, $endDate]);
-        }
-
-        $query = StockInventory::select(
-            'stock_inventories.*',
-            'stock_inventories.balance_contractor',
-            'stock_inventories.balance_bgoc',
-            'contractors.name as contractor_name',
-            'contractors.company_name as contractor_company',
-            'contractors.phone as contractor_phone',
-            'in_agg.transaction_in_ids',
-            'in_agg.quantity_in',
-            'in_agg.remarks_in',
-            'in_agg.date_in',
-            'in_agg.client_in_name',
-            'in_agg.site_in',
-            'in_agg.billboard_type_in',
-            'in_agg.billboard_size_in',
-            'out_agg.transaction_out_ids',
-            'out_agg.quantity_out',
-            'out_agg.remarks_out',
-            'out_agg.date_out',
-            'out_agg.client_out_name',
-            'out_agg.site_out',
-            'out_agg.billboard_type_out',
-            'out_agg.billboard_size_out'
+    // Subquery for IN transactions aggregated per stock_inventory
+    $inSub = DB::table('stock_inventory_transactions as t_in')
+        ->select(
+            't_in.stock_inventory_id',
+            DB::raw("GROUP_CONCAT(t_in.id ORDER BY t_in.id SEPARATOR '|||') as transaction_in_ids"),
+            DB::raw("GROUP_CONCAT(quantity ORDER BY t_in.id SEPARATOR '|||') as quantity_in"),
+            DB::raw("GROUP_CONCAT(COALESCE(remarks, '') ORDER BY t_in.id SEPARATOR '|||') as remarks_in"),
+            DB::raw("GROUP_CONCAT(transaction_date ORDER BY t_in.id SEPARATOR '|||') as date_in"),
+            DB::raw("GROUP_CONCAT(COALESCE(client_companies.id, '') ORDER BY t_in.id SEPARATOR '|||') as client_in_ids"),
+            DB::raw("GROUP_CONCAT(COALESCE(client_companies.name, '') ORDER BY t_in.id SEPARATOR '|||') as client_in_name"),
+            DB::raw("GROUP_CONCAT(COALESCE(CONCAT(billboards.site_number, ' - ', locations.name), '') ORDER BY t_in.id SEPARATOR '|||') as site_in"),
+            DB::raw("GROUP_CONCAT(COALESCE(billboards.type, '') ORDER BY t_in.id SEPARATOR '|||') as billboard_type_in"),
+            DB::raw("GROUP_CONCAT(COALESCE(billboards.size, '') ORDER BY t_in.id SEPARATOR '|||') as billboard_size_in")
         )
-            ->leftJoinSub($inSub, 'in_agg', function ($join) {
-                $join->on('in_agg.stock_inventory_id', '=', 'stock_inventories.id');
-            })
-            ->leftJoinSub($outSub, 'out_agg', function ($join) {
-                $join->on('out_agg.stock_inventory_id', '=', 'stock_inventories.id');
-            })
-            ->leftJoin('contractors', 'contractors.id', '=', 'stock_inventories.contractor_id')
-            // ❌ Removed filter to show inventories without transactions
-            // ->where(function($q) {
-            //     $q->whereNotNull('in_agg.transaction_in_ids')
-            //       ->orWhereNotNull('out_agg.transaction_out_ids');
-            // })
-            ->orderBy('stock_inventories.id', 'asc');
+        ->leftJoin('client_companies', 'client_companies.id', '=', 't_in.client_id')
+        ->leftJoin('billboards', 'billboards.id', '=', 't_in.billboard_id')
+        ->leftJoin('locations', 'locations.id', '=', 'billboards.location_id')
+        ->where('t_in.type', 'in')
+        ->groupBy('t_in.stock_inventory_id');
 
-        // Apply Filters
-        if ($request->filled('contractor_id')) {
-            $query->where('stock_inventories.contractor_id', $request->contractor_id);
+    // Subquery for OUT transactions aggregated per stock_inventory
+    $outSub = DB::table('stock_inventory_transactions as t_out')
+        ->select(
+            't_out.stock_inventory_id',
+            DB::raw("GROUP_CONCAT(t_out.id ORDER BY t_out.id SEPARATOR '|||') as transaction_out_ids"),
+            DB::raw("GROUP_CONCAT(quantity ORDER BY t_out.id SEPARATOR '|||') as quantity_out"),
+            DB::raw("GROUP_CONCAT(COALESCE(remarks, '') ORDER BY t_out.id SEPARATOR '|||') as remarks_out"),
+            DB::raw("GROUP_CONCAT(transaction_date ORDER BY t_out.id SEPARATOR '|||') as date_out"),
+            DB::raw("GROUP_CONCAT(COALESCE(client_companies.id, '') ORDER BY t_out.id SEPARATOR '|||') as client_out_ids"),
+            DB::raw("GROUP_CONCAT(COALESCE(client_companies.name, '') ORDER BY t_out.id SEPARATOR '|||') as client_out_name"),
+            DB::raw("GROUP_CONCAT(COALESCE(CONCAT(billboards.site_number, ' - ', locations.name), '') ORDER BY t_out.id SEPARATOR '|||') as site_out"),
+            DB::raw("GROUP_CONCAT(COALESCE(billboards.type, '') ORDER BY t_out.id SEPARATOR '|||') as billboard_type_out"),
+            DB::raw("GROUP_CONCAT(COALESCE(billboards.size, '') ORDER BY t_out.id SEPARATOR '|||') as billboard_size_out")
+        )
+        ->leftJoin('client_companies', 'client_companies.id', '=', 't_out.client_id')
+        ->leftJoin('billboards', 'billboards.id', '=', 't_out.billboard_id')
+        ->leftJoin('locations', 'locations.id', '=', 'billboards.location_id')
+        ->where('t_out.type', 'out')
+        ->groupBy('t_out.stock_inventory_id');
+
+    // Apply date filter INSIDE subqueries
+    if ($request->filled('start_date') && $request->filled('end_date')) {
+        $startDate = $request->start_date;
+        $endDate   = $request->end_date;
+
+        $inSub->whereBetween('t_in.transaction_date', [$startDate, $endDate]);
+        $outSub->whereBetween('t_out.transaction_date', [$startDate, $endDate]);
+    }
+
+    $query = StockInventory::select(
+        'stock_inventories.*',
+        'stock_inventories.balance_contractor',
+        'stock_inventories.balance_bgoc',
+        'contractors.name as contractor_name',
+        'contractors.company_name as contractor_company',
+        'contractors.phone as contractor_phone',
+        'in_agg.transaction_in_ids',
+        'in_agg.quantity_in',
+        'in_agg.remarks_in',
+        'in_agg.date_in',
+        'in_agg.client_in_name',
+        'in_agg.client_in_ids',
+        'in_agg.site_in',
+        'in_agg.billboard_type_in',
+        'in_agg.billboard_size_in',
+        'out_agg.transaction_out_ids',
+        'out_agg.quantity_out',
+        'out_agg.remarks_out',
+        'out_agg.date_out',
+        'out_agg.client_out_name',
+        'out_agg.client_out_ids',
+        'out_agg.site_out',
+        'out_agg.billboard_type_out',
+        'out_agg.billboard_size_out'
+    )
+        ->leftJoinSub($inSub, 'in_agg', function ($join) {
+            $join->on('in_agg.stock_inventory_id', '=', 'stock_inventories.id');
+        })
+        ->leftJoinSub($outSub, 'out_agg', function ($join) {
+            $join->on('out_agg.stock_inventory_id', '=', 'stock_inventories.id');
+        })
+        ->leftJoin('contractors', 'contractors.id', '=', 'stock_inventories.contractor_id')
+        ->where(function($q) {
+            $q->whereNotNull('in_agg.transaction_in_ids')
+              ->orWhereNotNull('out_agg.transaction_out_ids');
+        })
+        ->orderBy('stock_inventories.id', 'asc');
+
+    // Apply Filters
+    if ($request->filled('contractor_id')) {
+        $query->where('stock_inventories.contractor_id', $request->contractor_id);
+    }
+
+    // ✅ Keep SQL-level client filter as pre-filter (reduces data)
+    if ($request->filled('client_id')) {
+        $query->where(function ($q) use ($request) {
+            $q->whereRaw('FIND_IN_SET(?, in_agg.client_in_ids)', [$request->client_id])
+                ->orWhereRaw('FIND_IN_SET(?, out_agg.client_out_ids)', [$request->client_id]);
+        });
+    }
+
+    if (!empty($search)) {
+        $query->where(function ($q) use ($search) {
+            $q->where('contractors.name', 'like', "%{$search}%")
+                ->orWhere('contractors.company_name', 'like', "%{$search}%")
+                ->orWhere('in_agg.client_in_name', 'like', "%{$search}%")
+                ->orWhere('out_agg.client_out_name', 'like', "%{$search}%")
+                ->orWhere('in_agg.site_in', 'like', "%{$search}%")
+                ->orWhere('out_agg.site_out', 'like', "%{$search}%")
+                ->orWhere('in_agg.remarks_in', 'like', "%{$search}%")
+                ->orWhere('out_agg.remarks_out', 'like', "%{$search}%");
+        });
+    }
+
+    // ✅ Capture client_id filter for row-level filtering
+    $clientIdFilter = $request->filled('client_id') ? $request->input('client_id') : null;
+
+    $allFlattenedData = $query->get()->flatMap(function ($d) use ($clientIdFilter) {
+        // IN data
+        $inIds     = $d->transaction_in_ids ? explode('|||', $d->transaction_in_ids) : [];
+        $inDates   = $d->date_in ? explode('|||', $d->date_in) : [];
+        $inRemarks = $d->remarks_in ? explode('|||', $d->remarks_in) : [];
+        $inQty     = $d->quantity_in ? explode('|||', $d->quantity_in) : [];
+        $inClients = $d->client_in_name ? explode('|||', $d->client_in_name) : [];
+        $inClientIds = $d->client_in_ids ? explode('|||', $d->client_in_ids) : [];
+        $inSites   = $d->site_in ? explode('|||', $d->site_in) : [];
+        $inTypes   = $d->billboard_type_in ? explode('|||', $d->billboard_type_in) : [];
+        $inSizes   = $d->billboard_size_in ? explode('|||', $d->billboard_size_in) : [];
+
+        // OUT data
+        $outIds     = $d->transaction_out_ids ? explode('|||', $d->transaction_out_ids) : [];
+        $outDates   = $d->date_out ? explode('|||', $d->date_out) : [];
+        $outRemarks = $d->remarks_out ? explode('|||', $d->remarks_out) : [];
+        $outQty     = $d->quantity_out ? explode('|||', $d->quantity_out) : [];
+        $outClients = $d->client_out_name ? explode('|||', $d->client_out_name) : [];
+        $outClientIds= $d->client_out_ids ? explode('|||', $d->client_out_ids) : [];
+        $outSites   = $d->site_out ? explode('|||', $d->site_out) : [];
+        $outTypes   = $d->billboard_type_out ? explode('|||', $d->billboard_type_out) : [];
+        $outSizes   = $d->billboard_size_out ? explode('|||', $d->billboard_size_out) : [];
+
+        // If NO transactions exist, return one summary row with empty details
+        if (empty($inIds) && empty($outIds)) {
+            return [[
+                'contractor'          => ($d->contractor_company ?? '') . ' (' . ($d->contractor_name ?? '') . ')',
+                'balance_contractor'  => $d->balance_contractor ?? 0,
+                'balance_bgoc'        => $d->balance_bgoc ?? 0,
+                'transaction_in_id'   => '',
+                'date_in'             => '',
+                'remarks_in'          => '',
+                'quantity_in'         => '',
+                'client_in_name'      => '',
+                'client_in_id'        => '',
+                'site_in'             => '',
+                'billboard_type_in'   => '',
+                'billboard_size_in'   => '',
+                'transaction_out_id'  => '',
+                'date_out'            => '',
+                'remarks_out'         => '',
+                'quantity_out'        => '',
+                'client_out_id'       => '',
+                'client_out_name'     => '',
+                'site_out'            => '',
+                'billboard_type_out'  => '',
+                'billboard_size_out'  => '',
+                'stock_inventory_id'  => $d->id
+            ]];
         }
 
-        if ($request->filled('client_id')) {
-            $query->where(function ($q) use ($request) {
-                $q->whereRaw('FIND_IN_SET(?, in_agg.client_in_ids)', [$request->client_id])
-                    ->orWhereRaw('FIND_IN_SET(?, out_agg.client_out_ids)', [$request->client_id]);
-            });
-        }
+        // ✅ NEW LOGIC: Group matching transactions
+        $matchingInIndices = [];
+        $matchingOutIndices = [];
 
-        if (!empty($search)) {
-            $query->where(function ($q) use ($search) {
-                $q->where('contractors.name', 'like', "%{$search}%")
-                    ->orWhere('contractors.company_name', 'like', "%{$search}%")
-                    ->orWhere('in_agg.client_in_name', 'like', "%{$search}%")
-                    ->orWhere('out_agg.client_out_name', 'like', "%{$search}%")
-                    ->orWhere('in_agg.site_in', 'like', "%{$search}%")
-                    ->orWhere('out_agg.site_out', 'like', "%{$search}%")
-                    ->orWhere('in_agg.remarks_in', 'like', "%{$search}%")
-                    ->orWhere('out_agg.remarks_out', 'like', "%{$search}%");
-            });
-        }
-
-        $allFlattenedData = $query->get()->flatMap(function ($d) {
-            // IN data
-            $inIds     = $d->transaction_in_ids ? explode('|||', $d->transaction_in_ids) : [];
-            $inDates   = $d->date_in ? explode('|||', $d->date_in) : [];
-            $inRemarks = $d->remarks_in ? explode('|||', $d->remarks_in) : [];
-            $inQty     = $d->quantity_in ? explode('|||', $d->quantity_in) : [];
-            $inClients = $d->client_in_name ? explode('|||', $d->client_in_name) : [];
-            $inSites   = $d->site_in ? explode('|||', $d->site_in) : [];
-            $inTypes   = $d->billboard_type_in ? explode('|||', $d->billboard_type_in) : [];
-            $inSizes   = $d->billboard_size_in ? explode('|||', $d->billboard_size_in) : [];
-
-            // OUT data
-            $outIds     = $d->transaction_out_ids ? explode('|||', $d->transaction_out_ids) : [];
-            $outDates   = $d->date_out ? explode('|||', $d->date_out) : [];
-            $outRemarks = $d->remarks_out ? explode('|||', $d->remarks_out) : [];
-            $outQty     = $d->quantity_out ? explode('|||', $d->quantity_out) : [];
-            $outClients = $d->client_out_name ? explode('|||', $d->client_out_name) : [];
-            $outSites   = $d->site_out ? explode('|||', $d->site_out) : [];
-            $outTypes   = $d->billboard_type_out ? explode('|||', $d->billboard_type_out) : [];
-            $outSizes   = $d->billboard_size_out ? explode('|||', $d->billboard_size_out) : [];
-
-            // If NO transactions exist, return one summary row with empty details
-            if (empty($inIds) && empty($outIds)) {
-                return [[
-                    'contractor'          => ($d->contractor_company ?? '') . ' (' . ($d->contractor_name ?? '') . ')',
-                    'balance_contractor'  => $d->balance_contractor ?? 0,
-                    'balance_bgoc'        => $d->balance_bgoc ?? 0,
-
-                    // IN empty
-                    'transaction_in_id'   => '',
-                    'date_in'             => '',
-                    'remarks_in'          => '',
-                    'quantity_in'         => '',
-                    'client_in_name'      => '',
-                    'site_in'             => '',
-                    'billboard_type_in'   => '',
-                    'billboard_size_in'   => '',
-
-                    // OUT empty
-                    'transaction_out_id'  => '',
-                    'date_out'            => '',
-                    'remarks_out'         => '',
-                    'quantity_out'        => '',
-                    'client_out_name'     => '',
-                    'site_out'            => '',
-                    'billboard_type_out'  => '',
-                    'billboard_size_out'  => '',
-
-                    'stock_inventory_id'  => $d->id
-                ]];
+        if ($clientIdFilter !== null) {
+            // Find all IN transactions that match the client
+            foreach ($inClientIds as $idx => $cid) {
+                if (!empty($cid) && $cid == $clientIdFilter) {
+                    $matchingInIndices[] = $idx;
+                }
             }
 
-            // Transactions exist → calculate maximum rows needed
-            $rowCount = max(count($inIds), count($outIds));
+            // Find all OUT transactions that match the client
+            foreach ($outClientIds as $idx => $cid) {
+                if (!empty($cid) && $cid == $clientIdFilter) {
+                    $matchingOutIndices[] = $idx;
+                }
+            }
 
-            $rows = [];
-            for ($i = 0; $i < $rowCount; $i++) {
+            // If no matches found in either IN or OUT, skip this inventory completely
+            if (empty($matchingInIndices) && empty($matchingOutIndices)) {
+                return [];
+            }
+        } else {
+            // No filter - include all
+            $matchingInIndices = array_keys($inIds);
+            $matchingOutIndices = array_keys($outIds);
+        }
+
+        $rows = [];
+
+        // ✅ Strategy: Create rows that show matching transactions
+        // If we have matching IN transactions, create rows for them
+        foreach ($matchingInIndices as $inIdx) {
+            $rows[] = [
+                'contractor' => ($d->contractor_company ?? '') . ' (' . ($d->contractor_name ?? '') . ')',
+                'balance_contractor' => $d->balance_contractor ?? 0,
+                'balance_bgoc' => $d->balance_bgoc ?? 0,
+
+                // IN columns - use the matching IN transaction
+                'transaction_in_id' => $inIds[$inIdx] ?? '',
+                'date_in' => (!empty($inDates[$inIdx]) ? Carbon::parse($inDates[$inIdx])->format('d/m/y') : ''),
+                'remarks_in' => $inRemarks[$inIdx] ?? '',
+                'quantity_in' => $inQty[$inIdx] ?? '',
+                'client_in_name' => $inClients[$inIdx] ?? '',
+                'client_in_id' => $inClientIds[$inIdx] ?? '',
+                'site_in' => $inSites[$inIdx] ?? '',
+                'billboard_type_in' => $inTypes[$inIdx] ?? '',
+                'billboard_size_in' => $inSizes[$inIdx] ?? '',
+
+                // OUT columns - try to pair with OUT at same index, otherwise empty
+                'transaction_out_id' => $outIds[$inIdx] ?? '',
+                'date_out' => (!empty($outDates[$inIdx] ?? '') ? Carbon::parse($outDates[$inIdx])->format('d/m/y') : ''),
+                'remarks_out' => $outRemarks[$inIdx] ?? '',
+                'quantity_out' => $outQty[$inIdx] ?? '',
+                'client_out_name' => $outClients[$inIdx] ?? '',
+                'client_out_id' => $outClientIds[$inIdx] ?? '',
+                'site_out' => $outSites[$inIdx] ?? '',
+                'billboard_type_out' => $outTypes[$inIdx] ?? '',
+                'billboard_size_out' => $outSizes[$inIdx] ?? '',
+
+                'stock_inventory_id' => $d->id
+            ];
+        }
+
+        // ✅ Add rows for matching OUT transactions that weren't already paired with IN
+        foreach ($matchingOutIndices as $outIdx) {
+            // Only add if this OUT index wasn't already used with a matching IN
+            if (!in_array($outIdx, $matchingInIndices)) {
                 $rows[] = [
                     'contractor' => ($d->contractor_company ?? '') . ' (' . ($d->contractor_name ?? '') . ')',
                     'balance_contractor' => $d->balance_contractor ?? 0,
                     'balance_bgoc' => $d->balance_bgoc ?? 0,
 
-                    // IN columns
-                    'transaction_in_id' => $inIds[$i] ?? '',
-                    'date_in' => (!empty($inDates[$i]) ? Carbon::parse($inDates[$i])->format('d/m/y') : ''),
-                    'remarks_in' => $inRemarks[$i] ?? '',
-                    'quantity_in' => $inQty[$i] ?? '',
-                    'client_in_name' => $inClients[$i] ?? '',
-                    'site_in' => $inSites[$i] ?? '',
-                    'billboard_type_in' => $inTypes[$i] ?? '',
-                    'billboard_size_in' => $inSizes[$i] ?? '',
+                    // IN columns - try to get IN at same index, otherwise empty
+                    'transaction_in_id' => $inIds[$outIdx] ?? '',
+                    'date_in' => (!empty($inDates[$outIdx] ?? '') ? Carbon::parse($inDates[$outIdx])->format('d/m/y') : ''),
+                    'remarks_in' => $inRemarks[$outIdx] ?? '',
+                    'quantity_in' => $inQty[$outIdx] ?? '',
+                    'client_in_name' => $inClients[$outIdx] ?? '',
+                    'client_in_id' => $inClientIds[$outIdx] ?? '',
+                    'site_in' => $inSites[$outIdx] ?? '',
+                    'billboard_type_in' => $inTypes[$outIdx] ?? '',
+                    'billboard_size_in' => $inSizes[$outIdx] ?? '',
 
-                    // OUT columns
-                    'transaction_out_id' => $outIds[$i] ?? '',
-                    'date_out' => (!empty($outDates[$i]) ? Carbon::parse($outDates[$i])->format('d/m/y') : ''),
-                    'remarks_out' => $outRemarks[$i] ?? '',
-                    'quantity_out' => $outQty[$i] ?? '',
-                    'client_out_name' => $outClients[$i] ?? '',
-                    'site_out' => $outSites[$i] ?? '',
-                    'billboard_type_out' => $outTypes[$i] ?? '',
-                    'billboard_size_out' => $outSizes[$i] ?? '',
+                    // OUT columns - use the matching OUT transaction
+                    'transaction_out_id' => $outIds[$outIdx],
+                    'date_out' => (!empty($outDates[$outIdx]) ? Carbon::parse($outDates[$outIdx])->format('d/m/y') : ''),
+                    'remarks_out' => $outRemarks[$outIdx] ?? '',
+                    'quantity_out' => $outQty[$outIdx] ?? '',
+                    'client_out_name' => $outClients[$outIdx] ?? '',
+                    'client_out_id' => $outClientIds[$outIdx] ?? '',
+                    'site_out' => $outSites[$outIdx] ?? '',
+                    'billboard_type_out' => $outTypes[$outIdx] ?? '',
+                    'billboard_size_out' => $outSizes[$outIdx] ?? '',
 
                     'stock_inventory_id' => $d->id
                 ];
             }
-
-            return $rows;
-        });
-
-        // Now, apply the search term to the *flattened* data
-        $searchTermLower = strtolower($originalSearch);
-        if (!empty($originalSearch)) {
-            $allFlattenedData = $allFlattenedData->filter(function ($row) use ($searchTermLower) {
-                // Check if any relevant field in the *flattened* row contains the search term
-                // Convert values to string and lowercase for case-insensitive search
-                return stripos($row['contractor'] ?? '', $searchTermLower) !== false ||
-                    stripos($row['client_in_name'] ?? '', $searchTermLower) !== false ||
-                    stripos($row['client_out_name'] ?? '', $searchTermLower) !== false ||
-                    stripos($row['site_in'] ?? '', $searchTermLower) !== false ||
-                    stripos($row['site_out'] ?? '', $searchTermLower) !== false ||
-                    stripos($row['remarks_in'] ?? '', $searchTermLower) !== false ||
-                    stripos($row['remarks_out'] ?? '', $searchTermLower) !== false;
-            });
         }
 
-        $totalData = $allFlattenedData->count(); // Count after PHP filtering
+        return $rows;
+    });
 
-        // Apply pagination to the already filtered and flattened data
-        $data = $allFlattenedData->slice($start, $limit)->values();
-
-        return response()->json([
-            "draw" => intval($request->input('draw')),
-            "recordsTotal" => $totalData,
-            "recordsFiltered" => $totalData,
-            "data" => $data,
-        ]);
+    // Apply search term to the *flattened* data
+    $searchTermLower = strtolower($originalSearch);
+    if (!empty($originalSearch)) {
+        $allFlattenedData = $allFlattenedData->filter(function ($row) use ($searchTermLower) {
+            return stripos($row['contractor'] ?? '', $searchTermLower) !== false ||
+                stripos($row['client_in_name'] ?? '', $searchTermLower) !== false ||
+                stripos($row['client_out_name'] ?? '', $searchTermLower) !== false ||
+                stripos($row['site_in'] ?? '', $searchTermLower) !== false ||
+                stripos($row['site_out'] ?? '', $searchTermLower) !== false ||
+                stripos($row['remarks_in'] ?? '', $searchTermLower) !== false ||
+                stripos($row['remarks_out'] ?? '', $searchTermLower) !== false;
+        });
     }
 
+    $totalData = $allFlattenedData->count();
+
+    // Apply pagination
+    $data = $allFlattenedData->slice($start, $limit)->values();
+
+    return response()->json([
+        "draw" => intval($request->input('draw')),
+        "recordsTotal" => $totalData,
+        "recordsFiltered" => $totalData,
+        "data" => $data,
+    ]);
+}
     public function editData($stockInventoryId, Request $request)
     {
 
@@ -407,12 +475,12 @@ class StockInventoryController extends Controller
             'date_out'              => 'nullable|date',
             'sites_in'                      => 'nullable|array',
             'sites_in.*.id'                 => 'nullable|exists:billboards,id',
-            'sites_in.*.qty'                => 'nullable|integer|min:0',
+            'sites_in.*.qty'                => 'required_with:sites_in.*.id|integer|min:1',
             'sites_in.*.client_id'          => 'nullable|integer', // Initially nullable
             'sites_in.*.client_type'        => 'nullable|string|in:contractor,client',
             'sites_out'                     => 'nullable|array',
             'sites_out.*.id'                => 'nullable|exists:billboards,id',
-            'sites_out.*.qty'               => 'nullable|integer|min:0',
+            'sites_out.*.qty'               => 'required_with:sites_out.*.id|integer|min:1',
             'sites_out.*.client_id'         => 'nullable|integer', // Initially nullable
             'sites_out.*.client_type'       => 'nullable|string|in:contractor,client',
         ]);
@@ -443,33 +511,67 @@ class StockInventoryController extends Controller
                         }
                     }
                 }
+            }foreach (($request->input('sites_in') ?? []) as $i => $row) {
+    $hasRow = !empty($row['id']); // site chosen = row is being used
+    $qty    = (int)($row['qty'] ?? 0);
+
+    if ($hasRow && $qty <= 0) {
+        $v->errors()->add("sites_in.$i.qty", 'Quantity is required and must be at least 1.');
+    }
+
+    if ($qty > 0) {
+        $hasSitesIn = true;
+        // existing client/contractor checks remain the same...
+        if (($row['client_type'] ?? 'client') === 'client' && empty($row['client_id'])) {
+            $v->errors()->add("sites_in.$i.client_id", 'Client ID is required for IN transactions to a client.');
+        }
+        if (($row['client_type'] ?? 'client') === 'contractor' && empty($row['client_id'])) {
+            $v->errors()->add("sites_in.$i.client_id", 'Contractor ID is required for IN transactions to another contractor.');
+        }
+        if (($row['client_type'] ?? null) === 'contractor') {
+            if (!\App\Models\Contractor::whereKey($row['client_id'] ?? null)->exists()) {
+                $v->errors()->add("sites_in.$i.client_id", 'Selected contractor does not exist.');
             }
+        } elseif (($row['client_type'] ?? null) === 'client') {
+            if (!\App\Models\ClientCompany::whereKey($row['client_id'] ?? null)->exists()) {
+                $v->errors()->add("sites_in.$i.client_id", 'Selected client does not exist.');
+            }
+        }
+    }
+}
+
 
             // Check OUT transactions
             $hasSitesOut = false;
             foreach (($request->input('sites_out') ?? []) as $i => $row) {
-                if ($row['qty'] > 0) { // Only consider rows with quantity > 0
-                    $hasSitesOut = true;
-                    // Check if client_id is missing for non-contractor OUT transactions
-                    if (($row['client_type'] ?? 'client') === 'client' && empty($row['client_id'])) {
-                        $v->errors()->add("sites_out.$i.client_id", 'Client ID is required for OUT transactions to a client.');
-                    }
-                    // Check if target contractor ID is missing for contractor OUT transactions
-                    if (($row['client_type'] ?? 'client') === 'contractor' && empty($row['client_id'])) {
-                        $v->errors()->add("sites_out.$i.client_id", 'Contractor ID is required for OUT transactions to another contractor.');
-                    }
-                    // Check if contractor/client exists
-                    if (($row['client_type'] ?? null) === 'contractor') {
-                        if (!Contractor::whereKey($row['client_id'] ?? null)->exists()) {
-                            $v->errors()->add("sites_out.$i.client_id", 'Selected contractor does not exist.');
-                        }
-                    } elseif (($row['client_type'] ?? null) === 'client') {
-                        if (!ClientCompany::whereKey($row['client_id'] ?? null)->exists()) {
-                            $v->errors()->add("sites_out.$i.client_id", 'Selected client does not exist.');
-                        }
-                    }
-                }
+    $hasRow = !empty($row['id']);
+    $qty    = (int)($row['qty'] ?? 0);
+
+    if ($hasRow && $qty <= 0) {
+        $v->errors()->add("sites_out.$i.qty", 'Quantity is required and must be at least 1.');
+    }
+
+    if ($qty > 0) {
+        $hasSitesOut = true;
+        // existing client/contractor checks remain the same...
+        if (($row['client_type'] ?? 'client') === 'client' && empty($row['client_id'])) {
+            $v->errors()->add("sites_out.$i.client_id", 'Client ID is required for OUT transactions to a client.');
+        }
+        if (($row['client_type'] ?? 'client') === 'contractor' && empty($row['client_id'])) {
+            $v->errors()->add("sites_out.$i.client_id", 'Contractor ID is required for OUT transactions to another contractor.');
+        }
+        if (($row['client_type'] ?? null) === 'contractor') {
+            if (!\App\Models\Contractor::whereKey($row['client_id'] ?? null)->exists()) {
+                $v->errors()->add("sites_out.$i.client_id", 'Selected contractor does not exist.');
             }
+        } elseif (($row['client_type'] ?? null) === 'client') {
+            if (!\App\Models\ClientCompany::whereKey($row['client_id'] ?? null)->exists()) {
+                $v->errors()->add("sites_out.$i.client_id", 'Selected client does not exist.');
+            }
+        }
+    }
+}
+
 
             // Conditional validation for dates based on transaction presence
             $dateInProvided = !empty($request->input('date_in'));
@@ -706,73 +808,71 @@ class StockInventoryController extends Controller
             'remarks_out'        => 'nullable|string|max:255',
             'client_in'          => 'nullable|integer|exists:client_companies,id', // Initially nullable
             'site_in'            => 'nullable|integer|exists:billboards,id',
-            'qty_in'             => 'nullable|integer|min:0',
+            'qty_in'             => 'required_with:site_in|integer|min:1',
             'date_in'            => 'nullable|date', // Initially nullable
             'client_out'         => 'nullable|integer|exists:client_companies,id', // Initially nullable
             'site_out'           => 'nullable|integer|exists:billboards,id',
-            'qty_out'            => 'nullable|integer|min:0',
+            'qty_out'            => 'required_with:site_out|integer|min:1',
             'date_out'           => 'nullable|date', // Initially nullable
         ]);
 
         // Conditional validation for client_id and date based on transaction type in edit
         $validator->after(function ($v) use ($request) {
-            $hasInTransaction = !empty($request->input('site_in')) && $request->input('qty_in', 0) > 0;
-            $hasOutTransaction = !empty($request->input('site_out')) && $request->input('qty_out', 0) > 0;
+    // Detect whether user is trying to edit IN/OUT rows
+    $hasSiteIn  = !empty($request->input('site_in'));
+    $qtyIn      = (int)($request->input('qty_in') ?? 0);
+    $hasSiteOut = !empty($request->input('site_out'));
+    $qtyOut     = (int)($request->input('qty_out') ?? 0);
 
-            // Check IN transaction details if present
-            if ($hasInTransaction) {
-                // Check if client_in is missing for client-type IN transaction
-                // Note: This assumes client_in is the field for client-type transactions in edit.
-                // If editing contractor transfers, client_id might be handled differently or not via client_in field.
-                $clientInProvided = !empty($request->input('client_in'));
-                $dateInProvided = !empty($request->input('date_in'));
+    // Hard requirement: if a site is chosen, qty must be >= 1
+    if ($hasSiteIn && $qtyIn <= 0) {
+        $v->errors()->add('qty_in', 'Quantity is required and must be at least 1 for IN.');
+    }
+    if ($hasSiteOut && $qtyOut <= 0) {
+        $v->errors()->add('qty_out', 'Quantity is required and must be at least 1 for OUT.');
+    }
 
-                // Assuming client_in is required for client-type transactions in edit
-                // If client_in is for client transactions, validate existence
-                if (!$clientInProvided) {
-                    // Check if it's intended to be a client transaction by checking if client_in field was intended to be filled
-                    // If client_in is not provided but site_in is, assume it might be a client transaction missing client_in
-                    // Or, if your frontend sends client_in=0 or null for contractor transfers, you might need different logic here.
-                    // For now, let's assume if site_in is present and client_in is missing, it's an error if it should be a client transaction.
-                    // We need a way to know the *type* of the transaction being edited.
-                    // Let's assume the frontend always sends client_in (or client_out) if it's a client transaction.
-                    // If client_in is missing for an IN transaction, it's an error.
-                    $v->errors()->add('client_in', 'Client ID is required for IN transaction.');
-                } else {
-                    // Validate client_in exists if provided
-                    if (!ClientCompany::whereKey($request->input('client_in'))->exists()) {
-                        $v->errors()->add('client_in', 'Selected client for IN transaction does not exist.');
-                    }
-                }
+    // Only treat as a real transaction when both site is chosen AND qty > 0
+    $hasInTransaction  = $hasSiteIn  && $qtyIn  > 0;
+    $hasOutTransaction = $hasSiteOut && $qtyOut > 0;
 
-                // Check if date_in is missing for IN transaction
-                if (!$dateInProvided) {
-                    $v->errors()->add('date_in', 'Date In is required for IN transaction.');
-                }
+    // ---- IN checks ----
+    if ($hasInTransaction) {
+        $clientInProvided = !empty($request->input('client_in'));
+        $dateInProvided   = !empty($request->input('date_in'));
+
+        if (!$clientInProvided) {
+            $v->errors()->add('client_in', 'Client ID is required for IN transaction.');
+        } else {
+            if (!\App\Models\ClientCompany::whereKey($request->input('client_in'))->exists()) {
+                $v->errors()->add('client_in', 'Selected client for IN transaction does not exist.');
             }
+        }
 
-            // Check OUT transaction details if present
-            if ($hasOutTransaction) {
-                // Check if client_out is missing for client-type OUT transaction
-                $clientOutProvided = !empty($request->input('client_out'));
-                $dateOutProvided = !empty($request->input('date_out'));
+        if (!$dateInProvided) {
+            $v->errors()->add('date_in', 'Date In is required for IN transaction.');
+        }
+    }
 
-                // Assuming client_out is required for client-type transactions in edit
-                if (!$clientOutProvided) {
-                    $v->errors()->add('client_out', 'Client ID is required for OUT transaction.');
-                } else {
-                    // Validate client_out exists if provided
-                    if (!ClientCompany::whereKey($request->input('client_out'))->exists()) {
-                        $v->errors()->add('client_out', 'Selected client for OUT transaction does not exist.');
-                    }
-                }
+    // ---- OUT checks ----
+    if ($hasOutTransaction) {
+        $clientOutProvided = !empty($request->input('client_out'));
+        $dateOutProvided   = !empty($request->input('date_out'));
 
-                // Check if date_out is missing for OUT transaction
-                if (!$dateOutProvided) {
-                    $v->errors()->add('date_out', 'Date Out is required for OUT transaction.');
-                }
+        if (!$clientOutProvided) {
+            $v->errors()->add('client_out', 'Client ID is required for OUT transaction.');
+        } else {
+            if (!\App\Models\ClientCompany::whereKey($request->input('client_out'))->exists()) {
+                $v->errors()->add('client_out', 'Selected client for OUT transaction does not exist.');
             }
-        });
+        }
+
+        if (!$dateOutProvided) {
+            $v->errors()->add('date_out', 'Date Out is required for OUT transaction.');
+        }
+    }
+});
+
 
         $validated = $validator->validate();
 
@@ -1031,30 +1131,22 @@ class StockInventoryController extends Controller
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
-        $query = StockInventory::with([
-            'contractor',
-            'transactions' => function ($q) use ($clientId, $startDate, $endDate) {
-                $q->with(['client', 'billboard']);
+      $query = StockInventory::with([
+    'contractor',
+    'transactions' => function ($q) use ($clientId, $startDate, $endDate) {
+        $q->with(['client', 'billboard.location']) // ← Add location relationship
+          ->when($clientId,  fn ($qq) => $qq->where('client_id', $clientId))
+          ->when($startDate, fn ($qq) => $qq->whereDate('transaction_date', '>=', $startDate))
+          ->when($endDate,   fn ($qq) => $qq->whereDate('transaction_date', '<=', $endDate));
+    }
+])
+->whereHas('transactions', function ($t) use ($clientId, $startDate, $endDate) {
+    // ✅ Always filter to show only inventories with matching transactions
+    $t->when($clientId,  fn ($qq) => $qq->where('client_id', $clientId))
+      ->when($startDate, fn ($qq) => $qq->whereDate('transaction_date', '>=', $startDate))
+      ->when($endDate,   fn ($qq) => $qq->whereDate('transaction_date', '<=', $endDate));
+});
 
-                if ($clientId) {
-                    $q->whereHas('transactions', function ($q) use ($clientId) {
-                        $q->where('client_id', $clientId);
-                    });
-                }
-
-                if ($startDate) {
-                    $q->whereHas('transactions', function ($q) use ($startDate) {
-                        $q->whereDate('transaction_date', '>=', $startDate);
-                    });
-                }
-
-                if ($endDate) {
-                    $q->whereHas('transactions', function ($q) use ($endDate) {
-                        $q->whereDate('transaction_date', '<=', $endDate);
-                    });
-                }
-            }
-        ]);
 
         if ($contractorId) {
             $query->where('contractor_id', $contractorId);
@@ -1100,11 +1192,11 @@ class StockInventoryController extends Controller
                 // Border style
                 $borderStyle = [
                     'borders' => [
-                        'allBorders' => [
-                            'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                            'color' => ['rgb' => '000000']
-                        ]
-                    ]
+    'allBorders' => [
+        'borderStyle' => Border::BORDER_THIN,
+        'color' => ['rgb' => '000000']
+    ]
+]
                 ];
 
                 // === Column widths ===
@@ -1217,15 +1309,15 @@ class StockInventoryController extends Controller
                             $sheet->setCellValue($col++ . $rowNumber, $contractorName);
                             $sheet->setCellValue($col++ . $rowNumber, optional($inTransaction->client)->name);
                             $siteNumber = optional($inTransaction->billboard)->site_number;
-                            $locationName = optional(optional($inTransaction->billboard)->location)->name;
-                            $siteLocation = trim(($locationName ? $locationName : ''), ' -');
-                            $sheet->setCellValue($col++ . $rowNumber, $siteLocation);
+$locationName = optional(optional($inTransaction->billboard)->location)->name;
+$siteDisplay = trim(($siteNumber ? $siteNumber . ' - ' : '') . ($locationName ?? ''), ' -');
+$sheet->setCellValue($col++ . $rowNumber, $siteDisplay);
                             $sheet->setCellValue($col++ . $rowNumber, optional($inTransaction->billboard)->type);
                             $sheet->setCellValue($col++ . $rowNumber, optional($inTransaction->billboard)->size);
                             $sheet->setCellValue($col++ . $rowNumber, $inTransaction->quantity);
                             $sheet->setCellValue($col++ . $rowNumber, $inTransaction->remarks);
                             $sheet->setCellValue($col++ . $rowNumber, $inTransaction->transaction_date
-                                ? \Carbon\Carbon::parse($inTransaction->transaction_date)->format('d/m/Y') : '');
+                               ? Carbon::parse($inTransaction->transaction_date)->format('d/m/Y') : '');
                             $sheet->setCellValue($col++ . $rowNumber, $inventory->balance_contractor);
                             $rowNumber++;
                         }
@@ -1239,9 +1331,9 @@ class StockInventoryController extends Controller
                             $sheet->setCellValue($col++ . $rowNumber, $contractorName);
                             $sheet->setCellValue($col++ . $rowNumber, optional($outTransaction->client)->name);
                             $siteNumber = optional($outTransaction->billboard)->site_number;
-                            $locationName = optional(optional($outTransaction->billboard)->location)->name;
-                            $siteLocation = trim(($locationName ? $locationName : ''), ' -');
-                            $sheet->setCellValue($col++ . $rowNumber, $siteLocation);
+$locationName = optional(optional($outTransaction->billboard)->location)->name;
+$siteDisplay = trim(($siteNumber ? $siteNumber . ' - ' : '') . ($locationName ?? ''), ' -');
+$sheet->setCellValue($col++ . $rowNumber, $siteDisplay);
                             $sheet->setCellValue($col++ . $rowNumber, optional($outTransaction->billboard)->type);
                             $sheet->setCellValue($col++ . $rowNumber, optional($outTransaction->billboard)->size);
                             $sheet->setCellValue($col++ . $rowNumber, '');
@@ -1249,11 +1341,11 @@ class StockInventoryController extends Controller
                             $sheet->setCellValue($col++ . $rowNumber, '');
                             $sheet->setCellValue($col++ . $rowNumber, $inventory->balance_contractor);
                             $sheet->setCellValue($col++ . $rowNumber, $outTransaction->transaction_date
-                                ? \Carbon\Carbon::parse($outTransaction->transaction_date)->format('d/m/Y') : '');
+                               ? Carbon::parse($outTransaction->transaction_date)->format('d/m/Y') : '');
                             $sheet->setCellValue($col++ . $rowNumber, $outTransaction->quantity);
                             $sheet->setCellValue($col++ . $rowNumber, optional($outTransaction->billboard)->size);
                             $sheet->setCellValue($col++ . $rowNumber, optional($outTransaction->billboard)->type);
-                            $sheet->setCellValue($col++ . $rowNumber, $siteLocation);
+                            $sheet->setCellValue($col++ . $rowNumber, $siteDisplay);
                             $sheet->setCellValue($col++ . $rowNumber, optional($outTransaction->client)->name);
                             $sheet->setCellValue($col++ . $rowNumber, $outTransaction->remarks);
                             $rowNumber++;
