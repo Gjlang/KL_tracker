@@ -82,16 +82,15 @@
                     @foreach($columns as $c)
                         @php
     $colKey      = is_array($c) ? ($c['key'] ?? '') : $c;
-    $isEditable  = array_key_exists($colKey, $editable);
-    $type        = $isEditable ? ($editable[$colKey] ?? 'text') : null;
+$isEditable  = array_key_exists($colKey, $editable);
+$type        = $isEditable ? ($editable[$colKey] ?? 'text') : null;
 
-    // Use master_file_id for outdoor rows
-    $rowId       = data_get($row, 'master_file_id')
-        ?? data_get($row, 'id')
-        ?? null;
+// Use master_file_id for outdoor rows
+$rowId = data_get($row, 'master_file_id') ?? data_get($row, 'id') ?? null;
 
-    // Detect outdoor row
-    $isChildRow  = isset($row['outdoor_item_id']) || isset($row->outdoor_item_id);
+// Detect outdoor row safely for array or object
+$childId   = data_get($row, 'outdoor_item_id');
+$isChildRow = !is_null($childId);
 
     // Date column rewrites (if using child dates)
     $effectiveKey = ($isChildRow && isset($childDateRewrite[$colKey]))
@@ -132,9 +131,10 @@
                                         data-send-col="{{ $sendCol }}"
                                         data-url="{{ $updateUrl }}"
                                         data-extra='@json($updatePayloadExtra)'
-                                        @if(isset($row['outdoor_item_id']) || isset($row->outdoor_item_id))
-                                            data-outdoor-item-id="{{ is_array($row) ? ($row['outdoor_item_id'] ?? '') : ($row->outdoor_item_id ?? '') }}"
-                                        @endif
+                                        @if($isChildRow)
+    data-outdoor-item-id="{{ $childId }}"
+@endif
+
                                     />
                                 @elseif($type === 'number')
                                     <input
@@ -147,9 +147,10 @@
                                         data-send-col="{{ $sendCol }}"
                                         data-url="{{ $updateUrl }}"
                                         data-extra='@json($updatePayloadExtra)'
-                                        @if(isset($row['outdoor_item_id']) || isset($row->outdoor_item_id))
-                                            data-outdoor-item-id="{{ is_array($row) ? ($row['outdoor_item_id'] ?? '') : ($row->outdoor_item_id ?? '') }}"
-                                        @endif
+                                        @if($isChildRow)
+    data-outdoor-item-id="{{ $childId }}"
+@endif
+
                                     />
                                 @elseif($type === 'textarea')
                                     <textarea
@@ -160,9 +161,10 @@
                                         data-send-col="{{ $sendCol }}"
                                         data-url="{{ $updateUrl }}"
                                         data-extra='@json($updatePayloadExtra)'
-                                        @if(isset($row['outdoor_item_id']) || isset($row->outdoor_item_id))
-                                            data-outdoor-item-id="{{ is_array($row) ? ($row['outdoor_item_id'] ?? '') : ($row->outdoor_item_id ?? '') }}"
-                                        @endif
+                                        @if($isChildRow)
+    data-outdoor-item-id="{{ $childId }}"
+@endif
+
                                     >{{ $raw($effectiveKey, $cellValue) }}</textarea>
                                 @else
                                     {{-- ✅ Different width for different types of text inputs --}}
@@ -175,9 +177,10 @@
                                         data-send-col="{{ $sendCol }}"
                                         data-url="{{ $updateUrl }}"
                                         data-extra='@json($updatePayloadExtra)'
-                                        @if(isset($row['outdoor_item_id']) || isset($row->outdoor_item_id))
-                                            data-outdoor-item-id="{{ is_array($row) ? ($row['outdoor_item_id'] ?? '') : ($row->outdoor_item_id ?? '') }}"
-                                        @endif
+                                        @if($isChildRow)
+    data-outdoor-item-id="{{ $childId }}"
+@endif
+
                                     />
                                 @endif
                             @else

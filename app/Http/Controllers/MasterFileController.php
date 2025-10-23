@@ -191,79 +191,200 @@ class MasterFileController extends Controller
     // ─────────────────────────────────────────────────────────────────────────────
     // OUTDOOR
     // ─────────────────────────────────────────────────────────────────────────────
-    public function outdoor(Request $request)
-    {
-        $q = MasterFile::query()
-            ->from('master_files as mf')
-            ->leftJoin('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
-            ->select([
-                'mf.id',
-                'mf.created_at',
-                'mf.month',
-                'mf.company',
-                'mf.product',
-                DB::raw('oi.site as location'),
-                'mf.duration',
+   public function outdoor(Request $request)
+{
+    $month  = (int) $request->query('month', 0);     // 0 = All months
+    $search = trim((string) $request->query('q', ''));
 
-                // keep master-level dates (optional, for rows with no items)
-                'mf.date',
-                'mf.date_finish',
+    $stateAbbrSql = "
+      CASE
+        WHEN s.name='Kuala Lumpur'     THEN 'KL'
+        WHEN s.name='Selangor'         THEN 'SEL'
+        WHEN s.name='Negeri Sembilan'  THEN 'N9'
+        WHEN s.name='Melaka'           THEN 'MLK'
+        WHEN s.name='Johor'            THEN 'JHR'
+        WHEN s.name='Perak'            THEN 'PRK'
+        WHEN s.name='Pahang'           THEN 'PHG'
+        WHEN s.name='Terengganu'       THEN 'TRG'
+        WHEN s.name='Kelantan'         THEN 'KTN'
+        WHEN s.name='Perlis'           THEN 'PLS'
+        WHEN s.name='Kedah'            THEN 'KDH'
+        WHEN s.name='Penang'           THEN 'PNG'
+        WHEN s.name='Sarawak'          THEN 'SWK'
+        WHEN s.name='Sabah'            THEN 'SBH'
+        WHEN s.name='Labuan'           THEN 'LBN'
+        WHEN s.name='Putrajaya'        THEN 'PJY'
+        ELSE s.name
+      END
+    ";
 
-                // ✅ add child-level dates so the table can use them
-                DB::raw('oi.start_date as start_date'),
-                DB::raw('oi.end_date   as end_date'),
-
-                DB::raw('oi.size as outdoor_size'),
-                DB::raw('oi.district_council as outdoor_district_council'),
-                DB::raw('oi.coordinates as outdoor_coordinates'),
-                DB::raw('oi.id as outdoor_item_id'),
-                'mf.remarks',
-            ])
-            ->where(function ($w) {
-                $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
-                    ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%'])
-                    ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%billboard%']);
-            })
-            ->when(($term = trim((string) $request->get('search', ''))) !== '', function ($w) use ($term) {
-                $w->where(function ($qq) use ($term) {
-                    $qq->where('mf.company', 'like', "%{$term}%")
-                        ->orWhere('mf.product', 'like', "%{$term}%")
-                        ->orWhere('oi.site', 'like', "%{$term}%");
-                });
-            });
-
-        // (filters unchanged)
-        $q = $this->applyMonthFilterForJoinedQuery($q, $request->get('month'));
-        if ($from = $request->get('date_from')) $q->whereDate('mf.created_at', '>=', $from);
-        if ($to   = $request->get('date_to'))   $q->whereDate('mf.created_at', '<=', $to);
-
-        $rows = $q->orderByDesc('mf.created_at')
-            ->paginate(25)
-            ->appends($request->query());
-
-        $columns = [
-            ['key' => 'created_at',               'label' => 'CREATED AT'],
-            ['key' => 'month',                    'label' => 'MONTH'],
-            ['key' => 'company',                  'label' => 'COMPANY'],
-            ['key' => 'product',                  'label' => 'PRODUCT'],
-            ['key' => 'location',                 'label' => 'LOCATION'],
-            ['key' => 'outdoor_district_council', 'label' => 'AREA'],
-            ['key' => 'duration',                 'label' => 'DURATION'],
-            ['key' => 'date',                     'label' => 'DATE'],          // shown as start_date for outdoor rows (via partial mapping)
-            ['key' => 'date_finish',              'label' => 'DATE FINISH'],   // shown as end_date for outdoor rows
-            ['key' => 'outdoor_size',             'label' => 'OUTDOOR SIZE'],
-            ['key' => 'outdoor_coordinates',      'label' => 'OUTDOOR COORDINATES'],
-            ['key' => 'remarks',                  'label' => 'REMARKS'],
-        ];
-
-        return view('dashboard.master.outdoor', [
-            'rows'          => $rows,
-            'columns'       => $columns,
-            'column_labels' => collect($columns)->pluck('label', 'key')->all(),
-            'active'        => 'outdoor',
-            'paginator'     => $rows,
+    $q = DB::table('master_files as mf')
+        ->join('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
+        ->leftJoin('billboards as bb', 'bb.id', '=', 'oi.billboard_id')
+        ->leftJoin('locations as loc', 'loc.id', '=', 'bb.location_id')
+        ->leftJoin('districts as d', 'd.id', '=', 'loc.district_id')
+        ->leftJoin('states as s', 's.id', '=', 'd.state_id')
+        ->select([
+            'mf.id     as master_file_id',
+            'oi.id     as outdoor_item_id',
+            'mf.company',
+            'mf.product',
+            'mf.product_category',
+            'mf.created_at as created_at',
+            'mf.date       as start',
+            'mf.date_finish as end',
+            DB::raw('mf.month as month'),
+            DB::raw('mf.remarks as remarks'),
+            DB::raw('mf.duration as duration'),
+            DB::raw("CONCAT_WS(' - ', NULLIF(bb.site_number,''), NULLIF(loc.name,'')) as location"),
+            DB::raw("CONCAT(($stateAbbrSql), ' - ', COALESCE(d.name,'')) as area"),
+            DB::raw('oi.size as outdoor_size'),
+            DB::raw("
+                CASE
+                  WHEN bb.gps_latitude IS NOT NULL AND bb.gps_longitude IS NOT NULL
+                    THEN CONCAT(bb.gps_latitude, ',', bb.gps_longitude)
+                  ELSE oi.coordinates
+                END as outdoor_coordinates
+            "),
         ]);
+
+    // ✅ FIXED: Convert numeric month (9) to text ("September")
+    if ($month >= 1 && $month <= 12) {
+        $monthNames = [
+            1 => 'January', 2 => 'February', 3 => 'March', 4 => 'April',
+            5 => 'May', 6 => 'June', 7 => 'July', 8 => 'August',
+            9 => 'September', 10 => 'October', 11 => 'November', 12 => 'December'
+        ];
+        $monthText = $monthNames[$month];
+        $q->where('mf.month', '=', $monthText);
     }
+
+    // ✅ Search filter
+    if ($search !== '') {
+        $like = '%'.$search.'%';
+        $q->where(function ($w) use ($like) {
+            $w->where('mf.company', 'LIKE', $like)
+              ->orWhere('mf.product', 'LIKE', $like)
+              ->orWhere('oi.size', 'LIKE', $like)
+              ->orWhere('bb.site_number', 'LIKE', $like)
+              ->orWhere('loc.name', 'LIKE', $like)
+              ->orWhere('d.name', 'LIKE', $like)
+              ->orWhere('s.name', 'LIKE', $like)
+              ->orWhere('mf.month', 'LIKE', $like)
+              ->orWhere('mf.remarks', 'LIKE', $like);
+        });
+    }
+
+    $rows = $q
+        ->orderByRaw('(mf.company IS NULL), LOWER(mf.company) ASC')
+        ->orderBy('mf.date', 'DESC')
+        ->get();
+
+    $columns = [
+        ['key' => 'created_at',              'label' => 'CREATED AT'],
+        ['key' => 'month',                   'label' => 'MONTH'],
+        ['key' => 'company',                 'label' => 'COMPANY'],
+        ['key' => 'product',                 'label' => 'PRODUCT'],
+        ['key' => 'location',                'label' => 'LOCATION'],
+        ['key' => 'area',                    'label' => 'AREA'],
+        ['key' => 'duration',                'label' => 'DURATION'],
+        ['key' => 'start',                   'label' => 'DATE'],
+        ['key' => 'end',                     'label' => 'DATE FINISH'],
+        ['key' => 'outdoor_size',            'label' => 'OUTDOOR SIZE'],
+        ['key' => 'outdoor_coordinates',     'label' => 'OUTDOOR COORDINATES'],
+        ['key' => 'remarks',                 'label' => 'REMARKS'],
+    ];
+
+    $editable = [
+        'outdoor_size'        => ['type' => 'text'],
+        'outdoor_coordinates' => ['type' => 'text'],
+    ];
+
+    $updateUrl = route('outdoor.inline.update');
+
+    return view('dashboard.master.outdoor', [
+        'rows'        => $rows,
+        'month'       => $month,
+        'search'      => $search,
+        'columns'     => $columns,
+        'editable'    => $editable,
+        'updateUrl'   => $updateUrl,
+        'dateColumns' => ['created_at', 'start', 'end'],
+    ]);
+}
+    // public function outdoor(Request $request)
+    // {
+    //     $q = MasterFile::query()
+    //         ->from('master_files as mf')
+    //         ->leftJoin('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
+    //         ->select([
+    //             'mf.id',
+    //             'mf.created_at',
+    //             'mf.month',
+    //             'mf.company',
+    //             'mf.product',
+    //             DB::raw('oi.site as location'),
+    //             'mf.duration',
+
+    //             // keep master-level dates (optional, for rows with no items)
+    //             'mf.date',
+    //             'mf.date_finish',
+
+    //             // ✅ add child-level dates so the table can use them
+    //             DB::raw('oi.start_date as start_date'),
+    //             DB::raw('oi.end_date   as end_date'),
+
+    //             DB::raw('oi.size as outdoor_size'),
+    //             DB::raw('oi.district_council as outdoor_district_council'),
+    //             DB::raw('oi.coordinates as outdoor_coordinates'),
+    //             DB::raw('oi.id as outdoor_item_id'),
+    //             'mf.remarks',
+    //         ])
+    //         ->where(function ($w) {
+    //             $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
+    //                 ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%'])
+    //                 ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%billboard%']);
+    //         })
+    //         ->when(($term = trim((string) $request->get('search', ''))) !== '', function ($w) use ($term) {
+    //             $w->where(function ($qq) use ($term) {
+    //                 $qq->where('mf.company', 'like', "%{$term}%")
+    //                     ->orWhere('mf.product', 'like', "%{$term}%")
+    //                     ->orWhere('oi.site', 'like', "%{$term}%");
+    //             });
+    //         });
+
+    //     // (filters unchanged)
+    //     $q = $this->applyMonthFilterForJoinedQuery($q, $request->get('month'));
+    //     if ($from = $request->get('date_from')) $q->whereDate('mf.created_at', '>=', $from);
+    //     if ($to   = $request->get('date_to'))   $q->whereDate('mf.created_at', '<=', $to);
+
+    //     $rows = $q->orderByDesc('mf.created_at')
+    //         ->paginate(25)
+    //         ->appends($request->query());
+
+    //     $columns = [
+    //         ['key' => 'created_at',               'label' => 'CREATED AT'],
+    //         ['key' => 'month',                    'label' => 'MONTH'],
+    //         ['key' => 'company',                  'label' => 'COMPANY'],
+    //         ['key' => 'product',                  'label' => 'PRODUCT'],
+    //         ['key' => 'location',                 'label' => 'LOCATION'],
+    //         ['key' => 'outdoor_district_council', 'label' => 'AREA'],
+    //         ['key' => 'duration',                 'label' => 'DURATION'],
+    //         ['key' => 'date',                     'label' => 'DATE'],          // shown as start_date for outdoor rows (via partial mapping)
+    //         ['key' => 'date_finish',              'label' => 'DATE FINISH'],   // shown as end_date for outdoor rows
+    //         ['key' => 'outdoor_size',             'label' => 'OUTDOOR SIZE'],
+    //         ['key' => 'outdoor_coordinates',      'label' => 'OUTDOOR COORDINATES'],
+    //         ['key' => 'remarks',                  'label' => 'REMARKS'],
+    //     ];
+
+    //     return view('dashboard.master.outdoor', [
+    //         'rows'          => $rows,
+    //         'columns'       => $columns,
+    //         'column_labels' => collect($columns)->pluck('label', 'key')->all(),
+    //         'active'        => 'outdoor',
+    //         'paginator'     => $rows,
+    //     ]);
+    // }
 
 
 
@@ -2076,179 +2197,228 @@ $request->merge([
     }
 
 
-    public function exportOutdoorXlsx(Request $request): StreamedResponse
-    {
-        // === Query: master_files JOIN outdoor_items (1 baris = 1 site) ===
-        $q = DB::table('master_files as mf')
-            ->join('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id') // pakai leftJoin kalau mau tetap include yang tanpa item
-            ->select([
-                'mf.created_at',
-                'mf.month',
-                'mf.company',
-                'mf.product',
-                DB::raw('oi.site as location'),
-                DB::raw('oi.district_council as outdoor_district_council'),
-                'mf.duration',
-                'mf.date',
-                'mf.date_finish',
-                DB::raw('oi.size as outdoor_size'),
-                DB::raw('oi.coordinates as outdoor_coordinates'),
-                'mf.remarks', // ★ NEW
-            ])
-            ->where(function ($w) {
-                $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
-                    ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%'])
-                    ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%billboard%']);
-            });
+   public function exportOutdoorXlsx(Request $request): StreamedResponse
+{
+    // ---- STATE ABBR (same as page) ----
+    $stateAbbrSql = "
+      CASE
+        WHEN s.name='Kuala Lumpur'     THEN 'KL'
+        WHEN s.name='Selangor'         THEN 'SEL'
+        WHEN s.name='Negeri Sembilan'  THEN 'N9'
+        WHEN s.name='Melaka'           THEN 'MLK'
+        WHEN s.name='Johor'            THEN 'JHR'
+        WHEN s.name='Perak'            THEN 'PRK'
+        WHEN s.name='Pahang'           THEN 'PHG'
+        WHEN s.name='Terengganu'       THEN 'TRG'
+        WHEN s.name='Kelantan'         THEN 'KTN'
+        WHEN s.name='Perlis'           THEN 'PLS'
+        WHEN s.name='Kedah'            THEN 'KDH'
+        WHEN s.name='Penang'           THEN 'PNG'
+        WHEN s.name='Sarawak'          THEN 'SWK'
+        WHEN s.name='Sabah'            THEN 'SBH'
+        WHEN s.name='Labuan'           THEN 'LBN'
+        WHEN s.name='Putrajaya'        THEN 'PJY'
+        ELSE s.name
+      END
+    ";
 
-        // --- (opsional) samakan filter dengan halaman ---
-        if ($term = trim((string)$request->get('search', ''))) {
-            $q->where(function ($w) use ($term) {
-                $w->where('mf.company', 'like', "%{$term}%")
-                    ->orWhere('mf.product', 'like', "%{$term}%")
-                    ->orWhere('oi.site', 'like', "%{$term}%");
-            });
-        }
-        if ($m = $request->get('month')) $q->where('mf.month', $m);
-        if ($from = $request->get('date_from')) $q->whereDate('mf.created_at', '>=', $from);
-        if ($to   = $request->get('date_to'))   $q->whereDate('mf.created_at', '<=', $to);
+    // === Query: same source & columns as the page ===
+    $q = DB::table('master_files as mf')
+        ->join('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
+        ->leftJoin('billboards as bb', 'bb.id', '=', 'oi.billboard_id')
+        ->leftJoin('locations as loc', 'loc.id', '=', 'bb.location_id')
+        ->leftJoin('districts as d', 'd.id', '=', 'loc.district_id')
+        ->leftJoin('states as s', 's.id', '=', 'd.state_id')
+        ->select([
+            'mf.created_at',
+            DB::raw('mf.month as month'),
+            DB::raw('mf.company as company'),
+            DB::raw('mf.product as product'),
 
-        $rows = $q->orderByDesc('mf.created_at')->cursor();
+            // LOCATION & AREA from billboard chain
+            DB::raw("CONCAT_WS(' - ', NULLIF(bb.site_number,''), NULLIF(loc.name,'')) as location"),
+            DB::raw("CONCAT(($stateAbbrSql), ' - ', COALESCE(d.name,'')) as area"),
 
-        // === Kolom & heading (remarks di paling ujung) ===
-        $colKeys = [
-            'created_at',
-            'month',
-            'company',
-            'product',
-            'location',
-            'outdoor_district_council',
-            'duration',
-            'date',
-            'date_finish',
-            'outdoor_size',
-            'outdoor_coordinates',
-            'remarks', // ★ NEW
-        ];
+            DB::raw('mf.duration as duration'),
 
-        $labels = [
-            'created_at'               => 'CREATED AT',
-            'month'                    => 'MONTH',
-            'company'                  => 'COMPANY',
-            'product'                  => 'PRODUCT',
-            'location'                 => 'LOCATION',
-            'outdoor_district_council' => 'AREA',
-            'duration'                 => 'DURATION',
-            'date'                     => 'DATE',
-            'date_finish'              => 'DATE FINISH',
-            'outdoor_size'             => 'OUTDOOR SIZE',
-            'outdoor_coordinates'      => 'OUTDOOR COORDINATES',
-            'remarks'                  => 'REMARKS', // ★ NEW
-        ];
+            // dates (raw; we’ll format below)
+            DB::raw('mf.date as start'),
+            DB::raw('mf.date_finish as end'),
 
-        // === Spreadsheet ===
-        $ss = new Spreadsheet();
-        $sheet = $ss->getActiveSheet();
+            // size + coordinates
+            DB::raw('oi.size as outdoor_size'),
+            DB::raw("
+                CASE
+                  WHEN bb.gps_latitude IS NOT NULL AND bb.gps_longitude IS NOT NULL
+                    THEN CONCAT(bb.gps_latitude, ',', bb.gps_longitude)
+                  ELSE oi.coordinates
+                END as outdoor_coordinates
+            "),
 
-        $headings = array_map(fn($k) => $labels[$k], $colKeys);
-        $lastCol = Coordinate::stringFromColumnIndex(count($headings));
-
-        // Title
-        $sheet->setCellValue('A1', 'OUTDOOR_EXPORT_' . now()->format('Y-m-d'));
-        $sheet->mergeCells("A1:{$lastCol}1");
-        $sheet->getStyle('A1')->applyFromArray([
-            'font' => ['bold' => true, 'size' => 14],
-            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'color' => ['rgb' => 'FFFF00']],
-            'borders' => [
-                'allBorders' => [
-                    'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                    'color' => ['rgb' => '000000']
-                ]
-            ]
+            DB::raw('mf.remarks as remarks'),
         ]);
 
-        // Headings
-        foreach ($headings as $i => $h) {
-            $sheet->setCellValue(Coordinate::stringFromColumnIndex($i + 1) . '2', $h);
-        }
-        $sheet->getStyle("A2:{$lastCol}2")->applyFromArray([
-            'font' => ['bold' => true],
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'color' => ['rgb' => 'EEEEEE']],
-            'borders' => [
-                'allBorders' => [
-                    'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                    'color' => ['rgb' => '000000']
-                ]
-            ]
-        ]);
-
-        // Data
-        $fmt = function ($v) {
-            if ($v === null || $v === '') return '';
-            if ($v instanceof \DateTimeInterface) return $v->format('n/j/y');
-            try {
-                return Carbon::parse($v)->format('n/j/y');
-            } catch (\Throwable $e) {
-                return (string)$v;
-            }
-        };
-
-        $r = 3;
-        $dataStartRow = $r;
-
-        foreach ($rows as $row) {
-            $data = [
-                $fmt($row->created_at),
-                $row->month,
-                $row->company,
-                $row->product,
-                $row->location,
-                $row->outdoor_district_council,
-                $row->duration,
-                $fmt($row->date),
-                $fmt($row->date_finish),
-                $row->outdoor_size,
-                $row->outdoor_coordinates,
-                $row->remarks ?? '', // ★ NEW
-            ];
-
-            foreach ($data as $i => $val) {
-                $sheet->setCellValue(Coordinate::stringFromColumnIndex($i + 1) . $r, $val);
-            }
-            $r++;
-        }
-
-        // Borders
-        if ($r > $dataStartRow) {
-            $dataEndRow = $r - 1;
-            $sheet->getStyle("A{$dataStartRow}:{$lastCol}{$dataEndRow}")->applyFromArray([
-                'borders' => [
-                    'allBorders' => [
-                        'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                        'color' => ['rgb' => '000000']
-                    ]
-                ]
-            ]);
-        }
-
-        // Autosize + freeze; wrap text for remarks
-        for ($i = 1; $i <= count($headings); $i++) {
-            $col = Coordinate::stringFromColumnIndex($i);
-            $sheet->getColumnDimension($col)->setAutoSize(true);
-        }
-        // make remarks wrap (last column)
-        $sheet->getStyle($lastCol . '3:' . $lastCol . $r)->getAlignment()->setWrapText(true);
-
-        $sheet->freezePane('A3');
-
-        $writer = new Xlsx($ss);
-        $filename = 'OUTDOOR_MASTER_CLIENTELE' . now()->format('Ymd_His') . '.xlsx';
-        return response()->streamDownload(function () use ($writer, $ss) {
-            $writer->save('php://output');
-            $ss->disconnectWorksheets();
-        }, $filename, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
+    // --- filters (mirror the page) ---
+    $monthFilter = (int) $request->input('month', 0);
+    if ($monthFilter >= 1 && $monthFilter <= 12) {
+        $q->whereMonth('mf.date', $monthFilter);
     }
+
+    if ($term = trim((string) $request->get('search', ''))) {
+        $like = "%{$term}%";
+        $q->where(function ($w) use ($like) {
+            $w->where('mf.company', 'LIKE', $like)
+              ->orWhere('mf.product', 'LIKE', $like)
+              ->orWhere('oi.size', 'LIKE', $like)
+              ->orWhere('bb.site_number', 'LIKE', $like)
+              ->orWhere('loc.name', 'LIKE', $like)
+              ->orWhere('d.name', 'LIKE', $like)
+              ->orWhere('s.name', 'LIKE', $like)
+              ->orWhere('mf.month', 'LIKE', $like)
+              ->orWhere('mf.remarks', 'LIKE', $like);
+        });
+    }
+
+    // MariaDB-safe ordering (same as page)
+    $rows = $q->orderByRaw('(mf.company IS NULL), LOWER(mf.company) ASC')
+              ->orderBy('mf.date', 'DESC')
+              ->cursor();
+
+    // === Column order & labels (match the page) ===
+    $colKeys = [
+        'created_at',
+        'month',
+        'company',
+        'product',
+        'location',
+        'area',
+        'duration',
+        'start',
+        'end',
+        'outdoor_size',
+        'outdoor_coordinates',
+        'remarks',
+    ];
+
+    $labels = [
+        'created_at'          => 'CREATED AT',
+        'month'               => 'MONTH',
+        'company'             => 'COMPANY',
+        'product'             => 'PRODUCT',
+        'location'            => 'LOCATION',
+        'area'                => 'AREA',
+        'duration'            => 'DURATION',
+        'start'               => 'DATE',
+        'end'                 => 'DATE FINISH',
+        'outdoor_size'        => 'OUTDOOR SIZE',
+        'outdoor_coordinates' => 'OUTDOOR COORDINATES',
+        'remarks'             => 'REMARKS',
+    ];
+
+    // === Build spreadsheet ===
+    $ss = new Spreadsheet();
+    $sheet = $ss->getActiveSheet();
+
+    $headings = array_map(fn($k) => $labels[$k], $colKeys);
+    $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headings));
+
+    // Title
+    $sheet->setCellValue('A1', 'OUTDOOR_EXPORT_' . now()->format('Y-m-d'));
+    $sheet->mergeCells("A1:{$lastCol}1");
+    $sheet->getStyle('A1')->applyFromArray([
+        'font' => ['bold' => true, 'size' => 14],
+        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+        'fill' => ['fillType' => Fill::FILL_SOLID, 'color' => ['rgb' => 'FFFF00']],
+        'borders' => [
+            'allBorders' => [
+                'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                'color' => ['rgb' => '000000']
+            ]
+        ]
+    ]);
+
+    // Headings
+    foreach ($headings as $i => $h) {
+        $sheet->setCellValue(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1) . '2', $h);
+    }
+    $sheet->getStyle("A2:{$lastCol}2")->applyFromArray([
+        'font' => ['bold' => true],
+        'fill' => ['fillType' => Fill::FILL_SOLID, 'color' => ['rgb' => 'EEEEEE']],
+        'borders' => [
+            'allBorders' => [
+                'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                'color' => ['rgb' => '000000']
+            ]
+        ]
+    ]);
+
+    // Date formatter (dd/mm/YYYY to match the page)
+    $fmtDate = function ($v) {
+        if ($v === null || $v === '') return '';
+        if ($v instanceof \DateTimeInterface) return $v->format('d/m/Y');
+        try {
+            return \Carbon\Carbon::parse($v)->format('d/m/Y');
+        } catch (\Throwable $e) {
+            return (string)$v;
+        }
+    };
+
+    // Data
+    $r = 3;
+    $dataStartRow = $r;
+
+    foreach ($rows as $row) {
+        $dataRow = [
+            $fmtDate($row->created_at),
+            $row->month,
+            $row->company,
+            $row->product,
+            $row->location,
+            $row->area,
+            $row->duration,
+            $fmtDate($row->start),
+            $fmtDate($row->end),
+            $row->outdoor_size,
+            $row->outdoor_coordinates,
+            $row->remarks ?? '',
+        ];
+
+        foreach ($dataRow as $i => $val) {
+            $sheet->setCellValue(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1) . $r, $val);
+        }
+        $r++;
+    }
+
+    // Borders
+    if ($r > $dataStartRow) {
+        $dataEndRow = $r - 1;
+        $sheet->getStyle("A{$dataStartRow}:{$lastCol}{$dataEndRow}")->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000']
+                ]
+            ]
+        ]);
+    }
+
+    // Autosize, wrap remarks, freeze header
+    for ($i = 1; $i <= count($headings); $i++) {
+        $col = Coordinate::stringFromColumnIndex($i);
+        $sheet->getColumnDimension($col)->setAutoSize(true);
+    }
+    $sheet->getStyle($lastCol . '3:' . $lastCol . $r)->getAlignment()->setWrapText(true);
+    $sheet->freezePane('A3');
+
+    $writer = new Xlsx($ss);
+    $filename = 'OUTDOOR_MASTER_CLIENTELE_' . now()->format('Ymd_His') . '.xlsx';
+
+    return response()->streamDownload(function () use ($writer, $ss) {
+        $writer->save('php://output');
+        $ss->disconnectWorksheets();
+    }, $filename, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
+}
+
 
 
 
