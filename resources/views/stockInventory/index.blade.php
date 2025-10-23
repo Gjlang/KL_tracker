@@ -1717,29 +1717,6 @@
                 });
             }
             // DATATABLE INITIALIZATION
-            // 🔍 DEBUG - Check backend response first
-            $.ajax({
-                url: "{{ route('stockInventory.list') }}",
-                type: "POST",
-                data: {
-                    _token: "{{ csrf_token() }}",
-                    draw: 1,
-                    start: 0,
-                    length: 10
-                },
-                success: function(response) {
-                    console.log('=== BACKEND RESPONSE ===');
-                    console.log('Total records:', response.recordsTotal);
-                    console.log('Data array length:', response.data.length);
-                    console.log('First item:', response.data[0]);
-                    console.log('Full data:', response.data);
-                    console.log('========================');
-                },
-                error: function(xhr) {
-                    console.error('AJAX Error:', xhr.responseText);
-                }
-            });
-            // DataTable initialization
             $('#inventory_table').DataTable({
                 processing: true,
                 serverSide: true,

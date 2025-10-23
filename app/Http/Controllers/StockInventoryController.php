@@ -1033,8 +1033,26 @@ class StockInventoryController extends Controller
 
         $query = StockInventory::with([
             'contractor',
-            'transactions' => function ($q) {
+            'transactions' => function ($q) use ($clientId, $startDate, $endDate) {
                 $q->with(['client', 'billboard']);
+
+                if ($clientId) {
+                    $q->whereHas('transactions', function ($q) use ($clientId) {
+                        $q->where('client_id', $clientId);
+                    });
+                }
+
+                if ($startDate) {
+                    $q->whereHas('transactions', function ($q) use ($startDate) {
+                        $q->whereDate('transaction_date', '>=', $startDate);
+                    });
+                }
+
+                if ($endDate) {
+                    $q->whereHas('transactions', function ($q) use ($endDate) {
+                        $q->whereDate('transaction_date', '<=', $endDate);
+                    });
+                }
             }
         ]);
 
@@ -1042,23 +1060,7 @@ class StockInventoryController extends Controller
             $query->where('contractor_id', $contractorId);
         }
 
-        if ($clientId) {
-            $query->whereHas('transactions', function ($q) use ($clientId) {
-                $q->where('client_id', $clientId);
-            });
-        }
 
-        if ($startDate) {
-            $query->whereHas('transactions', function ($q) use ($startDate) {
-                $q->whereDate('transaction_date', '>=', $startDate);
-            });
-        }
-
-        if ($endDate) {
-            $query->whereHas('transactions', function ($q) use ($endDate) {
-                $q->whereDate('transaction_date', '<=', $endDate);
-            });
-        }
 
         $stockInventories = $query->get();
 
