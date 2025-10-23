@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property \Illuminate\Support\Carbon|null $client_date
  * @property string|null $po_text
  * @property \Illuminate\Support\Carbon|null $po_date
- * @property string|null $supplier_text
+ * @property string|null $contractor_id
  * @property \Illuminate\Support\Carbon|null $supplier_date
  * @property string|null $storage_text
  * @property \Illuminate\Support\Carbon|null $storage_date
@@ -51,10 +51,14 @@ class OutdoorWhiteboard extends Model
     protected $fillable = [
         'outdoor_item_id',
         'master_file_id',
-        'client_text', 'client_date',
-        'po_text',     'po_date',
-        'supplier_text','supplier_date',
-        'storage_text','storage_date',
+        'client_text',
+        'client_date',
+        'po_text',
+        'po_date',
+        'contractor_id',
+        'supplier_date',
+        'storage_text',
+        'storage_date',
         'notes',
         'completed_at',
     ];

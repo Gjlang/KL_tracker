@@ -55,6 +55,8 @@ class StockInventoryTransaction extends Model
         'to_contractor_id',
         'billboard_id',
         'client_id',
+        'master_file_id',
+        'outdoor_item_id',
         'type',
         'quantity',
         'transaction_date',
