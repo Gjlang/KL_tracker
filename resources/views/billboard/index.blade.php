@@ -1536,13 +1536,16 @@
                         closeAltEditorModal(element);
                         // Show successful toast
                         window.showSubmitToast("Successfully added.", "#91C714");
+
+                        // Reload table
+                        $('#billboard_table').DataTable().ajax.reload();
                         // Clean fields
                         document.getElementById("inputBillboardType").value = "";
                         document.getElementById("inputBillboardSize").value = "";
                         document.getElementById("inputBillboardLighting").value = "";
                         document.getElementById("inputBillboardState").value = "";
                         document.getElementById("inputBillboardDistrict").value = "";
-                        // $('#inputBillboardDistrict').val(null).trigger('change');
+                        $('#inputBillboardDistrict').val(null).trigger('change');
                         document.getElementById("inputBillboardCouncil").value = "";
                         document.getElementById("inputBillboardLand").value = "";
                         document.getElementById("inputBillboardLocation").value = "";
@@ -1550,8 +1553,7 @@
                         document.getElementById("inputMapsUrl").value = "";
                         document.getElementById("inputBillboardTrafficVolume").value = "";
                         document.getElementById("inputBillboardSiteType").value = "";
-                        // Reload table
-                        $('#billboard_table').DataTable().ajax.reload();
+
                     },
                     error: function(xhr, status, error) {
                         // Display the validation error message
