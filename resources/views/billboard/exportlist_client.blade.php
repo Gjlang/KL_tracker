@@ -31,9 +31,20 @@
             font-size: 20px;
         }
 
+        .header.page-break-before {
+            page-break-before: always;
+        }
+
         /* ✅ Main content area */
         .content {
             margin: 20px 10px 80px 10px;
+        }
+
+        /* Container for each billboard — prevents breaking inside */
+        .billboard-block {
+            page-break-inside: avoid;
+            /* 👈 CRITICAL: Keep tables + images together */
+            margin-bottom: 30px;
         }
 
         /* Side-by-side using table */
@@ -41,7 +52,6 @@
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 5px;
-            /* Reduced from 10px */
         }
 
         .tables-container td {
@@ -69,56 +79,56 @@
             width: 100%;
             border-collapse: collapse;
             border: 1px solid #000;
-            /* Full border around table */
             font-size: 15px;
         }
 
         .landmarks-table th {
             background-color: #ffff00;
-            /* Yellow header */
             padding: 3px;
             text-align: center;
             font-weight: bold;
             border: 1px solid #000;
-            /* Border on header cells */
         }
 
-        /* Style for the first column (left) - Yellow background */
         .landmarks-table td:first-child {
             background-color: #ffff00;
-            /* Yellow */
             padding: 3px;
             font-weight: bold;
             border: 1px solid #000;
-            /* Full border on each cell */
         }
 
-        /* Style for the second column (right) - White background */
         .landmarks-table td:not(:first-child) {
             background-color: #ffffff;
-            /* White */
             padding: 3px;
             border: 1px solid #000;
-            /* Full border on each cell */
         }
 
         /* Image Section: photo + map side by side */
         .image-section {
             margin-top: 25px;
-            /* Reduced from 10px → brings images closer to tables */
             text-align: center;
         }
 
         .image-section img {
             width: 46%;
-            /* Slightly narrower → better ratio */
-            max-height: 500px;
-            /* Taller → matches screenshot */
+            /* Keep side-by-side layout */
+            max-width: 100%;
+            /* Prevent overflow */
+            max-height: 370px;
+            /* Cap height for portrait images */
+            height: auto;
+            /* 👈 CRITICAL: Let height adjust naturally */
             object-fit: contain;
+            /* Preserve aspect ratio */
+            object-position: center;
             border: 1px solid #ccc;
             vertical-align: top;
             display: inline-block;
             margin: 0 2px;
+            background: #f9f9f9;
+            /* Optional: visual consistency */
+            padding: 5px;
+            /* Optional: padding around image */
         }
 
         /* Contact Box - Fixed at bottom right */
@@ -132,9 +142,7 @@
             line-height: 1;
             width: 160px;
             background: #022a52ff;
-            /* Dark Blue Background */
             color: #ffffff;
-            /* White Font Color */
             text-align: center;
             z-index: 999;
         }
@@ -147,23 +155,19 @@
         .footer {
             position: fixed;
             bottom: 50px;
-            /* 👈 Increased from 15px → gives more space above footer */
             left: 10px;
             right: 10px;
             width: calc(100% - 20px);
             font-size: 9px;
             padding: 8px;
-            /* 👈 Increased padding → more readable */
             background: #022a52ff;
             border-top: 1px solid #000;
             word-wrap: break-word;
-            /* Ensure long text wraps */
         }
 
         .footer td {
             vertical-align: top;
             padding: 4px;
-            /* 👈 Slightly increased */
         }
 
         .remarks-col {
@@ -171,7 +175,6 @@
             font-style: italic;
             color: #ffffff;
             line-height: 1;
-            /* Improved readability */
         }
     </style>
 </head>
@@ -181,90 +184,95 @@
     <!-- ✅ Logo -->
     <img src="{{ public_path('images/bluedalemedia.jpg') }}" class="logo" alt="Company Logo">
 
-    <!-- ✅ Header -->
-    @foreach ($billboards as $billboard)
-        <div class="header">{{ $billboard->type }}</div>
+    @foreach ($billboards as $index => $billboard)
+        <!-- ✅ Apply page break BEFORE header only if NOT first item -->
+        <div class="header {{ $index > 0 ? 'page-break-before' : '' }}">
+            {{ $billboard->type }}
+        </div>
 
         <div class="content">
-            <!-- CONTAINER FOR SIDE-BY-SIDE TABLES USING TABLE LAYOUT -->
-            <table class="tables-container">
-                <tr>
-                    <!-- LEFT COLUMN: Site Info -->
-                    <td style="width: 50%; padding-right: 10px;">
-                        <table class="info-table">
-                            <tr>
-                                <td>Site Number:</td>
-                                <td>{{ $billboard->site_number }}
-                                    (<strong>{{ strtoupper($billboard->site_type ?? '-') }}</strong>)</td>
-                            </tr>
-                            <tr>
-                                <td>Size:</td>
-                                <td>{{ $billboard->size }}</td>
-                            </tr>
-                            <tr>
-                                <td>Location:</td>
-                                <td style="color: red;"><strong>{{ $billboard->location->name ?? '-' }}</strong></td>
-                            </tr>
-                            <tr>
-                                <td>State & City:</td>
-                                <td>{{ $billboard->location->district->name ?? '-' }}</td>
-                            </tr>
-                            <tr>
-                                <td>Coordinate:</td>
-                                <td>
-                                    @php
-                                        $mapUrl = !empty($billboard->gps_url)
-                                            ? $billboard->gps_url
-                                            : "https://www.google.com/maps/search/?api=1&query={$billboard->gps_latitude},{$billboard->gps_longitude}";
-                                    @endphp
+            <!-- 👇 WRAP ENTIRE BILLBOARD IN .billboard-block TO PREVENT INTERNAL BREAKS -->
+            <div class="billboard-block">
+                <!-- CONTAINER FOR SIDE-BY-SIDE TABLES USING TABLE LAYOUT -->
+                <table class="tables-container">
+                    <tr>
+                        <!-- LEFT COLUMN: Site Info -->
+                        <td style="width: 50%; padding-right: 10px;">
+                            <table class="info-table">
+                                <tr>
+                                    <td>Site Number:</td>
+                                    <td>{{ $billboard->site_number }}
+                                        (<strong>{{ strtoupper($billboard->site_type ?? '-') }}</strong>)</td>
+                                </tr>
+                                <tr>
+                                    <td>Size:</td>
+                                    <td>{{ $billboard->size }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Location:</td>
+                                    <td style="color: red;"><strong>{{ $billboard->location->name ?? '-' }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td>State & City:</td>
+                                    <td>{{ $billboard->location->district->name ?? '-' }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Coordinate:</td>
+                                    <td>
+                                        @php
+                                            $mapUrl = !empty($billboard->gps_url)
+                                                ? $billboard->gps_url
+                                                : "https://www.google.com/maps/search/?api=1&query={$billboard->gps_latitude},{$billboard->gps_longitude}";
+                                        @endphp
 
-                                    <a href="{{ $mapUrl }}" target="_blank" rel="noopener noreferrer">
-                                        {{ $billboard->gps_latitude }}, {{ $billboard->gps_longitude }}
-                                    </a>
-                                </td>
-                            </tr>
-                        </table>
-                    </td>
+                                        <a href="{{ $mapUrl }}" target="_blank" rel="noopener noreferrer">
+                                            {{ $billboard->gps_latitude }}, {{ $billboard->gps_longitude }}
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
 
-                    <!-- RIGHT COLUMN: Landmarks Table -->
-                    <td style="width: 50%; padding-left: 10px;">
-                        <table class="landmarks-table">
-                            <thead>
-                                <tr>
-                                    <th colspan="2">Nearest Landmarks</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td style="width: 40%;">Exhibition Center</td>
-                                    <td style="border: 1px solid #000; padding-left: 5px; width: 60%;"></td>
-                                </tr>
-                                <tr>
-                                    <td style="width: 40%;">Shopping Mall</td>
-                                    <td style="border: 1px solid #000; padding-left: 5px; width: 60%;"></td>
-                                </tr>
-                                <tr>
-                                    <td style="width: 40%;">International School</td>
-                                    <td style="border: 1px solid #000; padding-left: 5px; width: 60%;"></td>
-                                </tr>
-                                <tr>
-                                    <td style="width: 40%;">Hosp/ Medical Center</td>
-                                    <td style="border: 1px solid #000; padding-left: 5px; width: 60%;"></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </td>
-                </tr>
-            </table>
+                        <!-- RIGHT COLUMN: Landmarks Table -->
+                        <td style="width: 50%; padding-left: 10px;">
+                            <table class="landmarks-table">
+                                <thead>
+                                    <tr>
+                                        <th colspan="2">Nearest Landmarks</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td style="width: 40%;">Exhibition Center</td>
+                                        <td style="border: 1px solid #000; padding-left: 5px; width: 60%;"></td>
+                                    </tr>
+                                    <tr>
+                                        <td style="width: 40%;">Shopping Mall</td>
+                                        <td style="border: 1px solid #000; padding-left: 5px; width: 60%;"></td>
+                                    </tr>
+                                    <tr>
+                                        <td style="width: 40%;">International School</td>
+                                        <td style="border: 1px solid #000; padding-left: 5px; width: 60%;"></td>
+                                    </tr>
+                                    <tr>
+                                        <td style="width: 40%;">Hosp/ Medical Center</td>
+                                        <td style="border: 1px solid #000; padding-left: 5px; width: 60%;"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
 
-            <!-- 🖼️ IMAGES BELOW INFO: Photo + Map Side by Side -->
-            <div class="image-section">
-                <div class="image-grid">
-                    @foreach ($billboard->images as $img)
-                        <img src="{{ $img }}" alt="Billboard Image">
-                    @endforeach
+                <!-- 🖼️ IMAGES BELOW INFO: Photo + Map Side by Side -->
+                <div class="image-section">
+                    <div class="image-grid">
+                        @foreach ($billboard->images as $img)
+                            <img src="{{ $img }}" alt="Billboard Image">
+                        @endforeach
+                    </div>
                 </div>
-            </div>
+            </div> <!-- END .billboard-block -->
 
             <!-- ✅ Contact Box - Bottom Right -->
             <div class="contact-box">
@@ -290,8 +298,8 @@
                     </td>
                 </tr>
             </table>
+        </div>
     @endforeach
-    </div>
 
 </body>
 
