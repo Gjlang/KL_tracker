@@ -9,28 +9,46 @@ return new class extends Migration {
     public function up(): void {
         Schema::table('outdoor_whiteboards', function (Blueprint $table) {
             // 1) Add new FK column (nullable for backfill)
-            $table->unsignedBigInteger('outdoor_item_id')->nullable()->after('master_file_id');
+            if (!Schema::hasColumn('outdoor_whiteboards', 'outdoor_item_id')) {
+                $table->unsignedBigInteger('outdoor_item_id')->nullable()->after('master_file_id');
+            }
+        });
 
-            // 2) Drop the old unique on master_file_id (name may vary; adjust if needed)
-            // If it was created implicitly as unique, it might be named 'outdoor_whiteboards_master_file_id_unique'
-            $table->dropUnique('outdoor_whiteboards_master_file_id_unique');
+        // 2) Drop foreign key on master_file_id first (if exists)
+        try {
+            Schema::table('outdoor_whiteboards', function (Blueprint $table) {
+                $table->dropForeign(['master_file_id']);
+            });
+        } catch (\Throwable $e) {
+            // Foreign key tak wujud, skip
+        }
 
-            // 3) Optional: make master_file_id NOT unique, just indexed for filtering
-            $table->index('master_file_id');
+        // 3) Now drop the unique index
+        try {
+            DB::statement('ALTER TABLE outdoor_whiteboards DROP INDEX outdoor_whiteboards_master_file_id_unique');
+        } catch (\Throwable $e) {
+            // Index tak wujud, skip
+        }
 
-            // 4) New uniqueness per item (one whiteboard row per site)
-            $table->unique('outdoor_item_id');
+        Schema::table('outdoor_whiteboards', function (Blueprint $table) {
+            // 4) Make master_file_id just indexed for filtering
+            $table->index('master_file_id', 'outdoor_whiteboards_master_file_id_index');
 
-            // 5) (Optional) FK constraint
+            // 5) New uniqueness per item (one whiteboard row per site)
+            $table->unique('outdoor_item_id', 'outdoor_whiteboards_outdoor_item_id_unique');
+
+            // 6) Recreate master_file_id FK
+            $table->foreign('master_file_id')
+                ->references('id')->on('master_files')
+                ->onDelete('cascade');
+
+            // 7) Add outdoor_item_id FK constraint
             $table->foreign('outdoor_item_id')
                 ->references('id')->on('outdoor_items')
                 ->onDelete('cascade');
         });
 
-        // ---- Simple backfill idea (temporary): ----
-        // If you already had 1 row per master_file_id, assign that row to ONE
-        // outdoor_item under the same master_file (e.g., the earliest).
-        // Other items will have no whiteboard row until user edits them.
+        // ---- Backfill ----
         DB::statement("
             UPDATE outdoor_whiteboards ow
             JOIN (
@@ -46,13 +64,21 @@ return new class extends Migration {
     public function down(): void {
         Schema::table('outdoor_whiteboards', function (Blueprint $table) {
             // Remove new constraints/indexes
-            $table->dropForeign(['outdoor_item_id']);
-            $table->dropUnique(['outdoor_item_id']);
-            $table->dropIndex(['master_file_id']);
-            $table->dropColumn('outdoor_item_id');
+            try { $table->dropForeign(['outdoor_item_id']); } catch (\Throwable $e) {}
+            try { $table->dropForeign(['master_file_id']); } catch (\Throwable $e) {}
+            try { $table->dropUnique('outdoor_whiteboards_outdoor_item_id_unique'); } catch (\Throwable $e) {}
+            try { $table->dropIndex('outdoor_whiteboards_master_file_id_index'); } catch (\Throwable $e) {}
+            try { $table->dropColumn('outdoor_item_id'); } catch (\Throwable $e) {}
+        });
 
-            // Recreate unique on master_file_id (if you had it before)
-            $table->unique('master_file_id');
+        // Recreate unique on master_file_id
+        Schema::table('outdoor_whiteboards', function (Blueprint $table) {
+            $table->unique('master_file_id', 'outdoor_whiteboards_master_file_id_unique');
+
+            // Recreate FK
+            $table->foreign('master_file_id')
+                ->references('id')->on('master_files')
+                ->onDelete('cascade');
         });
     }
 };

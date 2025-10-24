@@ -1,0 +1,11 @@
+dashboard.view
+master-files.create
+master-files.delete
+master-files.edit
+master-files.view
+report.summary.export
+report.summary.view
+users.create
+users.delete
+users.edit
+users.view

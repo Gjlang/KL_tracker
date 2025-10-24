@@ -1,36 +1,78 @@
 <?php
-
 namespace Database\Seeders;
-
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
-use Illuminate\Support\Arr;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1) Daftar semua permissions (union dari semua role)
+        // Reset cache
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
+        // SEMUA permissions - lengkap!
         $allPermissions = [
+            // Dashboard
             'dashboard.view',
+
+            // Master Files (support both naming conventions)
             'masterfile.view',
             'masterfile.show',
             'masterfile.create',
+            'masterfile.edit',
+            'masterfile.delete',
             'masterfile.monthly',
-            'coordinator.view',
+
+            // KLTG
+            'kltg.view',
             'kltg.edit',
-            'outdoor.edit',
+            'kltg.create',
+            'kltg.delete',
+            'kltg.monthly',
+
+            // Social Media
+            'media.view',
             'media.edit',
+            'media.create',
+            'media.delete',
+            'media.monthly',
+
+            // Outdoor
+            'outdoor.view',
+            'outdoor.edit',
+            'outdoor.create',
+            'outdoor.delete',
+            'outdoor.monthly',
+            'outdoor.whiteboard',
+            'outdoor.inventory',
+            'outdoor.availability',
+
+            // Coordinator
+            'coordinator.view',
+            'coordinator.edit',
+            'coordinator.list',
+
+            // Export & Calendar
             'export.run',
-            'calendar.manage', // opsional – tetap dibuat supaya bisa dipakai kapanpun
+            'calendar.view',
+            'calendar.manage',
+
+            // Users
+            'users.view',
+            'users.create',
+            'users.edit',
+            'users.delete',
+
+            // Management
+            'management.view',
         ];
 
         foreach ($allPermissions as $p) {
             Permission::firstOrCreate(['name' => $p]);
         }
 
-        // 2) Mapping role → permissions
+        // Mapping role → permissions
         $map = [
             'admin' => ['*'], // semua permission
             'support' => [
@@ -38,18 +80,23 @@ class RolesAndPermissionsSeeder extends Seeder
                 'masterfile.view',
                 'masterfile.show',
                 'masterfile.create',
+                'masterfile.edit',
                 'masterfile.monthly',
                 'coordinator.view',
+                'coordinator.list',
+                'kltg.view',
                 'kltg.edit',
+                'outdoor.view',
                 'outdoor.edit',
+                'media.view',
                 'media.edit',
                 'export.run',
-                // hapus yang ini bila nggak perlu:
                 'calendar.manage',
             ],
             'user' => [
                 'dashboard.view',
                 'masterfile.view',
+                'masterfile.show',
             ],
         ];
 
