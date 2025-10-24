@@ -327,6 +327,232 @@ button:focus {
 }
 
 /* ============================================
+   DataTables Pagination - Enhanced Styling
+   ============================================ */
+
+/* Footer Container */
+.dataTables_wrapper .dataTables_info,
+.dataTables_wrapper .dataTables_paginate {
+    padding-top: 1.5rem !important;
+    padding-bottom: 1rem !important;
+    margin-top: 1.5rem !important;
+    border-top: 1px solid #f3f4f6;
+}
+
+/* Info Text */
+.dataTables_wrapper .dataTables_info {
+    font-size: 0.875rem;
+    color: #6b7280;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    float: left;
+}
+
+/* Pagination Container */
+.dataTables_wrapper .dataTables_paginate {
+    display: flex !important;
+    align-items: center;
+    gap: 0.375rem;
+    float: right;
+}
+
+/* Pagination Buttons */
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+    padding: 0.625rem 1rem !important;
+    margin: 0 !important;
+    border-radius: 0.75rem !important;
+    border: 1px solid #e5e7eb !important;
+    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+    background: white !important;
+    color: #4b5563 !important;
+    min-width: 2.75rem !important;
+    text-align: center !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-weight: 500 !important;
+    font-size: 0.875rem !important;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
+    cursor: pointer !important;
+}
+
+/* Hover State */
+.dataTables_wrapper
+    .dataTables_paginate
+    .paginate_button:not(.disabled):not(.current):hover {
+    background: #f9fafb !important;
+    border-color: #4bbbed !important;
+    color: #22255b !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 4px 0 rgba(75, 187, 237, 0.15) !important;
+}
+
+/* Active/Current Page */
+.dataTables_wrapper .dataTables_paginate .paginate_button.current,
+.dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+    background: linear-gradient(135deg, #22255b 0%, #2d3270 100%) !important;
+    color: white !important;
+    border-color: #22255b !important;
+    box-shadow: 0 2px 6px 0 rgba(34, 37, 91, 0.25) !important;
+    font-weight: 600 !important;
+    cursor: default !important;
+    transform: none !important;
+}
+
+/* Disabled State */
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled,
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled:hover {
+    opacity: 0.4 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+    background: #f9fafb !important;
+    border-color: #e5e7eb !important;
+    transform: none !important;
+}
+
+/* First/Previous/Next/Last Buttons */
+.dataTables_wrapper .dataTables_paginate .paginate_button.first,
+.dataTables_wrapper .dataTables_paginate .paginate_button.previous,
+.dataTables_wrapper .dataTables_paginate .paginate_button.next,
+.dataTables_wrapper .dataTables_paginate .paginate_button.last {
+    font-weight: 600 !important;
+    padding: 0.625rem 1.25rem !important;
+}
+
+/* Ellipsis */
+.dataTables_wrapper .dataTables_paginate .ellipsis {
+    padding: 0.625rem 0.5rem !important;
+    border: none !important;
+    background: transparent !important;
+    color: #9ca3af !important;
+    cursor: default !important;
+    box-shadow: none !important;
+    pointer-events: none !important;
+}
+
+/* Length Selector */
+.dataTables_wrapper .dataTables_length {
+    float: left;
+    margin-bottom: 1rem;
+}
+
+.dataTables_wrapper .dataTables_length select {
+    margin: 0 0.5rem;
+    padding: 0.5rem 2rem 0.5rem 0.75rem !important;
+    border: 1px solid #d1d5db;
+    border-radius: 0.75rem;
+    background-color: white;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.25rem 1.25rem;
+    font-size: 0.875rem;
+    color: #1c1e26;
+    cursor: pointer;
+    transition: all 150ms ease;
+}
+
+.dataTables_wrapper .dataTables_length select:hover {
+    border-color: #4bbbed;
+}
+
+.dataTables_wrapper .dataTables_length select:focus {
+    outline: none;
+    border-color: transparent;
+    box-shadow: 0 0 0 2px #4bbbed;
+}
+
+.dataTables_wrapper .dataTables_length label {
+    font-size: 0.875rem;
+    color: #6b7280;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Filter */
+.dataTables_wrapper .dataTables_filter {
+    float: right;
+    margin-bottom: 1rem;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+    .dataTables_wrapper .dataTables_info,
+    .dataTables_wrapper .dataTables_paginate {
+        float: none !important;
+        text-align: center;
+        margin-top: 1rem;
+    }
+
+    .dataTables_wrapper .dataTables_paginate {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+        padding: 0.5rem 0.75rem !important;
+        min-width: 2.5rem !important;
+        font-size: 0.8125rem !important;
+    }
+
+    .dataTables_wrapper .dataTables_paginate .paginate_button.first,
+    .dataTables_wrapper .dataTables_paginate .paginate_button.previous,
+    .dataTables_wrapper .dataTables_paginate .paginate_button.next,
+    .dataTables_wrapper .dataTables_paginate .paginate_button.last {
+        padding: 0.5rem 1rem !important;
+    }
+}
+
+/* Enhanced Table Styling */
+#contractor_table {
+    font-size: 0.9375rem; /* 15px - slightly bigger */
+}
+
+#contractor_table thead th {
+    padding: 1rem 1.25rem !important;
+    font-size: 0.6875rem; /* 11px for headers */
+    background-color: #fafafa;
+}
+
+#contractor_table tbody td {
+    padding: 1.125rem 1.25rem !important; /* More vertical padding */
+    font-size: 0.9375rem; /* 15px */
+    line-height: 1.5;
+    vertical-align: middle;
+}
+
+/* Make columns wider */
+#contractor_table thead th:nth-child(2),
+#contractor_table thead th:nth-child(3) {
+    min-width: 200px;
+}
+
+#contractor_table thead th:nth-child(4) {
+    min-width: 150px;
+}
+
+#contractor_table thead th:nth-child(5) {
+    width: 120px;
+}
+
+#contractor_table thead th:nth-child(1) {
+    width: 80px;
+}
+
+/* Row hover */
+#contractor_table tbody tr:hover {
+    background-color: #f9fafb !important;
+}
+
+/* Icons bigger */
+#contractor_table tbody td svg {
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+}
+
+/* ============================================
    Information Booth - Classic Elegant Styles
    ============================================ */
 
