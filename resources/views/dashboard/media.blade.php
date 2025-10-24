@@ -1,19 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+    <link rel="icon" type="image/x-icon" href="{{ asset('images/bluedale_logo_1.png') }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Media Monthly Ongoing Job</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
 
     <style>
         /* Custom CSS Tokens */
-        .ink { color: #1C1E26; }
-        .card { @apply bg-white rounded-2xl border border-neutral-200/70 shadow-sm; }
-        .hairline { @apply border border-neutral-200; }
+        .ink {
+            color: #1C1E26;
+        }
+
+        .card {
+            @apply bg-white rounded-2xl border border-neutral-200/70 shadow-sm;
+        }
+
+        .hairline {
+            @apply border border-neutral-200;
+        }
 
         .btn-primary {
             @apply bg-[#22255b] text-white hover:opacity-90 focus:ring-2 focus:ring-[#4bbbed] rounded-full px-5 py-2.5 h-11 inline-flex items-center justify-center font-medium transition-all duration-200;
@@ -36,8 +48,13 @@
         }
 
         /* Typography */
-        .serif { font-family: 'EB Garamond', serif; }
-        .sans { font-family: 'Inter', sans-serif; }
+        .serif {
+            font-family: 'EB Garamond', serif;
+        }
+
+        .sans {
+            font-family: 'Inter', sans-serif;
+        }
 
         /* Small caps for table headers */
         .small-caps {
@@ -46,7 +63,7 @@
         }
 
         /* Sticky column positioning - preserving original logic */
-        :root{
+        :root {
             --w-no: 60px;
             --w-month: 120px;
             --w-company: 250px;
@@ -60,26 +77,31 @@
             left: 0px;
             z-index: 40;
         }
+
         .sticky-left-60 {
             position: sticky;
             left: 60px;
             z-index: 39;
         }
+
         .sticky-left-180 {
             position: sticky;
             left: 180px;
             z-index: 38;
         }
+
         .sticky-left-430 {
             position: sticky;
             left: 430px;
             z-index: 37;
         }
+
         .sticky-left-580 {
             position: sticky;
             left: 580px;
             z-index: 36;
         }
+
         .sticky-left-700 {
             position: sticky;
             left: 700px;
@@ -114,27 +136,53 @@
         }
 
         /* Status dropdown colors - preserving original logic */
-        .status-Installation { @apply bg-[#d33831] text-white; }
-        .status-Dismantle { @apply bg-[#d33831] text-white; }
-        .status-Payment { @apply bg-[#d33831] text-white; }
-        .status-Artwork { @apply bg-orange-500 text-white; }
-        .status-Material { @apply bg-yellow-400 text-black; }
-        .status-Ongoing { @apply bg-[#4bbbed] text-white; }
-        .status-Renewal { @apply bg-[#d33831] text-white; }
-        .status-Completed { @apply bg-green-600 text-white; }
+        .status-Installation {
+            @apply bg-[#d33831] text-white;
+        }
+
+        .status-Dismantle {
+            @apply bg-[#d33831] text-white;
+        }
+
+        .status-Payment {
+            @apply bg-[#d33831] text-white;
+        }
+
+        .status-Artwork {
+            @apply bg-orange-500 text-white;
+        }
+
+        .status-Material {
+            @apply bg-yellow-400 text-black;
+        }
+
+        .status-Ongoing {
+            @apply bg-[#4bbbed] text-white;
+        }
+
+        .status-Renewal {
+            @apply bg-[#d33831] text-white;
+        }
+
+        .status-Completed {
+            @apply bg-green-600 text-white;
+        }
 
         /* Enhanced scrollbar */
         .overflow-x-auto::-webkit-scrollbar {
             height: 8px;
         }
+
         .overflow-x-auto::-webkit-scrollbar-track {
             background: #f5f5f5;
             border-radius: 4px;
         }
+
         .overflow-x-auto::-webkit-scrollbar-thumb {
             background: #d1d5db;
             border-radius: 4px;
         }
+
         .overflow-x-auto::-webkit-scrollbar-thumb:hover {
             background: #9ca3af;
         }
@@ -170,13 +218,15 @@
                     <div class="p-6">
                         <div class="mb-6">
                             <h2 class="serif text-xl font-medium ink mb-1">Filters & Search</h2>
-                            <p class="sans text-neutral-500 text-sm">Filter projects by month or search by company name</p>
+                            <p class="sans text-neutral-500 text-sm">Filter projects by month or search by company name
+                            </p>
                         </div>
 
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
                             <div class="space-y-2">
                                 <label class="block sans text-sm font-medium text-neutral-700">Filter by Month</label>
-                                <select class="w-full h-11 px-4 rounded-lg hairline bg-white focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent sans text-sm">
+                                <select
+                                    class="w-full h-11 px-4 rounded-lg hairline bg-white focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent sans text-sm">
                                     <option value="">All Months</option>
                                     <option value="jan">January</option>
                                     <option value="feb">February</option>
@@ -195,11 +245,8 @@
 
                             <div class="space-y-2">
                                 <label class="block sans text-sm font-medium text-neutral-700">Search Companies</label>
-                                <input
-                                    type="text"
-                                    placeholder="Search by company name..."
-                                    class="w-full h-11 px-4 rounded-lg hairline bg-white focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent sans text-sm"
-                                />
+                                <input type="text" placeholder="Search by company name..."
+                                    class="w-full h-11 px-4 rounded-lg hairline bg-white focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent sans text-sm" />
                             </div>
                         </div>
 
@@ -220,34 +267,51 @@
                         <table class="min-w-[3250px] w-full text-sm table-fixed">
                             <thead class="sticky-header bg-neutral-50 border-b border-neutral-200">
                                 <tr>
-                                    <th style="width: var(--w-no)" class="px-4 py-4 text-left sans text-xs font-medium text-neutral-500 small-caps sticky-left-0 sticky-cell-bg border-r border-neutral-200">
+                                    <th style="width: var(--w-no)"
+                                        class="px-4 py-4 text-left sans text-xs font-medium text-neutral-500 small-caps sticky-left-0 sticky-cell-bg border-r border-neutral-200">
                                         No.
                                     </th>
-                                    <th style="width: var(--w-month)" class="px-4 py-4 text-left sans text-xs font-medium text-neutral-500 small-caps sticky-left-60 sticky-cell-bg border-r border-neutral-200">
+                                    <th style="width: var(--w-month)"
+                                        class="px-4 py-4 text-left sans text-xs font-medium text-neutral-500 small-caps sticky-left-60 sticky-cell-bg border-r border-neutral-200">
                                         Month
                                     </th>
-                                    <th style="width: var(--w-company)" class="px-4 py-4 text-left sans text-xs font-medium text-neutral-500 small-caps sticky-left-180 sticky-cell-bg border-r border-neutral-200">
+                                    <th style="width: var(--w-company)"
+                                        class="px-4 py-4 text-left sans text-xs font-medium text-neutral-500 small-caps sticky-left-180 sticky-cell-bg border-r border-neutral-200">
                                         Company
                                     </th>
-                                    <th style="width: var(--w-product)" class="px-4 py-4 text-left sans text-xs font-medium text-neutral-500 small-caps sticky-left-430 sticky-cell-bg border-r border-neutral-200">
+                                    <th style="width: var(--w-product)"
+                                        class="px-4 py-4 text-left sans text-xs font-medium text-neutral-500 small-caps sticky-left-430 sticky-cell-bg border-r border-neutral-200">
                                         Product
                                     </th>
-                                    <th style="width: var(--w-start)" class="px-4 py-4 text-left sans text-xs font-medium text-neutral-500 small-caps sticky-left-580 sticky-cell-bg border-r border-neutral-200">
+                                    <th style="width: var(--w-start)"
+                                        class="px-4 py-4 text-left sans text-xs font-medium text-neutral-500 small-caps sticky-left-580 sticky-cell-bg border-r border-neutral-200">
                                         Start Date
                                     </th>
-                                    <th style="width: var(--w-end)" class="px-4 py-4 text-left sans text-xs font-medium text-neutral-500 small-caps sticky-left-700 sticky-cell-bg border-r border-neutral-200">
+                                    <th style="width: var(--w-end)"
+                                        class="px-4 py-4 text-left sans text-xs font-medium text-neutral-500 small-caps sticky-left-700 sticky-cell-bg border-r border-neutral-200">
                                         End Date
                                     </th>
 
                                     @php
                                         $months = [
-                                            1=>'January',2=>'February',3=>'March',4=>'April',5=>'May',6=>'June',
-                                            7=>'July',8=>'August',9=>'September',10=>'October',11=>'November',12=>'December'
+                                            1 => 'January',
+                                            2 => 'February',
+                                            3 => 'March',
+                                            4 => 'April',
+                                            5 => 'May',
+                                            6 => 'June',
+                                            7 => 'July',
+                                            8 => 'August',
+                                            9 => 'September',
+                                            10 => 'October',
+                                            11 => 'November',
+                                            12 => 'December',
                                         ];
                                     @endphp
 
-                                    @foreach($months as $mNum => $mName)
-                                        <th class="px-3 py-4 text-center bg-neutral-50 border-r border-neutral-200 month-cell">
+                                    @foreach ($months as $mNum => $mName)
+                                        <th
+                                            class="px-3 py-4 text-center bg-neutral-50 border-r border-neutral-200 month-cell">
                                             <div class="serif font-medium text-neutral-700">{{ $mName }}</div>
                                             <div class="sans text-xs text-neutral-500 mt-1">{{ date('Y') }}</div>
                                         </th>
@@ -256,87 +320,108 @@
                             </thead>
                             <tbody class="bg-white divide-y divide-neutral-200">
                                 @php
-                                  $rows = collect($rows ?? $monthlyByCategory['Media'] ?? []);
-                                  $activeYear = isset($year) ? (int)$year : (int)now()->year;
-                                  $detailsMap = $detailsMap ?? [];
+                                    $rows = collect($rows ?? ($monthlyByCategory['Media'] ?? []));
+                                    $activeYear = isset($year) ? (int) $year : (int) now()->year;
+                                    $detailsMap = $detailsMap ?? [];
 
-                                  function md_cell($map, $mid, $yr, $mon) {
-                                      return $map[$mid][$yr][$mon] ?? ['value_text'=>null,'value_date'=>null];
-                                  }
+                                    function md_cell($map, $mid, $yr, $mon)
+                                    {
+                                        return $map[$mid][$yr][$mon] ?? ['value_text' => null, 'value_date' => null];
+                                    }
                                 @endphp
 
                                 @forelse($rows as $i => $row)
                                     <tr class="hover:bg-neutral-50 hover:shadow-sm transition-all duration-150 group">
-                                        <td style="width: var(--w-no)" class="px-4 py-4 sticky-left-0 sticky-cell-bg border-r border-neutral-200">
-                                            <span class="tabular-nums sans text-sm font-medium text-neutral-500">{{ $i+1 }}</span>
+                                        <td style="width: var(--w-no)"
+                                            class="px-4 py-4 sticky-left-0 sticky-cell-bg border-r border-neutral-200">
+                                            <span
+                                                class="tabular-nums sans text-sm font-medium text-neutral-500">{{ $i + 1 }}</span>
                                         </td>
-                                        <td style="width: var(--w-month)" class="px-4 py-4 sticky-left-60 sticky-cell-bg border-r border-neutral-200">
+                                        <td style="width: var(--w-month)"
+                                            class="px-4 py-4 sticky-left-60 sticky-cell-bg border-r border-neutral-200">
                                             <span class="sans text-sm font-medium ink" title="{{ $row->month }}">
                                                 {{ strlen($row->month) > 15 ? substr($row->month, 0, 15) . '...' : $row->month }}
                                             </span>
                                         </td>
-                                        <td style="width: var(--w-company)" class="px-4 py-4 sticky-left-180 sticky-cell-bg border-r border-neutral-200">
+                                        <td style="width: var(--w-company)"
+                                            class="px-4 py-4 sticky-left-180 sticky-cell-bg border-r border-neutral-200">
                                             <span class="sans text-sm font-semibold ink" title="{{ $row->company }}">
                                                 {{ strlen($row->company) > 30 ? substr($row->company, 0, 30) . '...' : $row->company }}
                                             </span>
                                         </td>
-                                        <td style="width: var(--w-product)" class="px-4 py-4 sticky-left-430 sticky-cell-bg border-r border-neutral-200">
+                                        <td style="width: var(--w-product)"
+                                            class="px-4 py-4 sticky-left-430 sticky-cell-bg border-r border-neutral-200">
                                             <span class="sans text-sm text-neutral-700" title="{{ $row->product }}">
                                                 {{ strlen($row->product) > 20 ? substr($row->product, 0, 20) . '...' : $row->product }}
                                             </span>
                                         </td>
-                                        <td style="width: var(--w-start)" class="px-4 py-4 sticky-left-580 sticky-cell-bg border-r border-neutral-200">
-                                            <span class="chip bg-green-50 text-green-700 border border-green-200 tabular-nums">
+                                        <td style="width: var(--w-start)"
+                                            class="px-4 py-4 sticky-left-580 sticky-cell-bg border-r border-neutral-200">
+                                            <span
+                                                class="chip bg-green-50 text-green-700 border border-green-200 tabular-nums">
                                                 {{ $row->date }}
                                             </span>
                                         </td>
-                                        <td style="width: var(--w-end)" class="px-4 py-4 sticky-left-700 sticky-cell-bg border-r border-neutral-200">
-                                            <span class="chip bg-red-50 text-red-700 border border-red-200 tabular-nums">
+                                        <td style="width: var(--w-end)"
+                                            class="px-4 py-4 sticky-left-700 sticky-cell-bg border-r border-neutral-200">
+                                            <span
+                                                class="chip bg-red-50 text-red-700 border border-red-200 tabular-nums">
                                                 {{ $row->date_finish }}
                                             </span>
                                         </td>
 
                                         @php $yearView = $activeYear; @endphp
 
-                                        @foreach($months as $mNum => $mName)
+                                        @foreach ($months as $mNum => $mName)
                                             @php
                                                 $d = md_cell($detailsMap, $row->id, $yearView, $mNum);
                                                 $savedStatus = $d['value_text'] ?? '';
                                                 $savedDate = $d['value_date'] ?? '';
                                             @endphp
-                                            <td class="px-3 py-3 bg-white group-hover:bg-neutral-50 border-r border-neutral-200 month-cell transition-colors duration-150">
+                                            <td
+                                                class="px-3 py-3 bg-white group-hover:bg-neutral-50 border-r border-neutral-200 month-cell transition-colors duration-150">
                                                 <div class="flex flex-col gap-2">
                                                     <select
                                                         class="status-dropdown w-full text-xs font-medium rounded-lg hairline px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent bg-white transition-all duration-150"
                                                         data-master="{{ $row->id }}"
                                                         data-year="{{ $yearView }}"
-                                                        data-month="{{ $mNum }}"
-                                                        data-kind="text"
+                                                        data-month="{{ $mNum }}" data-kind="text"
                                                         name="status_{{ $row->id }}_{{ $yearView }}_{{ $mNum }}"
-                                                        onchange="saveMediaCell(this); setDropdownColor(this);"
-                                                    >
+                                                        onchange="saveMediaCell(this); setDropdownColor(this);">
                                                         <option value=""></option>
-                                                        <option value="Installation" {{ $savedStatus==='Installation' ? 'selected' : '' }}>Installation</option>
-                                                        <option value="Dismantle" {{ $savedStatus==='Dismantle' ? 'selected' : '' }}>Dismantle</option>
-                                                        <option value="Artwork" {{ $savedStatus==='Artwork' ? 'selected' : '' }}>Artwork</option>
-                                                        <option value="Payment" {{ $savedStatus==='Payment' ? 'selected' : '' }}>Payment</option>
-                                                        <option value="Ongoing" {{ $savedStatus==='Ongoing' ? 'selected' : '' }}>Ongoing</option>
-                                                        <option value="Renewal" {{ $savedStatus==='Renewal' ? 'selected' : '' }}>Renewal</option>
-                                                        <option value="Completed" {{ $savedStatus==='Completed' ? 'selected' : '' }}>Completed</option>
-                                                        <option value="Material" {{ $savedStatus==='Material' ? 'selected' : '' }}>Material</option>
+                                                        <option value="Installation"
+                                                            {{ $savedStatus === 'Installation' ? 'selected' : '' }}>
+                                                            Installation</option>
+                                                        <option value="Dismantle"
+                                                            {{ $savedStatus === 'Dismantle' ? 'selected' : '' }}>
+                                                            Dismantle</option>
+                                                        <option value="Artwork"
+                                                            {{ $savedStatus === 'Artwork' ? 'selected' : '' }}>Artwork
+                                                        </option>
+                                                        <option value="Payment"
+                                                            {{ $savedStatus === 'Payment' ? 'selected' : '' }}>Payment
+                                                        </option>
+                                                        <option value="Ongoing"
+                                                            {{ $savedStatus === 'Ongoing' ? 'selected' : '' }}>Ongoing
+                                                        </option>
+                                                        <option value="Renewal"
+                                                            {{ $savedStatus === 'Renewal' ? 'selected' : '' }}>Renewal
+                                                        </option>
+                                                        <option value="Completed"
+                                                            {{ $savedStatus === 'Completed' ? 'selected' : '' }}>
+                                                            Completed</option>
+                                                        <option value="Material"
+                                                            {{ $savedStatus === 'Material' ? 'selected' : '' }}>Material
+                                                        </option>
                                                     </select>
 
-                                                    <input
-                                                        type="date"
-                                                        value="{{ $savedDate }}"
+                                                    <input type="date" value="{{ $savedDate }}"
                                                         class="w-full text-xs rounded-lg hairline px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent bg-white transition-all duration-150 tabular-nums"
                                                         data-master="{{ $row->id }}"
                                                         data-year="{{ $yearView }}"
-                                                        data-month="{{ $mNum }}"
-                                                        data-kind="date"
+                                                        data-month="{{ $mNum }}" data-kind="date"
                                                         name="date_{{ $row->id }}_{{ $yearView }}_{{ $mNum }}"
-                                                        onblur="saveMediaCell(this)"
-                                                    />
+                                                        onblur="saveMediaCell(this)" />
                                                 </div>
                                             </td>
                                         @endforeach
@@ -345,14 +430,20 @@
                                     <tr>
                                         <td class="px-4 py-16 text-center" colspan="18">
                                             <div class="flex flex-col items-center gap-4 max-w-sm mx-auto">
-                                                <div class="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center">
-                                                    <svg class="w-8 h-8 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                                <div
+                                                    class="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center">
+                                                    <svg class="w-8 h-8 text-neutral-400" fill="none"
+                                                        stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="1.5"
+                                                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                                     </svg>
                                                 </div>
                                                 <div class="text-center">
-                                                    <h3 class="sans text-base font-medium ink">No Media projects found</h3>
-                                                    <p class="sans text-sm text-neutral-500 mt-1">Add some projects to get started</p>
+                                                    <h3 class="sans text-base font-medium ink">No Media projects found
+                                                    </h3>
+                                                    <p class="sans text-sm text-neutral-500 mt-1">Add some projects to
+                                                        get started</p>
                                                 </div>
                                                 <button class="btn-ghost">Add Project</button>
                                             </div>
@@ -382,7 +473,8 @@
             '': ''
         };
 
-        const BASE_SELECT_CLASSES = 'status-dropdown w-full text-xs font-medium rounded-lg hairline px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent transition-all duration-150';
+        const BASE_SELECT_CLASSES =
+            'status-dropdown w-full text-xs font-medium rounded-lg hairline px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#4bbbed] focus:border-transparent transition-all duration-150';
 
         function setDropdownColor(selectEl) {
             const colorClass = STATUS_COLORS[selectEl.value] || '';
@@ -452,4 +544,5 @@
         }
     </script>
 </body>
+
 </html>
