@@ -1035,6 +1035,8 @@
     <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
 
     <script>
+
+
         // ============================================
         // GLOBAL VARIABLES (declared once at the top)
         // ============================================
@@ -1421,9 +1423,6 @@
                 e.preventDefault();
                 console.log("Editing Stock Inventory ID (before check):", transactionInId, transactionOutId,
                     stockInventoryId);
-                // Determine which transaction type(s) we are trying to edit based on form fields
-                // This assumes that if a transaction was loaded for editing, its key fields (like ID, site, qty) would be populated.
-                // We use the presence of 'site' and 'qty' > 0 as indicators that this part of the form is active.
                 const hasInData = $('#editBillboardIn').val() && parseInt($('#editQtyIn').val() || 0) > 0;
                 const hasOutData = $('#editBillboardOut').val() && parseInt($('#editQtyOut').val() || 0) >
                     0;
@@ -2068,4 +2067,73 @@
             setupAutoFilter();
         });
     </script>
+
+    <script>
+// ===== Robust modal helpers (pure JS) =====
+(function () {
+  function getEl(idOrHash) {
+    return document.getElementById(idOrHash.startsWith('#') ? idOrHash.slice(1) : idOrHash);
+  }
+
+  // Tutup semua dropdown Select2 agar tidak “menggantung”
+  function closeAllSelect2Portals() {
+    // Hapus container dropdown Select2 (kalau ada)
+    document.querySelectorAll('.select2-container--open').forEach(c => c.classList.remove('select2-container--open'));
+    document.querySelectorAll('.select2-dropdown, .select2-container.select2-container--open').forEach(n => {
+      // biar aman, sembunyikan
+      if (n && n.style) n.style.display = 'none';
+    });
+  }
+
+  window.openModal = function (idOrHash) {
+    const el = getEl(idOrHash);
+    if (!el) return;
+    // pastikan visible
+    el.style.display = 'flex';             // <— paksa tampil
+    el.classList.add('show');              // sinkron dengan CSS kamu
+    el.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  };
+
+  window.closeModal = function (idOrHash) {
+    const el = getEl(idOrHash);
+    if (!el) return;
+    // tutup select2 portal kalau ada
+    closeAllSelect2Portals();
+    // sembunyikan modal beneran
+    el.classList.remove('show');
+    el.setAttribute('aria-hidden', 'true');
+    el.style.display = 'none';             // <— paksa hilang (kunci fix)
+    document.body.style.overflow = '';
+  };
+
+  // Data-API ringan (tanpa Bootstrap)
+  document.addEventListener('click', (e) => {
+    const opener = e.target.closest('[data-toggle="modal"][data-target]');
+    if (opener) {
+      e.preventDefault();
+      openModal(opener.getAttribute('data-target'));
+      return;
+    }
+    const closer = e.target.closest('[data-dismiss="modal"]');
+    if (closer) {
+      e.preventDefault();
+      const modal = closer.closest('.modal');
+      if (modal) closeModal('#' + modal.id);
+    }
+  });
+
+  // Klik backdrop & ESC
+  document.addEventListener('click', (e) => {
+    const modal = e.target.closest('.modal.show');
+    if (modal && e.target === modal) closeModal('#' + modal.id);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal.show').forEach(m => closeModal('#' + m.id));
+    }
+  });
+})();
+</script>
+
 @endsection

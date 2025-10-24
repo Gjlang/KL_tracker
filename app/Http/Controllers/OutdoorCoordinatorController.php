@@ -753,7 +753,10 @@ public function upsert(Request $request)
     $q->select([
         'mf.id as master_file_id',
         'mf.company as company',
-        DB::raw('COALESCE(mf.client, oct.client) as person_in_charge'),
+         DB::raw($month
+        ? "mf.client as person_in_charge"
+        : "COALESCE(mf.client, oct.client) as person_in_charge"
+    ),
         'mf.product as product',
 
         DB::raw('oi.id as outdoor_item_id'),
