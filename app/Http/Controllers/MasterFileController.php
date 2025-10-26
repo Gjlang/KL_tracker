@@ -681,45 +681,50 @@ class MasterFileController extends Controller
 
   public function create()
 {
-    // 1) Detect company-name column
-    $col = Schema::hasColumn('client_companies', 'company') ? 'company'
-        : (Schema::hasColumn('client_companies', 'company_name') ? 'company_name'
-        : (Schema::hasColumn('client_companies', 'name') ? 'name' : null));
-
-    // Fallback if no suitable column
-    if (!$col) {
-        return view('masterfile.create', [
-            'companies'         => collect(),   // []
-            'clientsByCompany'  => [],          // {}
-            'display_column'    => 'company',   // not used but safe
-        ]);
+    // 0) Pick a label column from client_companies defensively
+    $candidates = ['company', 'company_name', 'name', 'title', 'label'];
+    $labelCol = null;
+    foreach ($candidates as $c) {
+        if (Schema::hasColumn('client_companies', $c)) {
+            $labelCol = $c;
+            break;
+        }
     }
 
-    // 2) Companies as: [ id => "Company Name" ]
-    $companies = DB::table('client_companies')
-        ->select('id', DB::raw("$col as label"))
-        ->whereNotNull($col)
-        ->where($col, '!=', '')
-        ->orderBy($col)
-        ->get()
-        ->map(function ($r) {
-            $r->label = trim($r->label);
-            return $r;
-        })
-        ->filter(fn($r) => $r->label !== '')
-        ->unique(fn($r) => mb_strtolower($r->label))
-        ->mapWithKeys(fn($r) => [$r->id => $r->label]);
+    // Build base query: only companies that HAVE clients
+    $q = DB::table('client_companies as cc')
+        ->join('clients as c', 'c.company_id', '=', 'cc.id')
+        ->when(Schema::hasColumn('client_companies', 'deleted_at'), fn($q) => $q->whereNull('cc.deleted_at'))
+        ->when(Schema::hasColumn('clients', 'deleted_at'), fn($q) => $q->whereNull('c.deleted_at'));
 
-    // For mapping company name -> id (case-insensitive)
+    // Select label safely
+    if ($labelCol) {
+        $q->select('cc.id', DB::raw("TRIM(cc.`$labelCol`) as label"))
+          ->whereNotNull("cc.$labelCol")
+          ->whereRaw("TRIM(cc.`$labelCol`) <> ''")
+          ->groupBy('cc.id', 'label')
+          ->orderBy('label');
+    } else {
+        // Fallback if no readable label column exists: show synthetic label
+        $q->select('cc.id', DB::raw("CONCAT('Company #', cc.id) as label"))
+          ->groupBy('cc.id', 'label')
+          ->orderBy('label');
+    }
+
+    // [ id => "Company Name" ]
+    $companies = $q->pluck('label', 'id');
+
+    // Map: lower(label) -> id (for merging historic MFs)
     $nameToId = [];
     foreach ($companies as $id => $label) {
-        $nameToId[mb_strtolower($label)] = (string) $id;
+        $nameToId[mb_strtolower(trim($label))] = (string) $id;
     }
 
-    // 3) PIC from `clients` table → { "company_id": [ {id,name,phone,email}, ... ] }
+    // Clients (PIC) only for the companies in the dropdown
+    $companyIds = array_keys($companies->toArray());
     $clientsRaw = DB::table('clients')
-        ->select('id', 'name', 'company_id', 'phone', 'email')   // ⬅️ added phone & email
-        ->whereNotNull('company_id')
+        ->select('id', 'name', 'company_id', 'phone', 'email')
+        ->whereIn('company_id', $companyIds)
         ->orderBy('name')
         ->get();
 
@@ -731,25 +736,24 @@ class MasterFileController extends Controller
             $byCompany[$cid][] = [
                 'id'    => (string)$c->id,
                 'name'  => trim($c->name),
-                'phone' => $c->phone ?? '',     // ⬅️ include phone
-                'email' => $c->email ?? '',     // ⬅️ include email
+                'phone' => $c->phone ?? '',
+                'email' => $c->email ?? '',
             ];
         }
     }
 
-    // 4) Merge historic PIC from `master_files` (distinct client per company name)
-    //    Only for companies that exist in dropdown
-    if (Schema::hasTable('master_files')
-        && Schema::hasColumn('master_files', 'company')
-        && Schema::hasColumn('master_files', 'client')) {
-
+    // Merge historic PIC from master_files (optional)
+    if (
+        Schema::hasTable('master_files') &&
+        Schema::hasColumn('master_files', 'company') &&
+        Schema::hasColumn('master_files', 'client')
+    ) {
         $mf = DB::table('master_files')
             ->select('company', 'client')
             ->whereNotNull('company')
             ->whereNotNull('client')
             ->get();
 
-        // Group by company name (case-insensitive)
         $grouped = [];
         foreach ($mf as $row) {
             $companyName = trim((string)$row->company);
@@ -757,16 +761,14 @@ class MasterFileController extends Controller
             if ($companyName === '' || $clientName === '') continue;
             $key = mb_strtolower($companyName);
             if (!isset($grouped[$key])) $grouped[$key] = [];
-            $grouped[$key][$clientName] = true; // unique by client name
+            $grouped[$key][$clientName] = true;
         }
 
         foreach ($grouped as $companyLower => $clientSet) {
-            // Map company name to existing ID
             $cid = $nameToId[$companyLower] ?? null;
             if (!$cid) continue;
             if (!isset($byCompany[$cid])) $byCompany[$cid] = [];
 
-            // Existing names (lowercased) to avoid duplicates
             $existingLower = array_map(
                 fn($r) => mb_strtolower($r['name']),
                 $byCompany[$cid]
@@ -774,13 +776,11 @@ class MasterFileController extends Controller
 
             foreach (array_keys($clientSet) as $nm) {
                 if (!in_array(mb_strtolower($nm), $existingLower, true)) {
-                    // Mark as "new" so store() can create Client if selected
-                    // Historic records don't have phone/email, so leave empty
                     $byCompany[$cid][] = [
                         'id'    => 'new:' . $nm,
                         'name'  => $nm,
-                        'phone' => '',          // ⬅️ empty for historic
-                        'email' => '',          // ⬅️ empty for historic
+                        'phone' => '',
+                        'email' => '',
                     ];
                 }
             }
@@ -788,9 +788,9 @@ class MasterFileController extends Controller
     }
 
     return view('masterfile.create', [
-        'companies'         => $companies,        // [id => label]
-        'clientsByCompany'  => $byCompany,        // { "id": [ {id,name,phone,email}, ... ] }
-        'display_column'    => $col,              // if you still reference it somewhere
+        'companies'         => $companies,   // [id => label]
+        'clientsByCompany'  => $byCompany,   // { company_id: [ {id,name,phone,email}, ... ] }
+        'display_column'    => $labelCol ?: 'id',
     ]);
 }
 

@@ -467,7 +467,7 @@
             </div>
         </div>
 
-        <!-- Filter Panel -->
+        {{-- <!-- Filter Panel -->
         <div class="card-floating p-6 mb-6">
             <form class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <!-- Company Filter -->
@@ -490,7 +490,7 @@
                     </button>
                 </div>
             </form>
-        </div>
+        </div> --}}
 
         <!-- Data Table -->
         <div class="card-elegant p-6 mb-8">
@@ -620,7 +620,7 @@
         $(document).ready(function() {
 
             // Global variables
-            var filterClientCompany;
+            // var filterClientCompany;
             var contractorID;
             var lastClickedLink;
 
@@ -659,8 +659,8 @@
             }
 
             // Listen to buttons with safety guards
-            const filterBtn = document.getElementById("filterClientButton");
-            if (filterBtn) filterBtn.addEventListener("click", filterClientButton);
+            // const filterBtn = document.getElementById("filterClientButton");
+            // if (filterBtn) filterBtn.addEventListener("click", filterClientButton);
 
             const addBtn = document.getElementById("contractorAddButton");
             if (addBtn) addBtn.addEventListener("click", contractorAddButton);
@@ -678,37 +678,38 @@
             }
 
             // When "filterClientButton" button is clicked, initiate initClientCompanyDatatable
-            function filterClientButton() {
-                filterClientCompany = document.getElementById("inputCompanyName").value;
-                initContractorDatatable(filterClientCompany);
-                updateFilterChips();
-            };
+            // function filterClientButton() {
+            //     filterClientCompany = document.getElementById("inputCompanyName").value;
+            //     initContractorDatatable(filterClientCompany);
+            //     updateFilterChips();
+            // };
 
             // Update filter chips display
-            function updateFilterChips() {
-                const companySelect = document.getElementById("inputCompanyName");
-                const chipContainer = document.getElementById("filterChipsContainer");
-                const chipsSection = document.getElementById("activeFiltersChips");
+            // function updateFilterChips() {
+            //     const companySelect = document.getElementById("inputCompanyName");
+            //     const chipContainer = document.getElementById("filterChipsContainer");
+            //     const chipsSection = document.getElementById("activeFiltersChips");
 
-                let chips = [];
+            //     let chips = [];
 
-                if (companySelect.value) {
-                    const selectedText = companySelect.options[companySelect.selectedIndex].text;
-                    chips.push(`COMPANY: ${selectedText}`);
-                }
+            //     if (companySelect.value) {
+            //         const selectedText = companySelect.options[companySelect.selectedIndex].text;
+            //         chips.push(`COMPANY: ${selectedText}`);
+            //     }
 
-                if (chips.length > 0) {
-                    chipContainer.innerHTML = chips.map(chip =>
-                        `<span class="filter-chip">${chip}</span>`
-                    ).join('');
-                    chipsSection.classList.remove('hidden');
-                } else {
-                    chipsSection.classList.add('hidden');
-                }
-            }
+            //     if (chips.length > 0) {
+            //         chipContainer.innerHTML = chips.map(chip =>
+            //             `<span class="filter-chip">${chip}</span>`
+            //         ).join('');
+            //         chipsSection.classList.remove('hidden');
+            //     } else {
+            //         chipsSection.classList.add('hidden');
+            //     }
+            // }
 
             // When page first loads, load table
-            filterClientButton();
+            initContractorDatatable();
+
 
             // When any submit button is clicked
             (function() {
@@ -821,7 +822,6 @@
                         type: "POST",
                         data: function(d) {
                             d._token = $('meta[name="csrf-token"]').attr('content');
-                            d.company = filterClientCompany;
                             return d;
                         },
                         dataSrc: function(json) {
