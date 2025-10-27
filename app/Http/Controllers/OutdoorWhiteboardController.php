@@ -200,7 +200,7 @@ class OutdoorWhiteboardController extends Controller
     }
 
 
-    public function exportLedgerXlsx(): StreamedResponse
+   public function exportLedgerXlsx(): StreamedResponse
 {
     // === 1) DATA: active only, latest per outdoor_item ===
     $latestActiveWB = DB::table('outdoor_whiteboards as w')
@@ -231,17 +231,19 @@ class OutdoorWhiteboardController extends Controller
             'mf.product',
             'mf.company',
 
-            // CHANGED: Now using locations.name instead of oi.site
+            // Location from locations table
             'loc.name as location',
 
-            // duration sources from master_files
+            // Duration sources from master_files
             DB::raw('mf.duration as mf_duration'),
-            DB::raw('mf.date as mf_date'),
-            DB::raw('mf.date_finish as mf_date_finish'),
 
-            // show from master_files
-            DB::raw('mf.date as installation'),
-            DB::raw('mf.date_finish as dismantle'),
+            // START DATE and END DATE from master_files
+            DB::raw('mf.date as start_date'),
+            DB::raw('mf.date_finish as end_date'),
+
+            // INSTALLATION and DISMANTLE from outdoor_whiteboards (user input)
+            DB::raw('wb.install_date as install_date'),
+            DB::raw('wb.dismantle_date as dismantle_date'),
 
             // from outdoor_whiteboards (latest active wb)
             DB::raw('COALESCE(wb.created_at, oi.created_at, mf.created_at) as created'),
@@ -249,23 +251,11 @@ class OutdoorWhiteboardController extends Controller
             // INV Number => client_text
             DB::raw('wb.client_text as inv_number'),
 
-<<<<<<< Updated upstream
-                // Installation (date)
-                DB::raw('wb.install_date as install_date'),
-
-                // Dismantle (date)
-                DB::raw('wb.dismantle_date as dismantle_date'),
-
-                // Supplier (note/date)
-                DB::raw('wb.contractor_id as contractor_id'),
-                DB::raw('wb.supplier_date as supplier_date'),
-=======
             // Purchase Order (note/date)
             DB::raw('wb.po_text as po_text'),
             DB::raw('wb.po_date as po_date'),
->>>>>>> Stashed changes
 
-            // Supplier (note/date)
+            // Supplier (contractor + date)
             DB::raw('wb.contractor_id as contractor_id'),
             DB::raw('wb.supplier_date as supplier_date'),
 
@@ -287,12 +277,14 @@ class OutdoorWhiteboardController extends Controller
         'Company',
         'Location',
         'Duration',
-        'Installation',
-        'Dismantle',
-        'Supplier',            // SINGLE kolom (note + date ditumpuk)
-        'Storage',             // SINGLE kolom (note + date ditumpuk)
+        'Start Date',          // NEW: from master_files.date
+        'End Date',            // NEW: from master_files.date_finish
+        'Installation',        // from outdoor_whiteboards.install_date (user input)
+        'Dismantle',          // from outdoor_whiteboards.dismantle_date (user input)
+        'Supplier',           // SINGLE kolom (note + date ditumpuk)
+        'Storage',            // SINGLE kolom (note + date ditumpuk)
     ];
-    $lastCol = 'L'; // 12 cols (A..L)
+    $lastCol = 'N'; // 14 cols (A..N)
 
     $ss = new Spreadsheet();
     $sheet = $ss->getActiveSheet();
@@ -300,28 +292,30 @@ class OutdoorWhiteboardController extends Controller
     $ss->getDefaultStyle()->getFont()->setName('Calibri')->setSize(11);
 
     // Column widths
-    $sheet->getColumnDimension('A')->setWidth(5);
-    $sheet->getColumnDimension('B')->setWidth(12);
-    $sheet->getColumnDimension('C')->setWidth(18);
-    $sheet->getColumnDimension('D')->setWidth(20); // Purchase Order (stacked)
-    $sheet->getColumnDimension('E')->setWidth(12);
-    $sheet->getColumnDimension('F')->setWidth(22);
-    $sheet->getColumnDimension('G')->setWidth(22);
-    $sheet->getColumnDimension('H')->setWidth(12);
-    $sheet->getColumnDimension('I')->setWidth(12);
-    $sheet->getColumnDimension('J')->setWidth(12);
-    $sheet->getColumnDimension('K')->setWidth(20); // Supplier (stacked)
-    $sheet->getColumnDimension('L')->setWidth(20); // Storage (stacked)
+    $sheet->getColumnDimension('A')->setWidth(5);   // No.
+    $sheet->getColumnDimension('B')->setWidth(12);  // Created
+    $sheet->getColumnDimension('C')->setWidth(18);  // INV Number
+    $sheet->getColumnDimension('D')->setWidth(20);  // Purchase Order (stacked)
+    $sheet->getColumnDimension('E')->setWidth(12);  // Product
+    $sheet->getColumnDimension('F')->setWidth(22);  // Company
+    $sheet->getColumnDimension('G')->setWidth(22);  // Location
+    $sheet->getColumnDimension('H')->setWidth(12);  // Duration
+    $sheet->getColumnDimension('I')->setWidth(12);  // Start Date
+    $sheet->getColumnDimension('J')->setWidth(12);  // End Date
+    $sheet->getColumnDimension('K')->setWidth(12);  // Installation
+    $sheet->getColumnDimension('L')->setWidth(12);  // Dismantle
+    $sheet->getColumnDimension('M')->setWidth(20);  // Supplier (stacked)
+    $sheet->getColumnDimension('N')->setWidth(20);  // Storage (stacked)
 
     // Wrap untuk kolom yang ditumpuk (NOTE + DATE)
-    foreach (['D', 'K', 'L'] as $col) {
+    foreach (['D', 'M', 'N'] as $col) {
         $sheet->getStyle("{$col}:{$col}")->getAlignment()->setWrapText(true);
     }
 
     // Title row
-    $sheet->mergeCells('A1:L1');
+    $sheet->mergeCells('A1:N1');
     $sheet->setCellValue('A1', 'TITLE (OUTDOOR WHITEBOARD)');
-    $sheet->getStyle('A1:L1')->applyFromArray([
+    $sheet->getStyle('A1:N1')->applyFromArray([
         'font' => ['bold' => true, 'size' => 14],
         'alignment' => [
             'horizontal' => Alignment::HORIZONTAL_CENTER,
@@ -383,37 +377,39 @@ class OutdoorWhiteboardController extends Controller
         foreach ($items as $r) {
             $durationText = $this->durationText(
                 $r->mf_duration ?? null,
-                $r->mf_date ?? null,
-                $r->mf_date_finish ?? null
+                $r->start_date ?? null,
+                $r->end_date ?? null
             );
 
             $sheet->fromArray([[
-                $i,
-                $this->fmtDate($r->created ?? null),
-                $this->blank($r->inv_number ?? null),
+                $i,                                           // A: No.
+                $this->fmtDate($r->created ?? null),         // B: Created
+                $this->blank($r->inv_number ?? null),        // C: INV Number
 
-                // Purchase Order (NOTE + DATE ditumpuk dalam 1 sel)
+                // D: Purchase Order (NOTE + DATE ditumpuk dalam 1 sel)
                 ($r->po_text || $r->po_date)
                     ? trim(($r->po_text ?? '')
                             . ($r->po_date ? "\n" . $this->fmtDate($r->po_date) : '')
                     )
                     : '',
 
-                $this->blank($r->product ?? null),
-                $this->blank($r->company ?? null),
-                $this->blank($r->location ?? null), // Now this will be locations.name
-                $durationText,
-                $this->fmtDate($r->installation ?? null),
-                $this->fmtDate($r->dismantle ?? null),
+                $this->blank($r->product ?? null),           // E: Product
+                $this->blank($r->company ?? null),           // F: Company
+                $this->blank($r->location ?? null),          // G: Location (from locations.name)
+                $durationText,                               // H: Duration
+                $this->fmtDate($r->start_date ?? null),      // I: Start Date (from master_files.date)
+                $this->fmtDate($r->end_date ?? null),        // J: End Date (from master_files.date_finish)
+                $this->fmtDate($r->install_date ?? null),    // K: Installation (from outdoor_whiteboards.install_date)
+                $this->fmtDate($r->dismantle_date ?? null),  // L: Dismantle (from outdoor_whiteboards.dismantle_date)
 
-                // Supplier (NOTE + DATE ditumpuk dalam 1 sel)
+                // M: Supplier (NOTE + DATE ditumpuk dalam 1 sel)
                 ($r->contractor_id || $r->supplier_date)
                     ? trim(($r->contractor_id ?? '')
                             . ($r->supplier_date ? "\n" . $this->fmtDate($r->supplier_date) : '')
                     )
                     : '',
 
-                // Storage (NOTE + DATE ditumpuk dalam 1 sel)
+                // N: Storage (NOTE + DATE ditumpuk dalam 1 sel)
                 ($r->storage_text || $r->storage_date)
                     ? trim(($r->storage_text ?? '')
                             . ($r->storage_date ? "\n" . $this->fmtDate($r->storage_date) : '')
@@ -707,17 +703,6 @@ class OutdoorWhiteboardController extends Controller
             }
         }
     }
-
-
-
-
-
-
-
-
-
-
-
 
     public function completed(Request $request)
     {
