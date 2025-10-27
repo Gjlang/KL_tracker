@@ -943,7 +943,7 @@ class BillboardController extends Controller
         if ($request->filled('billboard_ids')) {
             $ids = explode(',', $request->billboard_ids);
             $ids = array_map('intval', $ids);
-            $query->whereIn('id', $ids);
+            $query->whereIn('billboards.id', $ids);
         } else {
             // Apply filters only if no specific selection
             if ($request->filled('state_id') && $request->state_id !== 'all') {

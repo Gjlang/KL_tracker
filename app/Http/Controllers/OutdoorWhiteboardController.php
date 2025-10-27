@@ -254,6 +254,12 @@ class OutdoorWhiteboardController extends Controller
                 DB::raw('wb.po_text as po_text'),
                 DB::raw('wb.po_date as po_date'),
 
+                // Installation (date)
+                DB::raw('wb.install_date as install_date'),
+
+                // Dismantle (date)
+                DB::raw('wb.dismantle_date as dismantle_date'),
+
                 // Supplier (note/date)
                 DB::raw('wb.contractor_id as contractor_id'),
                 DB::raw('wb.supplier_date as supplier_date'),
@@ -546,6 +552,8 @@ class OutdoorWhiteboardController extends Controller
             'client_date'     => ['nullable', 'date'],
             'po_text'         => ['nullable', 'string', 'max:255'],
             'po_date'         => ['nullable', 'date'],
+            'install_date'   => ['nullable', 'date'],
+            'dismantle_date'  => ['nullable', 'date'],
             'contractor_id'   => ['nullable', Rule::exists('contractors', 'id')],
             'supplier_date'   => ['nullable', 'date'],
             'storage_text'    => ['nullable', 'string', 'max:255'],

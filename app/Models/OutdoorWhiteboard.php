@@ -55,6 +55,8 @@ class OutdoorWhiteboard extends Model
         'client_date',
         'po_text',
         'po_date',
+        'install_date',
+        'dismantle_date',
         'contractor_id',
         'supplier_date',
         'storage_text',
@@ -66,6 +68,8 @@ class OutdoorWhiteboard extends Model
     protected $casts = [
         'client_date'   => 'date',
         'po_date'       => 'date',
+        'install_date' => 'date',
+        'dismantle_date' => 'date',
         'supplier_date' => 'date',
         'storage_date'  => 'date',
         'completed_at'  => 'datetime',

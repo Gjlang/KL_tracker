@@ -151,9 +151,6 @@
                                 <option value="new">New</option>
                                 <option value="existing">Existing</option>
                                 <option value="rejected">Rejected</option>
-                                <option value="existing_1">Existing 1</option>
-                                <option value="existing_2">Existing 2</option>
-                                <option value="existing_3">Existing 3</option>
                             </select>
                         </div>
                         <div class="flex flex-col">
@@ -451,9 +448,6 @@
                             <option value="new">New</option>
                             <option value="existing">Existing</option>
                             <option value="rejected">Rejected</option>
-                            <option value="existing_1">Existing 1</option>
-                            <option value="existing_2">Existing 2</option>
-                            <option value="existing_3">Existing 3</option>
                         </select>
                     </div>
                 </div>
@@ -640,9 +634,6 @@
                             <option value="new">New</option>
                             <option value="existing">Existing</option>
                             <option value="rejected">Rejected</option>
-                            <option value="existing_1">Existing 1</option>
-                            <option value="existing_2">Existing 2</option>
-                            <option value="existing_3">Existing 3</option>
                         </select>
                     </div>
 

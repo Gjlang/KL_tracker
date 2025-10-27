@@ -485,7 +485,6 @@
                         class="rounded-2xl border border-neutral-200/70 shadow-sm bg-white p-6"
                         x-data="outdoorRepeater(() => selectedProduct)" <!-- pass getter so it always reads current sub-product -->
 
-                        >
                         <h3 class="text-sm text-neutral-600 small-caps mb-6 font-medium">Outdoor Details</h3>
 
                         <!-- Add this after the Outdoor Details heading -->
@@ -684,19 +683,19 @@
                                     <!-- Dates row -->
                                     <div class="md:col-span-2">
                                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <!-- End Date (left) -->
-                                            <div>
-                                                <label class="block text-xs text-neutral-600 mb-1">End Date</label>
-                                                <input type="date" :name="`locations[${idx}][end_date]`"
-                                                    x-model="row.end_date"
-                                                    class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
-                                            </div>
-
                                             <!-- Start Date (right) -->
                                             <div>
                                                 <label class="block text-xs text-neutral-600 mb-1">Start Date</label>
                                                 <input type="date" :name="`locations[${idx}][start_date]`"
                                                     x-model="row.start_date"
+                                                    class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
+                                            </div>
+
+                                            <!-- End Date (left) -->
+                                            <div>
+                                                <label class="block text-xs text-neutral-600 mb-1">End Date</label>
+                                                <input type="date" :name="`locations[${idx}][end_date]`"
+                                                    x-model="row.end_date"
                                                     class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]" />
                                             </div>
                                         </div>

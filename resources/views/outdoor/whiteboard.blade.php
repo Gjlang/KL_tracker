@@ -157,6 +157,22 @@
                                                             : $wb->po_date;
                                                 }
 
+                                                $installDate = '';
+                                                if ($wb?->install_date) {
+                                                    $installDate =
+                                                        $wb->install_date instanceof \Carbon\Carbon
+                                                            ? $wb->install_date->format('Y-m-d')
+                                                            : $wb->install_date;
+                                                }
+
+                                                $dismantleDate = '';
+                                                if ($wb?->dismantle_date) {
+                                                    $dismantleDate =
+                                                        $wb->dismantle_date instanceof \Carbon\Carbon
+                                                            ? $wb->dismantle_date->format('Y-m-d')
+                                                            : $wb->dismantle_date;
+                                                }
+
                                                 $supplierDate = '';
                                                 if ($wb?->supplier_date) {
                                                     $supplierDate =
@@ -301,12 +317,26 @@
 
                                                 <!-- 9) Installation (ambil dari master_files.date) -->
                                                 <td class="px-4 py-3 text-sm column-data" data-column="9">
-                                                    <div class="ink">{{ $mf->date?->format('m/d/y') }}</div>
+                                                    <div class="ink">{{ $mf->date?->format('d/m/y') }}</div>
                                                 </td>
 
                                                 <!-- 10) Dismantle (ambil dari master_files.date_finish) -->
                                                 <td class="px-4 py-3 text-sm column-data" data-column="10">
-                                                    <div class="ink">{{ $mf->date_finish?->format('m/d/y') }}</div>
+                                                    <div class="ink">{{ $mf->date_finish?->format('d/m/y') }}</div>
+                                                </td>
+
+                                                <!-- 9) Installation (ambil dari master_files.date) -->
+                                                <td class="px-4 py-3 text-sm column-data" data-column="9">
+                                                    <input type="date" name="install_date"
+                                                        class="wb-field ledger-input w-36"
+                                                        value="{{ old('install_date', $installDate) }}">
+                                                </td>
+
+                                                <!-- 10) Dismantle (ambil dari master_files.date_finish) -->
+                                                <td class="px-4 py-3 text-sm column-data" data-column="10">
+                                                    <input type="date" name="dismantle_date"
+                                                        class="wb-field ledger-input w-36"
+                                                        value="{{ old('dismantle_date', $dismantleDate) }}">
                                                 </td>
 
 
@@ -424,6 +454,14 @@
                 {
                     title: 'Duration',
                     key: 'duration'
+                },
+                {
+                    title: 'Start Date',
+                    key: 'start_date'
+                },
+                {
+                    title: 'End Date',
+                    key: 'end_date'
                 },
                 {
                     title: 'Installation',

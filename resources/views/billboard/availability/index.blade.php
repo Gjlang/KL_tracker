@@ -847,9 +847,9 @@
                 let billboardTypeVal = $('#filterAvailabilityType').val(); // e.g. TB
                 let billboardType = $('#filterAvailabilityType option:selected').text(); // e.g. Tempboard
 
-                // If no type selected, fallback to "Billboard"
+                // If no type selected, fallback to "Outdoor"
                 if (!billboardTypeVal) {
-                    billboardType = 'Billboard';
+                    billboardType = 'Outdoor';
                 }
 
                 const dt = new Date();
@@ -1064,7 +1064,7 @@
 
                             if (colNumber <=
                                 8
-                                ) { // Assuming first 8 columns (including GPS Coordinate) are non-booking
+                            ) { // Assuming first 8 columns (including GPS Coordinate) are non-booking
                                 // Force first 8 columns to black font, EXCEPT the GPS coordinate column if it has a link
                                 // Check if this is the GPS Coordinate column (column 6, index 5) and if it has a hyperlink
                                 if (colNumber === 6 && cell.value && typeof cell.value ===
@@ -1950,8 +1950,8 @@
                             <span class="location-short">${shortText}</span>
                             ${data.length > 30 
                                 ? `<a href="javascript:void(0)" class="read-more text-blue-500 ml-2" 
-                                            data-full="${encodeURIComponent(data)}"
-                                            data-short="${encodeURIComponent(shortText)}">[+]</a>` 
+                                                    data-full="${encodeURIComponent(data)}"
+                                                    data-short="${encodeURIComponent(shortText)}">[+]</a>` 
                                 : "" }
                         `;
                             }
@@ -1969,8 +1969,8 @@
                             <span class="location-short">${shortText}</span>
                             ${data.length > 30 
                                 ? `<a href="javascript:void(0)" class="read-more text-blue-500 ml-2" 
-                                            data-full="${encodeURIComponent(data)}"
-                                            data-short="${encodeURIComponent(shortText)}">[+]</a>` 
+                                                    data-full="${encodeURIComponent(data)}"
+                                                    data-short="${encodeURIComponent(shortText)}">[+]</a>` 
                                 : "" }
                         `;
                             }
