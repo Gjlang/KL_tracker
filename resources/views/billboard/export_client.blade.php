@@ -206,7 +206,7 @@
                         </tr>
                         <tr>
                             <td>State & City:</td>
-                            <td>{{ $billboard->location->district->name ?? '-' }}</td>
+                            <td>{{ $billboard->area ?? '-' }}</td>
                         </tr>
                         <tr>
                             <td>Coordinate:</td>

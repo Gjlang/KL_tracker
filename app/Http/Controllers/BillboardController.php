@@ -52,31 +52,41 @@ class BillboardController extends Controller
     /**
      * Show the projects page.
      */
-        public function index()
-        {
-            // $user = Auth::guard('web')->user();
-            // if (is_null($user) || !$user->can('billboard.view')) {
-            //     abort(403, 'Sorry !! You are Unauthorized to view any project. Contact system admin for access !');
-            // }
-            // $type = Project::distinct()->get(['type']);
-            // return view('projects.index', compact('type'));
+    public function index()
+    {
+        // $user = Auth::guard('web')->user();
+        // if (is_null($user) || !$user->can('billboard.view')) {
+        //     abort(403, 'Sorry !! You are Unauthorized to view any project. Contact system admin for access !');
+        // }
+        // $type = Project::distinct()->get(['type']);
+        // return view('projects.index', compact('type'));
 
-            $states = State::orderBy('name', 'ASC')->get();
-            $districts = District::orderBy('name', 'ASC')->get();
-            $locations = Location::orderBy('name', 'ASC')->get();
-            $billboardTypes = Billboard::select('type', 'prefix')->distinct()->pluck('type', 'prefix');
-            $billboardStatus = Billboard::distinct()->pluck('status');
-            $billboardSize = Billboard::distinct()->pluck('size');
-            $billboardLighting = Billboard::distinct()->pluck('lighting');
-            $billboards = Billboard::leftJoin('locations', 'billboards.location_id', '=', 'locations.id')->get();
+        $states = State::orderBy('name', 'ASC')->get();
+        $districts = District::orderBy('name', 'ASC')->get();
+        $locations = Location::orderBy('name', 'ASC')->get();
+        $billboardTypes = Billboard::select('type', 'prefix')->distinct()->pluck('type', 'prefix');
+        $billboardStatus = Billboard::distinct()->pluck('status');
+        $billboardSize = Billboard::distinct()->pluck('size');
+        $billboardLighting = Billboard::distinct()->pluck('lighting');
+        $billboards = Billboard::leftJoin('locations', 'billboards.location_id', '=', 'locations.id')->get();
 
-            $contractors = Contractor::all();
-            $clientcompany = ClientCompany::all();
+        $contractors = Contractor::all();
+        $clientcompany = ClientCompany::all();
 
-            // return view('workOrder.index', compact('clientcompany', 'projects', 'supervisors', 'technicians'));
-            return view('billboard.index', compact('states', 'districts', 'locations', 'billboardTypes', 'billboardStatus', 'billboardSize', 'billboardLighting', 'contractors',
-            'clientcompany', 'billboards'));
-        }
+        // return view('workOrder.index', compact('clientcompany', 'projects', 'supervisors', 'technicians'));
+        return view('billboard.index', compact(
+            'states',
+            'districts',
+            'locations',
+            'billboardTypes',
+            'billboardStatus',
+            'billboardSize',
+            'billboardLighting',
+            'contractors',
+            'clientcompany',
+            'billboards'
+        ));
+    }
 
     /**
      * Show the on going work order list.
@@ -99,7 +109,7 @@ class BillboardController extends Controller
         $searchValue    = trim(strtolower($request->input('search.value')));
         $start     = $request->input('start', 0);
         $limit     = $request->input('length', 25);
-        
+
         $columns = [
             0 => 'billboards.site_number',
             1 => 'billboards.type',
@@ -155,9 +165,9 @@ class BillboardController extends Controller
         if (!empty($searchValue)) {
             $query->where(function ($query) use ($searchValue) {
                 $query->where('billboards.site_number', 'LIKE', "%{$searchValue}%")
-                ->orWhere('locations.name', 'LIKE', "%{$searchValue}%")
-                ->orWhere('districts.name', 'LIKE', "%{$searchValue}%")
-                ->orWhere('states.name', 'LIKE', "%{$searchValue}%");
+                    ->orWhere('locations.name', 'LIKE', "%{$searchValue}%")
+                    ->orWhere('districts.name', 'LIKE', "%{$searchValue}%")
+                    ->orWhere('states.name', 'LIKE', "%{$searchValue}%");
             });
         }
 
@@ -203,7 +213,7 @@ class BillboardController extends Controller
             $data[] = $nestedData;
         }
 
-        
+
 
         $json_data = array(
             "draw"              => intval($request->input('draw')),
@@ -293,8 +303,8 @@ class BillboardController extends Controller
 
             // Step 3: Running number
             $lastNumber = Billboard::whereHas('location.district.state', function ($query) use ($state) {
-                    $query->where('id', $state);
-                })
+                $query->where('id', $state);
+            })
                 ->selectRaw("MAX(CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(site_number,'-',3),'-',-1) AS UNSIGNED)) as max_number")
                 ->lockForUpdate() // ensures safe increment under concurrency
                 ->value('max_number');
@@ -343,7 +353,6 @@ class BillboardController extends Controller
                 'message' => 'Billboard created successfully.',
                 'billboard_id' => $billboard->id,
             ], 201);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['error' => $e->getMessage()], 422);
@@ -401,7 +410,7 @@ class BillboardController extends Controller
             // Update location if it exists
             if ($location && $request->filled('location_name')) {
                 $location->update([
-                    'name' => $request->location_name, 
+                    'name' => $request->location_name,
                 ]);
             }
 
@@ -420,7 +429,7 @@ class BillboardController extends Controller
                     ]);
                     $districtId = $district->id;
                 }
-                
+
                 // Update location with new district if location exists
                 if ($location) {
                     $location->update([
@@ -452,11 +461,11 @@ class BillboardController extends Controller
             if ($request->filled('size')) {
                 $updateData['size'] = $request->size;
             }
-            
+
             if ($request->filled('lighting')) {
                 $updateData['lighting'] = $request->lighting;
             }
-            
+
             if ($request->filled('state_id')) {
                 $updateData['state_id'] = $request->state_id;
             }
@@ -464,15 +473,15 @@ class BillboardController extends Controller
             if (array_key_exists('gps_url', $request->all())) {
                 $updateData['gps_url'] = $request->gps_url !== '' ? $request->gps_url : null;
             }
-            
+
             if (array_key_exists('traffic_volume', $request->all())) {
                 $updateData['traffic_volume'] = $request->traffic_volume !== '' ? $request->traffic_volume : null;
             }
-            
+
             if ($request->filled('status')) {
                 $updateData['status'] = (int)$request->status;
             }
-            
+
             if ($request->filled('site_type')) {
                 $updateData['site_type'] = $request->site_type;
             }
@@ -484,7 +493,7 @@ class BillboardController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Billboard created successfully.', 
+                'message' => 'Billboard created successfully.',
             ], 200);
         } catch (\Exception $e) {
             // If any queries fail, undo all changes
@@ -498,7 +507,7 @@ class BillboardController extends Controller
      * Delete billboard + all associated images
      */
     public function delete(Request $request)
-    {   
+    {
         $id = $request->id;
 
         try {
@@ -526,7 +535,6 @@ class BillboardController extends Controller
             return response()->json([
                 "success" => "Billboard and all related images deleted successfully",
             ], 200);
-
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -545,7 +553,7 @@ class BillboardController extends Controller
 
         $filter = $request->input('filter');
         $id = $request->input('id');
-        
+
         $billboard_detail = Billboard::leftJoin('locations', 'locations.id', 'billboards.location_id')
             ->leftJoin('districts', 'districts.id', '=', 'locations.district_id')
             ->leftJoin('councils', 'councils.id', '=', 'locations.council_id')
@@ -589,7 +597,7 @@ class BillboardController extends Controller
 
         $filter = $request->input('filter');
         $id = $request->input('id');
-        
+
         $billboard_detail = Billboard::leftJoin('locations', 'locations.id', 'billboards.location_id')
             ->leftJoin('districts', 'districts.id', '=', 'locations.district_id')
             ->leftJoin('states', 'states.id', '=', 'districts.state_id')
@@ -607,11 +615,11 @@ class BillboardController extends Controller
         // $billboard_images = BillboardImage::where('billboard_id', $request->id)->get();
 
 
-            // Convert to Dubai time
-            // $dubaiTime = Carbon::parse($open_WO_DetailId->created_dt);
+        // Convert to Dubai time
+        // $dubaiTime = Carbon::parse($open_WO_DetailId->created_dt);
 
-            // Add new formatted date, month, and year fields to the object
-            // $open_WO_DetailId->created_dt = $dubaiTime->format('F j, Y \a\t g:i A');
+        // Add new formatted date, month, and year fields to the object
+        // $open_WO_DetailId->created_dt = $dubaiTime->format('F j, Y \a\t g:i A');
 
         // if ($open_WO_DetailId !== null) {
 
@@ -625,61 +633,61 @@ class BillboardController extends Controller
         //     ->leftJoin('users', 'users.id', 'work_order_activity.comment_by')
         //     ->where('work_order_id', '=', $request->id);
 
-            // if($filter){
-            //     if ($filter == 'new') {
-            //         $woActivities->orderBy('created_at', 'desc');
-            //     } elseif ($filter == 'old'){
-            //         $woActivities->orderBy('created_at', 'asc');
-            //     }
-            // }
-            // // ->get();
+        // if($filter){
+        //     if ($filter == 'new') {
+        //         $woActivities->orderBy('created_at', 'desc');
+        //     } elseif ($filter == 'old'){
+        //         $woActivities->orderBy('created_at', 'asc');
+        //     }
+        // }
+        // // ->get();
 
-            // $woActivities = $woActivities->get();
+        // $woActivities = $woActivities->get();
 
-            // $woActivities->transform(function ($woActivity) {
-            //     // Convert to Dubai time
-            //     $created_dt = Carbon::parse($woActivity->created_at);
-    
-            //     // Add new formatted date, month, and year fields to the object
-            //     $woActivity->created_dt = $created_dt->format('F j, Y \a\t g:i A');
+        // $woActivities->transform(function ($woActivity) {
+        //     // Convert to Dubai time
+        //     $created_dt = Carbon::parse($woActivity->created_at);
 
-            //     // Fetch related attachments
-            //     $attachments = WorkOrderActivityAttachment::select('id', 'url')
-            //     ->where('wo_activity_id', '=', $woActivity->comment_id)
-            //     ->get();
+        //     // Add new formatted date, month, and year fields to the object
+        //     $woActivity->created_dt = $created_dt->format('F j, Y \a\t g:i A');
 
-            //     // Add attachments to the activity
-            //     $woActivity->attachments = $attachments;
-    
-            //     return $woActivity;
-            // });
+        //     // Fetch related attachments
+        //     $attachments = WorkOrderActivityAttachment::select('id', 'url')
+        //     ->where('wo_activity_id', '=', $woActivity->comment_id)
+        //     ->get();
 
-            // $gg = $woActivities->get();
+        //     // Add attachments to the activity
+        //     $woActivity->attachments = $attachments;
 
-            // $WoOrHistory = WorkOrderHistory::select(
-            //     'work_order_history.id',
-            //     'work_order_history.status',
-            //     'work_order_history.status_changed_by',
-            //     'work_order_history.assigned_teamleader',
-            //     'work_order_history.assign_to_technician',
-            //     'users.id as user_id',
-            //     'users.name as user_name',
-            // )
-            // ->leftJoin('users', 'users.id', '=', DB::raw('CASE 
-            //         WHEN work_order_history.status = "NEW" THEN work_order_history.status_changed_by 
-            //         WHEN work_order_history.status = "ACCEPTED" THEN work_order_history.status_changed_by 
-            //         WHEN work_order_history.status = "ASSIGNED_SP" THEN work_order_history.status_changed_by                     
-            //         WHEN work_order_history.status = "ACCEPTED_TECHNICIAN" THEN work_order_history.assign_to_technician
-            //         WHEN work_order_history.status = "STARTED" THEN work_order_history.assign_to_technician
-            //         WHEN work_order_history.status = "COMPLETED" THEN work_order_history.assign_to_technician
-            //         ELSE NULL 
-            //     END'))
-            // ->where('work_order_history.work_order_id', '=', $request->id)
-            // ->get();
+        //     return $woActivity;
+        // });
 
-            // return view('workOrderProfile.index', compact('open_WO_DetailId', 'imageData', 'WoOrObImageBefore', 'WoOrObImageAfter', 'WoOrHistory'));
-            return view('billboard.detail', compact('billboard_detail', 'billboard_images'));
-            
+        // $gg = $woActivities->get();
+
+        // $WoOrHistory = WorkOrderHistory::select(
+        //     'work_order_history.id',
+        //     'work_order_history.status',
+        //     'work_order_history.status_changed_by',
+        //     'work_order_history.assigned_teamleader',
+        //     'work_order_history.assign_to_technician',
+        //     'users.id as user_id',
+        //     'users.name as user_name',
+        // )
+        // ->leftJoin('users', 'users.id', '=', DB::raw('CASE 
+        //         WHEN work_order_history.status = "NEW" THEN work_order_history.status_changed_by 
+        //         WHEN work_order_history.status = "ACCEPTED" THEN work_order_history.status_changed_by 
+        //         WHEN work_order_history.status = "ASSIGNED_SP" THEN work_order_history.status_changed_by                     
+        //         WHEN work_order_history.status = "ACCEPTED_TECHNICIAN" THEN work_order_history.assign_to_technician
+        //         WHEN work_order_history.status = "STARTED" THEN work_order_history.assign_to_technician
+        //         WHEN work_order_history.status = "COMPLETED" THEN work_order_history.assign_to_technician
+        //         ELSE NULL 
+        //     END'))
+        // ->where('work_order_history.work_order_id', '=', $request->id)
+        // ->get();
+
+        // return view('workOrderProfile.index', compact('open_WO_DetailId', 'imageData', 'WoOrObImageBefore', 'WoOrObImageAfter', 'WoOrHistory'));
+        return view('billboard.detail', compact('billboard_detail', 'billboard_images'));
+
         // } else {
         //     // Handle the case when no record is found
         //     // You can return an error message or redirect the user
@@ -719,22 +727,76 @@ class BillboardController extends Controller
         ];
 
         $pdf = PDF::loadView('billboard.export', compact('billboard'))
-        ->setPaper('A4', 'landscape'); // 👈 Set orientation here
+            ->setPaper('A4', 'landscape'); // 👈 Set orientation here
 
         return $pdf->download('billboard-detail-' . $billboard->site_number . '.pdf');
     }
 
     public function downloadPdfClient($id)
     {
-        $billboard = Billboard::with([
-            'location' => function ($query) {
-                $query->with([
-                    'district' => function ($query) {
-                        $query->with('state');
-                    }
-                ]);
-            }
-        ])->findOrFail($id);
+        // $billboard = Billboard::with([
+        //     'location' => function ($query) {
+        //         $query->with([
+        //             'district' => function ($query) {
+        //                 $query->with('state');
+        //             }
+        //         ]);
+        //     }
+        // ])->select(
+        //     'billboards.*',
+        //     DB::raw("CONCAT(
+        //                     CASE 
+        //                         WHEN states.name = 'Kuala Lumpur' THEN 'KL'
+        //                         WHEN states.name = 'Selangor' THEN 'SEL'
+        //                         WHEN states.name = 'Negeri Sembilan' THEN 'N9'
+        //                         WHEN states.name = 'Melaka' THEN 'MLK'
+        //                         WHEN states.name = 'Johor' THEN 'JHR'
+        //                         WHEN states.name = 'Perak' THEN 'PRK'
+        //                         WHEN states.name = 'Pahang' THEN 'PHG'
+        //                         WHEN states.name = 'Terengganu' THEN 'TRG'
+        //                         WHEN states.name = 'Kelantan' THEN 'KTN'
+        //                         WHEN states.name = 'Perlis' THEN 'PLS'
+        //                         WHEN states.name = 'Kedah' THEN 'KDH'
+        //                         WHEN states.name = 'Penang' THEN 'PNG'
+        //                         WHEN states.name = 'Sarawak' THEN 'SWK'
+        //                         WHEN states.name = 'Sabah' THEN 'SBH'
+        //                         WHEN states.name = 'Labuan' THEN 'LBN'
+        //                         WHEN states.name = 'Putrajaya' THEN 'PJY'
+        //                         ELSE states.name
+        //                     END, ' - ', districts.name
+        //                 ) as area")
+        // )->findOrFail($id);
+
+        $billboard = Billboard::with(['location.district.state'])
+            ->leftJoin('locations', 'billboards.location_id', '=', 'locations.id')
+            ->leftJoin('districts', 'locations.district_id', '=', 'districts.id')
+            ->leftJoin('states', 'districts.state_id', '=', 'states.id')
+            ->select(
+                'billboards.*',
+                DB::raw("CONCAT(
+                            CASE 
+                                WHEN states.name = 'Kuala Lumpur' THEN 'KL'
+                                WHEN states.name = 'Selangor' THEN 'SEL'
+                                WHEN states.name = 'Negeri Sembilan' THEN 'N9'
+                                WHEN states.name = 'Melaka' THEN 'MLK'
+                                WHEN states.name = 'Johor' THEN 'JHR'
+                                WHEN states.name = 'Perak' THEN 'PRK'
+                                WHEN states.name = 'Pahang' THEN 'PHG'
+                                WHEN states.name = 'Terengganu' THEN 'TRG'
+                                WHEN states.name = 'Kelantan' THEN 'KTN'
+                                WHEN states.name = 'Perlis' THEN 'PLS'
+                                WHEN states.name = 'Kedah' THEN 'KDH'
+                                WHEN states.name = 'Penang' THEN 'PNG'
+                                WHEN states.name = 'Sarawak' THEN 'SWK'
+                                WHEN states.name = 'Sabah' THEN 'SBH'
+                                WHEN states.name = 'Labuan' THEN 'LBN'
+                                WHEN states.name = 'Putrajaya' THEN 'PJY'
+                                ELSE states.name
+                            END, ' - ', districts.name
+                        ) as area")
+            )
+            ->orderByRaw("area ASC")
+            ->findOrFail($id);
 
         // Hardcode images for testing
         $billboard->images = [
@@ -743,7 +805,7 @@ class BillboardController extends Controller
         ];
 
         $pdf = PDF::loadView('billboard.export_client', compact('billboard'))
-        ->setPaper('A4', 'landscape'); // 👈 Set orientation here
+            ->setPaper('A4', 'landscape'); // 👈 Set orientation here
 
         return $pdf->download('billboard-detail-' . $billboard->site_number . '.pdf');
     }
@@ -835,7 +897,7 @@ class BillboardController extends Controller
         }
 
         $pdf = PDF::loadView('billboard.exportlist', compact('billboards'))
-        ->setPaper('A4', 'landscape'); // 👈 Set orientation here
+            ->setPaper('A4', 'landscape'); // 👈 Set orientation here
 
         return $pdf->download($filename . '.pdf');
     }
@@ -847,7 +909,35 @@ class BillboardController extends Controller
         ini_set('max_execution_time', 300); // 5 minutes
         set_time_limit(300);
 
-        $query = Billboard::with(['location.district.state']);
+        $query = Billboard::with(['location.district.state'])
+            ->leftJoin('locations', 'billboards.location_id', '=', 'locations.id')
+            ->leftJoin('districts', 'locations.district_id', '=', 'districts.id')
+            ->leftJoin('states', 'districts.state_id', '=', 'states.id')
+            ->select(
+                'billboards.*',
+                DB::raw("CONCAT(
+                            CASE 
+                                WHEN states.name = 'Kuala Lumpur' THEN 'KL'
+                                WHEN states.name = 'Selangor' THEN 'SEL'
+                                WHEN states.name = 'Negeri Sembilan' THEN 'N9'
+                                WHEN states.name = 'Melaka' THEN 'MLK'
+                                WHEN states.name = 'Johor' THEN 'JHR'
+                                WHEN states.name = 'Perak' THEN 'PRK'
+                                WHEN states.name = 'Pahang' THEN 'PHG'
+                                WHEN states.name = 'Terengganu' THEN 'TRG'
+                                WHEN states.name = 'Kelantan' THEN 'KTN'
+                                WHEN states.name = 'Perlis' THEN 'PLS'
+                                WHEN states.name = 'Kedah' THEN 'KDH'
+                                WHEN states.name = 'Penang' THEN 'PNG'
+                                WHEN states.name = 'Sarawak' THEN 'SWK'
+                                WHEN states.name = 'Sabah' THEN 'SBH'
+                                WHEN states.name = 'Labuan' THEN 'LBN'
+                                WHEN states.name = 'Putrajaya' THEN 'PJY'
+                                ELSE states.name
+                            END, ' - ', districts.name
+                        ) as area")
+            )
+            ->orderByRaw("area ASC");
 
         // ✅ Apply selected IDs first (like Excel export)
         if ($request->filled('billboard_ids')) {
@@ -927,14 +1017,14 @@ class BillboardController extends Controller
         }
 
         $pdf = PDF::loadView('billboard.exportlist_client', compact('billboards'))
-        ->setPaper('A4', 'landscape'); // 👈 Set orientation here
+            ->setPaper('A4', 'landscape'); // 👈 Set orientation here
 
         return $pdf->download($filename . '.pdf');
     }
 
     public function exportExcel(Request $request)
     {
-        $filters = $request->only(['status','state','district','type','site_type','size']);
+        $filters = $request->only(['status', 'state', 'district', 'type', 'site_type', 'size']);
         $selectedIds = $request->input('billboard_ids');
 
         // ✅ Base name logic (match title rules in BillboardExport)
@@ -961,11 +1051,11 @@ class BillboardController extends Controller
 
 
 
-    public function uploadImage(Request $request) 
+    public function uploadImage(Request $request)
     {
         if ($request->hasFile('file')) {
             $file = $request->file('file');
-            $siteNumber = $request->input('site_number'); 
+            $siteNumber = $request->input('site_number');
             $extension = 'png';
 
             $directory = 'billboards';
@@ -1010,10 +1100,10 @@ class BillboardController extends Controller
             $filename = $siteNumber . '_' . $sequence . '.' . $extension;
 
             // Check file size
-            $fileSize = $file->getSize(); 
+            $fileSize = $file->getSize();
             $imageData = null;
 
-            if ($fileSize > 1024 * 1024) { 
+            if ($fileSize > 1024 * 1024) {
                 // compress/resize if >1MB
                 $imageData = (string) Image::read($file)
                     ->scale(width: 400)
@@ -1064,6 +1154,4 @@ class BillboardController extends Controller
 
         return response()->json(['message' => 'File not found'], 404);
     }
-
-
 }

@@ -28,22 +28,36 @@ class BillboardExport implements FromCollection, WithHeadings, WithMapping, With
     public function collection()
     {
         $query = Billboard::select(
-                'billboards.site_number',
-                'billboards.site_type',
-                'billboards.type',
-                'billboards.size',
-                'billboards.lighting',
-                'locations.name as location_name',
-                DB::raw("CONCAT(
+            'billboards.site_number',
+            'billboards.site_type',
+            'billboards.type',
+            'billboards.size',
+            'billboards.lighting',
+            'locations.name as location_name',
+            DB::raw("CONCAT(
                     CASE 
                         WHEN states.name = 'Kuala Lumpur' THEN 'KL'
                         WHEN states.name = 'Selangor' THEN 'SEL'
+                        WHEN states.name = 'Negeri Sembilan' THEN 'N9'
+                        WHEN states.name = 'Melaka' THEN 'MLK'
+                        WHEN states.name = 'Johor' THEN 'JHR'
+                        WHEN states.name = 'Perak' THEN 'PRK'
+                        WHEN states.name = 'Pahang' THEN 'PHG'
+                        WHEN states.name = 'Terengganu' THEN 'TRG'
+                        WHEN states.name = 'Kelantan' THEN 'KTN'
+                        WHEN states.name = 'Perlis' THEN 'PLS'
+                        WHEN states.name = 'Kedah' THEN 'KDH'
+                        WHEN states.name = 'Penang' THEN 'PNG'
+                        WHEN states.name = 'Sarawak' THEN 'SWK'
+                        WHEN states.name = 'Sabah' THEN 'SBH'
+                        WHEN states.name = 'Labuan' THEN 'LBN'
+                        WHEN states.name = 'Putrajaya' THEN 'PJY'
                         ELSE states.name
                     END, ' - ', districts.name
                 ) as area"),
-                DB::raw("CONCAT(billboards.gps_latitude, ', ', billboards.gps_longitude) as gps_coordinates"),
-                'billboards.traffic_volume',
-            )
+            DB::raw("CONCAT(billboards.gps_latitude, ', ', billboards.gps_longitude) as gps_coordinates"),
+            'billboards.traffic_volume',
+        )
             ->leftJoin('locations', 'billboards.location_id', '=', 'locations.id')
             ->leftJoin('districts', 'locations.district_id', '=', 'districts.id')
             ->leftJoin('states', 'districts.state_id', '=', 'states.id');
@@ -112,7 +126,7 @@ class BillboardExport implements FromCollection, WithHeadings, WithMapping, With
             "Size",
             "Lighting",
             "Location",
-            "District",
+            "Area",
             "GPS Coordinates",
             "Traffic Volume",
         ];
@@ -136,21 +150,44 @@ class BillboardExport implements FromCollection, WithHeadings, WithMapping, With
 
         $title = $titleBase . " " . now()->format('d/m/Y');
 
-        // Title row
+        // ✅ Title row
         $sheet->mergeCells('A1:J1');
         $sheet->setCellValue('A1', $title);
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
         $sheet->getStyle('A1')->getAlignment()->setHorizontal('center');
 
-        // ✅ Update info row (row 2, cell B2)
+        // ✅ Update info row (row 2)
         $sheet->setCellValue('A2', 'UPDATE: ' . Carbon::now()->format('d/m/Y H:i'));
         $sheet->getStyle('A2')->getFont()->setItalic(true);
 
         // ✅ Header row (row 3)
-        $sheet->getStyle('A3:J3')->getFont()->setBold(true)->getColor()->setARGB('FFFFFFFF'); // white text
+        $sheet->getStyle('A3:J3')->getFont()->setBold(true)->getColor()->setARGB('FFFFFFFF');
         $sheet->getStyle('A3:J3')->getFill()
             ->setFillType(Fill::FILL_SOLID)
-            ->getStartColor()->setARGB('FF4F81BD'); // blue background
+            ->getStartColor()->setARGB('FF4F81BD');
         $sheet->getStyle('A3:J3')->getAlignment()->setHorizontal('center');
+
+        // ✅ Auto-size columns
+        foreach (range('A', 'J') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // ✅ Apply border to all cells with data
+        // Get highest row (last data row)
+        $highestRow = $sheet->getHighestRow();
+        $highestColumn = $sheet->getHighestColumn();
+
+        // Define border style
+        $borderStyle = [
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                    'color' => ['argb' => 'FF000000'], // black
+                ],
+            ],
+        ];
+
+        // Apply border from A3 (header) to last cell with data
+        $sheet->getStyle("A3:{$highestColumn}{$highestRow}")->applyFromArray($borderStyle);
     }
 }

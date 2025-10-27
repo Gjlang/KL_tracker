@@ -111,25 +111,28 @@
 
         .image-section img {
             width: 46%;
-            /* Keep side-by-side layout */
             max-width: 100%;
-            /* Prevent overflow */
-            max-height: 370px;
-            /* Cap height for portrait images */
+            max-height: 80%;
             height: auto;
-            /* 👈 CRITICAL: Let height adjust naturally */
             object-fit: contain;
-            /* Preserve aspect ratio */
             object-position: center;
             border: 1px solid #ccc;
             vertical-align: top;
             display: inline-block;
             margin: 0 2px;
             background: #f9f9f9;
-            /* Optional: visual consistency */
             padding: 5px;
-            /* Optional: padding around image */
         }
+
+        /* .image-section img {
+            width: 46%;
+            max-height: 350px;
+            object-fit: contain;
+            border: 1px solid #ccc;
+            vertical-align: top;
+            display: inline-block;
+            margin: 0 2px;
+        } */
 
         /* Contact Box - Fixed at bottom right */
         .contact-box {
@@ -214,7 +217,7 @@
                                 </tr>
                                 <tr>
                                     <td>State & City:</td>
-                                    <td>{{ $billboard->location->district->name ?? '-' }}</td>
+                                    <td>{{ $billboard->area ?? '-' }}</td>
                                 </tr>
                                 <tr>
                                     <td>Coordinate:</td>
