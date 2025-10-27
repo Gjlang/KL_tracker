@@ -676,8 +676,17 @@
                         </div>
 
                         <div>
-                            <!-- Spacer -->
-                        </div>
+            <label style="display: block; color: #6B7280; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; font-weight: 600; font-family: 'Inter', sans-serif;">Company</label>
+            <select name="company"
+                style="height: 2.75rem; width: 100%; border: 2px solid #D1D5DB; border-radius: 0.75rem; padding: 0 1rem; font-size: 0.875rem; font-family: 'Inter', sans-serif; transition: all 150ms ease; background: white; appearance: none; background-image: url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"%236B7280\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M19 9l-7 7-7-7\"/></svg>'); background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 1rem;"
+                onfocus="this.style.borderColor='#4bbbed'; this.style.boxShadow='0 0 0 3px rgba(75, 187, 237, 0.1)';"
+                onblur="this.style.borderColor='#D1D5DB'; this.style.boxShadow='none';">
+                <option value="">All Companies</option>
+                @foreach($companies as $c)
+                    <option value="{{ $c }}" @selected($company == $c)>{{ $c }}</option>
+                @endforeach
+            </select>
+        </div>
 
                         <div>
                             <button type="submit"
@@ -926,11 +935,11 @@
                     month
                 } = getYearMonth();
                 if (!month || month < 1 || month > 12) {
-                    alert('Pilih bulan dulu (bukan "All Months") sebelum mengedit.');
+                    alert('Choose the month first before editing.');
                     return null;
                 }
                 if (!year || year < 1900) {
-                    alert('Tahun tidak valid. Pilih tahun yang benar.');
+                    alert('Year not valid.');
                     return null;
                 }
                 return {

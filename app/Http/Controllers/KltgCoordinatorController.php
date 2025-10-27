@@ -95,6 +95,7 @@ public function index(Request $request)
         'month' => ['nullable', 'string'],
         'year'  => ['nullable', 'integer', 'between:2015,2100'],
         'tab'   => ['nullable', Rule::in(['print','video','article','lb','em'])],
+        'company' => ['nullable', 'string', 'max:255'],
     ]);
 
     // ========= Normalize filters =========
@@ -124,6 +125,13 @@ public function index(Request $request)
     $year = ($rawYear !== null && $rawYear !== '' && ctype_digit((string)$rawYear)) ? (int)$rawYear : null;
     if ($year !== null && ($year < 2015 || $year > 2100)) {
         $year = null;
+    }
+
+    $company = $request->get('company');
+    if ($company !== null && $company !== '') {
+        $company = trim($company);
+    } else {
+        $company = null;
     }
 
     // Default ONLY if no params at all
@@ -340,6 +348,9 @@ foreach ($candidates as $c) {
             DB::raw("kcl.year  as activity_year"),
             DB::raw("kcl.month as activity_month"),
         ])
+        ->when($company, function($q) use ($company) {
+            $q->where('mf.company', 'LIKE', '%' . $company . '%');
+        })
         ->orderBy('kcl.year', 'desc')
         ->orderBy('kcl.month', 'desc')
         ->orderBy('kcl.master_file_id')
@@ -402,6 +413,9 @@ $mdBase = DB::table('kltg_monthly_details as md')
                  ->whereRaw("TRIM(md.month) <> '00'");
           });
     })
+     ->when($company, function($q) use ($company) {
+            $q->where('mf.company', 'LIKE', '%' . $company . '%');
+        })
     // ANTI-JOIN: Exclude MD jika slot KCL sudah ada
     ->whereNotExists(function($subq) use ($storedSub, $scope, $year, $month) {
         $subq->select(DB::raw(1))
@@ -547,6 +561,14 @@ $rows = $kclRows->concat($mdRows)
         'value' => $m,
         'label' => date('F', mktime(0,0,0,$m,1))
     ]);
+    $companies = DB::table('kltg_coordinator_lists as kcl')
+        ->join('master_files as mf', 'mf.id', '=', 'kcl.master_file_id')
+        ->where('kcl.subcategory', $storedSub)
+        ->whereNotNull('mf.company')
+        ->where('mf.company', '<>', '')
+        ->distinct()
+        ->orderBy('mf.company')
+        ->pluck('mf.company');
 
     return view('coordinators.kltg', [
         'rows'        => $rows,
@@ -554,10 +576,12 @@ $rows = $kclRows->concat($mdRows)
         'columns'     => $columns,
         'activeTab'   => $activeTab,
         'month'       => $month,
+        'company'     => $company,
         'year'        => $year,
         'scope'       => $scope,
         'periodLabel' => $periodLabel,
         'months'      => $months,
+        'companies'   => $companies,
     ]);
 }
 
