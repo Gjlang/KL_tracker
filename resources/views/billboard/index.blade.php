@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title')
-    Billboard Stock Inventory Master
+    Outdoor Stock Inventory Master
 @endsection
 
 @section('content')

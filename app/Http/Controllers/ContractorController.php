@@ -38,28 +38,28 @@ class ContractorController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function index()
-{
-    // (Optional) auth/permission check — keep commented while you set up the page
-    // if (is_null($this->user) || !$this->user->can('contractor.view')) {
-    //     abort(403, 'Unauthorized to view contractors.');
-    // }
+    {
+        // (Optional) auth/permission check — keep commented while you set up the page
+        // if (is_null($this->user) || !$this->user->can('contractor.view')) {
+        //     abort(403, 'Unauthorized to view contractors.');
+        // }
 
-    // Data for the table (adjust columns as needed)
-    $contractors = Contractor::select('id', 'company_name', 'name', 'phone')
-        ->orderBy('company_name')
-        ->get();
+        // Data for the table (adjust columns as needed)
+        $contractors = Contractor::select('id', 'company_name', 'name', 'phone')
+            ->orderBy('company_name')
+            ->get();
 
-    // For dropdowns/filters on the page
-    $clientcompany = ClientCompany::select('id', 'name')
-        ->orderBy('name')
-        ->get();
+        // For dropdowns/filters on the page
+        $clientcompany = ClientCompany::select('id', 'name')
+            ->orderBy('name')
+            ->get();
 
-    // If your Blade needs the current user id
-    $userId = Auth::id();
+        // If your Blade needs the current user id
+        $userId = Auth::id();
 
-    // IMPORTANT: pass only the variables you actually use in the Blade
-    return view('contractors.index', compact('contractors', 'clientcompany', 'userId'));
-}
+        // IMPORTANT: pass only the variables you actually use in the Blade
+        return view('contractors.index', compact('contractors', 'clientcompany', 'userId'));
+    }
 
 
     /**
@@ -83,7 +83,7 @@ class ContractorController extends Controller
 
         // SQL query
         $query = Contractor::select('contractors.*')
-        ->orderBy($orderColumnName, $orderDirection);
+            ->orderBy($orderColumnName, $orderDirection);
 
         // Get total records count
         $totalData = $query->count();
@@ -125,7 +125,6 @@ class ContractorController extends Controller
         );
 
         echo json_encode($json_data);
-
     }
 
     /**
@@ -285,8 +284,6 @@ class ContractorController extends Controller
     {
 
         $id = $request->id;
-
-        logger('delete: ' . $id);
 
         // Validate fields
         $validator = Validator::make(

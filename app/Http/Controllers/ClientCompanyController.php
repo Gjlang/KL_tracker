@@ -78,8 +78,8 @@ class ClientCompanyController extends Controller
         if (!empty($searchValue)) {
             $query->where(function ($q) use ($searchValue) {
                 $q->where('name', 'LIKE', "%{$searchValue}%")
-                ->orWhere('address', 'LIKE', "%{$searchValue}%")
-                ->orWhere('phone', 'LIKE', "%{$searchValue}%");
+                    ->orWhere('address', 'LIKE', "%{$searchValue}%")
+                    ->orWhere('phone', 'LIKE', "%{$searchValue}%");
             });
         }
 
@@ -88,9 +88,9 @@ class ClientCompanyController extends Controller
 
         // Apply ordering and pagination
         $companies = $query->orderBy($orderColumnName, $orderDirection)
-                        ->skip($start)
-                        ->take($limit)
-                        ->get();
+            ->skip($start)
+            ->take($limit)
+            ->get();
 
         // Prepare DataTables response
         $data = [];
@@ -128,8 +128,6 @@ class ClientCompanyController extends Controller
      */
     public function create(Request $request)
     {
-        logger('ClientCompanyController create called');
-        logger('request data: ', $request->all());
         $name           = $request->name;
         $address        = $request->address;
         $companyPhone   = $request->companyPhone;
@@ -189,7 +187,6 @@ class ClientCompanyController extends Controller
                 'address'           => $address ?? null,
                 'phone'             => $companyPhone ?? null,
             ]);
-            logger('Created company ID: '.$company->id);
 
             foreach ($pics as $pic) {
                 Client::create([
@@ -220,7 +217,7 @@ class ClientCompanyController extends Controller
      * Edit client company.
      */
     public function edit(Request $request)
-    {        
+    {
         $name                   = $request->name;
         $id                     = $request->id;
         $address                = $request->address;
@@ -337,7 +334,6 @@ class ClientCompanyController extends Controller
             return response()->json([
                 'success' => 'success',
             ], 200);
-
         } catch (\Exception $e) {
             DB::rollback();
 
@@ -427,7 +423,7 @@ class ClientCompanyController extends Controller
                 'pic'     => $pic
             ]);
         } catch (\Exception $e) {
-            \Log::error('PIC update error: '.$e->getMessage());
+            \Log::error('PIC update error: ' . $e->getMessage());
 
             return response()->json([
                 'success' => false,
@@ -451,6 +447,4 @@ class ClientCompanyController extends Controller
 
         return response()->json(['success' => false]);
     }
-
-
 }

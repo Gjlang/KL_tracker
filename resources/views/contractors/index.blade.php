@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('head')
-    <title>BGOC Outdoor System - Contractors</title>
+    <title>Contractors</title>
     <style>
         /* Typography */
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600&display=swap');
@@ -252,184 +252,185 @@
 
         .dataTables_wrapper .dataTables_length,
         .dataTables_wrapper .dataTables_filter,
-         .dataTables_wrapper .dataTables_info,
-    .dataTables_wrapper .dataTables_paginate {
-        padding-top: 1.5rem !important;
-        padding-bottom: 1rem !important;
-    }
-
-    /* Info Text Styling */
-    .dataTables_info {
-        font-size: 0.875rem;
-        color: #6B7280;
-        font-weight: 500;
-        letter-spacing: 0.01em;
-    }
-
-    /* Pagination Container */
-    .dataTables_paginate {
-        display: flex !important;
-        align-items: center;
-        gap: 0.375rem;
-    }
-
-    /* Pagination Buttons - Enhanced */
-    .dataTables_paginate .paginate_button {
-        padding: 0.625rem 1rem !important;
-        margin: 0 !important;
-        border-radius: 0.75rem !important;
-        border: 1px solid #E5E7EB !important;
-        transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1) !important;
-        background: white !important;
-        color: #4B5563 !important;
-        min-width: 2.75rem;
-        text-align: center;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 500;
-        font-size: 0.875rem;
-        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
-        cursor: pointer;
-    }
-
-    /* Hover State */
-    .dataTables_paginate .paginate_button:not(.disabled):not(.current):hover {
-        background: #F9FAFB !important;
-        border-color: #4bbbed !important;
-        color: #22255b !important;
-        transform: translateY(-1px);
-        box-shadow: 0 2px 4px 0 rgba(75, 187, 237, 0.15) !important;
-    }
-
-    /* Active/Current Page */
-    .dataTables_paginate .paginate_button.current {
-        background: linear-gradient(135deg, #22255b 0%, #2d3270 100%) !important;
-        color: white !important;
-        border-color: #22255b !important;
-        box-shadow: 0 2px 6px 0 rgba(34, 37, 91, 0.25) !important;
-        font-weight: 600;
-        cursor: default;
-    }
-
-    .dataTables_paginate .paginate_button.current:hover {
-        transform: none;
-        box-shadow: 0 2px 6px 0 rgba(34, 37, 91, 0.25) !important;
-    }
-
-    /* Disabled State */
-    .dataTables_paginate .paginate_button.disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-        pointer-events: none;
-        background: #F9FAFB !important;
-        border-color: #E5E7EB !important;
-    }
-
-    /* First/Previous/Next/Last Buttons - Special Styling */
-    .dataTables_paginate .paginate_button.first,
-    .dataTables_paginate .paginate_button.previous,
-    .dataTables_paginate .paginate_button.next,
-    .dataTables_paginate .paginate_button.last {
-        font-weight: 600;
-        padding: 0.625rem 1.25rem !important;
-    }
-
-    /* Ellipsis Styling */
-    .dataTables_paginate .ellipsis {
-        padding: 0.625rem 0.5rem !important;
-        border: none !important;
-        background: transparent !important;
-        color: #9CA3AF !important;
-        cursor: default !important;
-        box-shadow: none !important;
-        pointer-events: none;
-    }
-
-    /* Footer Container Wrapper */
-    .dataTables_wrapper .dataTables_info,
-    .dataTables_wrapper .dataTables_paginate {
-        margin-top: 1.5rem;
-    }
-
-    /* Clear float and create proper flex footer */
-    .dataTables_wrapper::after {
-        content: '';
-        display: table;
-        clear: both;
-    }
-
-    /* Responsive adjustments */
-    @media (max-width: 640px) {
         .dataTables_wrapper .dataTables_info,
         .dataTables_wrapper .dataTables_paginate {
-            float: none !important;
-            text-align: center;
-            margin-top: 1rem;
+            padding-top: 1.5rem !important;
+            padding-bottom: 1rem !important;
         }
 
+        /* Info Text Styling */
+        .dataTables_info {
+            font-size: 0.875rem;
+            color: #6B7280;
+            font-weight: 500;
+            letter-spacing: 0.01em;
+        }
+
+        /* Pagination Container */
         .dataTables_paginate {
-            justify-content: center;
-            flex-wrap: wrap;
+            display: flex !important;
+            align-items: center;
+            gap: 0.375rem;
         }
 
+        /* Pagination Buttons - Enhanced */
         .dataTables_paginate .paginate_button {
-            padding: 0.5rem 0.75rem !important;
-            min-width: 2.5rem;
-            font-size: 0.8125rem;
+            padding: 0.625rem 1rem !important;
+            margin: 0 !important;
+            border-radius: 0.75rem !important;
+            border: 1px solid #E5E7EB !important;
+            transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+            background: white !important;
+            color: #4B5563 !important;
+            min-width: 2.75rem;
+            text-align: center;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+            font-size: 0.875rem;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
+            cursor: pointer;
         }
 
+        /* Hover State */
+        .dataTables_paginate .paginate_button:not(.disabled):not(.current):hover {
+            background: #F9FAFB !important;
+            border-color: #4bbbed !important;
+            color: #22255b !important;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px 0 rgba(75, 187, 237, 0.15) !important;
+        }
+
+        /* Active/Current Page */
+        .dataTables_paginate .paginate_button.current {
+            background: linear-gradient(135deg, #22255b 0%, #2d3270 100%) !important;
+            color: white !important;
+            border-color: #22255b !important;
+            box-shadow: 0 2px 6px 0 rgba(34, 37, 91, 0.25) !important;
+            font-weight: 600;
+            cursor: default;
+        }
+
+        .dataTables_paginate .paginate_button.current:hover {
+            transform: none;
+            box-shadow: 0 2px 6px 0 rgba(34, 37, 91, 0.25) !important;
+        }
+
+        /* Disabled State */
+        .dataTables_paginate .paginate_button.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+            background: #F9FAFB !important;
+            border-color: #E5E7EB !important;
+        }
+
+        /* First/Previous/Next/Last Buttons - Special Styling */
         .dataTables_paginate .paginate_button.first,
         .dataTables_paginate .paginate_button.previous,
         .dataTables_paginate .paginate_button.next,
         .dataTables_paginate .paginate_button.last {
-            padding: 0.5rem 1rem !important;
+            font-weight: 600;
+            padding: 0.625rem 1.25rem !important;
         }
-    }
 
-    /* Optional: Add a subtle border-top to separate footer */
-    .dataTables_wrapper .dataTables_info,
-    .dataTables_wrapper .dataTables_paginate {
-        border-top: 1px solid #F3F4F6;
-        padding-top: 1.5rem !important;
-        margin-top: 1.5rem;
-    }
+        /* Ellipsis Styling */
+        .dataTables_paginate .ellipsis {
+            padding: 0.625rem 0.5rem !important;
+            border: none !important;
+            background: transparent !important;
+            color: #9CA3AF !important;
+            cursor: default !important;
+            box-shadow: none !important;
+            pointer-events: none;
+        }
 
-    /* Length selector (entries per page) enhancement */
-    .dataTables_length select {
-        margin: 0 0.5rem;
-        padding: 0.5rem 2rem 0.5rem 0.75rem !important;
-        border: 1px solid #D1D5DB;
-        border-radius: 0.75rem;
-        background-color: white;
-        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-        background-position: right 0.5rem center;
-        background-repeat: no-repeat;
-        background-size: 1.25rem 1.25rem;
-        font-size: 0.875rem;
-        color: #1C1E26;
-        cursor: pointer;
-        transition: all 150ms ease;
-    }
+        /* Footer Container Wrapper */
+        .dataTables_wrapper .dataTables_info,
+        .dataTables_wrapper .dataTables_paginate {
+            margin-top: 1.5rem;
+        }
 
-    .dataTables_length select:hover {
-        border-color: #4bbbed;
-    }
+        /* Clear float and create proper flex footer */
+        .dataTables_wrapper::after {
+            content: '';
+            display: table;
+            clear: both;
+        }
 
-    .dataTables_length select:focus {
-        outline: none;
-        border-color: transparent;
-        box-shadow: 0 0 0 2px #4bbbed;
-    }
+        /* Responsive adjustments */
+        @media (max-width: 640px) {
 
-    .dataTables_length label {
-        font-size: 0.875rem;
-        color: #6B7280;
-        font-weight: 500;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
+            .dataTables_wrapper .dataTables_info,
+            .dataTables_wrapper .dataTables_paginate {
+                float: none !important;
+                text-align: center;
+                margin-top: 1rem;
+            }
+
+            .dataTables_paginate {
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+
+            .dataTables_paginate .paginate_button {
+                padding: 0.5rem 0.75rem !important;
+                min-width: 2.5rem;
+                font-size: 0.8125rem;
+            }
+
+            .dataTables_paginate .paginate_button.first,
+            .dataTables_paginate .paginate_button.previous,
+            .dataTables_paginate .paginate_button.next,
+            .dataTables_paginate .paginate_button.last {
+                padding: 0.5rem 1rem !important;
+            }
+        }
+
+        /* Optional: Add a subtle border-top to separate footer */
+        .dataTables_wrapper .dataTables_info,
+        .dataTables_wrapper .dataTables_paginate {
+            border-top: 1px solid #F3F4F6;
+            padding-top: 1.5rem !important;
+            margin-top: 1.5rem;
+        }
+
+        /* Length selector (entries per page) enhancement */
+        .dataTables_length select {
+            margin: 0 0.5rem;
+            padding: 0.5rem 2rem 0.5rem 0.75rem !important;
+            border: 1px solid #D1D5DB;
+            border-radius: 0.75rem;
+            background-color: white;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.25rem 1.25rem;
+            font-size: 0.875rem;
+            color: #1C1E26;
+            cursor: pointer;
+            transition: all 150ms ease;
+        }
+
+        .dataTables_length select:hover {
+            border-color: #4bbbed;
+        }
+
+        .dataTables_length select:focus {
+            outline: none;
+            border-color: transparent;
+            box-shadow: 0 0 0 2px #4bbbed;
+        }
+
+        .dataTables_length label {
+            font-size: 0.875rem;
+            color: #6B7280;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
     </style>
 @endsection
 
@@ -939,31 +940,31 @@
                 }
 
                 // Style info and pagination
-                 setTimeout(function() {
-        var infoDiv = document.getElementById("contractor_table_info");
-        var paginateDiv = document.getElementById("contractor_table_paginate");
+                setTimeout(function() {
+                    var infoDiv = document.getElementById("contractor_table_info");
+                    var paginateDiv = document.getElementById("contractor_table_paginate");
 
-        if (infoDiv) {
-            infoDiv.style.cssText = "float: left;";
-            infoDiv.classList.add("text-sm", "text-gray-600", "font-medium");
-        }
+                    if (infoDiv) {
+                        infoDiv.style.cssText = "float: left;";
+                        infoDiv.classList.add("text-sm", "text-gray-600", "font-medium");
+                    }
 
-        if (paginateDiv) {
-            paginateDiv.style.cssText = "float: right;";
-            paginateDiv.classList.add("flex", "items-center", "gap-2");
-        }
+                    if (paginateDiv) {
+                        paginateDiv.style.cssText = "float: right;";
+                        paginateDiv.classList.add("flex", "items-center", "gap-2");
+                    }
 
-        // Style the length selector
-        var lengthDiv = document.getElementById("contractor_table_length");
-        if (lengthDiv) {
-            lengthDiv.classList.remove('dataTables_length');
-            lengthDiv.classList.add('mb-4');
-            var lengthSelect = lengthDiv.querySelector('select');
-            if (lengthSelect) {
-                lengthSelect.className = 'input-elegant px-3';
-            }
-        }
-    }, 100);
+                    // Style the length selector
+                    var lengthDiv = document.getElementById("contractor_table_length");
+                    if (lengthDiv) {
+                        lengthDiv.classList.remove('dataTables_length');
+                        lengthDiv.classList.add('mb-4');
+                        var lengthSelect = lengthDiv.querySelector('select');
+                        if (lengthSelect) {
+                            lengthSelect.className = 'input-elegant px-3';
+                        }
+                    }
+                }, 100);
 
                 var existingDiv = document.getElementById("contractor_table_length");
                 if (existingDiv) {

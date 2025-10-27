@@ -1,5 +1,9 @@
 @extends('layouts.app')
 
+@section('title')
+    Outdoor Whiteboard
+@endsection
+
 @section('head')
     <!-- Google Fonts - Keep these link tags only -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -9,6 +13,9 @@
 @endsection
 
 @section('content')
+    <!-- ... other head content ... -->
+    <title>@yield('title', 'Default Title')</title> <!-- Example -->
+
     <div class="min-h-screen paper">
         <div class="max-w-[1600px] mx-auto">
 
@@ -241,10 +248,10 @@
                                                 </td>
 
                                                 @php
-    // Source: locations.name only
-    $bb = $item->billboard ?? null;
-    $locationDisplay = $bb?->location?->name ?? '-';
-@endphp
+                                                    // Source: locations.name only
+                                                    $bb = $item->billboard ?? null;
+                                                    $locationDisplay = $bb?->location?->name ?? '-';
+                                                @endphp
 
                                                 <td class="px-4 py-3 text-sm column-data" data-column="7">
                                                     <div class="truncate max-w-[360px]" title="{{ $locationDisplay }}">

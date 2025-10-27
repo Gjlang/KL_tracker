@@ -99,18 +99,18 @@ class BillboardAvailabilityController extends Controller
             $searchValue = trim(strtolower($filters['search_value']));
             $query->where(function ($q) use ($searchValue) {
                 $q->where('billboards.site_number', 'LIKE', "%{$searchValue}%")
-                ->orWhere('client_companies.name', 'LIKE', "%{$searchValue}%")
-                ->orWhere('locations.name', 'LIKE', "%{$searchValue}%")
-                ->orWhere('districts.name', 'LIKE', "%{$searchValue}%")
-                ->orWhere('states.name', 'LIKE', "%{$searchValue}%");
+                    ->orWhere('client_companies.name', 'LIKE', "%{$searchValue}%")
+                    ->orWhere('locations.name', 'LIKE', "%{$searchValue}%")
+                    ->orWhere('districts.name', 'LIKE', "%{$searchValue}%")
+                    ->orWhere('states.name', 'LIKE', "%{$searchValue}%");
             });
         }
 
         $query->orderBy('districts.name', 'asc')
-        ->orderBy('locations.name', 'asc')
-        ->orderBy($orderColumnName, $orderDirection);
+            ->orderBy('locations.name', 'asc')
+            ->orderBy($orderColumnName, $orderDirection);
 
-        
+
 
         // Get total filtered records count
         $totalFiltered = $query->count();
@@ -119,8 +119,6 @@ class BillboardAvailabilityController extends Controller
         $filteredData = $query->skip($start)->take($limit)->get();
 
         $data = array();
-
-        logger('filtered data: ' . $filteredData);
 
         foreach ($filteredData as $d) {
             $created_at = Carbon::parse($d->created_at)->format('Y-m-d');
@@ -158,8 +156,8 @@ class BillboardAvailabilityController extends Controller
     {
         $filters = $this->extractFilters($request);
         $billboards = $this->queryFilteredBillboards($filters);
-	
-	// Define state abbreviations map
+
+        // Define state abbreviations map
         $stateAbbrMap = [
             'Kuala Lumpur' => 'KL',
             'Selangor' => 'SEL',
@@ -189,8 +187,8 @@ class BillboardAvailabilityController extends Controller
 
             // Build monthly blocks between start and end date
             $months = $this->buildMonthlyBlocks($billboard, $startDate, $endDate);
-	    
-	    // Format the area name
+
+            // Format the area name
             $districtName = $billboard->location->district->name ?? '';
             $stateName = $billboard->location->district->state->name ?? '';
             $fullAreaName = $districtName . ', ' . $stateName;
@@ -212,7 +210,7 @@ class BillboardAvailabilityController extends Controller
                 'location'           => $billboard->location?->name ?? '',
                 'area'               => $formattedArea,
                 'site_type'          => $billboard->site_type ?? '-',
-		        'gps_latitude'       => $billboard->gps_latitude,
+                'gps_latitude'       => $billboard->gps_latitude,
                 'gps_longitude'      => $billboard->gps_longitude,
                 'gps_url'            => $billboard->gps_url,
                 'type'               => $billboard->type ?? '-',
@@ -226,8 +224,6 @@ class BillboardAvailabilityController extends Controller
         }
 
         $results = $this->sortAvailability($results);
-
-        logger('sorting??: ' . json_encode($results));
 
         return response()->json([
             'draw'            => intval($request->input('draw')),
@@ -324,26 +320,26 @@ class BillboardAvailabilityController extends Controller
             },
             // 'master_files.company_id'
         ])
-        ->when($filters['state'], fn($q) => $q->whereHas('location.district.state', fn($q2) => $q2->where('id', $filters['state'])))
-        ->when($filters['district'], fn($q) => $q->whereHas('location.district', fn($q2) => $q2->where('id', $filters['district'])))
-        ->when($filters['location'], fn($q) => $q->where('location_id', $filters['location']))
-        ->when($filters['type'], fn($q) => $q->where('prefix', $filters['type']))
-        ->when($filters['site_type'], fn($q) => $q->where('billboards.site_type', $filters['site_type']))
-        ->when($filters['status'], function ($q) use ($filters) {
-            $q->whereHas('outdoorItems', function ($q2) use ($filters) {
-                $q2->where('status', $filters['status']);
-            });
-        })
-        ->when(!empty($filters['search_value']), function ($q) use ($filters) {
-            $search = $filters['search_value'];
-            $q->where(function ($q2) use ($search) {
-                $q2->where('billboards.site_number', 'LIKE', "%{$search}%")
-                ->orWhereHas('location', fn($q3) => $q3->where('name', 'LIKE', "%{$search}%"))
-                ->orWhereHas('location.district', fn($q3) => $q3->where('name', 'LIKE', "%{$search}%"))
-                ->orWhereHas('location.district.state', fn($q3) => $q3->where('name', 'LIKE', "%{$search}%"));
-            });
-        })
-        ->get();
+            ->when($filters['state'], fn($q) => $q->whereHas('location.district.state', fn($q2) => $q2->where('id', $filters['state'])))
+            ->when($filters['district'], fn($q) => $q->whereHas('location.district', fn($q2) => $q2->where('id', $filters['district'])))
+            ->when($filters['location'], fn($q) => $q->where('location_id', $filters['location']))
+            ->when($filters['type'], fn($q) => $q->where('prefix', $filters['type']))
+            ->when($filters['site_type'], fn($q) => $q->where('billboards.site_type', $filters['site_type']))
+            ->when($filters['status'], function ($q) use ($filters) {
+                $q->whereHas('outdoorItems', function ($q2) use ($filters) {
+                    $q2->where('status', $filters['status']);
+                });
+            })
+            ->when(!empty($filters['search_value']), function ($q) use ($filters) {
+                $search = $filters['search_value'];
+                $q->where(function ($q2) use ($search) {
+                    $q2->where('billboards.site_number', 'LIKE', "%{$search}%")
+                        ->orWhereHas('location', fn($q3) => $q3->where('name', 'LIKE', "%{$search}%"))
+                        ->orWhereHas('location.district', fn($q3) => $q3->where('name', 'LIKE', "%{$search}%"))
+                        ->orWhereHas('location.district.state', fn($q3) => $q3->where('name', 'LIKE', "%{$search}%"));
+                });
+            })
+            ->get();
 
         // --- PHP sort by main + sub location ---
         $billboards = $billboards->sort(function ($a, $b) {
@@ -383,11 +379,27 @@ class BillboardAvailabilityController extends Controller
     {
         return collect($items)
             ->sort(function ($a, $b) {
-                // 1️⃣ Sort by availability status first (Not available first)
-                $availabilityA = $a['is_available'] ? 1 : 0;
-                $availabilityB = $b['is_available'] ? 1 : 0;
-                if ($availabilityA !== $availabilityB) {
-                    return $availabilityA <=> $availabilityB; // Available (1) comes after Not available (0)
+                // Check if both are Tempboard → skip availability sort
+                $isTempA = ($a['type'] ?? '') === 'Tempboard';
+                $isTempB = ($b['type'] ?? '') === 'Tempboard';
+
+                if (!($isTempA && $isTempB)) {
+                    // If not both Tempboard, do normal availability sorting
+                    if (!$isTempA && !$isTempB) {
+                        $availabilityA = $a['is_available'] ? 1 : 0;
+                        $availabilityB = $b['is_available'] ? 1 : 0;
+                        if ($availabilityA !== $availabilityB) {
+                            return $availabilityA <=> $availabilityB; // Available (1) comes after Not available (0)
+                        }
+                    }
+                }
+
+                // 0️⃣ First, sort by 'site_type' alphabetically
+                $siteTypeA = $a['site_type'] ?? '';
+                $siteTypeB = $b['site_type'] ?? '';
+                $siteTypeComparison = strcmp($siteTypeA, $siteTypeB);
+                if ($siteTypeComparison !== 0) {
+                    return $siteTypeComparison;
                 }
 
                 // 2️⃣ If availability is the same, sort by 'area' alphabetically
@@ -461,8 +473,8 @@ class BillboardAvailabilityController extends Controller
                         'year'       => $current->year,
                         'span'       => $span,
                         'text'       => $masterFile->clientCompany->name
-                                        ? $masterFile->clientCompany->name . ' (' . $bookingStart->format('d/m') . '–' . $bookingEnd->format('d/m/y') . ')'
-                                        : 'Booked (' . $bookingStart->format('d/m') . '–' . $bookingEnd->format('d/m/y') . ')',
+                            ? $masterFile->clientCompany->name . ' (' . $bookingStart->format('d/m') . '–' . $bookingEnd->format('d/m/y') . ')'
+                            : 'Booked (' . $bookingStart->format('d/m') . '–' . $bookingEnd->format('d/m/y') . ')',
                         'color'      => $colorClass,
                         'booking_id' => $outdoorItem->id, // ✅ Add booking_id here
                         'status'     => $status, // optional: helpful for frontend
@@ -512,12 +524,12 @@ class BillboardAvailabilityController extends Controller
             'states.id as state_id',
             'states.name as state_name'
         )
-        ->leftJoin('outdoor_items', 'outdoor_items.master_file_id', '=', 'master_files.id')
-        ->leftJoin('client_companies', 'client_companies.id', '=', 'master_files.company_id')
-        ->leftJoin('billboards', 'billboards.id', '=', 'outdoor_items.billboard_id')
-        ->leftJoin('locations', 'locations.id', '=', 'billboards.location_id')
-        ->leftJoin('districts', 'districts.id', '=', 'locations.district_id')
-        ->leftJoin('states', 'states.id', '=', 'districts.state_id');
+            ->leftJoin('outdoor_items', 'outdoor_items.master_file_id', '=', 'master_files.id')
+            ->leftJoin('client_companies', 'client_companies.id', '=', 'master_files.company_id')
+            ->leftJoin('billboards', 'billboards.id', '=', 'outdoor_items.billboard_id')
+            ->leftJoin('locations', 'locations.id', '=', 'billboards.location_id')
+            ->leftJoin('districts', 'districts.id', '=', 'locations.district_id')
+            ->leftJoin('states', 'states.id', '=', 'districts.state_id');
     }
 
 
@@ -572,7 +584,7 @@ class BillboardAvailabilityController extends Controller
         ])->findOrFail($id);
 
         $pdf = PDF::loadView('billboard.export', compact('billboard'))
-        ->setPaper('A4', 'landscape'); // 👈 Set orientation here
+            ->setPaper('A4', 'landscape'); // 👈 Set orientation here
 
         return $pdf->download('billboard-detail-' . $billboard->site_number . '.pdf');
     }
@@ -628,7 +640,7 @@ class BillboardAvailabilityController extends Controller
     }
 
     public function delete(Request $request)
-    {   
+    {
         $user = Auth::user();
 
         $id = $request->id;

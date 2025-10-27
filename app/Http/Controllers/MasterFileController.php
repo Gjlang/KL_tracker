@@ -191,12 +191,12 @@ class MasterFileController extends Controller
     // ─────────────────────────────────────────────────────────────────────────────
     // OUTDOOR
     // ─────────────────────────────────────────────────────────────────────────────
-   public function outdoor(Request $request)
-{
-    $month  = (int) $request->query('month', 0);     // 0 = All months
-    $search = trim((string) $request->query('q', ''));
+    public function outdoor(Request $request)
+    {
+        $month  = (int) $request->query('month', 0);     // 0 = All months
+        $search = trim((string) $request->query('q', ''));
 
-    $stateAbbrSql = "
+        $stateAbbrSql = "
       CASE
         WHEN s.name='Kuala Lumpur'     THEN 'KL'
         WHEN s.name='Selangor'         THEN 'SEL'
@@ -218,100 +218,109 @@ class MasterFileController extends Controller
       END
     ";
 
-    $q = DB::table('master_files as mf')
-        ->join('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
-        ->leftJoin('billboards as bb', 'bb.id', '=', 'oi.billboard_id')
-        ->leftJoin('locations as loc', 'loc.id', '=', 'bb.location_id')
-        ->leftJoin('districts as d', 'd.id', '=', 'loc.district_id')
-        ->leftJoin('states as s', 's.id', '=', 'd.state_id')
-        ->select([
-            'mf.id     as master_file_id',
-            'oi.id     as outdoor_item_id',
-            'mf.company',
-            'mf.product',
-            'mf.product_category',
-            'mf.created_at as created_at',
-            'mf.date       as start',
-            'mf.date_finish as end',
-            DB::raw('mf.month as month'),
-            DB::raw('mf.remarks as remarks'),
-            DB::raw('mf.duration as duration'),
-            DB::raw("CONCAT_WS(' - ', NULLIF(bb.site_number,''), NULLIF(loc.name,'')) as location"),
-            DB::raw("CONCAT(($stateAbbrSql), ' - ', COALESCE(d.name,'')) as area"),
-            DB::raw('oi.size as outdoor_size'),
-            DB::raw("
+        $q = DB::table('master_files as mf')
+            ->join('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
+            ->leftJoin('billboards as bb', 'bb.id', '=', 'oi.billboard_id')
+            ->leftJoin('locations as loc', 'loc.id', '=', 'bb.location_id')
+            ->leftJoin('districts as d', 'd.id', '=', 'loc.district_id')
+            ->leftJoin('states as s', 's.id', '=', 'd.state_id')
+            ->select([
+                'mf.id     as master_file_id',
+                'oi.id     as outdoor_item_id',
+                'mf.company',
+                'mf.product',
+                'mf.product_category',
+                'mf.created_at as created_at',
+                'mf.date       as start',
+                'mf.date_finish as end',
+                DB::raw('mf.month as month'),
+                DB::raw('mf.remarks as remarks'),
+                DB::raw('mf.duration as duration'),
+                DB::raw("CONCAT_WS(' - ', NULLIF(bb.site_number,''), NULLIF(loc.name,'')) as location"),
+                DB::raw("CONCAT(($stateAbbrSql), ' - ', COALESCE(d.name,'')) as area"),
+                DB::raw('oi.size as outdoor_size'),
+                DB::raw("
                 CASE
                   WHEN bb.gps_latitude IS NOT NULL AND bb.gps_longitude IS NOT NULL
                     THEN CONCAT(bb.gps_latitude, ',', bb.gps_longitude)
                   ELSE oi.coordinates
                 END as outdoor_coordinates
             "),
-        ]);
+            ]);
 
-    // ✅ FIXED: Convert numeric month (9) to text ("September")
-    if ($month >= 1 && $month <= 12) {
-        $monthNames = [
-            1 => 'January', 2 => 'February', 3 => 'March', 4 => 'April',
-            5 => 'May', 6 => 'June', 7 => 'July', 8 => 'August',
-            9 => 'September', 10 => 'October', 11 => 'November', 12 => 'December'
+        // ✅ FIXED: Convert numeric month (9) to text ("September")
+        if ($month >= 1 && $month <= 12) {
+            $monthNames = [
+                1 => 'January',
+                2 => 'February',
+                3 => 'March',
+                4 => 'April',
+                5 => 'May',
+                6 => 'June',
+                7 => 'July',
+                8 => 'August',
+                9 => 'September',
+                10 => 'October',
+                11 => 'November',
+                12 => 'December'
+            ];
+            $monthText = $monthNames[$month];
+            $q->where('mf.month', '=', $monthText);
+        }
+
+        // ✅ Search filter
+        if ($search !== '') {
+            $like = '%' . $search . '%';
+            $q->where(function ($w) use ($like) {
+                $w->where('mf.company', 'LIKE', $like)
+                    ->orWhere('mf.product', 'LIKE', $like)
+                    ->orWhere('oi.size', 'LIKE', $like)
+                    ->orWhere('bb.site_number', 'LIKE', $like)
+                    ->orWhere('loc.name', 'LIKE', $like)
+                    ->orWhere('d.name', 'LIKE', $like)
+                    ->orWhere('s.name', 'LIKE', $like)
+                    ->orWhere('mf.month', 'LIKE', $like)
+                    ->orWhere('mf.remarks', 'LIKE', $like);
+            });
+        }
+
+        $rows = $q
+            ->orderByRaw('(mf.company IS NULL), LOWER(mf.company) ASC')
+            ->orderBy('mf.date', 'DESC')
+            ->get();
+
+        $columns = [
+            ['key' => 'created_at',              'label' => 'CREATED AT'],
+            ['key' => 'month',                   'label' => 'MONTH'],
+            ['key' => 'company',                 'label' => 'COMPANY'],
+            ['key' => 'product',                 'label' => 'PRODUCT'],
+            ['key' => 'location',                'label' => 'LOCATION'],
+            ['key' => 'area',                    'label' => 'AREA'],
+            ['key' => 'duration',                'label' => 'DURATION'],
+            ['key' => 'start',                   'label' => 'DATE'],
+            ['key' => 'end',                     'label' => 'DATE FINISH'],
+            ['key' => 'outdoor_size',            'label' => 'OUTDOOR SIZE'],
+            ['key' => 'outdoor_coordinates',     'label' => 'OUTDOOR COORDINATES'],
+            ['key' => 'remarks',                 'label' => 'REMARKS'],
         ];
-        $monthText = $monthNames[$month];
-        $q->where('mf.month', '=', $monthText);
+
+        $editable = [
+            'outdoor_size'        => ['type' => 'text'],
+            'outdoor_coordinates' => ['type' => 'text'],
+        ];
+
+        $updateUrl = route('outdoor.inline.update');
+
+        return view('dashboard.master.outdoor', [
+            'rows'        => $rows,
+            'month'       => $month,
+            'search'      => $search,
+            'columns'     => $columns,
+            'editable'    => $editable,
+            'updateUrl'   => $updateUrl,
+            'dateColumns' => ['created_at', 'start', 'end'],
+        ]);
     }
-
-    // ✅ Search filter
-    if ($search !== '') {
-        $like = '%'.$search.'%';
-        $q->where(function ($w) use ($like) {
-            $w->where('mf.company', 'LIKE', $like)
-              ->orWhere('mf.product', 'LIKE', $like)
-              ->orWhere('oi.size', 'LIKE', $like)
-              ->orWhere('bb.site_number', 'LIKE', $like)
-              ->orWhere('loc.name', 'LIKE', $like)
-              ->orWhere('d.name', 'LIKE', $like)
-              ->orWhere('s.name', 'LIKE', $like)
-              ->orWhere('mf.month', 'LIKE', $like)
-              ->orWhere('mf.remarks', 'LIKE', $like);
-        });
-    }
-
-    $rows = $q
-        ->orderByRaw('(mf.company IS NULL), LOWER(mf.company) ASC')
-        ->orderBy('mf.date', 'DESC')
-        ->get();
-
-    $columns = [
-        ['key' => 'created_at',              'label' => 'CREATED AT'],
-        ['key' => 'month',                   'label' => 'MONTH'],
-        ['key' => 'company',                 'label' => 'COMPANY'],
-        ['key' => 'product',                 'label' => 'PRODUCT'],
-        ['key' => 'location',                'label' => 'LOCATION'],
-        ['key' => 'area',                    'label' => 'AREA'],
-        ['key' => 'duration',                'label' => 'DURATION'],
-        ['key' => 'start',                   'label' => 'DATE'],
-        ['key' => 'end',                     'label' => 'DATE FINISH'],
-        ['key' => 'outdoor_size',            'label' => 'OUTDOOR SIZE'],
-        ['key' => 'outdoor_coordinates',     'label' => 'OUTDOOR COORDINATES'],
-        ['key' => 'remarks',                 'label' => 'REMARKS'],
-    ];
-
-    $editable = [
-        'outdoor_size'        => ['type' => 'text'],
-        'outdoor_coordinates' => ['type' => 'text'],
-    ];
-
-    $updateUrl = route('outdoor.inline.update');
-
-    return view('dashboard.master.outdoor', [
-        'rows'        => $rows,
-        'month'       => $month,
-        'search'      => $search,
-        'columns'     => $columns,
-        'editable'    => $editable,
-        'updateUrl'   => $updateUrl,
-        'dateColumns' => ['created_at', 'start', 'end'],
-    ]);
-}
     // public function outdoor(Request $request)
     // {
     //     $q = MasterFile::query()
@@ -679,938 +688,936 @@ class MasterFileController extends Controller
         return view('masterfile.show', compact('file'));
     }
 
-  public function create()
-{
-    // 0) Pick a label column from client_companies defensively
-    $candidates = ['company', 'company_name', 'name', 'title', 'label'];
-    $labelCol = null;
-    foreach ($candidates as $c) {
-        if (Schema::hasColumn('client_companies', $c)) {
-            $labelCol = $c;
-            break;
+    public function create()
+    {
+        // 0) Pick a label column from client_companies defensively
+        $candidates = ['company', 'company_name', 'name', 'title', 'label'];
+        $labelCol = null;
+        foreach ($candidates as $c) {
+            if (Schema::hasColumn('client_companies', $c)) {
+                $labelCol = $c;
+                break;
+            }
         }
-    }
 
-    // Build base query: only companies that HAVE clients
-    $q = DB::table('client_companies as cc')
-        ->join('clients as c', 'c.company_id', '=', 'cc.id')
-        ->when(Schema::hasColumn('client_companies', 'deleted_at'), fn($q) => $q->whereNull('cc.deleted_at'))
-        ->when(Schema::hasColumn('clients', 'deleted_at'), fn($q) => $q->whereNull('c.deleted_at'));
+        // Build base query: only companies that HAVE clients
+        $q = DB::table('client_companies as cc')
+            ->join('clients as c', 'c.company_id', '=', 'cc.id')
+            ->when(Schema::hasColumn('client_companies', 'deleted_at'), fn($q) => $q->whereNull('cc.deleted_at'))
+            ->when(Schema::hasColumn('clients', 'deleted_at'), fn($q) => $q->whereNull('c.deleted_at'));
 
-    // Select label safely
-    if ($labelCol) {
-        $q->select('cc.id', DB::raw("TRIM(cc.`$labelCol`) as label"))
-          ->whereNotNull("cc.$labelCol")
-          ->whereRaw("TRIM(cc.`$labelCol`) <> ''")
-          ->groupBy('cc.id', 'label')
-          ->orderBy('label');
-    } else {
-        // Fallback if no readable label column exists: show synthetic label
-        $q->select('cc.id', DB::raw("CONCAT('Company #', cc.id) as label"))
-          ->groupBy('cc.id', 'label')
-          ->orderBy('label');
-    }
-
-    // [ id => "Company Name" ]
-    $companies = $q->pluck('label', 'id');
-
-    // Map: lower(label) -> id (for merging historic MFs)
-    $nameToId = [];
-    foreach ($companies as $id => $label) {
-        $nameToId[mb_strtolower(trim($label))] = (string) $id;
-    }
-
-    // Clients (PIC) only for the companies in the dropdown
-    $companyIds = array_keys($companies->toArray());
-    $clientsRaw = DB::table('clients')
-        ->select('id', 'name', 'company_id', 'phone', 'email')
-        ->whereIn('company_id', $companyIds)
-        ->orderBy('name')
-        ->get();
-
-    $byCompany = [];
-    foreach ($clientsRaw as $c) {
-        $cid = (string) $c->company_id;
-        if (!isset($byCompany[$cid])) $byCompany[$cid] = [];
-        if ($c->name && trim($c->name) !== '') {
-            $byCompany[$cid][] = [
-                'id'    => (string)$c->id,
-                'name'  => trim($c->name),
-                'phone' => $c->phone ?? '',
-                'email' => $c->email ?? '',
-            ];
+        // Select label safely
+        if ($labelCol) {
+            $q->select('cc.id', DB::raw("TRIM(cc.`$labelCol`) as label"))
+                ->whereNotNull("cc.$labelCol")
+                ->whereRaw("TRIM(cc.`$labelCol`) <> ''")
+                ->groupBy('cc.id', 'label')
+                ->orderBy('label');
+        } else {
+            // Fallback if no readable label column exists: show synthetic label
+            $q->select('cc.id', DB::raw("CONCAT('Company #', cc.id) as label"))
+                ->groupBy('cc.id', 'label')
+                ->orderBy('label');
         }
-    }
 
-    // Merge historic PIC from master_files (optional)
-    if (
-        Schema::hasTable('master_files') &&
-        Schema::hasColumn('master_files', 'company') &&
-        Schema::hasColumn('master_files', 'client')
-    ) {
-        $mf = DB::table('master_files')
-            ->select('company', 'client')
-            ->whereNotNull('company')
-            ->whereNotNull('client')
+        // [ id => "Company Name" ]
+        $companies = $q->pluck('label', 'id');
+
+        // Map: lower(label) -> id (for merging historic MFs)
+        $nameToId = [];
+        foreach ($companies as $id => $label) {
+            $nameToId[mb_strtolower(trim($label))] = (string) $id;
+        }
+
+        // Clients (PIC) only for the companies in the dropdown
+        $companyIds = array_keys($companies->toArray());
+        $clientsRaw = DB::table('clients')
+            ->select('id', 'name', 'company_id', 'phone', 'email')
+            ->whereIn('company_id', $companyIds)
+            ->orderBy('name')
             ->get();
 
-        $grouped = [];
-        foreach ($mf as $row) {
-            $companyName = trim((string)$row->company);
-            $clientName  = trim((string)$row->client);
-            if ($companyName === '' || $clientName === '') continue;
-            $key = mb_strtolower($companyName);
-            if (!isset($grouped[$key])) $grouped[$key] = [];
-            $grouped[$key][$clientName] = true;
-        }
-
-        foreach ($grouped as $companyLower => $clientSet) {
-            $cid = $nameToId[$companyLower] ?? null;
-            if (!$cid) continue;
+        $byCompany = [];
+        foreach ($clientsRaw as $c) {
+            $cid = (string) $c->company_id;
             if (!isset($byCompany[$cid])) $byCompany[$cid] = [];
-
-            $existingLower = array_map(
-                fn($r) => mb_strtolower($r['name']),
-                $byCompany[$cid]
-            );
-
-            foreach (array_keys($clientSet) as $nm) {
-                if (!in_array(mb_strtolower($nm), $existingLower, true)) {
-                    $byCompany[$cid][] = [
-                        'id'    => 'new:' . $nm,
-                        'name'  => $nm,
-                        'phone' => '',
-                        'email' => '',
-                    ];
-                }
-            }
-        }
-    }
-
-    return view('masterfile.create', [
-        'companies'         => $companies,   // [id => label]
-        'clientsByCompany'  => $byCompany,   // { company_id: [ {id,name,phone,email}, ... ] }
-        'display_column'    => $labelCol ?: 'id',
-    ]);
-}
-
-private function pickColumn(string $table, array $candidates): ?string
-{
-    foreach ($candidates as $c) {
-        if (Schema::hasColumn($table, $c)) return $c;
-    }
-    return null;
-}
-
-public function getCompanyContacts(Request $request)
-{
-    $company = trim((string) $request->query('company', ''));
-    $nameCol  = $this->pickColumn('client_companies', ['name','company','company_name']);
-    $phoneCol = $this->pickColumn('client_companies', ['phone','contact','phone_number']);
-
-    if (!$company || !$nameCol || !$phoneCol) {
-        return response()->json([]);
-    }
-
-    $rows = DB::table('client_companies')
-        ->whereRaw("LOWER($nameCol) = ?", [mb_strtolower($company)])
-        ->orWhere($nameCol, 'LIKE', $company.'%')
-        ->pluck($phoneCol)
-        ->map(fn($v) => trim((string) $v))
-        ->filter()
-        ->unique(fn($v) => mb_strtolower($v))
-        ->values();
-
-    return response()->json($rows);
-}
-
-public function getCompanyPICs(Request $request)
-{
-    $company = trim((string) $request->query('company', ''));
-    $nameCol = $this->pickColumn('client_companies', ['name','company','company_name']);
-    $picCols = collect(['pic','person_in_charge','contact_person','contact_name','pic_name'])
-        ->filter(fn($c) => Schema::hasColumn('client_companies', $c));
-
-    if (!$company || !$nameCol || $picCols->isEmpty()) {
-        return response()->json([]);
-    }
-
-    $names = collect();
-    foreach ($picCols as $col) {
-        $names = $names->merge(
-            DB::table('client_companies')
-                ->whereRaw("LOWER($nameCol) = ?", [mb_strtolower($company)])
-                ->orWhere($nameCol, 'LIKE', $company.'%')
-                ->pluck($col)
-        );
-    }
-
-    $names = $names
-        ->map(fn($v) => trim((string) $v))
-        ->filter()
-        ->unique(fn($v) => mb_strtolower($v))
-        ->values();
-
-    return response()->json($names);
-}
-
-public function getCompanyEmails(Request $request)
-{
-    $company = trim((string) $request->query('company', ''));
-    $nameCol = $this->pickColumn('client_companies', ['name','company','company_name']);
-    $emailCols = collect(['email','pic_email','contact_email','email_address'])
-        ->filter(fn($c) => Schema::hasColumn('client_companies', $c));
-
-    if (!$company || !$nameCol || $emailCols->isEmpty()) {
-        return response()->json([]);
-    }
-
-    $emails = collect();
-    foreach ($emailCols as $col) {
-        $emails = $emails->merge(
-            DB::table('client_companies')
-                ->whereRaw("LOWER($nameCol) = ?", [mb_strtolower($company)])
-                ->orWhere($nameCol, 'LIKE', $company.'%')
-                ->pluck($col)
-        );
-    }
-
-    $emails = $emails
-        ->map(fn($v) => trim((string) $v))
-        ->filter()
-        ->unique(fn($v) => mb_strtolower($v))
-        ->values();
-
-    return response()->json($emails);
-}
-
-
-public function getOutdoorStates(Request $request)
-{
-    $q = trim((string)$request->query('q', ''));
-
-    $rows = \DB::table('states')
-        ->select('id', 'name')
-        ->when($q !== '', function ($w) use ($q) {
-            $w->where('name', 'LIKE', "%{$q}%");
-        })
-        ->orderBy('name')
-        ->get();
-
-    $stateAbbr = [
-        'Kuala Lumpur' => 'KL',
-        'Selangor' => 'SEL',
-        'Negeri Sembilan' => 'N9',
-        'Melaka' => 'MLK',
-        'Johor' => 'JHR',
-        'Perak' => 'PRK',
-        'Pahang' => 'PHG',
-        'Terengganu' => 'TRG',
-        'Kelantan' => 'KTN',
-        'Perlis' => 'PLS',
-        'Kedah' => 'KDH',
-        'Penang' => 'PNG',
-        'Pulau Pinang' => 'PNG',
-        'Sarawak' => 'SWK',
-        'Sabah' => 'SBH',
-        'Labuan' => 'LBN',
-        'Putrajaya' => 'PJY',
-    ];
-
-    $items = $rows->map(function ($r) use ($stateAbbr) {
-        $abbr = $stateAbbr[$r->name] ?? strtoupper(substr($r->name, 0, 3));
-        return [
-            'value' => (string)$r->id,
-            'label' => $abbr . ' - ' . $r->name,
-        ];
-    })->values();
-
-    return response()->json($items);
-}
-
-
-public function getOutdoorDistricts(Request $request)
-{
-    $q = trim((string)$request->query('q', ''));
-    $stateId = $request->query('state_id'); // optional filter
-
-    $rows = \DB::table('districts')
-        ->select('districts.id', 'districts.name', 'districts.state_id')
-        ->when($stateId !== null && $stateId !== '', function ($w) use ($stateId) {
-            $w->where('districts.state_id', (int)$stateId);
-        })
-        ->when($q !== '', function ($w) use ($q) {
-            $w->where('districts.name', 'LIKE', "%{$q}%");
-        })
-        ->orderBy('districts.name')
-        ->get();
-
-    $items = $rows->map(function ($r) {
-        return [
-            'value' => (string)$r->id,
-            'label' => $r->name,
-            'state_id' => (string)$r->state_id,
-        ];
-    })->values();
-
-    return response()->json($items);
-}
-
-public function getOutdoorLocations(Request $request)
-{
-    $q = trim((string)$request->query('q', ''));
-    $districtId = $request->query('district_id');
-
-    // CRITICAL: If no district_id, return nothing (force user to select district first)
-    if (!$districtId) {
-        return response()->json([
-            ['label' => 'Please select a district first', 'value' => '', 'disabled' => true]
-        ]);
-    }
-
-    $rows = \DB::table('locations')
-        ->select('locations.id', 'locations.name', 'locations.district_id')
-        ->where('locations.district_id', (int)$districtId)
-        ->when($q !== '', function ($w) use ($q) {
-            $w->where('locations.name', 'LIKE', "%{$q}%");
-        })
-        ->orderBy('locations.name')
-        ->get();
-
-    if ($rows->isEmpty()) {
-        return response()->json([
-            ['label' => 'No locations found for this district', 'value' => '', 'disabled' => true]
-        ]);
-    }
-
-    $items = $rows->map(function ($r) {
-        return [
-            'value' => (string)$r->id,
-            'label' => $r->name,
-            'district_id' => (string)$r->district_id,
-        ];
-    })->values();
-
-    return response()->json($items);
-}
-
-public function getOutdoorSites(Request $request)
-{
-    $q = Billboard::query()
-        ->select(
-            'billboards.id',
-            'billboards.site_number',
-            'billboards.size',
-            'billboards.gps_latitude',
-            'billboards.gps_longitude',
-            'locations.id as location_id',
-            'locations.name as location_name',
-            'districts.id as district_id',
-            'states.id as state_id'
-        )
-        ->leftJoin('locations', 'billboards.location_id', '=', 'locations.id')
-        ->leftJoin('districts', 'locations.district_id', '=', 'districts.id')
-        ->leftJoin('states', 'districts.state_id', '=', 'states.id');
-
-    // ---- Filter by area_key "stateId|districtId" (utama)
-    if ($request->filled('area_key')) {
-        [$sid, $did] = array_pad(explode('|', $request->get('area_key'), 2), 2, null);
-        if ($sid && $did) {
-            $q->where('states.id', $sid)->where('districts.id', $did);
-        }
-    }
-
-    // ---- Optional cascade filters (fallback / kombinasi)
-    if ($request->filled('state_id')) {
-        $q->where('states.id', $request->integer('state_id'));
-    }
-    if ($request->filled('district_id')) {
-        $q->where('districts.id', $request->integer('district_id'));
-    }
-    if ($request->filled('location_id')) {
-        $q->where('locations.id', $request->integer('location_id'));
-    }
-
-    // ---- Pencarian bebas (site number / location name)
-    if ($request->filled('search')) {
-        $term = trim($request->get('search'));
-        $q->where(function($w) use ($term) {
-            $w->where('billboards.site_number', 'like', "%{$term}%")
-              ->orWhere('locations.name', 'like', "%{$term}%");
-        });
-    }
-
-    // ---- Build "STATE_ABBR - District" as area label
-    $abbr = "
-        CASE
-            WHEN states.name = 'Kuala Lumpur'    THEN 'KL'
-            WHEN states.name = 'Selangor'        THEN 'SEL'
-            WHEN states.name = 'Negeri Sembilan' THEN 'N9'
-            WHEN states.name = 'Melaka'          THEN 'MLK'
-            WHEN states.name = 'Johor'           THEN 'JHR'
-            WHEN states.name = 'Perak'           THEN 'PRK'
-            WHEN states.name = 'Pahang'          THEN 'PHG'
-            WHEN states.name = 'Terengganu'      THEN 'TRG'
-            WHEN states.name = 'Kelantan'        THEN 'KTN'
-            WHEN states.name = 'Perlis'          THEN 'PLS'
-            WHEN states.name = 'Kedah'           THEN 'KDH'
-            WHEN states.name = 'Penang'          THEN 'PNG'
-            WHEN states.name = 'Sarawak'         THEN 'SWK'
-            WHEN states.name = 'Sabah'           THEN 'SBH'
-            WHEN states.name = 'Labuan'          THEN 'LBN'
-            WHEN states.name = 'Putrajaya'       THEN 'PJY'
-            ELSE states.name
-        END
-    ";
-
-    $q->addSelect(DB::raw("CONCAT($abbr, ' - ', districts.name) as area"));
-    $q->addSelect(DB::raw("CONCAT(states.id, '|', districts.id) as area_key"));
-    $q->addSelect(DB::raw("CONCAT(billboards.gps_latitude, ', ', billboards.gps_longitude) as coords"));
-
-    $rows = $q->orderBy('billboards.site_number')->limit(50)->get();
-
-    $data = $rows->map(function ($r) {
-        return [
-            'value'          => $r->id,
-            'label'          => "{$r->site_number} — {$r->location_name}", // clean
-            'site_number'    => $r->site_number,
-            'location_name'  => $r->location_name,
-            'size'           => $r->size,
-            'coords'         => $r->coords,
-            'area'           => $r->area,       // "KL - Bukit Jalil"
-            'area_key'       => $r->area_key,   // "stateId|districtId"
-            'state_id'       => $r->state_id,
-            'district_id'    => $r->district_id,
-        ];
-    });
-
-    return response()->json($data);
-}
-
-
-/**
- * @deprecated Use getOutdoorDistricts() + getOutdoorLocations() + getOutdoorSites() instead
- */
-public function getOutdoorAreas(Request $request)
-{
-    $search = trim((string) $request->query('search', ''));
-
-    $abbr = "
-        CASE
-            WHEN states.name = 'Kuala Lumpur'    THEN 'KL'
-            WHEN states.name = 'Selangor'        THEN 'SEL'
-            WHEN states.name = 'Negeri Sembilan' THEN 'N9'
-            WHEN states.name = 'Melaka'          THEN 'MLK'
-            WHEN states.name = 'Johor'           THEN 'JHR'
-            WHEN states.name = 'Perak'           THEN 'PRK'
-            WHEN states.name = 'Pahang'          THEN 'PHG'
-            WHEN states.name = 'Terengganu'      THEN 'TRG'
-            WHEN states.name = 'Kelantan'        THEN 'KTN'
-            WHEN states.name = 'Perlis'          THEN 'PLS'
-            WHEN states.name = 'Kedah'           THEN 'KDH'
-            WHEN states.name = 'Penang'          THEN 'PNG'
-            WHEN states.name = 'Sarawak'         THEN 'SWK'
-            WHEN states.name = 'Sabah'           THEN 'SBH'
-            WHEN states.name = 'Labuan'          THEN 'LBN'
-            WHEN states.name = 'Putrajaya'       THEN 'PJY'
-            ELSE states.name
-        END
-    ";
-
-    $base = DB::table('districts')
-        ->join('states', 'districts.state_id', '=', 'states.id')
-        ->select(
-            'states.id as state_id',
-            'districts.id as district_id',
-            DB::raw("CONCAT($abbr, ' - ', districts.name) as area"),
-            DB::raw("CONCAT(states.id, '|', districts.id) as area_key")
-        );
-
-    if ($search !== '') {
-        $base->where(function($w) use ($search, $abbr) {
-            $w->where('districts.name', 'like', "%{$search}%")
-              ->orWhere(DB::raw($abbr), 'like', "%{$search}%");
-        });
-    }
-
-    $rows = $base
-        ->orderBy('area')
-        ->limit(100)
-        ->get()
-        ->unique('area_key')
-        ->values();
-
-    $data = $rows->map(function($r){
-        return [
-            'value'      => $r->area_key, // "stateId|districtId"
-            'label'      => $r->area,     // "KL - Bukit Jalil"
-            'state_id'   => $r->state_id,
-            'district_id'=> $r->district_id,
-        ];
-    });
-
-    return response()->json($data);
-}
-
-
-/**
- * @deprecated Use getOutdoorSites() which returns coords directly
- */
-public function getOutdoorCoords(Request $request)
-{
-    $q = trim((string)$request->query('q', ''));
-
-    $rows = \DB::table('billboards')
-        ->select(\DB::raw("DISTINCT CONCAT(gps_latitude, ',', gps_longitude) as coords"))
-        ->when($q !== '', function ($w) use ($q) {
-            $w->where(\DB::raw("CONCAT(gps_latitude, ',', gps_longitude)"), 'LIKE', "%{$q}%");
-        })
-        ->limit(50)
-        ->get();
-
-    return response()->json(
-        $rows->pluck('coords')
-             ->filter()
-             ->unique()
-             ->values()
-             ->map(fn($v) => ['label' => $v, 'value' => $v])
-    );
-}
-
-protected function firstExistingColumn(string $table, array $candidates): ?string
-{
-    foreach ($candidates as $col) {
-        if (Schema::hasColumn($table, $col)) return $col;
-    }
-    return null;
-}
-
-    // 🔧 FIXED: Single store method with AUTO-SEED KLTG DISABLED
-   public function store(Request $request)
-{
-    // ---- 0) Normalise "company" & "client" (accept id / new: / plain text) BEFORE validate ----
-    // Read raw inputs (support either *_id or plain fields)
-    $companyRaw = $request->input('company_id', $request->input('company'));
-    $clientRaw  = $request->input('client_id',  $request->input('client'));
-
-    try {
-
-        // Helpers to fetch display column safely
-        $getCompanyName = function ($companyModel) {
-            return $companyModel->company
-                ?? $companyModel->company_name
-                ?? $companyModel->name
-                ?? (string) $companyModel->id;
-        };
-
-        // Resolve / create Company
-        $companyId   = null;
-        $companyName = null;
-        if (is_string($companyRaw) && str_starts_with($companyRaw, 'new:')) {
-    $companyName = trim(substr($companyRaw, 4));
-
-    // pilih kolom nama yang tersedia
-    $companyCol = $this->pickColumn('client_companies', ['name','company','company_name']) ?? 'name';
-
-    // normalisasi + cari dulu case-insensitive
-    $normalize = function (?string $s) {
-        $s = trim((string)$s);
-        return preg_replace('/\s+/', ' ', $s);
-    };
-    $targetName = $normalize($companyName);
-
-    $companyModel = \App\Models\ClientCompany::whereRaw("LOWER($companyCol) = ?", [mb_strtolower($targetName)])->first();
-
-    if (!$companyModel && $targetName !== '') {
-        try {
-            $companyModel = \App\Models\ClientCompany::create([$companyCol => $targetName]);
-        } catch (QueryException $e) {
-            // race condition: duplikat unik
-            if ($e->getCode() === '23000') {
-                $companyModel = \App\Models\ClientCompany::whereRaw("LOWER($companyCol) = ?", [mb_strtolower($targetName)])->first();
-            } else {
-                throw $e;
-            }
-        }
-    }
-
-    $companyId   = optional($companyModel)->id;
-    $companyName = $companyModel ? $getCompanyName($companyModel) : $targetName;
-
-        } elseif (is_string($companyRaw) && ctype_digit($companyRaw)) {
-            $companyModel = \App\Models\ClientCompany::find($companyRaw);
-            if ($companyModel) {
-                $companyId   = $companyModel->id;
-                $companyName = $getCompanyName($companyModel);
-            } else {
-                $companyName = $companyRaw;
-            }
-        } else {
-            $typed = trim((string)$companyRaw);
-            if ($typed !== '') {
-                $companyCol = $this->pickColumn('client_companies', ['name','company','company_name']) ?? 'name';
-
-        // normalisasi + cari dulu case-insensitive
-        $normalize = function (?string $s) {
-            $s = trim((string)$s);
-            return preg_replace('/\s+/', ' ', $s);
-        };
-        $targetName = $normalize($typed);
-
-        $companyModel = \App\Models\ClientCompany::whereRaw("LOWER($companyCol) = ?", [mb_strtolower($targetName)])->first();
-
-        if (!$companyModel) {
-            try {
-                $companyModel = \App\Models\ClientCompany::create([$companyCol => $targetName]); // ⬅️ pakai $typed/targetName, bukan $companyName
-            } catch (QueryException $e) {
-                if ($e->getCode() === '23000') {
-                    $companyModel = \App\Models\ClientCompany::whereRaw("LOWER($companyCol) = ?", [mb_strtolower($targetName)])->first();
-                } else {
-                    throw $e;
-                }
-            }
-        }
-
-        $companyId   = optional($companyModel)->id;
-        $companyName = $companyModel ? $getCompanyName($companyModel) : $targetName;
-    }
-}
-
-
-        // Resolve / create Client (PIC) attached to companyId when possible
-        $clientId   = null;
-        $clientName = null;
-        $clientModel = null;
-        if (is_string($clientRaw) && str_starts_with($clientRaw, 'new:')) {
-            $clientName = trim(substr($clientRaw, 4));
-            // Get contact/email from request first (in case user typed them)
-            $autoContact = $request->input('contact_number');
-            $autoEmail   = $request->input('email');
-
-            $clientModel = \App\Models\Client::create([
-                'name'       => $clientName,
-                'company_id' => $companyId,
-                'phone'      => $autoContact,   // ✅ save if provided
-                'email'      => $autoEmail,     // ✅ save if provided
-            ]);
-            $clientId   = $clientModel->id;
-            $clientName = $clientModel->name;
-        } elseif (is_string($clientRaw) && ctype_digit($clientRaw)) {
-            $clientModel = \App\Models\Client::find($clientRaw);
-            if ($clientModel) {
-                $clientId   = $clientModel->id;
-                $clientName = $clientModel->name;
-
-                // 🔴 IMPORTANT: inherit company from client if not already set
-                if (!$companyId && $clientModel->company_id) {
-                    $companyId = $clientModel->company_id;
-                    if ($companyId) {
-                        $cc = \App\Models\ClientCompany::find($companyId);
-                        if ($cc) {
-                            $companyName = $getCompanyName($cc);
-                        }
-                    }
-                }
-            }
-        } else {
-            $typed = trim((string)$clientRaw);
-            if ($typed !== '') {
-                $q = \App\Models\Client::query()->where('name', $typed);
-                if ($companyId) $q->where('company_id', $companyId);
-                $clientModel = $q->first();
-
-                if (!$clientModel) {
-                    // Get contact/email from request for new client
-                    $autoContact = $request->input('contact_number');
-                    $autoEmail   = $request->input('email');
-
-                    $clientModel = \App\Models\Client::create([
-                        'name'       => $typed,
-                        'company_id' => $companyId,
-                        'phone'      => $autoContact,   // ✅ save if provided
-                        'email'      => $autoEmail,     // ✅ save if provided
-                    ]);
-                }
-                $clientId   = $clientModel->id;
-                $clientName = $clientModel->name;
-
-                // Inherit company from existing client
-                if (!$companyId && $clientModel->company_id) {
-                    $companyId = $clientModel->company_id;
-                    if ($companyId) {
-                        $cc = \App\Models\ClientCompany::find($companyId);
-                        if ($cc) {
-                            $companyName = $getCompanyName($cc);
-                        }
-                    }
-                }
-            }
-        }
-
-        $autoContact = $request->filled('contact_number')
-            ? $request->input('contact_number')
-            : optional($clientModel)->phone;     // ✅ safe even if $clientModel is null
-
-        $autoEmail   = $request->filled('email')
-            ? $request->input('email')
-            : optional($clientModel)->email;     // ✅ safe even if $clientModel is null
-
-if (!$clientId && empty($clientName) && $companyId) {
-    $fallbackClient = \App\Models\Client::where('company_id', $companyId)
-        ->orderByDesc('id')
-        ->first();
-
-    if ($fallbackClient) {
-        $clientId   = $fallbackClient->id;
-        $clientName = $fallbackClient->name;
-        $autoContact = $request->filled('contact_number') ? $request->input('contact_number') : $fallbackClient->phone;
-        $autoEmail   = $request->filled('email') ? $request->input('email') : $fallbackClient->email;
-    }
-}
-
-$request->merge([
-    'company_id'     => $companyId,
-    'client_id'      => $clientId,
-    'company'        => $companyName ?? (string)$companyRaw,
-    'client'         => $clientName  ?? (string)$clientRaw,
-    'contact_number' => $autoContact,
-    'email'          => $autoEmail,
-]);
-
-
-        // ---- 1) VALIDASI ----
-        $data = $request->validate([
-    'month' => ['required', 'string', 'max:255'],
-    'date' => ['required', 'date'],
-
-    'company' => ['required_without:company_id', 'string', 'max:255'],
-    'company_id' => ['nullable', 'integer', 'exists:client_companies,id'],
-
-    'client'    => ['nullable', 'string', 'max:255'],
-'client_id' => ['nullable', 'integer', 'exists:clients,id'],
-
-
-    'product' => ['required', 'string', 'max:255'],
-    'product_category' => ['nullable', 'string', 'max:255'],
-    'location' => ['nullable', 'string', 'max:255'],
-    'traffic' => ['required', 'string', 'max:255'],
-    'duration' => ['nullable', 'string', 'max:255'],
-    'amount' => ['nullable', 'numeric', 'between:0,999999999.99'],
-    'status' => ['required', 'string', 'max:255'],
-    'remarks' => ['nullable', 'string'],
-    'sales_person' => ['nullable', 'string', 'max:255'],
-    'date_finish' => ['nullable', 'date'],
-    'job_number' => ['nullable', 'string', 'max:255'],
-    'artwork' => ['nullable', 'string', 'max:255'],
-    'invoice_date' => ['nullable', 'date'],
-    'invoice_number' => ['nullable', 'string', 'max:255'],
-    'contact_number' => ['nullable', 'string', 'max:255'],
-    'email' => ['nullable', 'email', 'max:255'],
-
-
-            'kltg_industry' => ['nullable', 'string', 'max:255'],
-            'kltg_x' => ['nullable', 'string', 'max:255'],
-            'kltg_edition' => ['nullable', 'string', 'max:255'],
-            'kltg_material_cbp' => ['nullable', 'string', 'max:255'],
-            'kltg_print' => ['nullable', 'string', 'max:255'],
-            'kltg_article' => ['nullable', 'string', 'max:255'],
-            'kltg_video' => ['nullable', 'string', 'max:255'],
-            'kltg_leaderboard' => ['nullable', 'string', 'max:255'],
-            'kltg_qr_code' => ['nullable', 'string', 'max:255'],
-            'kltg_blog' => ['nullable', 'string', 'max:255'],
-            'kltg_em' => ['nullable', 'string', 'max:255'],
-            'kltg_remarks' => ['nullable', 'string', 'max:255'],
-
-            'outdoor_size' => ['nullable', 'string', 'max:255'],
-            'outdoor_district_council' => ['nullable', 'string', 'max:255'],
-            'outdoor_coordinates' => ['nullable', 'string', 'max:255'],
-            'outdoor_status' => ['nullable', 'string', 'max:255'],
-
-            'bulk_placements' => ['nullable', 'string'],
-        ]);
-
-        // ---- 2) CHECK FOR OVERLAPPING BOOKINGS BEFORE TRANSACTION ----
-        $locationsToProcess = [];
-        $isOutdoor = ($data['product_category'] ?? '') === 'Outdoor';
-
-        // Check for overlapping bookings in repeater mode
-        if ($isOutdoor && $request->has('locations')) {
-            $locations = $request->input('locations', []);
-
-            foreach ($locations as $loc) {
-                $billboardId = isset($loc['billboard_id']) && is_numeric($loc['billboard_id'])
-                    ? (int) $loc['billboard_id'] : null;
-
-                $typedSite = trim($loc['site'] ?? '');
-
-                // Skip empty rows
-                if (!$billboardId && $typedSite === '') {
-                    continue;
-                }
-
-                // Check for overlapping bookings
-                $startDate = $loc['start_date'] ?? null;
-                $endDate = $loc['end_date'] ?? null;
-
-                // Only check for overlap if both dates are provided
-                if ($startDate && $endDate) {
-                    $overlap = OutdoorItem::where('billboard_id', $billboardId)
-                        ->where(function ($query) use ($startDate, $endDate) {
-                            $query->whereBetween('start_date', [$startDate, $endDate])
-                                ->orWhereBetween('end_date', [$startDate, $endDate])
-                                ->orWhere(function ($query2) use ($startDate, $endDate) {
-                                    $query2->where('start_date', '<=', $startDate)
-                                            ->where('end_date', '>=', $endDate);
-                                });
-                        })
-                        ->exists();
-
-                    if ($overlap) {
-    return redirect()->back()->withInput()->with('error', 'This billboard is already booked for the selected date range.');
-}
-
-                }
-
-                // Store the validated location for processing inside the transaction
-                $locationsToProcess[] = [
-                    'location_data' => $loc,
-                    'billboard_id' => $billboardId,
-                    'typed_site' => $typedSite,
-                    'start_date' => $startDate,
-                    'end_date' => $endDate,
+            if ($c->name && trim($c->name) !== '') {
+                $byCompany[$cid][] = [
+                    'id'    => (string)$c->id,
+                    'name'  => trim($c->name),
+                    'phone' => $c->phone ?? '',
+                    'email' => $c->email ?? '',
                 ];
             }
         }
 
+        // Merge historic PIC from master_files (optional)
+        if (
+            Schema::hasTable('master_files') &&
+            Schema::hasColumn('master_files', 'company') &&
+            Schema::hasColumn('master_files', 'client')
+        ) {
+            $mf = DB::table('master_files')
+                ->select('company', 'client')
+                ->whereNotNull('company')
+                ->whereNotNull('client')
+                ->get();
+
+            $grouped = [];
+            foreach ($mf as $row) {
+                $companyName = trim((string)$row->company);
+                $clientName  = trim((string)$row->client);
+                if ($companyName === '' || $clientName === '') continue;
+                $key = mb_strtolower($companyName);
+                if (!isset($grouped[$key])) $grouped[$key] = [];
+                $grouped[$key][$clientName] = true;
+            }
+
+            foreach ($grouped as $companyLower => $clientSet) {
+                $cid = $nameToId[$companyLower] ?? null;
+                if (!$cid) continue;
+                if (!isset($byCompany[$cid])) $byCompany[$cid] = [];
+
+                $existingLower = array_map(
+                    fn($r) => mb_strtolower($r['name']),
+                    $byCompany[$cid]
+                );
+
+                foreach (array_keys($clientSet) as $nm) {
+                    if (!in_array(mb_strtolower($nm), $existingLower, true)) {
+                        $byCompany[$cid][] = [
+                            'id'    => 'new:' . $nm,
+                            'name'  => $nm,
+                            'phone' => '',
+                            'email' => '',
+                        ];
+                    }
+                }
+            }
+        }
+
+        return view('masterfile.create', [
+            'companies'         => $companies,   // [id => label]
+            'clientsByCompany'  => $byCompany,   // { company_id: [ {id,name,phone,email}, ... ] }
+            'display_column'    => $labelCol ?: 'id',
+        ]);
+    }
+
+    private function pickColumn(string $table, array $candidates): ?string
+    {
+        foreach ($candidates as $c) {
+            if (Schema::hasColumn($table, $c)) return $c;
+        }
+        return null;
+    }
+
+    public function getCompanyContacts(Request $request)
+    {
+        $company = trim((string) $request->query('company', ''));
+        $nameCol  = $this->pickColumn('client_companies', ['name', 'company', 'company_name']);
+        $phoneCol = $this->pickColumn('client_companies', ['phone', 'contact', 'phone_number']);
+
+        if (!$company || !$nameCol || !$phoneCol) {
+            return response()->json([]);
+        }
+
+        $rows = DB::table('client_companies')
+            ->whereRaw("LOWER($nameCol) = ?", [mb_strtolower($company)])
+            ->orWhere($nameCol, 'LIKE', $company . '%')
+            ->pluck($phoneCol)
+            ->map(fn($v) => trim((string) $v))
+            ->filter()
+            ->unique(fn($v) => mb_strtolower($v))
+            ->values();
+
+        return response()->json($rows);
+    }
+
+    public function getCompanyPICs(Request $request)
+    {
+        $company = trim((string) $request->query('company', ''));
+        $nameCol = $this->pickColumn('client_companies', ['name', 'company', 'company_name']);
+        $picCols = collect(['pic', 'person_in_charge', 'contact_person', 'contact_name', 'pic_name'])
+            ->filter(fn($c) => Schema::hasColumn('client_companies', $c));
+
+        if (!$company || !$nameCol || $picCols->isEmpty()) {
+            return response()->json([]);
+        }
+
+        $names = collect();
+        foreach ($picCols as $col) {
+            $names = $names->merge(
+                DB::table('client_companies')
+                    ->whereRaw("LOWER($nameCol) = ?", [mb_strtolower($company)])
+                    ->orWhere($nameCol, 'LIKE', $company . '%')
+                    ->pluck($col)
+            );
+        }
+
+        $names = $names
+            ->map(fn($v) => trim((string) $v))
+            ->filter()
+            ->unique(fn($v) => mb_strtolower($v))
+            ->values();
+
+        return response()->json($names);
+    }
+
+    public function getCompanyEmails(Request $request)
+    {
+        $company = trim((string) $request->query('company', ''));
+        $nameCol = $this->pickColumn('client_companies', ['name', 'company', 'company_name']);
+        $emailCols = collect(['email', 'pic_email', 'contact_email', 'email_address'])
+            ->filter(fn($c) => Schema::hasColumn('client_companies', $c));
+
+        if (!$company || !$nameCol || $emailCols->isEmpty()) {
+            return response()->json([]);
+        }
+
+        $emails = collect();
+        foreach ($emailCols as $col) {
+            $emails = $emails->merge(
+                DB::table('client_companies')
+                    ->whereRaw("LOWER($nameCol) = ?", [mb_strtolower($company)])
+                    ->orWhere($nameCol, 'LIKE', $company . '%')
+                    ->pluck($col)
+            );
+        }
+
+        $emails = $emails
+            ->map(fn($v) => trim((string) $v))
+            ->filter()
+            ->unique(fn($v) => mb_strtolower($v))
+            ->values();
+
+        return response()->json($emails);
+    }
 
 
-        // ---- 2) TRANSACTION + OUTDOOR LOGIC ----
-        // If we reach here, no overlaps were found, proceed with transaction
-        DB::transaction(function () use ($request, $data, $isOutdoor, $locationsToProcess) {
-            /** @var \App\Models\MasterFile $masterFile */
-            $masterFile = MasterFile::create($data);
+    public function getOutdoorStates(Request $request)
+    {
+        $q = trim((string)$request->query('q', ''));
 
-            // ===== REPEATER MODE with Billboard Integration =====
-            if ($isOutdoor && !empty($locationsToProcess)) {
+        $rows = \DB::table('states')
+            ->select('id', 'name')
+            ->when($q !== '', function ($w) use ($q) {
+                $w->where('name', 'LIKE', "%{$q}%");
+            })
+            ->orderBy('name')
+            ->get();
 
-                foreach ($locationsToProcess as $processedLoc) {
-                    $loc = $processedLoc['location_data'];
-                    $billboardId = $processedLoc['billboard_id'];
-                    $typedSite = $processedLoc['typed_site'];
+        $stateAbbr = [
+            'Kuala Lumpur' => 'KL',
+            'Selangor' => 'SEL',
+            'Negeri Sembilan' => 'N9',
+            'Melaka' => 'MLK',
+            'Johor' => 'JHR',
+            'Perak' => 'PRK',
+            'Pahang' => 'PHG',
+            'Terengganu' => 'TRG',
+            'Kelantan' => 'KTN',
+            'Perlis' => 'PLS',
+            'Kedah' => 'KDH',
+            'Penang' => 'PNG',
+            'Pulau Pinang' => 'PNG',
+            'Sarawak' => 'SWK',
+            'Sabah' => 'SBH',
+            'Labuan' => 'LBN',
+            'Putrajaya' => 'PJY',
+        ];
+
+        $items = $rows->map(function ($r) use ($stateAbbr) {
+            $abbr = $stateAbbr[$r->name] ?? strtoupper(substr($r->name, 0, 3));
+            return [
+                'value' => (string)$r->id,
+                'label' => $abbr . ' - ' . $r->name,
+            ];
+        })->values();
+
+        return response()->json($items);
+    }
+
+
+    public function getOutdoorDistricts(Request $request)
+    {
+        $q = trim((string)$request->query('q', ''));
+        $stateId = $request->query('state_id'); // optional filter
+
+        $rows = \DB::table('districts')
+            ->select('districts.id', 'districts.name', 'districts.state_id')
+            ->when($stateId !== null && $stateId !== '', function ($w) use ($stateId) {
+                $w->where('districts.state_id', (int)$stateId);
+            })
+            ->when($q !== '', function ($w) use ($q) {
+                $w->where('districts.name', 'LIKE', "%{$q}%");
+            })
+            ->orderBy('districts.name')
+            ->get();
+
+        $items = $rows->map(function ($r) {
+            return [
+                'value' => (string)$r->id,
+                'label' => $r->name,
+                'state_id' => (string)$r->state_id,
+            ];
+        })->values();
+
+        return response()->json($items);
+    }
+
+    public function getOutdoorLocations(Request $request)
+    {
+        $q = trim((string)$request->query('q', ''));
+        $districtId = $request->query('district_id');
+
+        // CRITICAL: If no district_id, return nothing (force user to select district first)
+        if (!$districtId) {
+            return response()->json([
+                ['label' => 'Please select a district first', 'value' => '', 'disabled' => true]
+            ]);
+        }
+
+        $rows = \DB::table('locations')
+            ->select('locations.id', 'locations.name', 'locations.district_id')
+            ->where('locations.district_id', (int)$districtId)
+            ->when($q !== '', function ($w) use ($q) {
+                $w->where('locations.name', 'LIKE', "%{$q}%");
+            })
+            ->orderBy('locations.name')
+            ->get();
+
+        if ($rows->isEmpty()) {
+            return response()->json([
+                ['label' => 'No locations found for this district', 'value' => '', 'disabled' => true]
+            ]);
+        }
+
+        $items = $rows->map(function ($r) {
+            return [
+                'value' => (string)$r->id,
+                'label' => $r->name,
+                'district_id' => (string)$r->district_id,
+            ];
+        })->values();
+
+        return response()->json($items);
+    }
+
+    public function getOutdoorSites(Request $request)
+    {
+        $q = Billboard::query()
+            ->select(
+                'billboards.id',
+                'billboards.site_number',
+                'billboards.size',
+                'billboards.gps_latitude',
+                'billboards.gps_longitude',
+                'locations.id as location_id',
+                'locations.name as location_name',
+                'districts.id as district_id',
+                'states.id as state_id'
+            )
+            ->leftJoin('locations', 'billboards.location_id', '=', 'locations.id')
+            ->leftJoin('districts', 'locations.district_id', '=', 'districts.id')
+            ->leftJoin('states', 'districts.state_id', '=', 'states.id');
+
+        // ---- Filter by area_key "stateId|districtId" (utama)
+        if ($request->filled('area_key')) {
+            [$sid, $did] = array_pad(explode('|', $request->get('area_key'), 2), 2, null);
+            if ($sid && $did) {
+                $q->where('states.id', $sid)->where('districts.id', $did);
+            }
+        }
+
+        // ---- Optional cascade filters (fallback / kombinasi)
+        if ($request->filled('state_id')) {
+            $q->where('states.id', $request->integer('state_id'));
+        }
+        if ($request->filled('district_id')) {
+            $q->where('districts.id', $request->integer('district_id'));
+        }
+        if ($request->filled('location_id')) {
+            $q->where('locations.id', $request->integer('location_id'));
+        }
+
+        // ---- Pencarian bebas (site number / location name)
+        if ($request->filled('search')) {
+            $term = trim($request->get('search'));
+            $q->where(function ($w) use ($term) {
+                $w->where('billboards.site_number', 'like', "%{$term}%")
+                    ->orWhere('locations.name', 'like', "%{$term}%");
+            });
+        }
+
+        // ---- Build "STATE_ABBR - District" as area label
+        $abbr = "
+        CASE
+            WHEN states.name = 'Kuala Lumpur'    THEN 'KL'
+            WHEN states.name = 'Selangor'        THEN 'SEL'
+            WHEN states.name = 'Negeri Sembilan' THEN 'N9'
+            WHEN states.name = 'Melaka'          THEN 'MLK'
+            WHEN states.name = 'Johor'           THEN 'JHR'
+            WHEN states.name = 'Perak'           THEN 'PRK'
+            WHEN states.name = 'Pahang'          THEN 'PHG'
+            WHEN states.name = 'Terengganu'      THEN 'TRG'
+            WHEN states.name = 'Kelantan'        THEN 'KTN'
+            WHEN states.name = 'Perlis'          THEN 'PLS'
+            WHEN states.name = 'Kedah'           THEN 'KDH'
+            WHEN states.name = 'Penang'          THEN 'PNG'
+            WHEN states.name = 'Sarawak'         THEN 'SWK'
+            WHEN states.name = 'Sabah'           THEN 'SBH'
+            WHEN states.name = 'Labuan'          THEN 'LBN'
+            WHEN states.name = 'Putrajaya'       THEN 'PJY'
+            ELSE states.name
+        END
+    ";
+
+        $q->addSelect(DB::raw("CONCAT($abbr, ' - ', districts.name) as area"));
+        $q->addSelect(DB::raw("CONCAT(states.id, '|', districts.id) as area_key"));
+        $q->addSelect(DB::raw("CONCAT(billboards.gps_latitude, ', ', billboards.gps_longitude) as coords"));
+
+        $rows = $q->orderBy('billboards.site_number')->limit(50)->get();
+
+        $data = $rows->map(function ($r) {
+            return [
+                'value'          => $r->id,
+                'label'          => "{$r->site_number} — {$r->location_name}", // clean
+                'site_number'    => $r->site_number,
+                'location_name'  => $r->location_name,
+                'size'           => $r->size,
+                'coords'         => $r->coords,
+                'area'           => $r->area,       // "KL - Bukit Jalil"
+                'area_key'       => $r->area_key,   // "stateId|districtId"
+                'state_id'       => $r->state_id,
+                'district_id'    => $r->district_id,
+            ];
+        });
+
+        return response()->json($data);
+    }
+
+
+    /**
+     * @deprecated Use getOutdoorDistricts() + getOutdoorLocations() + getOutdoorSites() instead
+     */
+    public function getOutdoorAreas(Request $request)
+    {
+        $search = trim((string) $request->query('search', ''));
+
+        $abbr = "
+        CASE
+            WHEN states.name = 'Kuala Lumpur'    THEN 'KL'
+            WHEN states.name = 'Selangor'        THEN 'SEL'
+            WHEN states.name = 'Negeri Sembilan' THEN 'N9'
+            WHEN states.name = 'Melaka'          THEN 'MLK'
+            WHEN states.name = 'Johor'           THEN 'JHR'
+            WHEN states.name = 'Perak'           THEN 'PRK'
+            WHEN states.name = 'Pahang'          THEN 'PHG'
+            WHEN states.name = 'Terengganu'      THEN 'TRG'
+            WHEN states.name = 'Kelantan'        THEN 'KTN'
+            WHEN states.name = 'Perlis'          THEN 'PLS'
+            WHEN states.name = 'Kedah'           THEN 'KDH'
+            WHEN states.name = 'Penang'          THEN 'PNG'
+            WHEN states.name = 'Sarawak'         THEN 'SWK'
+            WHEN states.name = 'Sabah'           THEN 'SBH'
+            WHEN states.name = 'Labuan'          THEN 'LBN'
+            WHEN states.name = 'Putrajaya'       THEN 'PJY'
+            ELSE states.name
+        END
+    ";
+
+        $base = DB::table('districts')
+            ->join('states', 'districts.state_id', '=', 'states.id')
+            ->select(
+                'states.id as state_id',
+                'districts.id as district_id',
+                DB::raw("CONCAT($abbr, ' - ', districts.name) as area"),
+                DB::raw("CONCAT(states.id, '|', districts.id) as area_key")
+            );
+
+        if ($search !== '') {
+            $base->where(function ($w) use ($search, $abbr) {
+                $w->where('districts.name', 'like', "%{$search}%")
+                    ->orWhere(DB::raw($abbr), 'like', "%{$search}%");
+            });
+        }
+
+        $rows = $base
+            ->orderBy('area')
+            ->limit(100)
+            ->get()
+            ->unique('area_key')
+            ->values();
+
+        $data = $rows->map(function ($r) {
+            return [
+                'value'      => $r->area_key, // "stateId|districtId"
+                'label'      => $r->area,     // "KL - Bukit Jalil"
+                'state_id'   => $r->state_id,
+                'district_id' => $r->district_id,
+            ];
+        });
+
+        return response()->json($data);
+    }
+
+
+    /**
+     * @deprecated Use getOutdoorSites() which returns coords directly
+     */
+    public function getOutdoorCoords(Request $request)
+    {
+        $q = trim((string)$request->query('q', ''));
+
+        $rows = \DB::table('billboards')
+            ->select(\DB::raw("DISTINCT CONCAT(gps_latitude, ',', gps_longitude) as coords"))
+            ->when($q !== '', function ($w) use ($q) {
+                $w->where(\DB::raw("CONCAT(gps_latitude, ',', gps_longitude)"), 'LIKE', "%{$q}%");
+            })
+            ->limit(50)
+            ->get();
+
+        return response()->json(
+            $rows->pluck('coords')
+                ->filter()
+                ->unique()
+                ->values()
+                ->map(fn($v) => ['label' => $v, 'value' => $v])
+        );
+    }
+
+    protected function firstExistingColumn(string $table, array $candidates): ?string
+    {
+        foreach ($candidates as $col) {
+            if (Schema::hasColumn($table, $col)) return $col;
+        }
+        return null;
+    }
+
+    // 🔧 FIXED: Single store method with AUTO-SEED KLTG DISABLED
+    public function store(Request $request)
+    {
+        // ---- 0) Normalise "company" & "client" (accept id / new: / plain text) BEFORE validate ----
+        // Read raw inputs (support either *_id or plain fields)
+        $companyRaw = $request->input('company_id', $request->input('company'));
+        $clientRaw  = $request->input('client_id',  $request->input('client'));
+
+        try {
+
+            // Helpers to fetch display column safely
+            $getCompanyName = function ($companyModel) {
+                return $companyModel->company
+                    ?? $companyModel->company_name
+                    ?? $companyModel->name
+                    ?? (string) $companyModel->id;
+            };
+
+            // Resolve / create Company
+            $companyId   = null;
+            $companyName = null;
+            if (is_string($companyRaw) && str_starts_with($companyRaw, 'new:')) {
+                $companyName = trim(substr($companyRaw, 4));
+
+                // pilih kolom nama yang tersedia
+                $companyCol = $this->pickColumn('client_companies', ['name', 'company', 'company_name']) ?? 'name';
+
+                // normalisasi + cari dulu case-insensitive
+                $normalize = function (?string $s) {
+                    $s = trim((string)$s);
+                    return preg_replace('/\s+/', ' ', $s);
+                };
+                $targetName = $normalize($companyName);
+
+                $companyModel = \App\Models\ClientCompany::whereRaw("LOWER($companyCol) = ?", [mb_strtolower($targetName)])->first();
+
+                if (!$companyModel && $targetName !== '') {
+                    try {
+                        $companyModel = \App\Models\ClientCompany::create([$companyCol => $targetName]);
+                    } catch (QueryException $e) {
+                        // race condition: duplikat unik
+                        if ($e->getCode() === '23000') {
+                            $companyModel = \App\Models\ClientCompany::whereRaw("LOWER($companyCol) = ?", [mb_strtolower($targetName)])->first();
+                        } else {
+                            throw $e;
+                        }
+                    }
+                }
+
+                $companyId   = optional($companyModel)->id;
+                $companyName = $companyModel ? $getCompanyName($companyModel) : $targetName;
+            } elseif (is_string($companyRaw) && ctype_digit($companyRaw)) {
+                $companyModel = \App\Models\ClientCompany::find($companyRaw);
+                if ($companyModel) {
+                    $companyId   = $companyModel->id;
+                    $companyName = $getCompanyName($companyModel);
+                } else {
+                    $companyName = $companyRaw;
+                }
+            } else {
+                $typed = trim((string)$companyRaw);
+                if ($typed !== '') {
+                    $companyCol = $this->pickColumn('client_companies', ['name', 'company', 'company_name']) ?? 'name';
+
+                    // normalisasi + cari dulu case-insensitive
+                    $normalize = function (?string $s) {
+                        $s = trim((string)$s);
+                        return preg_replace('/\s+/', ' ', $s);
+                    };
+                    $targetName = $normalize($typed);
+
+                    $companyModel = \App\Models\ClientCompany::whereRaw("LOWER($companyCol) = ?", [mb_strtolower($targetName)])->first();
+
+                    if (!$companyModel) {
+                        try {
+                            $companyModel = \App\Models\ClientCompany::create([$companyCol => $targetName]); // ⬅️ pakai $typed/targetName, bukan $companyName
+                        } catch (QueryException $e) {
+                            if ($e->getCode() === '23000') {
+                                $companyModel = \App\Models\ClientCompany::whereRaw("LOWER($companyCol) = ?", [mb_strtolower($targetName)])->first();
+                            } else {
+                                throw $e;
+                            }
+                        }
+                    }
+
+                    $companyId   = optional($companyModel)->id;
+                    $companyName = $companyModel ? $getCompanyName($companyModel) : $targetName;
+                }
+            }
+
+
+            // Resolve / create Client (PIC) attached to companyId when possible
+            $clientId   = null;
+            $clientName = null;
+            $clientModel = null;
+            if (is_string($clientRaw) && str_starts_with($clientRaw, 'new:')) {
+                $clientName = trim(substr($clientRaw, 4));
+                // Get contact/email from request first (in case user typed them)
+                $autoContact = $request->input('contact_number');
+                $autoEmail   = $request->input('email');
+
+                $clientModel = \App\Models\Client::create([
+                    'name'       => $clientName,
+                    'company_id' => $companyId,
+                    'phone'      => $autoContact,   // ✅ save if provided
+                    'email'      => $autoEmail,     // ✅ save if provided
+                ]);
+                $clientId   = $clientModel->id;
+                $clientName = $clientModel->name;
+            } elseif (is_string($clientRaw) && ctype_digit($clientRaw)) {
+                $clientModel = \App\Models\Client::find($clientRaw);
+                if ($clientModel) {
+                    $clientId   = $clientModel->id;
+                    $clientName = $clientModel->name;
+
+                    // 🔴 IMPORTANT: inherit company from client if not already set
+                    if (!$companyId && $clientModel->company_id) {
+                        $companyId = $clientModel->company_id;
+                        if ($companyId) {
+                            $cc = \App\Models\ClientCompany::find($companyId);
+                            if ($cc) {
+                                $companyName = $getCompanyName($cc);
+                            }
+                        }
+                    }
+                }
+            } else {
+                $typed = trim((string)$clientRaw);
+                if ($typed !== '') {
+                    $q = \App\Models\Client::query()->where('name', $typed);
+                    if ($companyId) $q->where('company_id', $companyId);
+                    $clientModel = $q->first();
+
+                    if (!$clientModel) {
+                        // Get contact/email from request for new client
+                        $autoContact = $request->input('contact_number');
+                        $autoEmail   = $request->input('email');
+
+                        $clientModel = \App\Models\Client::create([
+                            'name'       => $typed,
+                            'company_id' => $companyId,
+                            'phone'      => $autoContact,   // ✅ save if provided
+                            'email'      => $autoEmail,     // ✅ save if provided
+                        ]);
+                    }
+                    $clientId   = $clientModel->id;
+                    $clientName = $clientModel->name;
+
+                    // Inherit company from existing client
+                    if (!$companyId && $clientModel->company_id) {
+                        $companyId = $clientModel->company_id;
+                        if ($companyId) {
+                            $cc = \App\Models\ClientCompany::find($companyId);
+                            if ($cc) {
+                                $companyName = $getCompanyName($cc);
+                            }
+                        }
+                    }
+                }
+            }
+
+            $autoContact = $request->filled('contact_number')
+                ? $request->input('contact_number')
+                : optional($clientModel)->phone;     // ✅ safe even if $clientModel is null
+
+            $autoEmail   = $request->filled('email')
+                ? $request->input('email')
+                : optional($clientModel)->email;     // ✅ safe even if $clientModel is null
+
+            if (!$clientId && empty($clientName) && $companyId) {
+                $fallbackClient = \App\Models\Client::where('company_id', $companyId)
+                    ->orderByDesc('id')
+                    ->first();
+
+                if ($fallbackClient) {
+                    $clientId   = $fallbackClient->id;
+                    $clientName = $fallbackClient->name;
+                    $autoContact = $request->filled('contact_number') ? $request->input('contact_number') : $fallbackClient->phone;
+                    $autoEmail   = $request->filled('email') ? $request->input('email') : $fallbackClient->email;
+                }
+            }
+
+            $request->merge([
+                'company_id'     => $companyId,
+                'client_id'      => $clientId,
+                'company'        => $companyName ?? (string)$companyRaw,
+                'client'         => $clientName  ?? (string)$clientRaw,
+                'contact_number' => $autoContact,
+                'email'          => $autoEmail,
+            ]);
+
+
+            // ---- 1) VALIDASI ----
+            $data = $request->validate([
+                'month' => ['required', 'string', 'max:255'],
+                'date' => ['required', 'date'],
+
+                'company' => ['required_without:company_id', 'string', 'max:255'],
+                'company_id' => ['nullable', 'integer', 'exists:client_companies,id'],
+
+                'client'    => ['nullable', 'string', 'max:255'],
+                'client_id' => ['nullable', 'integer', 'exists:clients,id'],
+
+
+                'product' => ['required', 'string', 'max:255'],
+                'product_category' => ['nullable', 'string', 'max:255'],
+                'location' => ['nullable', 'string', 'max:255'],
+                'traffic' => ['required', 'string', 'max:255'],
+                'duration' => ['nullable', 'string', 'max:255'],
+                'amount' => ['nullable', 'numeric', 'between:0,999999999.99'],
+                'status' => ['required', 'string', 'max:255'],
+                'remarks' => ['nullable', 'string'],
+                'sales_person' => ['nullable', 'string', 'max:255'],
+                'date_finish' => ['nullable', 'date'],
+                'job_number' => ['nullable', 'string', 'max:255'],
+                'artwork' => ['nullable', 'string', 'max:255'],
+                'invoice_date' => ['nullable', 'date'],
+                'invoice_number' => ['nullable', 'string', 'max:255'],
+                'contact_number' => ['nullable', 'string', 'max:255'],
+                'email' => ['nullable', 'email', 'max:255'],
+
+
+                'kltg_industry' => ['nullable', 'string', 'max:255'],
+                'kltg_x' => ['nullable', 'string', 'max:255'],
+                'kltg_edition' => ['nullable', 'string', 'max:255'],
+                'kltg_material_cbp' => ['nullable', 'string', 'max:255'],
+                'kltg_print' => ['nullable', 'string', 'max:255'],
+                'kltg_article' => ['nullable', 'string', 'max:255'],
+                'kltg_video' => ['nullable', 'string', 'max:255'],
+                'kltg_leaderboard' => ['nullable', 'string', 'max:255'],
+                'kltg_qr_code' => ['nullable', 'string', 'max:255'],
+                'kltg_blog' => ['nullable', 'string', 'max:255'],
+                'kltg_em' => ['nullable', 'string', 'max:255'],
+                'kltg_remarks' => ['nullable', 'string', 'max:255'],
+
+                'outdoor_size' => ['nullable', 'string', 'max:255'],
+                'outdoor_district_council' => ['nullable', 'string', 'max:255'],
+                'outdoor_coordinates' => ['nullable', 'string', 'max:255'],
+                'outdoor_status' => ['nullable', 'string', 'max:255'],
+
+                'bulk_placements' => ['nullable', 'string'],
+            ]);
+
+            // ---- 2) CHECK FOR OVERLAPPING BOOKINGS BEFORE TRANSACTION ----
+            $locationsToProcess = [];
+            $isOutdoor = ($data['product_category'] ?? '') === 'Outdoor';
+
+            // Check for overlapping bookings in repeater mode
+            if ($isOutdoor && $request->has('locations')) {
+                $locations = $request->input('locations', []);
+
+                foreach ($locations as $loc) {
+                    $billboardId = isset($loc['billboard_id']) && is_numeric($loc['billboard_id'])
+                        ? (int) $loc['billboard_id'] : null;
+
+                    $typedSite = trim($loc['site'] ?? '');
 
                     // Skip empty rows
                     if (!$billboardId && $typedSite === '') {
                         continue;
                     }
 
-                    // Map UI keys -> DB columns
-                    $subProduct = $loc['sub_product'] ?? ($data['product'] ?? 'Outdoor');
-                    $size       = $loc['size'] ?? null;
-                    $area       = $loc['council'] ?? null;   // UI 'council' -> DB 'district_council'
-                    $coords     = $loc['coords'] ?? null;    // UI 'coords'  -> DB 'coordinates'
-                    $remarks    = $loc['remarks'] ?? null;
-                    $startDate  = $loc['start_date'] ?? null;
-                    $endDate    = $loc['end_date'] ?? null;
-                    $outdoorStatus    = $loc['outdoor_status'] ?? null;
-                    $siteLabel  = $typedSite ?: null;
+                    // Check for overlapping bookings
+                    $startDate = $loc['start_date'] ?? null;
+                    $endDate = $loc['end_date'] ?? null;
 
-                    // Hydrate from billboard if ID is present
-                    if ($billboardId) {
-                        $bb = \DB::table('billboards as b')
-                            ->leftJoin('locations as l', 'l.id', '=', 'b.location_id')
-                            ->where('b.id', $billboardId)
-                            ->first(['b.site_number', 'b.size', 'b.gps_latitude', 'b.gps_longitude', 'l.name as area_name']);
+                    // Only check for overlap if both dates are provided
+                    if ($startDate && $endDate) {
+                        $overlap = OutdoorItem::where('billboard_id', $billboardId)
+                            ->where(function ($query) use ($startDate, $endDate) {
+                                $query->whereBetween('start_date', [$startDate, $endDate])
+                                    ->orWhereBetween('end_date', [$startDate, $endDate])
+                                    ->orWhere(function ($query2) use ($startDate, $endDate) {
+                                        $query2->where('start_date', '<=', $startDate)
+                                            ->where('end_date', '>=', $endDate);
+                                    });
+                            })
+                            ->exists();
 
-                        if ($bb) {
-                            $siteLabel = $siteLabel ?: ($bb->site_number ?? null);
-                            $size      = $size      ?: ($bb->size ?? null);
-                            $area      = $area      ?: ($bb->area_name ?? null);
-                            if (!$coords && $bb->gps_latitude !== null && $bb->gps_longitude !== null) {
-                                $coords = $bb->gps_latitude . ',' . $bb->gps_longitude;
-                            }
+                        if ($overlap) {
+                            return redirect()->back()->withInput()->with('error', 'This billboard is already booked for the selected date range.');
                         }
                     }
 
-                    // Insert outdoor item
-                    $masterFile->outdoorItems()->create([
-                        'sub_product'      => $subProduct,
-                        'qty'              => 1, // or ($loc['qty'] ?? 1)
-                        'site'             => $siteLabel,
-                        'size'             => $size,
-                        'district_council' => $area,
-                        'coordinates'      => $coords,
-                        'remarks'          => $remarks,
-                        'start_date'       => $startDate ?: null,
-                        'end_date'         => $endDate   ?: null,
-                        'status'           => $outdoorStatus,
-                        'billboard_id'     => $billboardId,
-                    ]);
-                }
-
-                return; // Done with repeater mode
-            }
-
-            // ===== FALLBACK: Old textarea mode (bulk_placements) =====
-            $raw = trim((string)$request->input('bulk_placements', ''));
-            if ($isOutdoor && $raw !== '') {
-                $lines = preg_split("/\r\n|\n|\r/", $raw);
-                $defaultSub = $data['product'] ?? 'Outdoor';
-
-                $items = [];
-                foreach ($lines as $line) {
-                    $line = trim($line);
-                    if ($line === '') continue;
-
-                    $sep   = str_contains($line, '|') ? '|' : ',';
-                    $parts = array_map('trim', str_getcsv($line, $sep));
-
-                    $site        = $parts[0] ?? null;
-                    $size        = $parts[1] ?? null;
-                    $council     = $parts[2] ?? null;
-                    $coordinates = $parts[3] ?? null;
-                    $remarks     = $parts[4] ?? null;
-
-                    $sub = $defaultSub;
-
-                    if ($site && preg_match('/^(BB|TB|Bunting|Flyers|Star|Signages|Newspaper)\s*:\s*(.+)$/i', $site, $m)) {
-                        $sub  = $m[1];
-                        $site = $m[2];
-                    }
-
-                    if (
-                        $coordinates && $remarks
-                        && preg_match('/^-?\d+(\.\d+)?$/', $coordinates)
-                        && preg_match('/^-?\d+(\.\d+)?$/', $remarks)
-                    ) {
-                        $coordinates = $coordinates . ',' . $remarks;
-                        $remarks = null;
-                    }
-
-                    $items[] = [
-                        'sub_product'      => $sub,
-                        'qty'              => 1,
-                        'site'             => $site,
-                        'size'             => $size ?: null,
-                        'district_council' => $council ?: null,
-                        'coordinates'      => $coordinates ?: null,
-                        'remarks'          => $remarks ?: null,
+                    // Store the validated location for processing inside the transaction
+                    $locationsToProcess[] = [
+                        'location_data' => $loc,
+                        'billboard_id' => $billboardId,
+                        'typed_site' => $typedSite,
+                        'start_date' => $startDate,
+                        'end_date' => $endDate,
                     ];
                 }
-
-                if (!empty($items)) {
-                    $masterFile->outdoorItems()->createMany($items);
-                }
             }
-        });
 
-        return redirect()->route('dashboard')->with('success', 'Saved.');
-    }catch (\Exception $e) {
-        // If any queries fail, undo all changes
-        DB::rollback();
 
-        return response()->json(['error' => $e->getMessage()], 422);
+
+            // ---- 2) TRANSACTION + OUTDOOR LOGIC ----
+            // If we reach here, no overlaps were found, proceed with transaction
+            DB::transaction(function () use ($request, $data, $isOutdoor, $locationsToProcess) {
+                /** @var \App\Models\MasterFile $masterFile */
+                $masterFile = MasterFile::create($data);
+
+                // ===== REPEATER MODE with Billboard Integration =====
+                if ($isOutdoor && !empty($locationsToProcess)) {
+
+                    foreach ($locationsToProcess as $processedLoc) {
+                        $loc = $processedLoc['location_data'];
+                        $billboardId = $processedLoc['billboard_id'];
+                        $typedSite = $processedLoc['typed_site'];
+
+                        // Skip empty rows
+                        if (!$billboardId && $typedSite === '') {
+                            continue;
+                        }
+
+                        // Map UI keys -> DB columns
+                        $subProduct = $loc['sub_product'] ?? ($data['product'] ?? 'Outdoor');
+                        $size       = $loc['size'] ?? null;
+                        $area       = $loc['council'] ?? null;   // UI 'council' -> DB 'district_council'
+                        $coords     = $loc['coords'] ?? null;    // UI 'coords'  -> DB 'coordinates'
+                        $remarks    = $loc['remarks'] ?? null;
+                        $startDate  = $loc['start_date'] ?? null;
+                        $endDate    = $loc['end_date'] ?? null;
+                        $outdoorStatus    = $loc['outdoor_status'] ?? null;
+                        $siteLabel  = $typedSite ?: null;
+
+                        // Hydrate from billboard if ID is present
+                        if ($billboardId) {
+                            $bb = \DB::table('billboards as b')
+                                ->leftJoin('locations as l', 'l.id', '=', 'b.location_id')
+                                ->where('b.id', $billboardId)
+                                ->first(['b.site_number', 'b.size', 'b.gps_latitude', 'b.gps_longitude', 'l.name as area_name']);
+
+                            if ($bb) {
+                                $siteLabel = $siteLabel ?: ($bb->site_number ?? null);
+                                $size      = $size      ?: ($bb->size ?? null);
+                                $area      = $area      ?: ($bb->area_name ?? null);
+                                if (!$coords && $bb->gps_latitude !== null && $bb->gps_longitude !== null) {
+                                    $coords = $bb->gps_latitude . ',' . $bb->gps_longitude;
+                                }
+                            }
+                        }
+
+                        // Insert outdoor item
+                        $masterFile->outdoorItems()->create([
+                            'sub_product'      => $subProduct,
+                            'qty'              => 1, // or ($loc['qty'] ?? 1)
+                            'site'             => $siteLabel,
+                            'size'             => $size,
+                            'district_council' => $area,
+                            'coordinates'      => $coords,
+                            'remarks'          => $remarks,
+                            'start_date'       => $startDate ?: null,
+                            'end_date'         => $endDate   ?: null,
+                            'status'           => $outdoorStatus,
+                            'billboard_id'     => $billboardId,
+                        ]);
+                    }
+
+                    return; // Done with repeater mode
+                }
+
+                // ===== FALLBACK: Old textarea mode (bulk_placements) =====
+                $raw = trim((string)$request->input('bulk_placements', ''));
+                if ($isOutdoor && $raw !== '') {
+                    $lines = preg_split("/\r\n|\n|\r/", $raw);
+                    $defaultSub = $data['product'] ?? 'Outdoor';
+
+                    $items = [];
+                    foreach ($lines as $line) {
+                        $line = trim($line);
+                        if ($line === '') continue;
+
+                        $sep   = str_contains($line, '|') ? '|' : ',';
+                        $parts = array_map('trim', str_getcsv($line, $sep));
+
+                        $site        = $parts[0] ?? null;
+                        $size        = $parts[1] ?? null;
+                        $council     = $parts[2] ?? null;
+                        $coordinates = $parts[3] ?? null;
+                        $remarks     = $parts[4] ?? null;
+
+                        $sub = $defaultSub;
+
+                        if ($site && preg_match('/^(BB|TB|Bunting|Flyers|Star|Signages|Newspaper)\s*:\s*(.+)$/i', $site, $m)) {
+                            $sub  = $m[1];
+                            $site = $m[2];
+                        }
+
+                        if (
+                            $coordinates && $remarks
+                            && preg_match('/^-?\d+(\.\d+)?$/', $coordinates)
+                            && preg_match('/^-?\d+(\.\d+)?$/', $remarks)
+                        ) {
+                            $coordinates = $coordinates . ',' . $remarks;
+                            $remarks = null;
+                        }
+
+                        $items[] = [
+                            'sub_product'      => $sub,
+                            'qty'              => 1,
+                            'site'             => $site,
+                            'size'             => $size ?: null,
+                            'district_council' => $council ?: null,
+                            'coordinates'      => $coordinates ?: null,
+                            'remarks'          => $remarks ?: null,
+                        ];
+                    }
+
+                    if (!empty($items)) {
+                        $masterFile->outdoorItems()->createMany($items);
+                    }
+                }
+            });
+
+            return redirect()->route('dashboard')->with('success', 'Saved.');
+        } catch (\Exception $e) {
+            // If any queries fail, undo all changes
+            DB::rollback();
+
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
     }
-}
 
 
     private function guessCategoryFromProduct(string $product): string
@@ -2197,10 +2204,10 @@ $request->merge([
     }
 
 
-   public function exportOutdoorXlsx(Request $request): StreamedResponse
-{
-    // ---- STATE ABBR (same as page) ----
-    $stateAbbrSql = "
+    public function exportOutdoorXlsx(Request $request): StreamedResponse
+    {
+        // ---- STATE ABBR (same as page) ----
+        $stateAbbrSql = "
       CASE
         WHEN s.name='Kuala Lumpur'     THEN 'KL'
         WHEN s.name='Selangor'         THEN 'SEL'
@@ -2222,32 +2229,32 @@ $request->merge([
       END
     ";
 
-    // === Query: same source & columns as the page ===
-    $q = DB::table('master_files as mf')
-        ->join('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
-        ->leftJoin('billboards as bb', 'bb.id', '=', 'oi.billboard_id')
-        ->leftJoin('locations as loc', 'loc.id', '=', 'bb.location_id')
-        ->leftJoin('districts as d', 'd.id', '=', 'loc.district_id')
-        ->leftJoin('states as s', 's.id', '=', 'd.state_id')
-        ->select([
-            'mf.created_at',
-            DB::raw('mf.month as month'),
-            DB::raw('mf.company as company'),
-            DB::raw('mf.product as product'),
+        // === Query: same source & columns as the page ===
+        $q = DB::table('master_files as mf')
+            ->join('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
+            ->leftJoin('billboards as bb', 'bb.id', '=', 'oi.billboard_id')
+            ->leftJoin('locations as loc', 'loc.id', '=', 'bb.location_id')
+            ->leftJoin('districts as d', 'd.id', '=', 'loc.district_id')
+            ->leftJoin('states as s', 's.id', '=', 'd.state_id')
+            ->select([
+                'mf.created_at',
+                DB::raw('mf.month as month'),
+                DB::raw('mf.company as company'),
+                DB::raw('mf.product as product'),
 
-            // LOCATION & AREA from billboard chain
-            DB::raw("CONCAT_WS(' - ', NULLIF(bb.site_number,''), NULLIF(loc.name,'')) as location"),
-            DB::raw("CONCAT(($stateAbbrSql), ' - ', COALESCE(d.name,'')) as area"),
+                // LOCATION & AREA from billboard chain
+                DB::raw("CONCAT_WS(' - ', NULLIF(bb.site_number,''), NULLIF(loc.name,'')) as location"),
+                DB::raw("CONCAT(($stateAbbrSql), ' - ', COALESCE(d.name,'')) as area"),
 
-            DB::raw('mf.duration as duration'),
+                DB::raw('mf.duration as duration'),
 
-            // dates (raw; we’ll format below)
-            DB::raw('mf.date as start'),
-            DB::raw('mf.date_finish as end'),
+                // dates (raw; we’ll format below)
+                DB::raw('mf.date as start'),
+                DB::raw('mf.date_finish as end'),
 
-            // size + coordinates
-            DB::raw('oi.size as outdoor_size'),
-            DB::raw("
+                // size + coordinates
+                DB::raw('oi.size as outdoor_size'),
+                DB::raw("
                 CASE
                   WHEN bb.gps_latitude IS NOT NULL AND bb.gps_longitude IS NOT NULL
                     THEN CONCAT(bb.gps_latitude, ',', bb.gps_longitude)
@@ -2255,144 +2262,80 @@ $request->merge([
                 END as outdoor_coordinates
             "),
 
-            DB::raw('mf.remarks as remarks'),
-        ]);
+                DB::raw('mf.remarks as remarks'),
+            ]);
 
-    // --- filters (mirror the page) ---
-    $monthFilter = (int) $request->input('month', 0);
-    if ($monthFilter >= 1 && $monthFilter <= 12) {
-        $q->whereMonth('mf.date', $monthFilter);
-    }
-
-    if ($term = trim((string) $request->get('search', ''))) {
-        $like = "%{$term}%";
-        $q->where(function ($w) use ($like) {
-            $w->where('mf.company', 'LIKE', $like)
-              ->orWhere('mf.product', 'LIKE', $like)
-              ->orWhere('oi.size', 'LIKE', $like)
-              ->orWhere('bb.site_number', 'LIKE', $like)
-              ->orWhere('loc.name', 'LIKE', $like)
-              ->orWhere('d.name', 'LIKE', $like)
-              ->orWhere('s.name', 'LIKE', $like)
-              ->orWhere('mf.month', 'LIKE', $like)
-              ->orWhere('mf.remarks', 'LIKE', $like);
-        });
-    }
-
-    // MariaDB-safe ordering (same as page)
-    $rows = $q->orderByRaw('(mf.company IS NULL), LOWER(mf.company) ASC')
-              ->orderBy('mf.date', 'DESC')
-              ->cursor();
-
-    // === Column order & labels (match the page) ===
-    $colKeys = [
-        'created_at',
-        'month',
-        'company',
-        'product',
-        'location',
-        'area',
-        'duration',
-        'start',
-        'end',
-        'outdoor_size',
-        'outdoor_coordinates',
-        'remarks',
-    ];
-
-    $labels = [
-        'created_at'          => 'CREATED AT',
-        'month'               => 'MONTH',
-        'company'             => 'COMPANY',
-        'product'             => 'PRODUCT',
-        'location'            => 'LOCATION',
-        'area'                => 'AREA',
-        'duration'            => 'DURATION',
-        'start'               => 'DATE',
-        'end'                 => 'DATE FINISH',
-        'outdoor_size'        => 'OUTDOOR SIZE',
-        'outdoor_coordinates' => 'OUTDOOR COORDINATES',
-        'remarks'             => 'REMARKS',
-    ];
-
-    // === Build spreadsheet ===
-    $ss = new Spreadsheet();
-    $sheet = $ss->getActiveSheet();
-
-    $headings = array_map(fn($k) => $labels[$k], $colKeys);
-    $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headings));
-
-    // Title
-    $sheet->setCellValue('A1', 'OUTDOOR_EXPORT_' . now()->format('Y-m-d'));
-    $sheet->mergeCells("A1:{$lastCol}1");
-    $sheet->getStyle('A1')->applyFromArray([
-        'font' => ['bold' => true, 'size' => 14],
-        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-        'fill' => ['fillType' => Fill::FILL_SOLID, 'color' => ['rgb' => 'FFFF00']],
-        'borders' => [
-            'allBorders' => [
-                'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                'color' => ['rgb' => '000000']
-            ]
-        ]
-    ]);
-
-    // Headings
-    foreach ($headings as $i => $h) {
-        $sheet->setCellValue(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1) . '2', $h);
-    }
-    $sheet->getStyle("A2:{$lastCol}2")->applyFromArray([
-        'font' => ['bold' => true],
-        'fill' => ['fillType' => Fill::FILL_SOLID, 'color' => ['rgb' => 'EEEEEE']],
-        'borders' => [
-            'allBorders' => [
-                'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                'color' => ['rgb' => '000000']
-            ]
-        ]
-    ]);
-
-    // Date formatter (dd/mm/YYYY to match the page)
-    $fmtDate = function ($v) {
-        if ($v === null || $v === '') return '';
-        if ($v instanceof \DateTimeInterface) return $v->format('d/m/Y');
-        try {
-            return \Carbon\Carbon::parse($v)->format('d/m/Y');
-        } catch (\Throwable $e) {
-            return (string)$v;
+        // --- filters (mirror the page) ---
+        $monthFilter = (int) $request->input('month', 0);
+        if ($monthFilter >= 1 && $monthFilter <= 12) {
+            $q->whereMonth('mf.date', $monthFilter);
         }
-    };
 
-    // Data
-    $r = 3;
-    $dataStartRow = $r;
+        if ($term = trim((string) $request->get('search', ''))) {
+            $like = "%{$term}%";
+            $q->where(function ($w) use ($like) {
+                $w->where('mf.company', 'LIKE', $like)
+                    ->orWhere('mf.product', 'LIKE', $like)
+                    ->orWhere('oi.size', 'LIKE', $like)
+                    ->orWhere('bb.site_number', 'LIKE', $like)
+                    ->orWhere('loc.name', 'LIKE', $like)
+                    ->orWhere('d.name', 'LIKE', $like)
+                    ->orWhere('s.name', 'LIKE', $like)
+                    ->orWhere('mf.month', 'LIKE', $like)
+                    ->orWhere('mf.remarks', 'LIKE', $like);
+            });
+        }
 
-    foreach ($rows as $row) {
-        $dataRow = [
-            $fmtDate($row->created_at),
-            $row->month,
-            $row->company,
-            $row->product,
-            $row->location,
-            $row->area,
-            $row->duration,
-            $fmtDate($row->start),
-            $fmtDate($row->end),
-            $row->outdoor_size,
-            $row->outdoor_coordinates,
-            $row->remarks ?? '',
+        // MariaDB-safe ordering (same as page)
+        $rows = $q->orderByRaw('(mf.company IS NULL), LOWER(mf.company) ASC')
+            ->orderBy('mf.date', 'DESC')
+            ->cursor();
+
+        // === Column order & labels (match the page) ===
+        $colKeys = [
+            'created_at',
+            'month',
+            'company',
+            'product',
+            'location',
+            'area',
+            'duration',
+            'start',
+            'end',
+            'outdoor_size',
+            'outdoor_coordinates',
+            'remarks',
         ];
 
-        foreach ($dataRow as $i => $val) {
-            $sheet->setCellValue(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1) . $r, $val);
-        }
-        $r++;
-    }
+        $labels = [
+            'created_at'          => 'CREATED AT',
+            'month'               => 'MONTH',
+            'company'             => 'COMPANY',
+            'product'             => 'PRODUCT',
+            'location'            => 'LOCATION',
+            'area'                => 'AREA',
+            'duration'            => 'DURATION',
+            'start'               => 'DATE',
+            'end'                 => 'DATE FINISH',
+            'outdoor_size'        => 'OUTDOOR SIZE',
+            'outdoor_coordinates' => 'OUTDOOR COORDINATES',
+            'remarks'             => 'REMARKS',
+        ];
 
-    // Borders
-    if ($r > $dataStartRow) {
-        $dataEndRow = $r - 1;
-        $sheet->getStyle("A{$dataStartRow}:{$lastCol}{$dataEndRow}")->applyFromArray([
+        // === Build spreadsheet ===
+        $ss = new Spreadsheet();
+        $sheet = $ss->getActiveSheet();
+
+        $headings = array_map(fn($k) => $labels[$k], $colKeys);
+        $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headings));
+
+        // Title
+        $sheet->setCellValue('A1', 'OUTDOOR_EXPORT_' . now()->format('Y-m-d'));
+        $sheet->mergeCells("A1:{$lastCol}1");
+        $sheet->getStyle('A1')->applyFromArray([
+            'font' => ['bold' => true, 'size' => 14],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'color' => ['rgb' => 'FFFF00']],
             'borders' => [
                 'allBorders' => [
                     'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
@@ -2400,24 +2343,88 @@ $request->merge([
                 ]
             ]
         ]);
+
+        // Headings
+        foreach ($headings as $i => $h) {
+            $sheet->setCellValue(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1) . '2', $h);
+        }
+        $sheet->getStyle("A2:{$lastCol}2")->applyFromArray([
+            'font' => ['bold' => true],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'color' => ['rgb' => 'EEEEEE']],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000']
+                ]
+            ]
+        ]);
+
+        // Date formatter (dd/mm/YYYY to match the page)
+        $fmtDate = function ($v) {
+            if ($v === null || $v === '') return '';
+            if ($v instanceof \DateTimeInterface) return $v->format('d/m/Y');
+            try {
+                return \Carbon\Carbon::parse($v)->format('d/m/Y');
+            } catch (\Throwable $e) {
+                return (string)$v;
+            }
+        };
+
+        // Data
+        $r = 3;
+        $dataStartRow = $r;
+
+        foreach ($rows as $row) {
+            $dataRow = [
+                $fmtDate($row->created_at),
+                $row->month,
+                $row->company,
+                $row->product,
+                $row->location,
+                $row->area,
+                $row->duration,
+                $fmtDate($row->start),
+                $fmtDate($row->end),
+                $row->outdoor_size,
+                $row->outdoor_coordinates,
+                $row->remarks ?? '',
+            ];
+
+            foreach ($dataRow as $i => $val) {
+                $sheet->setCellValue(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1) . $r, $val);
+            }
+            $r++;
+        }
+
+        // Borders
+        if ($r > $dataStartRow) {
+            $dataEndRow = $r - 1;
+            $sheet->getStyle("A{$dataStartRow}:{$lastCol}{$dataEndRow}")->applyFromArray([
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                        'color' => ['rgb' => '000000']
+                    ]
+                ]
+            ]);
+        }
+
+        // Autosize, wrap remarks, freeze header
+        for ($i = 1; $i <= count($headings); $i++) {
+            $col = Coordinate::stringFromColumnIndex($i);
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+        $sheet->getStyle($lastCol . '3:' . $lastCol . $r)->getAlignment()->setWrapText(true);
+        $sheet->freezePane('A3');
+
+        $writer = new Xlsx($ss);
+        $filename = 'OUTDOOR_MASTER_CLIENTELE_' . now()->format('Ymd_His') . '.xlsx';
+
+        return response()->streamDownload(function () use ($writer, $ss) {
+            $writer->save('php://output');
+            $ss->disconnectWorksheets();
+        }, $filename, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
     }
-
-    // Autosize, wrap remarks, freeze header
-    for ($i = 1; $i <= count($headings); $i++) {
-        $col = Coordinate::stringFromColumnIndex($i);
-        $sheet->getColumnDimension($col)->setAutoSize(true);
-    }
-    $sheet->getStyle($lastCol . '3:' . $lastCol . $r)->getAlignment()->setWrapText(true);
-    $sheet->freezePane('A3');
-
-    $writer = new Xlsx($ss);
-    $filename = 'OUTDOOR_MASTER_CLIENTELE_' . now()->format('Ymd_His') . '.xlsx';
-
-    return response()->streamDownload(function () use ($writer, $ss) {
-        $writer->save('php://output');
-        $ss->disconnectWorksheets();
-    }, $filename, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
-}
 
 
 
@@ -2690,13 +2697,10 @@ $request->merge([
     // 🔧 ADDED from file 2: Timeline update method
     public function updateTimeline(Request $request, $id)
     {
-        Log::info('🚀 updateTimeline triggered', ['id' => $id]);
-        logger('disini');
-
         $file = MasterFile::with([
-    'outdoorItems.billboard.location',   // location has council_id, district_id, name
-    // optional, if your Location model has these relations:
-])->findOrFail($id);
+            'outdoorItems.billboard.location',   // location has council_id, district_id, name
+            // optional, if your Location model has these relations:
+        ])->findOrFail($id);
 
         $data = [];
 
@@ -2810,20 +2814,20 @@ $request->merge([
 
 
     public function updateOutdoorItemStatus(Request $request, OutdoorItem $item)
-{
-    $request->validate([
-        'status' => 'required|in:pending_payment,pending_install,ongoing,completed,dismantle',
-    ]);
+    {
+        $request->validate([
+            'status' => 'required|in:pending_payment,pending_install,ongoing,completed,dismantle',
+        ]);
 
-    $item->status = $request->status;
-    $item->save();
+        $item->status = $request->status;
+        $item->save();
 
-    return response()->json([
-        'ok' => true,
-        'id' => $item->id,
-        'status' => $item->status,
-    ]);
-}
+        return response()->json([
+            'ok' => true,
+            'id' => $item->id,
+            'status' => $item->status,
+        ]);
+    }
 
 
 

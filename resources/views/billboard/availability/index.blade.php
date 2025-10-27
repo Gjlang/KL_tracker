@@ -1,14 +1,17 @@
 @extends('layouts.app')
 
 @section('title')
-    <title>BGOC Outdoor System - Billboard Availability</title>
-@endsection('title')
+    Outdoor Availability
+@endsection
 
 @section('sidebar')
     @include('layouts.app')
 @endsection
 
 @section('content')
+    <!-- ... other head content ... -->
+    <title>@yield('title', 'Default Title')</title> <!-- Example -->
+
     <style>
         /* Force pagination container into horizontal row */
         #billboard_availability_table_paginate {
@@ -175,8 +178,6 @@
             @apply px-6 py-4 border-t border-gray-200 flex justify-end gap-3;
         }
     </style>
-
-
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
@@ -1950,8 +1951,8 @@
                             <span class="location-short">${shortText}</span>
                             ${data.length > 30 
                                 ? `<a href="javascript:void(0)" class="read-more text-blue-500 ml-2" 
-                                                    data-full="${encodeURIComponent(data)}"
-                                                    data-short="${encodeURIComponent(shortText)}">[+]</a>` 
+                                                            data-full="${encodeURIComponent(data)}"
+                                                            data-short="${encodeURIComponent(shortText)}">[+]</a>` 
                                 : "" }
                         `;
                             }
@@ -1969,8 +1970,8 @@
                             <span class="location-short">${shortText}</span>
                             ${data.length > 30 
                                 ? `<a href="javascript:void(0)" class="read-more text-blue-500 ml-2" 
-                                                    data-full="${encodeURIComponent(data)}"
-                                                    data-short="${encodeURIComponent(shortText)}">[+]</a>` 
+                                                            data-full="${encodeURIComponent(data)}"
+                                                            data-short="${encodeURIComponent(shortText)}">[+]</a>` 
                                 : "" }
                         `;
                             }
