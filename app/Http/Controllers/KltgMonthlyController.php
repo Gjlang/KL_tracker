@@ -334,24 +334,32 @@ if ($typ === 'STATUS' && empty($map[$mf][$yr][$mo][$cat][$typ]['text']) && !empt
         ];
     })->values();
 
-    // 5) Filters + view
-    $companies = MasterFile::whereNotNull('company')->distinct()->orderBy('company')->pluck('company');
-    $products  = MasterFile::whereNotNull('product')->distinct()->orderBy('product')->pluck('product');
-    $statuses  = collect(['Pending','Ongoing','Completed']);
+// 5) Filters + view
+$companies = MasterFile::whereNotNull('company')->distinct()->orderBy('company')->pluck('company');
+$products  = MasterFile::whereNotNull('product')->distinct()->orderBy('product')->pluck('product');
+$statuses  = collect(['Pending','Ongoing','Completed']);
 
-    return view('dashboard.kltg', [
-        'year'        => $activeYear,
-        'activeYear'  => $activeYear,
-        'rows'        => $rows,
-        'categories'  => $categories,
-        'companies'   => $companies,
-        'products'    => $products,
-        'statuses'    => $statuses,
-        'selected'    => ['status' => '', 'company' => '', 'product' => ''],
-        'detailsMap'  => $map,
-        'hasAnyForYear' => $this->hasAnyForYear($activeYear),
-        'bestSourceYear' => $this->findLatestSourceYear($activeYear),
-    ]);
+// Get companies from the actual filtered rows (KLTG data for this year)
+$outdoorCompanies = $rows->pluck('company')
+    ->filter()
+    ->unique()
+    ->sort()
+    ->values();
+
+return view('dashboard.kltg', [
+    'year'        => $activeYear,
+    'activeYear'  => $activeYear,
+    'rows'        => $rows,
+    'categories'  => $categories,
+    'companies'   => $companies,
+    'outdoorCompanies' => $outdoorCompanies,
+    'products'    => $products,
+    'statuses'    => $statuses,
+    'selected'    => ['status' => '', 'company' => '', 'product' => ''],
+    'detailsMap'  => $map,
+    'hasAnyForYear' => $this->hasAnyForYear($activeYear),
+    'bestSourceYear' => $this->findLatestSourceYear($activeYear),
+]);
 }
 
 public function cloneYear(Request $request)

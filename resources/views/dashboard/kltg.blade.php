@@ -114,6 +114,21 @@
                             </select>
                         </div>
 
+                        <div class="space-y-2">
+                            <label for="filter-company" class="header-label">Company</label>
+                            @php $cSel = (string)request('filter_company', ''); @endphp
+                            <select id="filter-company" class="form-input">
+                                <option value="" {{ $cSel === '' ? 'selected' : '' }}>All Companies</option>
+                                @if(isset($outdoorCompanies))
+                                    @foreach ($outdoorCompanies as $company)
+                                        <option value="{{ $company }}" {{ $cSel === $company ? 'selected' : '' }}>
+                                            {{ $company }}
+                                        </option>
+                                    @endforeach
+                                @endif
+                            </select>
+                        </div>
+
                         {{-- Server-side Year Switch (authoritative) --}}
                         <form method="GET" action="{{ route('kltg.index') }}" class="flex items-center gap-2">
                             <label for="active-year" class="text-sm text-neutral-600">Year</label>
@@ -644,12 +659,12 @@ $rowYear = (int) ($r['year'] ?? ($year ?? date('Y')));
 
         // Filter functionality
         document.addEventListener('DOMContentLoaded', function() {
-            const monthFilter = document.getElementById('filter-month');
-            const yearFilter = document.getElementById('filter-year');
-            const clearFiltersBtn = document.getElementById('clear-filters');
-            const filterSummary = document.getElementById('filter-summary');
-            const activeFiltersChips = document.getElementById('active-filters-chips');
-
+    const monthFilter = document.getElementById('filter-month');
+    const yearFilter = document.getElementById('filter-year');
+    const companyFilter = document.getElementById('filter-company');
+    const clearFiltersBtn = document.getElementById('clear-filters');
+    const filterSummary = document.getElementById('filter-summary');
+    const activeFiltersChips = document.getElementById('active-filters-chips');
             function createChip(label, onRemove) {
                 const chip = document.createElement('div');
                 chip.className = 'chip';
@@ -661,62 +676,74 @@ $rowYear = (int) ($r['year'] ?? ($year ?? date('Y')));
             }
 
             function updateFilterSummary() {
-                if (!filterSummary || !activeFiltersChips) return;
+    if (!filterSummary || !activeFiltersChips) return;
 
-                activeFiltersChips.innerHTML = '';
-                const hasFilters = (monthFilter?.value || yearFilter?.value);
+    activeFiltersChips.innerHTML = '';
+    const hasFilters = (monthFilter?.value || yearFilter?.value || companyFilter?.value);
 
-                if (hasFilters) {
-                    filterSummary.classList.remove('hidden');
+    if (hasFilters) {
+        filterSummary.classList.remove('hidden');
 
-                    if (monthFilter?.value) {
-                        const chip = createChip(`MONTH: ${monthFilter.value.toUpperCase()}`,
-                            `document.getElementById('filter-month').value = ''; filterTable();`);
-                        activeFiltersChips.appendChild(chip);
-                    }
+        if (monthFilter?.value) {
+            const chip = createChip(`MONTH: ${monthFilter.value.toUpperCase()}`,
+                `document.getElementById('filter-month').value = ''; filterTable();`);
+            activeFiltersChips.appendChild(chip);
+        }
 
-                    if (yearFilter?.value) {
-                        const chip = createChip(`YEAR: ${yearFilter.value}`,
-                            `document.getElementById('filter-year').value = ''; filterTable();`);
-                        activeFiltersChips.appendChild(chip);
-                    }
-                } else {
-                    filterSummary.classList.add('hidden');
-                }
-            }
+        if (yearFilter?.value) {
+            const chip = createChip(`YEAR: ${yearFilter.value}`,
+                `document.getElementById('filter-year').value = ''; filterTable();`);
+            activeFiltersChips.appendChild(chip);
+        }
 
-            function filterTable() {
-                const rows = document.querySelectorAll('tbody tr.table-row');
-                const mVal = (monthFilter?.value || '').trim();
-                const yVal = (yearFilter?.value || '').trim();
+        if (companyFilter?.value) {
+            const chip = createChip(`COMPANY: ${companyFilter.value.toUpperCase()}`,
+                `document.getElementById('filter-company').value = ''; filterTable();`);
+            activeFiltersChips.appendChild(chip);
+        }
+    } else {
+        filterSummary.classList.add('hidden');
+    }
+}
 
-                let visibleCount = 0;
+           function filterTable() {
+    const rows = document.querySelectorAll('tbody tr.table-row');
+    const mVal = (monthFilter?.value || '').trim();
+    const yVal = (yearFilter?.value || '').trim();
+    const cVal = (companyFilter?.value || '').trim().toLowerCase();
 
-                rows.forEach(row => {
-                    const rowYear = (row.dataset.year || '').trim();
-                    const rowMonth = (row.dataset.month || '').trim();
+    let visibleCount = 0;
 
-                    const yearOK = !yVal || rowYear === yVal;
-                    const monthOK = !mVal || rowMonth === mVal;
+    rows.forEach(row => {
+        const rowYear = (row.dataset.year || '').trim();
+        const rowMonth = (row.dataset.month || '').trim();
+        const rowCompany = (row.dataset.company || '').trim().toLowerCase();
 
-                    const show = yearOK && monthOK;
-                    row.style.display = show ? '' : 'none';
-                    if (show) visibleCount++;
-                });
+        const yearOK = !yVal || rowYear === yVal;
+        const monthOK = !mVal || rowMonth === mVal;
+        const companyOK = !cVal || rowCompany === cVal;
 
-                updateFilterSummary();
-            }
+        const show = yearOK && monthOK && companyOK;
+        row.style.display = show ? '' : 'none';
+        if (show) visibleCount++;
+    });
+
+    updateFilterSummary();
+}
 
             // Event listeners
-            if (monthFilter) monthFilter.addEventListener('change', filterTable);
-            if (yearFilter) yearFilter.addEventListener('change', filterTable);
-            if (clearFiltersBtn) {
-                clearFiltersBtn.addEventListener('click', () => {
-                    if (monthFilter) monthFilter.value = '';
-                    if (yearFilter) yearFilter.value = '';
-                    filterTable();
-                });
-            }
+            // Event listeners
+if (monthFilter) monthFilter.addEventListener('change', filterTable);
+if (yearFilter) yearFilter.addEventListener('change', filterTable);
+if (companyFilter) companyFilter.addEventListener('change', filterTable);
+if (clearFiltersBtn) {
+    clearFiltersBtn.addEventListener('click', () => {
+        if (monthFilter) monthFilter.value = '';
+        if (yearFilter) yearFilter.value = '';
+        if (companyFilter) companyFilter.value = '';
+        filterTable();
+    });
+}
 
             // Initial filter run
             filterTable();
