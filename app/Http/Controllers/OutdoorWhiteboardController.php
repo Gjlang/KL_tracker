@@ -58,21 +58,16 @@ class OutdoorWhiteboardController extends Controller
                 )
                     ->with([
                         'billboard' => function ($b) {
-                            // IMPORTANT: only select columns that truly exist
                             $b->select(
                                 'billboards.id',
                                 'billboards.location_id',
-                                'billboards.site_number'   // e.g., TB-SEL-0001-MPKJ-A
+                                'billboards.site_number'
                             )
-                                ->with([
-                                    'location' => function ($l) {
-                                        // keep it lean; we only need district_id here
-                                        $l->select('locations.id', 'locations.district_id');
-                                    },
-                                    'location.district' => function ($d) {
-                                        $d->select('districts.id', 'districts.name'); // e.g., Klang
-                                    },
-                                ]);
+                            ->with([
+                                'location' => function ($l) {
+                                    $l->select('locations.id', 'locations.name'); // ← Changed: now selecting name instead of district_id
+                                }
+                            ]);
                         }
                     ])
                     ->when($sub !== '', fn($qq) => $qq->where('outdoor_items.sub_product', $sub))
@@ -206,54 +201,55 @@ class OutdoorWhiteboardController extends Controller
 
 
     public function exportLedgerXlsx(): StreamedResponse
-    {
-        // === 1) DATA: active only, latest per outdoor_item ===
-        $latestActiveWB = DB::table('outdoor_whiteboards as w')
-            ->select('w.*')
-            ->join(DB::raw('(
+{
+    // === 1) DATA: active only, latest per outdoor_item ===
+    $latestActiveWB = DB::table('outdoor_whiteboards as w')
+        ->select('w.*')
+        ->join(DB::raw('(
             SELECT outdoor_item_id, MAX(updated_at) AS maxu
             FROM outdoor_whiteboards
             WHERE completed_at IS NULL
             GROUP BY outdoor_item_id
         ) as x'), function ($j) {
-                $j->on('x.outdoor_item_id', '=', 'w.outdoor_item_id')
-                    ->on('x.maxu', '=', 'w.updated_at');
-            });
+            $j->on('x.outdoor_item_id', '=', 'w.outdoor_item_id')
+                ->on('x.maxu', '=', 'w.updated_at');
+        });
 
-        $rows = DB::table('outdoor_items as oi')
-            ->join('master_files as mf', 'mf.id', '=', 'oi.master_file_id')
-            ->leftJoinSub($latestActiveWB, 'wb', function ($j) {
-                $j->on('wb.outdoor_item_id', '=', 'oi.id');
-            })
-            ->whereNull('wb.completed_at') // ACTIVE ONLY
-            ->orderBy('mf.product')
-            ->orderBy('mf.company')
-            ->orderBy('oi.site')
-            ->get([
-                'oi.id as outdoor_item_id',
-                'mf.product',
-                'mf.company',
-                DB::raw('COALESCE(oi.site, mf.location) as location'),
+    $rows = DB::table('outdoor_items as oi')
+        ->join('master_files as mf', 'mf.id', '=', 'oi.master_file_id')
+        ->leftJoin('billboards as bb', 'bb.id', '=', 'oi.billboard_id')
+        ->leftJoin('locations as loc', 'loc.id', '=', 'bb.location_id')
+        ->leftJoinSub($latestActiveWB, 'wb', function ($j) {
+            $j->on('wb.outdoor_item_id', '=', 'oi.id');
+        })
+        ->whereNull('wb.completed_at') // ACTIVE ONLY
+        ->orderBy('mf.product')
+        ->orderBy('mf.company')
+        ->orderBy('loc.name')
+        ->get([
+            'oi.id as outdoor_item_id',
+            'mf.product',
+            'mf.company',
 
-                // duration sources from master_files
-                DB::raw('mf.duration as mf_duration'),
-                DB::raw('mf.date as mf_date'),
-                DB::raw('mf.date_finish as mf_date_finish'),
+            // CHANGED: Now using locations.name instead of oi.site
+            'loc.name as location',
 
-                // show from master_files
-                DB::raw('mf.date as installation'),
-                DB::raw('mf.date_finish as dismantle'),
+            // duration sources from master_files
+            DB::raw('mf.duration as mf_duration'),
+            DB::raw('mf.date as mf_date'),
+            DB::raw('mf.date_finish as mf_date_finish'),
 
-                // from outdoor_whiteboards (latest active wb)
-                DB::raw('COALESCE(wb.created_at, oi.created_at, mf.created_at) as created'),
+            // show from master_files
+            DB::raw('mf.date as installation'),
+            DB::raw('mf.date_finish as dismantle'),
 
-                // INV Number => client_text
-                DB::raw('wb.client_text as inv_number'),
+            // from outdoor_whiteboards (latest active wb)
+            DB::raw('COALESCE(wb.created_at, oi.created_at, mf.created_at) as created'),
 
-                // Purchase Order (note/date)
-                DB::raw('wb.po_text as po_text'),
-                DB::raw('wb.po_date as po_date'),
+            // INV Number => client_text
+            DB::raw('wb.client_text as inv_number'),
 
+<<<<<<< Updated upstream
                 // Installation (date)
                 DB::raw('wb.install_date as install_date'),
 
@@ -263,192 +259,200 @@ class OutdoorWhiteboardController extends Controller
                 // Supplier (note/date)
                 DB::raw('wb.contractor_id as contractor_id'),
                 DB::raw('wb.supplier_date as supplier_date'),
+=======
+            // Purchase Order (note/date)
+            DB::raw('wb.po_text as po_text'),
+            DB::raw('wb.po_date as po_date'),
+>>>>>>> Stashed changes
 
-                // Storage (note/date)
-                DB::raw('wb.storage_text as storage_text'),
-                DB::raw('wb.storage_date as storage_date'),
-            ]);
+            // Supplier (note/date)
+            DB::raw('wb.contractor_id as contractor_id'),
+            DB::raw('wb.supplier_date as supplier_date'),
 
-        // Group by product
-        $byProduct = collect($rows)->groupBy(fn($r) => (string)($r->product ?? '—'));
-
-        // === 2) SHEET SETUP ===
-        $headers = [
-            'No.',
-            'Created',
-            'INV Number',
-            'Purchase Order',      // SINGLE kolom (note + date ditumpuk)
-            'Product',
-            'Company',
-            'Location',
-            'Duration',
-            'Installation',
-            'Dismantle',
-            'Supplier',            // SINGLE kolom (note + date ditumpuk)
-            'Storage',             // SINGLE kolom (note + date ditumpuk)
-        ];
-        $lastCol = 'L'; // 12 cols (A..L)
-
-        $ss = new Spreadsheet();
-        $sheet = $ss->getActiveSheet();
-        $sheet->setTitle('Outdoor Whiteboard');
-        $ss->getDefaultStyle()->getFont()->setName('Calibri')->setSize(11);
-
-        // Column widths
-        $sheet->getColumnDimension('A')->setWidth(5);
-        $sheet->getColumnDimension('B')->setWidth(12);
-        $sheet->getColumnDimension('C')->setWidth(18);
-        $sheet->getColumnDimension('D')->setWidth(20); // Purchase Order (stacked)
-        $sheet->getColumnDimension('E')->setWidth(12);
-        $sheet->getColumnDimension('F')->setWidth(22);
-        $sheet->getColumnDimension('G')->setWidth(22);
-        $sheet->getColumnDimension('H')->setWidth(12);
-        $sheet->getColumnDimension('I')->setWidth(12);
-        $sheet->getColumnDimension('J')->setWidth(12);
-        $sheet->getColumnDimension('K')->setWidth(20); // Supplier (stacked)
-        $sheet->getColumnDimension('L')->setWidth(20); // Storage (stacked)
-
-        // Wrap untuk kolom yang ditumpuk (NOTE + DATE)
-        foreach (['D', 'K', 'L'] as $col) {
-            $sheet->getStyle("{$col}:{$col}")->getAlignment()->setWrapText(true);
-        }
-
-        // Title row
-        $sheet->mergeCells('A1:L1');
-        $sheet->setCellValue('A1', 'TITLE (OUTDOOR WHITEBOARD)');
-        $sheet->getStyle('A1:L1')->applyFromArray([
-            'font' => ['bold' => true, 'size' => 14],
-            'alignment' => [
-                'horizontal' => Alignment::HORIZONTAL_CENTER,
-                'vertical' => Alignment::VERTICAL_CENTER,
-            ],
-            'fill' => [
-                'fillType' => Fill::FILL_SOLID,
-                'startColor' => ['rgb' => 'FFFF00'],
-            ],
+            // Storage (note/date)
+            DB::raw('wb.storage_text as storage_text'),
+            DB::raw('wb.storage_date as storage_date'),
         ]);
 
-        $rowIdx = 3; // leave a blank row between title and first section
+    // Group by product
+    $byProduct = collect($rows)->groupBy(fn($r) => (string)($r->product ?? '—'));
 
-        // === 3) WRITE SECTIONS ===
-        foreach ($byProduct as $product => $items) {
-            // Section bar
-            $sheet->mergeCells("A{$rowIdx}:{$lastCol}{$rowIdx}");
-            $sheet->setCellValue("A{$rowIdx}", "Product: {$product}");
-            $sheet->getStyle("A{$rowIdx}:{$lastCol}{$rowIdx}")->applyFromArray([
-                'fill' => [
-                    'fillType' => Fill::FILL_SOLID,
-                    'startColor' => ['rgb' => '92D050'],
-                ],
-                'font' => ['bold' => true],
-                'alignment' => [
-                    'vertical' => Alignment::VERTICAL_CENTER,
-                    'horizontal' => Alignment::HORIZONTAL_LEFT,
-                ],
-            ]);
-            $rowIdx++;
+    // === 2) SHEET SETUP ===
+    $headers = [
+        'No.',
+        'Created',
+        'INV Number',
+        'Purchase Order',      // SINGLE kolom (note + date ditumpuk)
+        'Product',
+        'Company',
+        'Location',
+        'Duration',
+        'Installation',
+        'Dismantle',
+        'Supplier',            // SINGLE kolom (note + date ditumpuk)
+        'Storage',             // SINGLE kolom (note + date ditumpuk)
+    ];
+    $lastCol = 'L'; // 12 cols (A..L)
 
-            // Table header
-            $col = 'A';
-            foreach ($headers as $h) {
-                $sheet->setCellValue("{$col}{$rowIdx}", $h);
-                $col++;
-            }
-            $sheet->getStyle("A{$rowIdx}:{$lastCol}{$rowIdx}")->applyFromArray([
-                'font' => ['bold' => true],
-                'fill' => [
-                    'fillType' => Fill::FILL_SOLID,
-                    'startColor' => ['rgb' => 'FFF2CC'],
+    $ss = new Spreadsheet();
+    $sheet = $ss->getActiveSheet();
+    $sheet->setTitle('Outdoor Whiteboard');
+    $ss->getDefaultStyle()->getFont()->setName('Calibri')->setSize(11);
+
+    // Column widths
+    $sheet->getColumnDimension('A')->setWidth(5);
+    $sheet->getColumnDimension('B')->setWidth(12);
+    $sheet->getColumnDimension('C')->setWidth(18);
+    $sheet->getColumnDimension('D')->setWidth(20); // Purchase Order (stacked)
+    $sheet->getColumnDimension('E')->setWidth(12);
+    $sheet->getColumnDimension('F')->setWidth(22);
+    $sheet->getColumnDimension('G')->setWidth(22);
+    $sheet->getColumnDimension('H')->setWidth(12);
+    $sheet->getColumnDimension('I')->setWidth(12);
+    $sheet->getColumnDimension('J')->setWidth(12);
+    $sheet->getColumnDimension('K')->setWidth(20); // Supplier (stacked)
+    $sheet->getColumnDimension('L')->setWidth(20); // Storage (stacked)
+
+    // Wrap untuk kolom yang ditumpuk (NOTE + DATE)
+    foreach (['D', 'K', 'L'] as $col) {
+        $sheet->getStyle("{$col}:{$col}")->getAlignment()->setWrapText(true);
+    }
+
+    // Title row
+    $sheet->mergeCells('A1:L1');
+    $sheet->setCellValue('A1', 'TITLE (OUTDOOR WHITEBOARD)');
+    $sheet->getStyle('A1:L1')->applyFromArray([
+        'font' => ['bold' => true, 'size' => 14],
+        'alignment' => [
+            'horizontal' => Alignment::HORIZONTAL_CENTER,
+            'vertical' => Alignment::VERTICAL_CENTER,
+        ],
+        'fill' => [
+            'fillType' => Fill::FILL_SOLID,
+            'startColor' => ['rgb' => 'FFFF00'],
+        ],
+    ]);
+
+    $rowIdx = 3; // leave a blank row between title and first section
+
+    // === 3) WRITE SECTIONS ===
+    foreach ($byProduct as $product => $items) {
+        // Section bar
+        $sheet->mergeCells("A{$rowIdx}:{$lastCol}{$rowIdx}");
+        $sheet->setCellValue("A{$rowIdx}", "Product: {$product}");
+        $sheet->getStyle("A{$rowIdx}:{$lastCol}{$rowIdx}")->applyFromArray([
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '92D050'],
+            ],
+            'font' => ['bold' => true],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+                'horizontal' => Alignment::HORIZONTAL_LEFT,
+            ],
+        ]);
+        $rowIdx++;
+
+        // Table header
+        $col = 'A';
+        foreach ($headers as $h) {
+            $sheet->setCellValue("{$col}{$rowIdx}", $h);
+            $col++;
+        }
+        $sheet->getStyle("A{$rowIdx}:{$lastCol}{$rowIdx}")->applyFromArray([
+            'font' => ['bold' => true],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'FFF2CC'],
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_MEDIUM,
+                    'color' => ['rgb' => '000000'],
                 ],
+            ],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+                'horizontal' => Alignment::HORIZONTAL_LEFT,
+            ],
+        ]);
+        $rowIdx++;
+
+        // Data rows
+        $i = 1;
+        foreach ($items as $r) {
+            $durationText = $this->durationText(
+                $r->mf_duration ?? null,
+                $r->mf_date ?? null,
+                $r->mf_date_finish ?? null
+            );
+
+            $sheet->fromArray([[
+                $i,
+                $this->fmtDate($r->created ?? null),
+                $this->blank($r->inv_number ?? null),
+
+                // Purchase Order (NOTE + DATE ditumpuk dalam 1 sel)
+                ($r->po_text || $r->po_date)
+                    ? trim(($r->po_text ?? '')
+                            . ($r->po_date ? "\n" . $this->fmtDate($r->po_date) : '')
+                    )
+                    : '',
+
+                $this->blank($r->product ?? null),
+                $this->blank($r->company ?? null),
+                $this->blank($r->location ?? null), // Now this will be locations.name
+                $durationText,
+                $this->fmtDate($r->installation ?? null),
+                $this->fmtDate($r->dismantle ?? null),
+
+                // Supplier (NOTE + DATE ditumpuk dalam 1 sel)
+                ($r->contractor_id || $r->supplier_date)
+                    ? trim(($r->contractor_id ?? '')
+                            . ($r->supplier_date ? "\n" . $this->fmtDate($r->supplier_date) : '')
+                    )
+                    : '',
+
+                // Storage (NOTE + DATE ditumpuk dalam 1 sel)
+                ($r->storage_text || $r->storage_date)
+                    ? trim(($r->storage_text ?? '')
+                            . ($r->storage_date ? "\n" . $this->fmtDate($r->storage_date) : '')
+                    )
+                    : '',
+            ]], null, "A{$rowIdx}");
+
+            // Borders yang lebih tegas + vertical top
+            $sheet->getStyle("A{$rowIdx}:{$lastCol}{$rowIdx}")->applyFromArray([
                 'borders' => [
                     'allBorders' => [
                         'borderStyle' => Border::BORDER_MEDIUM,
                         'color' => ['rgb' => '000000'],
                     ],
                 ],
-                'alignment' => [
-                    'vertical' => Alignment::VERTICAL_CENTER,
-                    'horizontal' => Alignment::HORIZONTAL_LEFT,
-                ],
+                'alignment' => ['vertical' => Alignment::VERTICAL_TOP],
             ]);
-            $rowIdx++;
 
-            // Data rows
-            $i = 1;
-            foreach ($items as $r) {
-                $durationText = $this->durationText(
-                    $r->mf_duration ?? null,
-                    $r->mf_date ?? null,
-                    $r->mf_date_finish ?? null
-                );
-
-                $sheet->fromArray([[
-                    $i,
-                    $this->fmtDate($r->created ?? null),
-                    $this->blank($r->inv_number ?? null),
-
-                    // Purchase Order (NOTE + DATE ditumpuk dalam 1 sel)
-                    ($r->po_text || $r->po_date)
-                        ? trim(($r->po_text ?? '')
-                                . ($r->po_date ? "\n" . $this->fmtDate($r->po_date) : '')
-                        )
-                        : '',
-
-                    $this->blank($r->product ?? null),
-                    $this->blank($r->company ?? null),
-                    $this->blank($r->location ?? null),
-                    $durationText,
-                    $this->fmtDate($r->installation ?? null),
-                    $this->fmtDate($r->dismantle ?? null),
-
-                    // Supplier (NOTE + DATE ditumpuk dalam 1 sel)
-                    ($r->contractor_id || $r->contractor_id)
-                        ? trim(($r->contractor_id ?? '')
-                                . ($r->supplier_date ? "\n" . $this->fmtDate($r->supplier_date) : '')
-                        )
-                        : '',
-
-                    // Storage (NOTE + DATE ditumpuk dalam 1 sel)
-                    ($r->storage_text || $r->storage_date)
-                        ? trim(($r->storage_text ?? '')
-                                . ($r->storage_date ? "\n" . $this->fmtDate($r->storage_date) : '')
-                        )
-                        : '',
-                ]], null, "A{$rowIdx}");
-
-                // Borders yang lebih tegas + vertical top
-                $sheet->getStyle("A{$rowIdx}:{$lastCol}{$rowIdx}")->applyFromArray([
-                    'borders' => [
-                        'allBorders' => [
-                            'borderStyle' => Border::BORDER_MEDIUM,
-                            'color' => ['rgb' => '000000'],
-                        ],
-                    ],
-                    'alignment' => ['vertical' => Alignment::VERTICAL_TOP],
-                ]);
-
-                $i++;
-                $rowIdx++;
-            }
-
-            // Spacer
+            $i++;
             $rowIdx++;
         }
 
-        // Freeze header
-        $sheet->freezePane('A3');
-
-        // === 4) Stream XLSX download ===
-        $fileName = 'outdoor_whiteboard_' . now()->format('Ymd_His') . '.xlsx';
-
-        return response()->streamDownload(function () use ($ss) {
-            $writer = new Xlsx($ss);
-            $writer->save('php://output');
-        }, $fileName, [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        ]);
+        // Spacer
+        $rowIdx++;
     }
 
+    // Freeze header
+    $sheet->freezePane('A3');
+
+    // === 4) Stream XLSX download ===
+    $fileName = 'outdoor_whiteboard_' . now()->format('Ymd_His') . '.xlsx';
+
+    return response()->streamDownload(function () use ($ss) {
+        $writer = new Xlsx($ss);
+        $writer->save('php://output');
+    }, $fileName, [
+        'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ]);
+}
     // put this below fmtDate() / stack(), but still inside the class
     private function durationText($raw, $startDate, $endDate): string
     {

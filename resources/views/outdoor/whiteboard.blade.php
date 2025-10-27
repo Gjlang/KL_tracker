@@ -241,42 +241,10 @@
                                                 </td>
 
                                                 @php
-                                                    // Sources:
-                                                    // - Code:      billboards.site_number
-                                                    // - Road:      outdoor_items.site
-                                                    // - District:  billboards.location.district.name
-
-                                                    $bb = $item->billboard ?? null;
-                                                    $siteCode = $bb?->site_number ?? '';
-                                                    $roadRaw = $item->site ?? '';
-                                                    $district = $bb?->location?->district?->name ?? '';
-
-                                                    // Normalize for comparison: lowercase, remove non-alphanumerics
-                                                    $normalize = function ($s) {
-                                                        return preg_replace(
-                                                            '/[^a-z0-9]/i',
-                                                            '',
-                                                            strtolower((string) $s),
-                                                        );
-                                                    };
-
-                                                    $isDuplicate =
-                                                        $normalize($siteCode) !== '' &&
-                                                        $normalize($siteCode) === $normalize($roadRaw);
-
-                                                    // If duplicate, drop the road name
-                                                    $parts = $isDuplicate
-                                                        ? array_filter(
-                                                            [$siteCode, $district],
-                                                            fn($x) => $x !== '' && $x !== '-',
-                                                        )
-                                                        : array_filter(
-                                                            [$siteCode, $roadRaw, $district],
-                                                            fn($x) => $x !== '' && $x !== '-',
-                                                        );
-
-                                                    $locationDisplay = $parts ? implode(' - ', $parts) : '-';
-                                                @endphp
+    // Source: locations.name only
+    $bb = $item->billboard ?? null;
+    $locationDisplay = $bb?->location?->name ?? '-';
+@endphp
 
                                                 <td class="px-4 py-3 text-sm column-data" data-column="7">
                                                     <div class="truncate max-w-[360px]" title="{{ $locationDisplay }}">
