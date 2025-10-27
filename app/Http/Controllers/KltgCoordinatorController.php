@@ -30,8 +30,8 @@ class KltgCoordinatorController extends Controller
     {
         return match (strtolower(trim($tab))) {
             'print'   => 'KLTG',
-            'video'   => 'Video',
-            'article' => 'Article',
+            'video'   => 'VIDEO',
+            'article' => 'ARTICLE',
             'lb'      => 'LB',
             'em'      => 'EM',
             default   => 'KLTG',
@@ -169,50 +169,79 @@ public function index(Request $request)
         $periodLabel = 'All Months (All Years)';
     }
 
-    // ========= Auto-create slot kosong dari kltg_monthly_details (only for month_year) =========
-    if ($scope === 'month_year') {
-        $candidates = DB::table('kltg_monthly_details as md')
-            ->select(
-                'md.master_file_id',
-                DB::raw("UPPER(TRIM(md.category)) as subcategory"),
-                DB::raw((int)$year . ' as year'),
-                DB::raw((int)$month . ' as month')
-            )
-            ->whereRaw('TRIM(UPPER(md.category)) = ?', [strtoupper($storedSub)])
-            ->where(function($q) use ($year) {
-                $q->where('md.year', (int)$year)->orWhereYear('md.value_date', (int)$year);
-            })
-            ->where(function($q) use ($month) {
-                $monthName = strtolower(Carbon::create(null, $month, 1)->format('F'));
-                $q->where('md.month', (int)$month)
-                  ->orWhereRaw('CAST(md.month AS UNSIGNED) = ?', [(int)$month])
-                  ->orWhereRaw('LOWER(md.month) = ?', [$monthName])
-                  ->orWhereMonth('md.value_date', (int)$month);
-            })
-            ->where(function($q) {
-                $q->whereNotNull('md.value_date')
-                  ->orWhere(function($qq) {
-                      $qq->whereNotNull('md.month')
-                         ->whereRaw("TRIM(md.month) <> ''")
-                         ->whereRaw("TRIM(md.month) <> '0'")
-                         ->whereRaw("TRIM(md.month) <> '00'");
-                  });
-            })
-            ->groupBy('md.master_file_id', 'md.category')
-            ->get();
+  // ========= Auto-create slot kosong dari kltg_monthly_details (untuk semua scope) =========
+$candidates = DB::table('kltg_monthly_details as md')
+    ->select(
+        'md.master_file_id',
+        DB::raw("UPPER(TRIM(md.category)) as subcategory"),
+        DB::raw("
+            MAX(COALESCE(NULLIF(md.year, 0), YEAR(md.value_date), YEAR(CURDATE()))) as year
+        "),
+        DB::raw("
+            MAX(CASE
+                WHEN md.month REGEXP '^[0-9]+$' THEN md.month+0
+                WHEN LOWER(md.month)='january'   THEN 1
+                WHEN LOWER(md.month)='february'  THEN 2
+                WHEN LOWER(md.month)='march'     THEN 3
+                WHEN LOWER(md.month)='april'     THEN 4
+                WHEN LOWER(md.month)='may'       THEN 5
+                WHEN LOWER(md.month)='june'      THEN 6
+                WHEN LOWER(md.month)='july'      THEN 7
+                WHEN LOWER(md.month)='august'    THEN 8
+                WHEN LOWER(md.month)='september' THEN 9
+                WHEN LOWER(md.month)='october'   THEN 10
+                WHEN LOWER(md.month)='november'  THEN 11
+                WHEN LOWER(md.month)='december'  THEN 12
+                ELSE MONTH(md.value_date)
+            END) as month
+        ")
+    )
+    ->whereRaw('TRIM(UPPER(md.category)) = ?', [strtoupper($storedSub)])
+    ->where(function($q) {
+        $q->whereNotNull('md.value_date')
+          ->orWhere(function($qq) {
+              $qq->whereNotNull('md.month')
+                 ->whereRaw("TRIM(md.month) <> ''")
+                 ->whereRaw("TRIM(md.month) <> '0'")
+                 ->whereRaw("TRIM(md.month) <> '00'");
+          });
+    });
 
-        foreach ($candidates as $c) {
-            \App\Models\KltgCoordinatorList::updateOrInsert(
-                [
-                    'master_file_id' => $c->master_file_id,
-                    'subcategory'    => $c->subcategory,
-                    'year'           => $c->year,
-                    'month'          => $c->month,
-                ],
-                ['updated_at' => now()]
-            );
-        }
-    }
+// Apply scope filter
+if ($scope === 'month_year') {
+    $candidates->where(function($q) use ($year, $month) {
+        $q->where('md.year', (int)$year)->orWhereYear('md.value_date', (int)$year);
+    })
+    ->where(function($q) use ($month) {
+        $monthName = strtolower(Carbon::create(null, $month, 1)->format('F'));
+        $q->where('md.month', (int)$month)
+          ->orWhereRaw('CAST(md.month AS UNSIGNED) = ?', [(int)$month])
+          ->orWhereRaw('LOWER(md.month) = ?', [$monthName])
+          ->orWhereMonth('md.value_date', (int)$month);
+    });
+} elseif ($scope === 'year_only') {
+    $candidates->where(function($q) use ($year) {
+        $q->where('md.year', (int)$year)->orWhereYear('md.value_date', (int)$year);
+    });
+}
+
+$candidates = $candidates->groupBy('md.master_file_id', 'md.category')->get();
+
+foreach ($candidates as $c) {
+    // Skip jika month/year tidak valid
+    if (empty($c->month) || $c->month < 1 || $c->month > 12) continue;
+    if (empty($c->year) || $c->year < 1900) continue;
+
+    \App\Models\KltgCoordinatorList::updateOrInsert(
+        [
+            'master_file_id' => $c->master_file_id,
+            'subcategory'    => $c->subcategory,
+            'year'           => (int)$c->year,
+            'month'          => (int)$c->month,
+        ],
+        ['updated_at' => now()]
+    );
+}
 
     // ========= Columns (unchanged) =========
     $columns = [
@@ -317,61 +346,106 @@ public function index(Request $request)
         ->orderBy('kcl.id', 'desc');
 
     // ========= B) MONTHLY DETAILS (MD) — unchanged logic, still yields 1 row per (mf, y, m) =========
-    $mdBase = DB::table('kltg_monthly_details as md')
-        ->join('master_files as mf', 'mf.id', '=', 'md.master_file_id')
-        ->select([
-            'mf.id as id',
-            'mf.id as master_file_id',
-            'mf.date',
-            DB::raw("COALESCE(NULLIF(mf.company,''), '') as company_name"),
-            DB::raw("COALESCE(NULLIF(mf.client,''),  '') as client"),
-            DB::raw("COALESCE(NULLIF(mf.product,''), '') as mf_title"),
-            'mf.created_at',
-            DB::raw("
-                COALESCE(
-                    md.value_date,
-                    STR_TO_DATE(
-                        CONCAT(
-                            COALESCE(NULLIF(md.year,0), YEAR(CURDATE())),
-                            '-',
-                            LPAD(
-                                CASE
-                                    WHEN md.month REGEXP '^[0-9]+$' THEN md.month+0
-                                    WHEN LOWER(md.month)='january'   THEN 1
-                                    WHEN LOWER(md.month)='february'  THEN 2
-                                    WHEN LOWER(md.month)='march'     THEN 3
-                                    WHEN LOWER(md.month)='april'     THEN 4
-                                    WHEN LOWER(md.month)='may'       THEN 5
-                                    WHEN LOWER(md.month)='june'      THEN 6
-                                    WHEN LOWER(md.month)='july'      THEN 7
-                                    WHEN LOWER(md.month)='august'    THEN 8
-                                    WHEN LOWER(md.month)='september' THEN 9
-                                    WHEN LOWER(md.month)='october'   THEN 10
-                                    WHEN LOWER(md.month)='november'  THEN 11
-                                    WHEN LOWER(md.month)='december'  THEN 12
-                                    ELSE NULL
-                                END, 2,'0'
-                            ),
-                            '-01'
+   // ========= B) MONTHLY DETAILS (MD) — dengan anti-join untuk exclude slot yang sudah ada di KCL =========
+$mdBase = DB::table('kltg_monthly_details as md')
+    ->join('master_files as mf', 'mf.id', '=', 'md.master_file_id')
+    ->select([
+        'mf.id as id',
+        'mf.id as master_file_id',
+        // ... rest of selects (sama seperti sebelumnya)
+        'mf.date',
+        DB::raw("COALESCE(NULLIF(mf.company,''), '') as company_name"),
+        DB::raw("COALESCE(NULLIF(mf.client,''),  '') as client"),
+        DB::raw("COALESCE(NULLIF(mf.product,''), '') as mf_title"),
+        'mf.created_at',
+        DB::raw("
+            COALESCE(
+                md.value_date,
+                STR_TO_DATE(
+                    CONCAT(
+                        COALESCE(NULLIF(md.year,0), YEAR(CURDATE())),
+                        '-',
+                        LPAD(
+                            CASE
+                                WHEN md.month REGEXP '^[0-9]+$' THEN md.month+0
+                                WHEN LOWER(md.month)='january'   THEN 1
+                                WHEN LOWER(md.month)='february'  THEN 2
+                                WHEN LOWER(md.month)='march'     THEN 3
+                                WHEN LOWER(md.month)='april'     THEN 4
+                                WHEN LOWER(md.month)='may'       THEN 5
+                                WHEN LOWER(md.month)='june'      THEN 6
+                                WHEN LOWER(md.month)='july'      THEN 7
+                                WHEN LOWER(md.month)='august'    THEN 8
+                                WHEN LOWER(md.month)='september' THEN 9
+                                WHEN LOWER(md.month)='october'   THEN 10
+                                WHEN LOWER(md.month)='november'  THEN 11
+                                WHEN LOWER(md.month)='december'  THEN 12
+                                ELSE NULL
+                            END, 2,'0'
                         ),
-                        '%Y-%m-%d'
-                    )
-                ) AS activity_date
-            "),
-            DB::raw("YEAR(COALESCE(md.value_date, STR_TO_DATE(CONCAT(COALESCE(NULLIF(md.year,0), YEAR(CURDATE())), '-', LPAD(CASE WHEN md.month REGEXP '^[0-9]+$' THEN md.month+0 WHEN LOWER(md.month)='january' THEN 1 WHEN LOWER(md.month)='february' THEN 2 WHEN LOWER(md.month)='march' THEN 3 WHEN LOWER(md.month)='april' THEN 4 WHEN LOWER(md.month)='may' THEN 5 WHEN LOWER(md.month)='june' THEN 6 WHEN LOWER(md.month)='july' THEN 7 WHEN LOWER(md.month)='august' THEN 8 WHEN LOWER(md.month)='september' THEN 9 WHEN LOWER(md.month)='october' THEN 10 WHEN LOWER(md.month)='november' THEN 11 WHEN LOWER(md.month)='december' THEN 12 ELSE NULL END ,2,'0'), '-01'), '%Y-%m-%d'))) AS activity_year"),
-            DB::raw("MONTH(COALESCE(md.value_date, STR_TO_DATE(CONCAT(COALESCE(NULLIF(md.year,0), YEAR(CURDATE())), '-', LPAD(CASE WHEN md.month REGEXP '^[0-9]+$' THEN md.month+0 WHEN LOWER(md.month)='january' THEN 1 WHEN LOWER(md.month)='february' THEN 2 WHEN LOWER(md.month)='march' THEN 3 WHEN LOWER(md.month)='april' THEN 4 WHEN LOWER(md.month)='may' THEN 5 WHEN LOWER(md.month)='june' THEN 6 WHEN LOWER(md.month)='july' THEN 7 WHEN LOWER(md.month)='august' THEN 8 WHEN LOWER(md.month)='september' THEN 9 WHEN LOWER(md.month)='october' THEN 10 WHEN LOWER(md.month)='november' THEN 11 WHEN LOWER(md.month)='december' THEN 12 ELSE NULL END ,2,'0'), '-01'), '%Y-%m-%d'))) AS activity_month")
-        ])
-        ->whereRaw('TRIM(UPPER(md.category)) = ?', [strtoupper($storedSub)])
-        ->where(function($q){
-            $q->whereNotNull('md.value_date')
-              ->orWhere(function($qq){
-                  $qq->whereNotNull('md.month')
-                     ->whereRaw("TRIM(md.month) <> ''")
-                     ->whereRaw("TRIM(md.month) <> '0'")
-                     ->whereRaw("TRIM(md.month) <> '00'");
-              });
+                        '-01'
+                    ),
+                    '%Y-%m-%d'
+                )
+            ) AS activity_date
+        "),
+        DB::raw("YEAR(COALESCE(md.value_date, STR_TO_DATE(CONCAT(COALESCE(NULLIF(md.year,0), YEAR(CURDATE())), '-', LPAD(CASE WHEN md.month REGEXP '^[0-9]+$' THEN md.month+0 WHEN LOWER(md.month)='january' THEN 1 WHEN LOWER(md.month)='february' THEN 2 WHEN LOWER(md.month)='march' THEN 3 WHEN LOWER(md.month)='april' THEN 4 WHEN LOWER(md.month)='may' THEN 5 WHEN LOWER(md.month)='june' THEN 6 WHEN LOWER(md.month)='july' THEN 7 WHEN LOWER(md.month)='august' THEN 8 WHEN LOWER(md.month)='september' THEN 9 WHEN LOWER(md.month)='october' THEN 10 WHEN LOWER(md.month)='november' THEN 11 WHEN LOWER(md.month)='december' THEN 12 ELSE NULL END ,2,'0'), '-01'), '%Y-%m-%d'))) AS activity_year"),
+        DB::raw("MONTH(COALESCE(md.value_date, STR_TO_DATE(CONCAT(COALESCE(NULLIF(md.year,0), YEAR(CURDATE())), '-', LPAD(CASE WHEN md.month REGEXP '^[0-9]+$' THEN md.month+0 WHEN LOWER(md.month)='january' THEN 1 WHEN LOWER(md.month)='february' THEN 2 WHEN LOWER(md.month)='march' THEN 3 WHEN LOWER(md.month)='april' THEN 4 WHEN LOWER(md.month)='may' THEN 5 WHEN LOWER(md.month)='june' THEN 6 WHEN LOWER(md.month)='july' THEN 7 WHEN LOWER(md.month)='august' THEN 8 WHEN LOWER(md.month)='september' THEN 9 WHEN LOWER(md.month)='october' THEN 10 WHEN LOWER(md.month)='november' THEN 11 WHEN LOWER(md.month)='december' THEN 12 ELSE NULL END ,2,'0'), '-01'), '%Y-%m-%d'))) AS activity_month")
+    ])
+    ->whereRaw('TRIM(UPPER(md.category)) = ?', [strtoupper($storedSub)])
+    ->where(function($q){
+        $q->whereNotNull('md.value_date')
+          ->orWhere(function($qq){
+              $qq->whereNotNull('md.month')
+                 ->whereRaw("TRIM(md.month) <> ''")
+                 ->whereRaw("TRIM(md.month) <> '0'")
+                 ->whereRaw("TRIM(md.month) <> '00'");
+          });
+    })
+    // ANTI-JOIN: Exclude MD jika slot KCL sudah ada
+    ->whereNotExists(function($subq) use ($storedSub, $scope, $year, $month) {
+        $subq->select(DB::raw(1))
+             ->from('kltg_coordinator_lists as kcl_check')
+             ->whereColumn('kcl_check.master_file_id', 'md.master_file_id')
+             ->where('kcl_check.subcategory', $storedSub);
+
+        // Apply same scope filter untuk anti-join
+        if ($scope === 'month_year') {
+            $subq->where('kcl_check.year', (int)$year)
+                 ->where('kcl_check.month', (int)$month);
+        } elseif ($scope === 'year_only') {
+            $subq->where('kcl_check.year', (int)$year);
+        }
+
+        // Match year dari MD
+        $subq->where(function($yq) {
+            $yq->whereColumn('kcl_check.year', DB::raw('COALESCE(NULLIF(md.year,0), YEAR(CURDATE()))'))
+               ->orWhereColumn('kcl_check.year', DB::raw('YEAR(md.value_date)'));
         });
 
+        // Match month dari MD
+        $subq->where(function($mq) {
+            $mq->whereColumn('kcl_check.month', DB::raw('
+                CASE
+                    WHEN md.month REGEXP \'^[0-9]+$\' THEN md.month+0
+                    WHEN LOWER(md.month)=\'january\'   THEN 1
+                    WHEN LOWER(md.month)=\'february\'  THEN 2
+                    WHEN LOWER(md.month)=\'march\'     THEN 3
+                    WHEN LOWER(md.month)=\'april\'     THEN 4
+                    WHEN LOWER(md.month)=\'may\'       THEN 5
+                    WHEN LOWER(md.month)=\'june\'      THEN 6
+                    WHEN LOWER(md.month)=\'july\'      THEN 7
+                    WHEN LOWER(md.month)=\'august\'    THEN 8
+                    WHEN LOWER(md.month)=\'september\' THEN 9
+                    WHEN LOWER(md.month)=\'october\'   THEN 10
+                    WHEN LOWER(md.month)=\'november\'  THEN 11
+                    WHEN LOWER(md.month)=\'december\'  THEN 12
+                    ELSE MONTH(md.value_date)
+                END
+            '))
+            ->orWhereColumn('kcl_check.month', DB::raw('MONTH(md.value_date)'));
+        });
+    });
     if ($scope === 'month_year') {
         $monthName = strtolower(Carbon::create(null, $month, 1)->format('F'));
         $mdBase->where(function($w) use ($month, $year, $monthName) {
@@ -394,23 +468,25 @@ public function index(Request $request)
     }
 
     // ---------- Execute ----------
-    $kclRows = $kclBase->get();
-    $mdRows  = $mdBase
-        ->groupBy('mf.id', 'mf.date', 'mf.company', 'mf.client', 'mf.product', 'md.year', 'md.month', 'md.value_date','mf.created_at')
-        ->orderBy('activity_date', 'ASC')
-        ->orderBy('mf.id', 'ASC')
-        ->get();
+    // ---------- Execute ----------
+$kclRows = $kclBase->get();
+$mdRows  = $mdBase
+    ->groupBy('mf.id', 'mf.date', 'mf.company', 'mf.client', 'mf.product', 'md.year', 'md.month', 'md.value_date','mf.created_at')
+    ->orderBy('activity_date', 'ASC')
+    ->orderBy('mf.id', 'ASC')
+    ->get();
 
-    // ---------- Merge + dedup per (master_file_id, activity_year, activity_month) ----------
-    $rows = $mdRows->concat($kclRows)
-        ->filter(function($r){
-            return !empty($r->activity_month) && !empty($r->activity_year);
-        })
-        ->unique(function($r){
-            return $r->master_file_id.'|'.$r->activity_year.'|'.$r->activity_month;
-        })
-        ->sortBy([['activity_date', 'asc'], ['master_file_id','asc']])
-        ->values();
+// ---------- Merge + dedup per (master_file_id, activity_year, activity_month) ----------
+// PERBAIKAN: KCL dulu (editable), baru MD (read-only)
+$rows = $kclRows->concat($mdRows)
+    ->filter(function($r){
+        return !empty($r->activity_month) && !empty($r->activity_year);
+    })
+    ->unique(function($r){
+        return $r->master_file_id.'|'.$r->activity_year.'|'.$r->activity_month;
+    })
+    ->sortBy([['activity_date', 'asc'], ['master_file_id','asc']])
+    ->values();
 
     // ========= Existing coordinator values (strict to scope, no month_only) =========
     $existingQuery = \App\Models\KltgCoordinatorList::query()
@@ -581,7 +657,7 @@ public function upsert(Request $request)
         'article' => [
             'title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text',
             'material_record','article_done','pending_approval','article_approved',
-            'article_scheduled','article_posted','post_link'
+            'article_scheduled','article_posted','post_link','blog_link'
         ],
         'lb' => [
             'title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text',
@@ -590,7 +666,7 @@ public function upsert(Request $request)
         ],
         'em' => [
             'company_snapshot','client_bp','remarks',
-            'em_date_write','em_date_to_post','em_post_date','em_qty','blog_link'
+            'em_date_write','em_date_to_post','em_post_date','em_qty','blog_link','title_snapshot'
         ],
     ];
     if (!in_array($column, $allow[$sub] ?? [], true)) {
@@ -763,8 +839,8 @@ private function normalizeSubcat(?string $subcat): string
 {
     $map = [
         'print' => 'KLTG',
-        'video' => 'Video',
-        'article' => 'Article',
+        'video' => 'VIDEO',
+        'article' => 'ARTICLE',
         'lb' => 'LB',
         'em' => 'EM'
     ];
@@ -780,8 +856,8 @@ private function storedToTab(string $stored): string
 {
     $map = [
         'KLTG' => 'print',
-        'Video' => 'video',
-        'Article' => 'article',
+        'VIDEO' => 'video',
+        'ARTICLE' => 'article',
         'LB' => 'lb',
         'EM' => 'em'
     ];
@@ -1088,7 +1164,7 @@ private function getColumnsBySubcat(): array
             '__no','__date_created','__company','__pic',
             'title_snapshot','client_bp','x',
             'material_reminder_text','material_record',
-            'article_done','pending_approval','article_approved','article_scheduled','article_posted','post_link',
+            'article_done','pending_approval','article_approved','article_scheduled','article_posted','blog_link',  // ← Ganti post_link jadi blog_link
         ],
         'lb' => [
             '__no','__date_created','__company','__pic',
@@ -1163,8 +1239,8 @@ private function subcatTitle(string $key): string
 {
     $map = [
         'KLTG' => 'PRINT ARTWORK',
-        'Video' => 'VIDEO',
-        'Article' => 'ARTICLE',
+        'VIDEO' => 'VIDEO',
+        'ARTICLE' => 'ARTICLE',
         'LB' => 'LB',
         'EM' => 'EM',
     ];
