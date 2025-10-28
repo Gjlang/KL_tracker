@@ -71,6 +71,11 @@ public function index(Request $request)
         });
     }
 
+     $productFilter = strtoupper(trim((string) $request->get('product_filter', '')));
+    if ($productFilter !== '' && $productFilter !== 'ALL') {
+        $q->whereRaw('UPPER(mf.product) LIKE ?', ['%' . $productFilter . '%']);
+    }
+
     // -------- Month-aware LEFT JOIN to OMD (pivoted per item) --------
     if ($month !== null) { // month=0 means "All Months" in UI → treat as null
         // Subquery: pivot OMD ke kolom2 per item untuk year+month yang dipilih
@@ -199,6 +204,7 @@ public function index(Request $request)
         'active' => $activeOnly,
         'search' => $search,
         'months' => $months,
+        'productFilter' => $productFilter ?? '',
     ]);
 }
 public function upsert(Request $request)
@@ -702,6 +708,11 @@ public function upsert(Request $request)
               ->orWhereRaw('LOWER(oi.district_council) LIKE ?', [$like])
               ->orWhereRaw('LOWER(oi.coordinates) LIKE ?', [$like]);
         });
+    }
+
+    $productFilter = strtoupper(trim((string) $request->get('product_filter', '')));
+    if ($productFilter !== '' && $productFilter !== 'ALL') {
+        $q->whereRaw('UPPER(mf.product) LIKE ?', ['%' . $productFilter . '%']);
     }
 
     // === Month-aware join (mirror of index) ===

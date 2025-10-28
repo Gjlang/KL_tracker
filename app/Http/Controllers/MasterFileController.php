@@ -1446,16 +1446,29 @@ class MasterFileController extends Controller
                 $locations = $request->input('locations', []);
 
                 foreach ($locations as $loc) {
-                    $billboardId = isset($loc['billboard_id']) && is_numeric($loc['billboard_id'])
-                        ? (int) $loc['billboard_id'] : null;
+    // Tangkap billboard_id (bisa numeric ID atau text manual)
+    $billboardIdRaw = $loc['billboard_id'] ?? null;
+    $billboardId = null;
+    $typedSite = '';
 
-                    $typedSite = trim($loc['site'] ?? '');
+    // Jika billboard_id adalah angka → user pilih dari dropdown
+    if (is_numeric($billboardIdRaw)) {
+        $billboardId = (int) $billboardIdRaw;
+    }
+    // Jika billboard_id adalah text → user ketik manual
+    elseif (is_string($billboardIdRaw) && trim($billboardIdRaw) !== '') {
+        $typedSite = trim($billboardIdRaw);
+    }
 
-                    // Skip empty rows
-                    if (!$billboardId && $typedSite === '') {
-                        continue;
-                    }
+    // Fallback: ambil dari field 'site' kalau ada
+    if (!$billboardId && !$typedSite) {
+        $typedSite = trim($loc['site'] ?? '');
+    }
 
+    // Skip HANYA kalau kosong semua
+    if (!$billboardId && $typedSite === '') {
+        continue;
+    }
                     // Check for overlapping bookings
                     $startDate = $loc['start_date'] ?? null;
                     $endDate = $loc['end_date'] ?? null;
@@ -1501,58 +1514,58 @@ class MasterFileController extends Controller
                 if ($isOutdoor && !empty($locationsToProcess)) {
 
                     foreach ($locationsToProcess as $processedLoc) {
-                        $loc = $processedLoc['location_data'];
-                        $billboardId = $processedLoc['billboard_id'];
-                        $typedSite = $processedLoc['typed_site'];
+    $loc = $processedLoc['location_data'];
+    $billboardId = $processedLoc['billboard_id'];
+    $typedSite = $processedLoc['typed_site'];
 
-                        // Skip empty rows
-                        if (!$billboardId && $typedSite === '') {
-                            continue;
-                        }
+    // HAPUS skip check - sudah dihandle sebelum transaction
+    // Row pasti ada site (dari billboard atau manual input)
 
-                        // Map UI keys -> DB columns
-                        $subProduct = $loc['sub_product'] ?? ($data['product'] ?? 'Outdoor');
-                        $size       = $loc['size'] ?? null;
-                        $area       = $loc['council'] ?? null;   // UI 'council' -> DB 'district_council'
-                        $coords     = $loc['coords'] ?? null;    // UI 'coords'  -> DB 'coordinates'
-                        $remarks    = $loc['remarks'] ?? null;
-                        $startDate  = $loc['start_date'] ?? null;
-                        $endDate    = $loc['end_date'] ?? null;
-                        $outdoorStatus    = $loc['outdoor_status'] ?? null;
-                        $siteLabel  = $typedSite ?: null;
+    $subProduct = $loc['sub_product'] ?? ($data['product'] ?? 'Outdoor');
+    $size       = $loc['size'] ?? null;
+    $area       = $loc['council'] ?? null;
+    $coords     = $loc['coords'] ?? null;
+    $remarks    = $loc['remarks'] ?? null;
+    $startDate  = $loc['start_date'] ?? null;
+    $endDate    = $loc['end_date'] ?? null;
+    $outdoorStatus = $loc['outdoor_status'] ?? null;
 
-                        // Hydrate from billboard if ID is present
-                        if ($billboardId) {
-                            $bb = \DB::table('billboards as b')
-                                ->leftJoin('locations as l', 'l.id', '=', 'b.location_id')
-                                ->where('b.id', $billboardId)
-                                ->first(['b.site_number', 'b.size', 'b.gps_latitude', 'b.gps_longitude', 'l.name as area_name']);
+    // Prioritaskan typedSite (text manual dari user)
+    $siteLabel = $typedSite;
 
-                            if ($bb) {
-                                $siteLabel = $siteLabel ?: ($bb->site_number ?? null);
-                                $size      = $size      ?: ($bb->size ?? null);
-                                $area      = $area      ?: ($bb->area_name ?? null);
-                                if (!$coords && $bb->gps_latitude !== null && $bb->gps_longitude !== null) {
-                                    $coords = $bb->gps_latitude . ',' . $bb->gps_longitude;
-                                }
-                            }
-                        }
+    // Hydrate dari billboard HANYA kalau billboard_id ada
+    if ($billboardId) {
+        $bb = \DB::table('billboards as b')
+            ->leftJoin('locations as l', 'l.id', '=', 'b.location_id')
+            ->where('b.id', $billboardId)
+            ->first(['b.site_number', 'b.size', 'b.gps_latitude', 'b.gps_longitude', 'l.name as area_name']);
 
-                        // Insert outdoor item
-                        $masterFile->outdoorItems()->create([
-                            'sub_product'      => $subProduct,
-                            'qty'              => 1, // or ($loc['qty'] ?? 1)
-                            'site'             => $siteLabel,
-                            'size'             => $size,
-                            'district_council' => $area,
-                            'coordinates'      => $coords,
-                            'remarks'          => $remarks,
-                            'start_date'       => $startDate ?: null,
-                            'end_date'         => $endDate   ?: null,
-                            'status'           => $outdoorStatus,
-                            'billboard_id'     => $billboardId,
-                        ]);
-                    }
+        if ($bb) {
+            // Override dengan data billboard (fallback ke typedSite kalau kosong)
+            $siteLabel = $bb->site_number ?: $typedSite;
+            $size      = $size ?: ($bb->size ?? null);
+            $area      = $area ?: ($bb->area_name ?? null);
+            if (!$coords && $bb->gps_latitude && $bb->gps_longitude) {
+                $coords = $bb->gps_latitude . ',' . $bb->gps_longitude;
+            }
+        }
+    }
+
+    // Insert outdoor item (site pasti ada value)
+    $masterFile->outdoorItems()->create([
+        'sub_product'      => $subProduct,
+        'qty'              => 1,
+        'site'             => $siteLabel, // ✅ Pasti terisi (dari user atau billboard)
+        'size'             => $size,
+        'district_council' => $area,
+        'coordinates'      => $coords,
+        'remarks'          => $remarks,
+        'start_date'       => $startDate ?: null,
+        'end_date'         => $endDate   ?: null,
+        'status'           => $outdoorStatus,
+        'billboard_id'     => $billboardId, // ✅ Boleh NULL untuk manual entry
+    ]);
+}
 
                     return; // Done with repeater mode
                 }

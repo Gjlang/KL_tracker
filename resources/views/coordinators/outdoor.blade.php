@@ -171,6 +171,18 @@
                                             value="{{ (int) ($year ?? now()->year) }}" min="2000"
                                             max="{{ now()->year + 1 }}" class="w-full input sans tabular-nums">
                                     </div>
+
+                                    {{-- Product Filter --}}
+                                    <div class="space-y-2">
+                                        <label for="filterProduct" class="sans table-header">Product</label>
+                                        <select name="product_filter" id="filterProduct" class="w-full input sans">
+                                            <option value="">All Products</option>
+                                            <option value="BB" @selected(($productFilter ?? '') === 'BB')>BB (Billboard)</option>
+                                            <option value="TB" @selected(($productFilter ?? '') === 'TB')>TB</option>
+                                            <option value="SIGNAGES" @selected(($productFilter ?? '') === 'SIGNAGES')>Signages</option>
+                                            <option value="BUNTING" @selected(($productFilter ?? '') === 'BUNTING')>Bunting</option>
+                                        </select>
+                                    </div>
                                 </div>
 
                                 {{-- Show only active this month --}}

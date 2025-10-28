@@ -554,33 +554,50 @@
                                     </div>
 
                                     <!-- SITE -->
-                                    <div class="md:col-span-2">
-                                        <label class="block text-xs text-neutral-600 mb-1">Site</label>
-                                        <select :id="`outdoor_site_${idx}`" :name="`locations[${idx}][billboard_id]`"
-                                            x-model="row.billboard_id"
-                                            placeholder="e.g., TB-WPK-0075 – Persiaran Puncak Jalil"
-                                            class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]"
-                                            x-init="$nextTick(() => initSiteSelect(
-                                                $el,
-                                                () => row.area_key, // filter Site by Area terpilih
-                                                (opt) => { // callback saat Site dipilih
-                                                    if (opt) {
-                                                        row.size = opt.size ?? '';
-                                                        row.council = opt.area ?? '';
-                                                        row.coords = opt.coords ?? '';
-                                                        row.area_key = opt.area_key ?? row.area_key; // auto-sync area
-                                            
-                                                        fillDependentSelect(`outdoor_size_${idx}`, row.size, row.size);
-                                                        fillDependentSelect(`outdoor_area_${idx}`, row.council, row.council);
-                                                        fillDependentSelect(`outdoor_coords_${idx}`, row.coords, row.coords);
-                                                    }
-                                                }
-                                            ))">
-                                            <template x-if="row.billboard_id">
-                                                <option :value="row.billboard_id" selected>Selected</option>
-                                            </template>
-                                        </select>
-                                    </div>
+                                    <!-- SITE -->
+<div class="md:col-span-2">
+    <label class="block text-xs text-neutral-600 mb-1">Site</label>
+    <select :id="`outdoor_site_${idx}`" :name="`locations[${idx}][billboard_id]`"
+        x-model="row.billboard_id"
+        placeholder="e.g., TB-WPK-0075 or type manually: Jalan ABC"
+        class="w-full px-3 py-2 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-[#4bbbed] focus:border-[#4bbbed]"
+        x-init="$nextTick(() => initSiteSelect(
+            $el,
+            () => row.area_key,
+            (opt) => {
+                if (opt) {
+                    // Update row data (opt.value bisa ID atau text manual)
+                    row.billboard_id = opt.value;
+                    row.size = opt.size ?? '';
+                    row.council = opt.area ?? '';
+                    row.coords = opt.coords ?? '';
+                    row.area_key = opt.area_key ?? row.area_key;
+
+                    fillDependentSelect(`outdoor_size_${idx}`, row.size, row.size);
+                    fillDependentSelect(`outdoor_area_${idx}`, row.council, row.council);
+                    fillDependentSelect(`outdoor_coords_${idx}`, row.coords, row.coords);
+                } else {
+                    // Clear saat user kosongkan
+                    row.billboard_id = '';
+                    row.size = '';
+                    row.council = '';
+                    row.coords = '';
+                }
+            }
+        ))">
+        <template x-if="row.billboard_id">
+            <option :value="row.billboard_id" selected>Selected</option>
+        </template>
+    </select>
+
+    <!-- Hidden input untuk text manual (backup) -->
+    <!-- Hanya terisi kalau billboard_id bukan numeric -->
+    <input
+        type="hidden"
+        :name="`locations[${idx}][site]`"
+        :value="!/^\d+$/.test(String(row.billboard_id || '')) ? row.billboard_id : ''"
+    >
+</div>
 
                                     <!-- AREA -->
                                     <div class="md:col-span-1">
@@ -594,14 +611,14 @@
                                                 (opt) => { // saat Area dipilih
                                                     row.council = opt?.label ?? '';
                                                     row.area_key = opt?.value ?? '';
-                                            
+
                                                     const siteSel = document.getElementById(`outdoor_site_${idx}`);
                                                     if (siteSel?.tomselect) {
                                                         const ts = siteSel.tomselect;
                                                         ts.clearOptions();
                                                         ts.load(''); // reload sites by area_key
                                                         ts.open(); // <-- langsung buka list supaya keliatan semua
-                                            
+
                                                         // kalau site sebelumnya tidak match area baru, kosongkan
                                                         const prev = ts.getValue();
                                                         const prevOpt = ts.options?.[prev];
@@ -671,10 +688,31 @@
                                                 });
 
                                                 selectEl.tomselect = ts;
-                                                ts.on('change', (val) => {
-                                                    const opt = ts.options?.[val];
-                                                    onPicked && onPicked(opt || null);
-                                                });
+                                                ts.on('change', (value) => {
+    const opt = ts.options?.[value];
+
+    // Kalau pilih billboard valid (ID numeric)
+    if (opt && /^\d+$/.test(String(value))) {
+        onPicked && onPicked(opt);
+    }
+    // Kalau user ketik manual (text, bukan ID)
+    else if (value && !/^\d+$/.test(String(value))) {
+        // Trigger onPicked dengan data minimal
+        onPicked && onPicked({
+            value: value,      // Text yang diketik
+            label: value,
+            site_number: null,
+            size: null,
+            coords: null,
+            area: null,
+            area_key: null
+        });
+    }
+    // Clear semua
+    else {
+        onPicked && onPicked(null);
+    }
+});
                                             } catch (e) {
                                                 console.warn('initAreaSelect failed', e);
                                             }
