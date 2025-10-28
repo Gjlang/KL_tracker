@@ -1945,7 +1945,7 @@ class MasterFileController extends Controller
 
             // Order matches $headings
             $put($r - 2);
-            $put((string) $row->created_at);
+            $put($row->created_at ? Carbon::parse($row->created_at)->format('d/m/y') : '');
             $put($row->sales_person ?? '');          // Sales Person
             $put($row->company);
             $put($row->client);

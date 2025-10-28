@@ -375,6 +375,10 @@
                 <table class="min-w-full table-auto divide-y divide-gray-200">
                     <thead class="bg-gray-50/50 sticky top-0 z-10">
                         <tr>
+
+                            <th class="px-6 py-4 text-left small-caps text-gray-600 font-medium min-w-[80px] whitespace-nowrap">
+       No
+   </th>
                             <th
                                 class="px-6 py-4 text-left small-caps text-gray-600 font-medium min-w-[120px] whitespace-nowrap">
                                 Date Created</th>
@@ -438,6 +442,10 @@
                         @if (isset($masterFiles) && $masterFiles->count() > 0)
                             @foreach ($masterFiles as $file)
                                 <tr class="table-row {{ $loop->iteration % 2 === 0 ? 'bg-white' : 'bg-gray-50' }}">
+
+                                    <td class="px-6 py-4 text-sm ink font-medium">
+       {{ $loop->iteration }}
+   </td>
                                     <td class="px-6 py-4 text-sm ink">
                                         {{ $file->created_at ? $file->created_at->format('d/m/y') : '-' }}</td>
                                     <td class="px-6 py-4 text-sm ink">{{ $file->sales_person ?? '-' }}</td>
