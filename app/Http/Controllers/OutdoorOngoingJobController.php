@@ -92,32 +92,33 @@ public function index(Request $request)
     }
 
     // === Show items relevant to the selected YEAR (overlap OR has details in that year) ===
-    $q->where(function ($w) use ($yearStart, $yearEnd) {
-        $w->where(function ($x) use ($yearStart, $yearEnd) {
-              // overlap if: start <= 31/12/Y AND (end IS NULL OR end >= 01/01/Y)
-              $x->whereDate('mf.date', '<=', $yearEnd)
-                ->where(function ($y) use ($yearStart) {
-                    $y->whereNull('mf.date_finish')
-                      ->orWhereDate('mf.date_finish', '>=', $yearStart);
-                });
-          })
-          // or has any monthly details in that year
-          ->orWhereNotNull('d.outdoor_item_id');
-    });
+$q->where(function ($w) use ($yearStart, $yearEnd) {
+    $w->where(function ($x) use ($yearStart, $yearEnd) {
+          // ⭐ NOW using outdoor_items dates (oi.start_date / oi.end_date)
+          $x->whereDate('oi.start_date', '<=', $yearEnd)
+            ->where(function ($y) use ($yearStart) {
+                $y->whereNull('oi.end_date')
+                  ->orWhereDate('oi.end_date', '>=', $yearStart);
+            });
+      })
+      // or has any monthly details in that year
+      ->orWhereNotNull('d.outdoor_item_id');
+});
 
     // === If a specific MONTH is chosen, also require overlap with that month OR have detail (Y,M) ===
     if ($month > 0) {
-        $mStart = Carbon::create($year, $month, 1)->startOfMonth()->toDateString();
-        $mEnd   = Carbon::create($year, $month, 1)->endOfMonth()->toDateString();
+    $mStart = Carbon::create($year, $month, 1)->startOfMonth()->toDateString();
+    $mEnd   = Carbon::create($year, $month, 1)->endOfMonth()->toDateString();
 
-        $q->where(function ($w) use ($mStart, $mEnd, $year, $month) {
-            $w->where(function ($x) use ($mStart, $mEnd) {
-                  $x->whereDate('mf.date', '<=', $mEnd)
-                    ->where(function ($y) use ($mStart) {
-                        $y->whereNull('mf.date_finish')
-                          ->orWhereDate('mf.date_finish', '>=', $mStart);
-                    });
-              })
+    $q->where(function ($w) use ($mStart, $mEnd, $year, $month) {
+        $w->where(function ($x) use ($mStart, $mEnd) {
+              // ⭐ NOW using outdoor_items dates
+              $x->whereDate('oi.start_date', '<=', $mEnd)
+                ->where(function ($y) use ($mStart) {
+                    $y->whereNull('oi.end_date')
+                      ->orWhereDate('oi.end_date', '>=', $mStart);
+                });
+          })
               ->orWhereExists(function ($sq) use ($year, $month) {
                   $sq->select(DB::raw(1))
                      ->from('outdoor_monthly_details as omd')
@@ -135,6 +136,9 @@ $rows = $q->select([
         // NEW aliases for Blade:
         'bb.site_number as site_code',
         'dist.name      as district_name',
+        // ⭐ ADD THESE TWO LINES - dates from outdoor_items
+        'oi.start_date',
+        'oi.end_date',
     ])
     ->whereNotNull('oi.id')
     // optional: sort by company then site_number if ada, else oi.site
@@ -312,8 +316,8 @@ public function exportMatrix(Request $req)
         $q->where('mf.product', $product);
     })
     ->where(function ($w) use ($year) {
-        $w->whereYear('mf.date', $year)
-          ->orWhereYear('mf.date_finish', $year)
+        $w->whereYear('oi.start_date', $year)
+          ->orWhereYear('oi.end_date', $year)
           ->orWhereYear('mf.created_at', $year);
     })
 
@@ -329,15 +333,15 @@ public function exportMatrix(Request $req)
     'mf.product',
     'mf.product_category',
     'mf.created_at      as created_at',
-    'mf.date            as start',
-    'mf.date_finish     as end',
+    // ⭐ NOW using outdoor_items dates
+    'oi.start_date      as start',
+    'oi.end_date        as end',
 
     // For "Site(s)" display parity with the Blade
-    'oi.site            as road_raw',        // e.g., street/mall name (fallback)
-    'bb.site_number     as site_code',       // e.g., TB-SEL-0022-MDSK-A
-    'd.name             as district_name',   // e.g., Seri Kembangan
+    'oi.site            as road_raw',
+    'bb.site_number     as site_code',
+    'd.name             as district_name',
 ]);
-
 
     // 5) File naming - MOVED UP
     $title = "Outdoor - Monthly - {$today} - {$year}";
@@ -379,7 +383,12 @@ public function exportMatrix(Request $req)
                 $months[$mn]['status'] = $r->value_text;
             }
             if ($r->field_type === 'date' && $r->value_date) {
-                $months[$mn]['date'] = $r->value_date;
+                // ⭐ Format date to d/m/Y
+                try {
+                    $months[$mn]['date'] = Carbon::parse($r->value_date)->format('d/m/Y');
+                } catch (\Throwable $e) {
+                    $months[$mn]['date'] = null;
+                }
             }
         }
         $monthsByItem[$itemId] = $months;
@@ -396,6 +405,24 @@ public function exportMatrix(Request $req)
 
     $siteDisplay = self::composeSiteDisplay($r->site_code ?? '', $r->road_raw ?? '', $r->district_name ?? '');
 
+    // ⭐ Format start and end dates to d/m/Y
+    $startFormatted = null;
+    if ($r->start) {
+        try {
+            $startFormatted = Carbon::parse($r->start)->format('d/m/Y');
+        } catch (\Throwable $e) {
+            $startFormatted = $r->start;
+        }
+    }
+
+    $endFormatted = null;
+    if ($r->end) {
+        try {
+            $endFormatted = Carbon::parse($r->end)->format('d/m/Y');
+        } catch (\Throwable $e) {
+            $endFormatted = $r->end;
+        }
+    }
 
     $records[] = [
         'summary' => [
@@ -404,8 +431,8 @@ public function exportMatrix(Request $req)
             'product'  => $r->product,
             'site'     => $siteDisplay,                          // ✅ same as Blade "Site(s)"
             'category' => $r->product_category ?: 'Outdoor',
-            'start'    => $r->start,
-            'end'      => $r->end,
+            'start'    => $startFormatted,                       // ⭐ formatted to d/m/Y
+            'end'      => $endFormatted,                         // ⭐ formatted to d/m/Y
         ],
         'months' => $months,
     ];
