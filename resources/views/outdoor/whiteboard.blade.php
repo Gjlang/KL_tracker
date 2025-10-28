@@ -290,14 +290,14 @@
                                                     </div>
                                                 </td>
 
-                                                <!-- 9) Installation (ambil dari master_files.date) -->
+                                                <!-- 9) Installation (ambil dari outdoor_items.start_date) -->
                                                 <td class="px-4 py-3 text-sm column-data" data-column="9">
-                                                    <div class="ink">{{ $mf->date?->format('d/m/y') }}</div>
+                                                    <div class="ink">{{ $item->start_date?->format('d/m/y') }}</div>
                                                 </td>
 
-                                                <!-- 10) Dismantle (ambil dari master_files.date_finish) -->
+                                                <!-- 10) Dismantle (ambil dari outdoor_items.end_date) -->
                                                 <td class="px-4 py-3 text-sm column-data" data-column="10">
-                                                    <div class="ink">{{ $mf->date_finish?->format('d/m/y') }}</div>
+                                                    <div class="ink">{{ $item->end_date?->format('d/m/y') }}</div>
                                                 </td>
 
                                                 <!-- 9) Installation (ambil dari master_files.date) -->

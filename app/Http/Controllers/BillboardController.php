@@ -322,6 +322,7 @@ class BillboardController extends Controller
                 'TB' => 'Tempboard',
                 'BU' => 'Bunting',
                 'BN' => 'Banner',
+                'SN' => 'Signage',
             ];
 
             $prefix = $request->type;                // e.g. "TB"
@@ -377,7 +378,7 @@ class BillboardController extends Controller
         // validate (you can adjust rules)
         $request->validate([
             'id' => 'required|integer|exists:billboards,id',
-            'type' => 'required|string|in:BB,TB,BU,BN', // Accept only these prefix values
+            'type' => 'required|string|in:BB,TB,BU,BN,SN', // Accept only these prefix values
             'size' => 'nullable|string|max:255',
             'lighting' => 'nullable|string|max:255',
             'state_id' => 'nullable|integer',
@@ -444,6 +445,7 @@ class BillboardController extends Controller
                 'TB' => 'Tempboard',
                 'BU' => 'Bunting',
                 'BN' => 'Banner',
+                'SN' => 'Signage',
             ];
 
             $prefix = $request->type; // sent from hidden field, e.g., "BB"

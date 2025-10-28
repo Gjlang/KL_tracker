@@ -290,6 +290,7 @@
                             <option value="TB">Tempboard</option>
                             <option value="BU">Bunting</option>
                             <option value="BN">Banner</option>
+                            <option value="SN">Signage</option>
                         </select>
                     </div>
 
@@ -498,6 +499,7 @@
                             <option value="TB">Tempboard</option>
                             <option value="BU">Bunting</option>
                             <option value="BN">Banner</option>
+                            <option value="SN">Signage</option>
                         </select>
                     </div>
 

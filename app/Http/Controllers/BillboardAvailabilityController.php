@@ -379,20 +379,6 @@ class BillboardAvailabilityController extends Controller
     {
         return collect($items)
             ->sort(function ($a, $b) {
-                // Check if both are Tempboard → skip availability sort
-                $isTempA = ($a['type'] ?? '') === 'Tempboard';
-                $isTempB = ($b['type'] ?? '') === 'Tempboard';
-
-                if (!($isTempA && $isTempB)) {
-                    // If not both Tempboard, do normal availability sorting
-                    if (!$isTempA && !$isTempB) {
-                        $availabilityA = $a['is_available'] ? 1 : 0;
-                        $availabilityB = $b['is_available'] ? 1 : 0;
-                        if ($availabilityA !== $availabilityB) {
-                            return $availabilityA <=> $availabilityB; // Available (1) comes after Not available (0)
-                        }
-                    }
-                }
 
                 // 0️⃣ First, sort by 'site_type' alphabetically
                 $siteTypeA = $a['site_type'] ?? '';

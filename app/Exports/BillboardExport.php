@@ -92,7 +92,7 @@ class BillboardExport implements FromCollection, WithHeadings, WithMapping, With
         }
 
         // ✅ Sort by location name alphabetically
-        $query->orderByRaw("area ASC");
+        $query->orderBy('billboards.site_type', 'ASC')->orderByRaw("area ASC");
 
         return $query->get();
     }
