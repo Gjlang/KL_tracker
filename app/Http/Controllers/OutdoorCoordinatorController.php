@@ -146,6 +146,7 @@ public function index(Request $request)
 
         // original outdoor fields (kept)
         DB::raw('oi.site as site'),
+        DB::raw('loc.name as location_name'),
         DB::raw('oi.district_council as district_council'),
         DB::raw('oi.coordinates as coordinates'),
         DB::raw('oi.size as size'),
@@ -184,7 +185,8 @@ public function index(Request $request)
     ]);
 
     $q->orderBy('mf.company')
-  ->orderByRaw('LOWER(COALESCE(bb.site_number, oi.site))');
+  ->orderByRaw('LOWER(COALESCE(bb.site_number, loc.name, oi.site))');
+
 
     // -------- Paginate + page correction --------
     $rows = $q->paginate(50)->withQueryString(); // even if empty, paginator is safe
@@ -673,7 +675,7 @@ public function upsert(Request $request)
                        ->with('info', 'No new outdoor master files found to create tracking records.');
     }
 
-   public function export(Request $request): StreamedResponse
+public function export(Request $request): StreamedResponse
 {
     Log::info('Export started', [
         'month_requested' => $request->integer('month'),
@@ -690,12 +692,10 @@ public function upsert(Request $request)
     ->leftJoin('billboards as bb', 'bb.id', '=', 'oi.billboard_id')
     ->leftJoin('locations  as loc', 'loc.id', '=', 'bb.location_id')
     ->leftJoin('districts  as d',   'd.id',   '=', 'loc.district_id')
-    // ⬇️ 1) sama persis seperti di index()
     ->where(function ($w) {
         $w->whereRaw('LOWER(mf.product_category) REGEXP ?', ['(^|[^a-z])(outdoor|billboard)([^a-z]|$)'])
           ->orWhereRaw('LOWER(mf.product) REGEXP ?',          ['(^|[^a-z])(outdoor|billboard)([^a-z]|$)']);
     })
-    // ⬇️ 2) pastikan benar-benar ada outdoor_item (biar non-outdoor otomatis gugur)
     ->whereNotNull('oi.id');
 
     // Optional search (kept)
@@ -705,6 +705,7 @@ public function upsert(Request $request)
             $w->whereRaw('LOWER(mf.company) LIKE ?', [$like])
               ->orWhereRaw('LOWER(mf.product) LIKE ?', [$like])
               ->orWhereRaw('LOWER(oi.site) LIKE ?', [$like])
+              ->orWhereRaw('LOWER(loc.name) LIKE ?', [$like])
               ->orWhereRaw('LOWER(oi.district_council) LIKE ?', [$like])
               ->orWhereRaw('LOWER(oi.coordinates) LIKE ?', [$like]);
         });
@@ -764,18 +765,15 @@ public function upsert(Request $request)
     $q->select([
         'mf.id as master_file_id',
         'mf.company as company',
-         DB::raw($month
-        ? "mf.client as person_in_charge"
-        : "COALESCE(mf.client, oct.client) as person_in_charge"
-    ),
+        DB::raw($month
+            ? "mf.client as person_in_charge"
+            : "COALESCE(mf.client, oct.client) as person_in_charge"
+        ),
         'mf.product as product',
 
         DB::raw('oi.id as outdoor_item_id'),
-        DB::raw('oi.site as site'),                                // road fallback
-        DB::raw('bb.site_number as site_code'),                    // CODE
-        DB::raw('COALESCE(d.name, oi.district_council) as district'),
+        DB::raw('loc.name as location_name'),
 
-        // month columns or baseline columns
         DB::raw(($month ? 'md.status'  : 'oct.status as status')),
         DB::raw(($month ? 'md.remarks' : 'oct.remarks as remarks')),
 
@@ -800,31 +798,18 @@ public function upsert(Request $request)
         DB::raw(($month ? 'md.next_follow_up_note'    : 'oct.next_follow_up_note as next_follow_up_note')),
     ]);
 
-    // sort exactly like index
     $q->orderByRaw('LOWER(mf.company)')
-      ->orderByRaw('LOWER(COALESCE(bb.site_number, oi.site))');
+      ->orderByRaw('LOWER(loc.name)');
 
     $rows = $q->get();
 
     // === Build the SAME site display as in Blade ===
     foreach ($rows as $r) {
-        $siteCode = strtoupper(trim((string)($r->site_code ?? '')));
-        $road     = trim((string)($r->site ?? ''));
-        $district = trim((string)($r->district ?? ''));
-
-        $primary = $siteCode !== '' ? $siteCode : $road;
-
-        $norm = function($s) { return preg_replace('/[^a-z0-9]/i', '', strtolower((string)$s)); };
-        $dupPD = ($primary !== '' && $district !== '' && $norm($primary) === $norm($district));
-
-        $parts = [];
-        if ($primary !== '') $parts[] = $primary;
-        if ($district !== '' && !$dupPD) $parts[] = $district;
-
-        $r->site_display = $parts ? implode(' - ', $parts) : '';
+        $locName = trim((string)($r->location_name ?? ''));
+        $r->site_display = $locName !== '' ? $locName : '';
     }
 
-    // === Classify for sheets (kept) ===
+    // === Classify for sheets ===
     $classifiedData = ['BB'=>[], 'TB'=>[], 'Buting'=>[], 'Other'=>[]];
     foreach ($rows as $row) {
         $p = strtoupper($row->product ?? '');
@@ -847,169 +832,165 @@ public function upsert(Request $request)
     ]);
 }
 
+private function generateOutdoorCoordinatorXlsx($classifiedData, ?string $monthLabel): void
+{
+    $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
 
-    /**
-     * Generate outdoor coordinator XLSX with two-stack format (date/note pairs)
-     */
-    private function generateOutdoorCoordinatorXlsx($classifiedData, ?string $monthLabel): void
-    {
-        // Create a new Spreadsheet
-        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
+    $headerStructure = [
+        [
+            'NO',
+            'Company',
+            'Person In Charge',
+            'Product',
+            'Site',
+            'Payment',
+            'Material Received',
+            'Artwork Done',
+            'Received Approval',
+            'Sent to Printer',
+            'Collection Printer',
+            'Installation',
+            'Dismantle',
+            'Next Follow Up',
+            'Status',
+        ],
+        ['', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+    ];
 
-        // Two-stack headers structure
-        $headerStructure = [
-            [
-                'NO',
-                'Company',
-                'Person In Charge',
-                'Product',
-                'Site',
-                'Payment',
-                'Material Received',
-                'Artwork Done',
-                'Received Approval',
-                'Sent to Printer',
-                'Collection Printer',
-                'Installation',
-                'Dismantle',
-                'Next Follow Up',
-                'Status',
+    $colCount = count($headerStructure[0]);
+    $lastColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colCount);
+
+    // ====== TITLE SECTION ======
+    $currentRow = 1;
+
+    $sheet->setCellValue('A'.$currentRow, 'OUTDOOR COORDINATOR TRACKING REPORT');
+    $sheet->mergeCells('A'.$currentRow.':'.$lastColumn.$currentRow);
+    $currentRow++;
+
+    $sheet->setCellValue('A'.$currentRow, 'Generated: ' . now()->format('Y-m-d H:i:s'));
+    $sheet->mergeCells('A'.$currentRow.':'.$lastColumn.$currentRow);
+    $currentRow++;
+
+    if ($monthLabel) {
+        $sheet->setCellValue('A'.$currentRow, 'Month Filter: ' . $monthLabel);
+    } else {
+        $sheet->setCellValue('A'.$currentRow, 'Month Filter: All Data');
+    }
+    $sheet->mergeCells('A'.$currentRow.':'.$lastColumn.$currentRow);
+    $currentRow++;
+
+    $totalRecords = array_sum(array_map('count', $classifiedData));
+    $sheet->setCellValue('A'.$currentRow, 'Total Records: ' . $totalRecords);
+    $sheet->mergeCells('A'.$currentRow.':'.$lastColumn.$currentRow);
+    $currentRow++;
+
+    $currentRow++;
+
+    $titleRanges = [];
+    $headerRanges = [];
+    $allDataRange = 'A1:'.$lastColumn;
+    $lastDataRow = $currentRow;
+
+    $globalRowNo = 1;
+
+    // ====== PROCESS EACH SUB-PRODUCT CATEGORY ======
+    foreach ($classifiedData as $category => $rows) {
+        if (empty($rows)) {
+            continue;
+        }
+
+        $sheet->setCellValue('A'.$currentRow, strtoupper($category) . ' - ' . count($rows) . ' Records');
+        $sheet->mergeCells('A'.$currentRow.':'.$lastColumn.$currentRow);
+        $titleRanges[] = 'A'.$currentRow.':'.$lastColumn.$currentRow;
+        $currentRow++;
+
+        $headerRowStart = $currentRow;
+        foreach ($headerStructure[0] as $index => $header) {
+            $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($index + 1);
+            $sheet->setCellValue($col.$currentRow, $header);
+        }
+        $headerRanges[] = 'A'.$currentRow.':'.$lastColumn.$currentRow;
+        $currentRow++;
+
+        foreach ($headerStructure[1] as $index => $header) {
+            $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($index + 1);
+            $sheet->setCellValue($col.$currentRow, $header);
+        }
+        $headerRanges[] = 'A'.$currentRow.':'.$lastColumn.$currentRow;
+        $currentRow++;
+
+        // ====== DATA ROWS (TWO ROWS PER RECORD) ======
+        foreach ($rows as $row) {
+            $siteValue = trim((string)($row->site_display ?? $row->location_name ?? ''));
+
+            // First data row (main data + TEXT/NOTES) ✅
+            $sheet->setCellValue('A'.$currentRow, $globalRowNo);
+            $sheet->setCellValue('B'.$currentRow, $row->company ?? '');
+            $sheet->setCellValue('C'.$currentRow, $row->person_in_charge ?? '');
+            $sheet->setCellValue('D'.$currentRow, $row->product ?? '');
+            $sheet->setCellValue('E'.$currentRow, $siteValue);
+            $sheet->setCellValue('F'.$currentRow, $row->payment ?? '');
+            $sheet->setCellValue('G'.$currentRow, $row->material ?? '');
+            $sheet->setCellValue('H'.$currentRow, $row->artwork ?? '');
+            $sheet->setCellValue('I'.$currentRow, $row->received_approval_note ?? '');
+            $sheet->setCellValue('J'.$currentRow, $row->sent_to_printer_note ?? '');
+            $sheet->setCellValue('K'.$currentRow, $row->collection_printer_note ?? '');
+            $sheet->setCellValue('L'.$currentRow, $row->installation_note ?? '');
+            $sheet->setCellValue('M'.$currentRow, $row->dismantle_note ?? '');
+            $sheet->setCellValue('N'.$currentRow, $row->next_follow_up_note ?? '');
+            $sheet->setCellValue('O'.$currentRow, $row->status ?? '');
+            $currentRow++;
+
+            // Second data row (DATES) ✅
+            $sheet->setCellValue('A'.$currentRow, '');
+            $sheet->setCellValue('B'.$currentRow, '');
+            $sheet->setCellValue('C'.$currentRow, '');
+            $sheet->setCellValue('D'.$currentRow, '');
+            $sheet->setCellValue('E'.$currentRow, '');
+            $sheet->setCellValue('F'.$currentRow, $this->formatDate($row->payment_date));
+            $sheet->setCellValue('G'.$currentRow, $this->formatDate($row->material_date));
+            $sheet->setCellValue('H'.$currentRow, $this->formatDate($row->artwork_date));
+            $sheet->setCellValue('I'.$currentRow, $this->formatDate($row->received_approval));
+            $sheet->setCellValue('J'.$currentRow, $this->formatDate($row->sent_to_printer));
+            $sheet->setCellValue('K'.$currentRow, $this->formatDate($row->collection_printer));
+            $sheet->setCellValue('L'.$currentRow, $this->formatDate($row->installation));
+            $sheet->setCellValue('M'.$currentRow, $this->formatDate($row->dismantle));
+            $sheet->setCellValue('N'.$currentRow, $this->formatDate($row->next_follow_up));
+            $sheet->setCellValue('O'.$currentRow, '');
+            $currentRow++;
+
+            $globalRowNo++;
+        }
+
+        $currentRow++;
+        $lastDataRow = $currentRow - 1;
+    }
+
+    $allDataRange = 'A1:'.$lastColumn.$lastDataRow;
+
+    // ====== STYLING ======
+    $mainTitleRange = 'A1:'.$lastColumn.'5';
+    $sheet->getStyle($mainTitleRange)->applyFromArray([
+        'fill' => [
+            'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+            'startColor' => ['argb' => 'FFFFFF00'],
+        ],
+        'font' => ['bold' => true],
+        'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
+        'borders' => [
+            'allBorders' => [
+                'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                'color' => ['argb' => 'FF000000'],
             ],
-            // baris header ke-2 (kosong, hanya untuk label notes)
-            ['', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-        ];
+        ],
+    ]);
 
-
-        $colCount = count($headerStructure[0]);
-        $lastColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colCount);
-
-        // ====== TITLE SECTION ======
-        $currentRow = 1;
-
-        // Main title
-        $sheet->setCellValue('A'.$currentRow, 'OUTDOOR COORDINATOR TRACKING REPORT');
-        $sheet->mergeCells('A'.$currentRow.':'.$lastColumn.$currentRow);
-        $currentRow++;
-
-        // Generated timestamp
-        $sheet->setCellValue('A'.$currentRow, 'Generated: ' . now()->format('Y-m-d H:i:s'));
-        $sheet->mergeCells('A'.$currentRow.':'.$lastColumn.$currentRow);
-        $currentRow++;
-
-        // Month filter
-        if ($monthLabel) {
-            $sheet->setCellValue('A'.$currentRow, 'Month Filter: ' . $monthLabel);
-        } else {
-            $sheet->setCellValue('A'.$currentRow, 'Month Filter: All Data');
-        }
-        $sheet->mergeCells('A'.$currentRow.':'.$lastColumn.$currentRow);
-        $currentRow++;
-
-        // Total records
-        $totalRecords = array_sum(array_map('count', $classifiedData));
-        $sheet->setCellValue('A'.$currentRow, 'Total Records: ' . $totalRecords);
-        $sheet->mergeCells('A'.$currentRow.':'.$lastColumn.$currentRow);
-        $currentRow++;
-
-        // Empty row for spacing
-        $currentRow++;
-
-        // Store styling ranges
-        $titleRanges = [];
-        $headerRanges = [];
-        $allDataRange = 'A1:'.$lastColumn;
-        $lastDataRow = $currentRow;
-
-        // Global row counter for NO column
-        $globalRowNo = 1;
-
-        // ====== PROCESS EACH SUB-PRODUCT CATEGORY ======
-        foreach ($classifiedData as $category => $rows) {
-            if (empty($rows)) {
-                continue;
-            }
-
-            // ====== SUB-PRODUCT TITLE ======
-            $sheet->setCellValue('A'.$currentRow, strtoupper($category) . ' - ' . count($rows) . ' Records');
-            $sheet->mergeCells('A'.$currentRow.':'.$lastColumn.$currentRow);
-            $titleRanges[] = 'A'.$currentRow.':'.$lastColumn.$currentRow;
-            $currentRow++;
-
-            // ====== TWO-ROW HEADERS ======
-            // First header row (main labels)
-            $headerRowStart = $currentRow;
-            foreach ($headerStructure[0] as $index => $header) {
-                $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($index + 1);
-                $sheet->setCellValue($col.$currentRow, $header);
-            }
-            $headerRanges[] = 'A'.$currentRow.':'.$lastColumn.$currentRow;
-            $currentRow++;
-
-            // Second header row (note labels)
-            foreach ($headerStructure[1] as $index => $header) {
-                $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($index + 1);
-                $sheet->setCellValue($col.$currentRow, $header);
-            }
-            $headerRanges[] = 'A'.$currentRow.':'.$lastColumn.$currentRow;
-            $currentRow++;
-
-            // ====== DATA ROWS (TWO ROWS PER RECORD) ======
-            foreach ($rows as $row) {
-                // First data row (main data + dates)
-                $sheet->setCellValue('A'.$currentRow, $globalRowNo);                  // NO
-                $sheet->setCellValue('B'.$currentRow, $row->company ?? '');           // Company (mf.company)
-                $sheet->setCellValue('C'.$currentRow, $row->person_in_charge ?? '');  // Person In Charge (alias)
-                $sheet->setCellValue('D'.$currentRow, $row->product ?? '');           // Product (mf.product)
-                $sheet->setCellValue('E'.$currentRow, $row->site ?? '');              // Site (oi.site)
-                $sheet->setCellValue('F'.$currentRow, $this->formatDate($row->payment_date));
-                $sheet->setCellValue('G'.$currentRow, $this->formatDate($row->material_date));
-                $sheet->setCellValue('H'.$currentRow, $this->formatDate($row->artwork_date));
-                $sheet->setCellValue('I'.$currentRow, $this->formatDate($row->received_approval));
-                $sheet->setCellValue('J'.$currentRow, $this->formatDate($row->sent_to_printer));
-                $sheet->setCellValue('K'.$currentRow, $this->formatDate($row->collection_printer));
-                $sheet->setCellValue('L'.$currentRow, $this->formatDate($row->installation));
-                $sheet->setCellValue('M'.$currentRow, $this->formatDate($row->dismantle));
-                $sheet->setCellValue('N'.$currentRow, $this->formatDate($row->next_follow_up));
-                $sheet->setCellValue('O'.$currentRow, $row->status ?? '');
-                $currentRow++;
-                // Second data row (notes)
-                $sheet->setCellValue('A'.$currentRow, ''); // NO
-                $sheet->setCellValue('B'.$currentRow, ''); // Company
-                $sheet->setCellValue('C'.$currentRow, ''); // Person In Charge
-                $sheet->setCellValue('D'.$currentRow, ''); // Product
-                $sheet->setCellValue('E'.$currentRow, ''); // Site
-                $sheet->setCellValue('F'.$currentRow, $row->payment ?? '');
-                $sheet->setCellValue('G'.$currentRow, $row->material ?? '');
-                $sheet->setCellValue('H'.$currentRow, $row->artwork ?? '');
-                $sheet->setCellValue('I'.$currentRow, $row->received_approval_note ?? '');
-                $sheet->setCellValue('J'.$currentRow, $row->sent_to_printer_note ?? '');
-                $sheet->setCellValue('K'.$currentRow, $row->collection_printer_note ?? '');
-                $sheet->setCellValue('L'.$currentRow, $row->installation_note ?? '');
-                $sheet->setCellValue('M'.$currentRow, $row->dismantle_note ?? '');
-                $sheet->setCellValue('N'.$currentRow, $row->next_follow_up_note ?? '');
-                $sheet->setCellValue('O'.$currentRow, ''); // Status (tidak ada notes)
-                $currentRow++;
-
-                $globalRowNo++;
-            }
-
-            // Empty row between categories
-            $currentRow++;
-            $lastDataRow = $currentRow - 1;
-        }
-
-        // Update the all data range
-        $allDataRange = 'A1:'.$lastColumn.$lastDataRow;
-
-        // ====== STYLING ======
-
-        // Yellow background for main title rows (1-5)
-        $mainTitleRange = 'A1:'.$lastColumn.'5';
-        $sheet->getStyle($mainTitleRange)->applyFromArray([
+    foreach ($titleRanges as $range) {
+        $sheet->getStyle($range)->applyFromArray([
             'fill' => [
                 'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                'startColor' => ['argb' => 'FFFFFF00'], // Yellow
+                'startColor' => ['argb' => 'FFFFFF00'],
             ],
             'font' => ['bold' => true],
             'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
@@ -1020,45 +1001,16 @@ public function upsert(Request $request)
                 ],
             ],
         ]);
+    }
 
-        // Yellow background for sub-product title rows
-        foreach ($titleRanges as $range) {
-            $sheet->getStyle($range)->applyFromArray([
-                'fill' => [
-                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                    'startColor' => ['argb' => 'FFFFFF00'], // Yellow
-                ],
-                'font' => ['bold' => true],
-                'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
-                'borders' => [
-                    'allBorders' => [
-                        'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                        'color' => ['argb' => 'FF000000'],
-                    ],
-                ],
-            ]);
-        }
-
-        // Yellow background for header rows
-        foreach ($headerRanges as $range) {
-            $sheet->getStyle($range)->applyFromArray([
-                'fill' => [
-                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                    'startColor' => ['argb' => 'FFFFFF00'], // Yellow
-                ],
-                'font' => ['bold' => true],
-                'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
-                'borders' => [
-                    'allBorders' => [
-                        'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                        'color' => ['argb' => 'FF000000'],
-                    ],
-                ],
-            ]);
-        }
-
-        // Borders for all data
-        $sheet->getStyle($allDataRange)->applyFromArray([
+    foreach ($headerRanges as $range) {
+        $sheet->getStyle($range)->applyFromArray([
+            'fill' => [
+                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'startColor' => ['argb' => 'FFFFFF00'],
+            ],
+            'font' => ['bold' => true],
+            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
             'borders' => [
                 'allBorders' => [
                     'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
@@ -1066,19 +1018,27 @@ public function upsert(Request $request)
                 ],
             ],
         ]);
-
-        // Auto-size columns
-        foreach (range('A', $lastColumn) as $col) {
-            $sheet->getColumnDimension($col)->setAutoSize(true);
-        }
-
-        // ====== OUTPUT ======
-        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-        $writer->save('php://output');
-
-        $spreadsheet->disconnectWorksheets();
-        unset($spreadsheet);
     }
+
+    $sheet->getStyle($allDataRange)->applyFromArray([
+        'borders' => [
+            'allBorders' => [
+                'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                'color' => ['argb' => 'FF000000'],
+            ],
+        ],
+    ]);
+
+    foreach (range('A', $lastColumn) as $col) {
+        $sheet->getColumnDimension($col)->setAutoSize(true);
+    }
+
+    $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+    $writer->save('php://output');
+
+    $spreadsheet->disconnectWorksheets();
+    unset($spreadsheet);
+}
 
     /**
      * Helper function to format dates
