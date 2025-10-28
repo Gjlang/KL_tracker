@@ -52,8 +52,8 @@ class OutdoorWhiteboardController extends Controller
                     'outdoor_items.id',
                     'outdoor_items.master_file_id',
                     'outdoor_items.site',           // road / place name (from item)
-                    'outdoor_items.start_date',
-                    'outdoor_items.end_date',
+                    'outdoor_items.start_date as start_date',
+                    'outdoor_items.end_date as end_date',
                     'outdoor_items.billboard_id'    // to traverse → billboard
                 )
                     ->with([
@@ -236,8 +236,8 @@ class OutdoorWhiteboardController extends Controller
                 DB::raw('mf.duration as mf_duration'),
 
                 // START DATE and END DATE from master_files
-                DB::raw('mf.date as start_date'),
-                DB::raw('mf.date_finish as end_date'),
+                DB::raw('oi.start_date as start_date'),
+                DB::raw('oi.end_date as end_date'),
 
                 // INSTALLATION and DISMANTLE from outdoor_whiteboards (user input)
                 DB::raw('wb.install_date as install_date'),
