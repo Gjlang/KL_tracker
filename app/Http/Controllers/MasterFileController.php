@@ -1862,6 +1862,7 @@ class MasterFileController extends Controller
         $sheet = $ss->getActiveSheet();
 
         $headings = [
+            'No',
             'Date Created',
             'Sales Person',
             'Company Name',
@@ -1873,7 +1874,7 @@ class MasterFileController extends Controller
             'Month',
             'Start Date',
             'End Date',
-            'Remarks',
+            'Duration',
             'Status',
             'Job',
             'Artwork',
@@ -1930,6 +1931,7 @@ class MasterFileController extends Controller
             };
 
             // Order matches $headings
+            $put($r - 2);
             $put((string) $row->created_at);
             $put($row->sales_person ?? '');          // Sales Person
             $put($row->company);
