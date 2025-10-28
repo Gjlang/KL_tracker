@@ -60,15 +60,15 @@ public function index(Request $request)
     ->leftJoinSub($d, 'd', function($j){
         $j->on('d.outdoor_item_id','=','oi.id');
     })
-    // NEW joins to fetch site_number & district name
-    ->leftJoin('billboards as bb', 'bb.id', '=', 'oi.billboard_id')
-    ->leftJoin('locations as loc', 'loc.id', '=', 'bb.location_id')
-    ->leftJoin('districts as dist', 'dist.id', '=', 'loc.district_id')
-    // Only Outdoor category (robust)
-    ->where(function ($w) {
-        $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
-          ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%']);
-    });
+    // NEW joins to fetch site_number & location name (replace district with location)
+->leftJoin('billboards as bb', 'bb.id', '=', 'oi.billboard_id')
+->leftJoin('locations as loc', 'loc.id', '=', 'bb.location_id')
+// Only Outdoor category (robust)
+->where(function ($w) {
+    $w->whereRaw('LOWER(mf.product_category) LIKE ?', ['%outdoor%'])
+      ->orWhereRaw('LOWER(mf.product) LIKE ?', ['%outdoor%']);
+});
+
 
     // Text search (optional)
     if ($search !== '') {
@@ -80,8 +80,7 @@ public function index(Request $request)
           ->orWhereRaw('LOWER(COALESCE(oi.coordinates,"")) LIKE ?',     [$like])
           ->orWhereRaw('LOWER(COALESCE(oi.district_council,"")) LIKE ?',[$like])
           // NEW:
-          ->orWhereRaw('LOWER(COALESCE(bb.site_number,"")) LIKE ?',     [$like])
-          ->orWhereRaw('LOWER(COALESCE(dist.name,"")) LIKE ?',          [$like]);
+          ->orWhereRaw('LOWER(COALESCE(loc.name,"")) LIKE ?', [$like]);
     });
 }
 
@@ -134,8 +133,7 @@ $rows = $q->select([
         'mf.date','mf.date_finish','mf.month','mf.created_at',
         'oi.id as outdoor_item_id','oi.site','oi.size','oi.coordinates','oi.district_council',
         // NEW aliases for Blade:
-        'bb.site_number as site_code',
-        'dist.name      as district_name',
+        'loc.name       as location_name',
         // ⭐ ADD THESE TWO LINES - dates from outdoor_items
         'oi.start_date',
         'oi.end_date',
@@ -143,7 +141,8 @@ $rows = $q->select([
     ->whereNotNull('oi.id')
     // optional: sort by company then site_number if ada, else oi.site
     ->orderByRaw('LOWER(mf.company) ASC')
-    ->orderByRaw('LOWER(COALESCE(bb.site_number, oi.site)) ASC')
+    ->orderByRaw('LOWER(COALESCE(loc.name, oi.site)) ASC')
+
     ->get();
 
 
@@ -297,63 +296,62 @@ public function cloneYear(Request $request)
 
 
 
+
 public function exportMatrix(Request $req)
 {
-    $tz    = 'Asia/Kuala_Lumpur';
-    $today = now($tz)->format('d/m/Y');                // ✅ current date
-    $year  = (int)($req->input('year') ?: now($tz)->year);
+    $tz      = 'Asia/Kuala_Lumpur';
+    $today   = now($tz)->format('d/m/Y');
+    $year    = (int)($req->input('year') ?: now($tz)->year);
     $product = trim((string)$req->input('product', ''));
 
-    // 1) Base query: per-site rows
-    $sitesQ = DB::table('master_files as mf')
-    ->join('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
-    // NEW: pull billboard site code + district name for consistent "Site(s)" display
-    ->leftJoin('billboards as bb', 'bb.id', '=', 'oi.billboard_id')
-    ->leftJoin('locations as loc', 'loc.id', '=', 'bb.location_id')
-    ->leftJoin('districts as d', 'd.id', '=', 'loc.district_id')
+    // ---- Build an overlap window for the selected year ----
+    $yearStart = Carbon::create($year, 1, 1, 0, 0, 0, $tz)->toDateString();   // YYYY-01-01
+    $yearEnd   = Carbon::create($year, 12, 31, 23, 59, 59, $tz)->toDateString(); // YYYY-12-31
 
-    ->when($product !== '', function ($q) use ($product) {
-        $q->where('mf.product', $product);
-    })
-    ->where(function ($w) use ($year) {
-        $w->whereYear('oi.start_date', $year)
-          ->orWhereYear('oi.end_date', $year)
-          ->orWhereYear('mf.created_at', $year);
-    })
+    // 1) Base query: per-site rows (include any contract that overlaps the year)
+    $sitesQ = \DB::table('master_files as mf')
+        ->join('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
+        ->leftJoin('billboards as bb', 'bb.id', '=', 'oi.billboard_id')
+->leftJoin('locations as loc', 'loc.id', '=', 'bb.location_id')
 
-    // Sort: company → site_number (nulls last) → road name (nulls last)
-    ->orderByRaw('LOWER(mf.company) ASC')
-    ->orderByRaw('bb.site_number IS NULL, LOWER(bb.site_number) ASC')
-    ->orderByRaw('oi.site IS NULL, LOWER(oi.site) ASC');
+        ->when($product !== '', function ($q) use ($product) {
+            $q->where('mf.product', $product);
+        })
+
+        // ✅ overlap logic: (start <= yearEnd) AND (end >= yearStart)
+        ->where(function ($w) use ($yearStart, $yearEnd) {
+            $w->whereDate('oi.start_date', '<=', $yearEnd)
+              ->whereDate('oi.end_date',   '>=', $yearStart);
+        })
+
+        ->orderByRaw('LOWER(mf.company) ASC')
+->orderByRaw('loc.name IS NULL, LOWER(loc.name) ASC')
+->orderByRaw('oi.site IS NULL, LOWER(oi.site) ASC');
+
 
     $siteRows = $sitesQ->get([
-    'mf.id              as master_file_id',
-    'oi.id              as outdoor_item_id',
-    'mf.company',
-    'mf.product',
-    'mf.product_category',
-    'mf.created_at      as created_at',
-    // ⭐ NOW using outdoor_items dates
-    'oi.start_date      as start',
-    'oi.end_date        as end',
+        'mf.id              as master_file_id',
+        'oi.id              as outdoor_item_id',
+        'mf.company',
+        'mf.product',
+        'mf.product_category',
+        'mf.created_at      as created_at',
+        'oi.start_date      as start',
+        'oi.end_date        as end',
+        'oi.site            as road_raw',
+        'loc.name           as location_name',
+    ]);
 
-    // For "Site(s)" display parity with the Blade
-    'oi.site            as road_raw',
-    'bb.site_number     as site_code',
-    'd.name             as district_name',
-]);
-
-    // 5) File naming - MOVED UP
     $title = "Outdoor - Monthly - {$today} - {$year}";
-    $file  = Str::slug($title, '_').'.xlsx';
+    $file  = \Illuminate\Support\Str::slug($title, '_').'.xlsx';
 
     if ($siteRows->isEmpty()) {
-        return (new OutdoorMatrixExport([], $title))->download($file);  // ✅ Pass title
+        return (new \App\Exports\OutdoorMatrixExport([], $title))->download($file);
     }
 
-    // 2) Load monthly details
+    // 2) Monthly details (only for this year)
     $siteIds = $siteRows->pluck('outdoor_item_id')->filter()->unique()->values();
-    $details = DB::table('outdoor_monthly_details as omd')
+    $details = \DB::table('outdoor_monthly_details as omd')
         ->where('omd.year', $year)
         ->whereIn('omd.outdoor_item_id', $siteIds)
         ->orderBy('omd.outdoor_item_id')
@@ -367,7 +365,7 @@ public function exportMatrix(Request $req)
             'omd.value_date',
         ]);
 
-    // 3) Group months by item
+    // 3) Group months by item (status + one date per month)
     $monthsByItem = [];
     foreach ($details->groupBy('outdoor_item_id') as $itemId => $rows) {
         $months = [];
@@ -375,72 +373,59 @@ public function exportMatrix(Request $req)
             $months[$m] = ['status' => '', 'date' => null];
         }
         foreach ($rows as $r) {
-            $mn = (int)$r->month;
+            $mn = (int) $r->month;
             if ($mn < 1 || $mn > 12) continue;
-            $fk = strtolower((string)$r->field_key);
 
+            $fk = strtolower((string)$r->field_key);
             if ($r->field_type === 'text' && $fk === 'status' && $r->value_text) {
                 $months[$mn]['status'] = $r->value_text;
             }
-            if ($r->field_type === 'date' && $r->value_date) {
-                // ⭐ Format date to d/m/Y
-                try {
-                    $months[$mn]['date'] = Carbon::parse($r->value_date)->format('d/m/Y');
-                } catch (\Throwable $e) {
-                    $months[$mn]['date'] = null;
-                }
+
+            // Take any date-type field for the month (last write wins)
+            if ($r->field_type === 'date' && !empty($r->value_date)) {
+                $months[$mn]['date'] = $r->value_date; // pass raw date string; exporter will format
             }
         }
         $monthsByItem[$itemId] = $months;
     }
 
-    // 4) Build records
-    $records = [];
+    // 4) Build records & group by sub-product
+    $recordsBySubProduct = [];
     foreach ($siteRows as $r) {
-    $itemId = (int)$r->outdoor_item_id;
+        $itemId = (int) $r->outdoor_item_id;
 
-    $months = $monthsByItem[$itemId] ?? (function () {
-        $m = []; for ($i=1; $i<=12; $i++) $m[$i] = ['status'=>'','date'=>null]; return $m;
-    })();
+        $months = $monthsByItem[$itemId] ?? (function () {
+            $m = []; for ($i = 1; $i <= 12; $i++) $m[$i] = ['status'=>'', 'date'=>null]; return $m;
+        })();
 
-    $siteDisplay = self::composeSiteDisplay($r->site_code ?? '', $r->road_raw ?? '', $r->district_name ?? '');
+        $siteDisplay = $r->location_name ?? ($r->road_raw ?? '—');
 
-    // ⭐ Format start and end dates to d/m/Y
-    $startFormatted = null;
-    if ($r->start) {
-        try {
-            $startFormatted = Carbon::parse($r->start)->format('d/m/Y');
-        } catch (\Throwable $e) {
-            $startFormatted = $r->start;
-        }
+        // 🟡 Decide what the left "Date" column should represent:
+        //    Option A: show created_at (current behavior)
+        //    Option B: show start date
+        $leftDate = $r->created_at; // change to $r->start if you prefer
+
+        $subProduct = strtoupper(trim((string)$r->product)) ?: 'OTHER';
+
+        $recordsBySubProduct[$subProduct][] = [
+            'summary' => [
+                'date'     => $leftDate,                  // raw; exporter will format
+                'company'  => $r->company,
+                'product'  => $r->product,
+                'site'     => $siteDisplay,
+                'category' => $r->product_category ?: 'Outdoor',
+                'start'    => $r->start,                  // raw
+                'end'      => $r->end,                    // raw
+            ],
+            'months' => $months,
+        ];
     }
 
-    $endFormatted = null;
-    if ($r->end) {
-        try {
-            $endFormatted = Carbon::parse($r->end)->format('d/m/Y');
-        } catch (\Throwable $e) {
-            $endFormatted = $r->end;
-        }
-    }
+    ksort($recordsBySubProduct);
 
-    $records[] = [
-        'summary' => [
-            'date'     => $r->created_at,                        // "Date Created"
-            'company'  => $r->company,
-            'product'  => $r->product,
-            'site'     => $siteDisplay,                          // ✅ same as Blade "Site(s)"
-            'category' => $r->product_category ?: 'Outdoor',
-            'start'    => $startFormatted,                       // ⭐ formatted to d/m/Y
-            'end'      => $endFormatted,                         // ⭐ formatted to d/m/Y
-        ],
-        'months' => $months,
-    ];
+    return (new \App\Exports\OutdoorMatrixExport($recordsBySubProduct, $title))->download($file);
 }
 
-
-    return (new OutdoorMatrixExport($records, $title))->download($file);  // ✅ Pass title
-}
 
 private static function composeSiteDisplay(?string $siteCode, ?string $roadRaw, ?string $district): string
 {
