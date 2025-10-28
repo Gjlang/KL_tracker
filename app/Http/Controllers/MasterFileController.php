@@ -1604,8 +1604,32 @@ class MasterFileController extends Controller
                         ];
                     }
 
-                    if (!empty($items)) {
+                   if (!empty($items)) {
                         $masterFile->outdoorItems()->createMany($items);
+                    }
+                }
+
+                // ===== FALLBACK 2: No repeater, no bulk_placements? Create minimal outdoor_item =====
+                if ($isOutdoor && empty($locationsToProcess) && $raw === '') {
+                    $subProduct = $data['product'] ?? 'Outdoor';
+
+                    // Products that need tracking in outdoor_items
+                    $needsTracking = ['Bunting', 'Signages', 'Flyers', 'Star', 'Newspaper', 'BB', 'TB'];
+
+                    if (in_array($subProduct, $needsTracking, true)) {
+                        $masterFile->outdoorItems()->create([
+                            'sub_product'      => $subProduct,
+                            'qty'              => 1,
+                            'site'             => null,
+                            'size'             => $data['outdoor_size'] ?? null,
+                            'district_council' => $data['outdoor_district_council'] ?? null,
+                            'coordinates'      => $data['outdoor_coordinates'] ?? null,
+                            'remarks'          => $data['remarks'] ?? null,
+                            'start_date'       => $data['date'] ?? null,
+                            'end_date'         => $data['date_finish'] ?? null,
+                            'status'           => 'pending_payment',
+                            'billboard_id'     => null,
+                        ]);
                     }
                 }
             });
