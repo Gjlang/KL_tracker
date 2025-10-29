@@ -419,12 +419,16 @@
                             <tbody id="outdoorTbody" class="bg-white divide-y divide-neutral-200">
                                 @foreach ($rows as $index => $row)
                                     @php
-                                        $company = $row->company;
-                                        $start = $row->start_date ?? ($row->date ?? null);
-                                        $end = $row->date_finish ?? ($row->end_date ?? null);
-                                        $startDisp = df($start);
-                                        $endDisp = df($end);
-                                    @endphp
+    $company = $row->company;
+
+    // prefer outdoor_items dates; fall back to master_files only if OI is empty
+    $start = $row->oi_start ?? $row->mf_start ?? null;
+    $end   = $row->oi_end   ?? $row->mf_end   ?? null;
+
+    $startDisp = df($start);
+    $endDisp   = df($end);
+@endphp
+
                                     <tr class="hover:bg-neutral-50 hover-lift transition-all duration-150"
                                         data-idx="{{ $loop->index }}">
                                         <td class="px-3 py-2 text-right tabular-nums">{{ $loop->iteration }}</td>

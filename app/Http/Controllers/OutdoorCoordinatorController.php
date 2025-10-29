@@ -77,7 +77,7 @@ public function index(Request $request)
     }
 
     // -------- Month-aware LEFT JOIN to OMD (pivoted per item) --------
-    if ($month !== null) { // month=0 means "All Months" in UI → treat as null
+    if ($month !== null) { // month=0 means "All Months" in UI â†’ treat as null
         // Subquery: pivot OMD ke kolom2 per item untuk year+month yang dipilih
         $omd = DB::table('outdoor_monthly_details as md')
             ->select([
@@ -152,8 +152,8 @@ public function index(Request $request)
         DB::raw('oi.size as size'),
 
         // NEW: for display formatting in Blade
-        DB::raw('bb.site_number as site_code'),
-        DB::raw('COALESCE(d.name, oi.district_council) as district'),
+        DB::raw('loc.name as site_code'),  // Changed from bb.site_number to loc.name
+DB::raw('COALESCE(d.name, oi.district_council) as district'),
 
         // kolom-kolom bulan (NULL kalau tidak ada OMD di bulan tsb, atau OCT data saat All Months)
         DB::raw(($month !== null) ? 'md.status'              : 'oct.status as status'),
@@ -299,7 +299,7 @@ public function upsert(Request $request)
             $isDate = in_array($field, $dateFields, true);
             $isNote = str_ends_with($field, '_note');
 
-            // 1) Upsert to outdoor_monthly_details (SOURCE OF TRUTH) — include master_file_id!
+            // 1) Upsert to outdoor_monthly_details (SOURCE OF TRUTH) â€” include master_file_id!
             $omdKey = [
                 'master_file_id'  => $mfId,
                 'outdoor_item_id' => $oiId,
@@ -411,7 +411,7 @@ public function upsert(Request $request)
 
 
     /**
-     * 🔥 UPDATED: AJAX Update Field for Inline Editing - Enhanced version
+     * ðŸ”¥ UPDATED: AJAX Update Field for Inline Editing - Enhanced version
      */
     public function updateField(Request $request)
     {
@@ -545,7 +545,7 @@ public function upsert(Request $request)
     }
 
     /**
-     * 🔥 NEW: Get Dynamic Years for Filter Dropdown
+     * ðŸ”¥ NEW: Get Dynamic Years for Filter Dropdown
      */
     public function getAvailableYears()
     {
@@ -680,6 +680,7 @@ public function export(Request $request): StreamedResponse
     Log::info('Export started', [
         'month_requested' => $request->integer('month'),
         'year_requested'  => $request->integer('year'),
+        'product_requested' => $request->get('product_filter'),
         'all_params'      => $request->all(),
     ]);
 
@@ -688,15 +689,15 @@ public function export(Request $request): StreamedResponse
 
     // === BASE: SAME AS INDEX (master_files → outdoor_items) + billboard joins ===
     $q = DB::table('master_files as mf')
-    ->leftJoin('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
-    ->leftJoin('billboards as bb', 'bb.id', '=', 'oi.billboard_id')
-    ->leftJoin('locations  as loc', 'loc.id', '=', 'bb.location_id')
-    ->leftJoin('districts  as d',   'd.id',   '=', 'loc.district_id')
-    ->where(function ($w) {
-        $w->whereRaw('LOWER(mf.product_category) REGEXP ?', ['(^|[^a-z])(outdoor|billboard)([^a-z]|$)'])
-          ->orWhereRaw('LOWER(mf.product) REGEXP ?',          ['(^|[^a-z])(outdoor|billboard)([^a-z]|$)']);
-    })
-    ->whereNotNull('oi.id');
+        ->leftJoin('outdoor_items as oi', 'oi.master_file_id', '=', 'mf.id')
+        ->leftJoin('billboards as bb', 'bb.id', '=', 'oi.billboard_id')
+        ->leftJoin('locations  as loc', 'loc.id', '=', 'bb.location_id')
+        ->leftJoin('districts  as d',   'd.id',   '=', 'loc.district_id')
+        ->where(function ($w) {
+            $w->whereRaw('LOWER(mf.product_category) REGEXP ?', ['(^|[^a-z])(outdoor|billboard)([^a-z]|$)'])
+              ->orWhereRaw('LOWER(mf.product) REGEXP ?',          ['(^|[^a-z])(outdoor|billboard)([^a-z]|$)']);
+        })
+        ->whereNotNull('oi.id');
 
     // Optional search (kept)
     if ($s = trim(strtolower((string)$request->get('search','')))) {
@@ -711,12 +712,28 @@ public function export(Request $request): StreamedResponse
         });
     }
 
+    // FIXED: Product filter - extract clean category from dropdown value
     $productFilter = strtoupper(trim((string) $request->get('product_filter', '')));
-    if ($productFilter !== '' && $productFilter !== 'ALL') {
-        $q->whereRaw('UPPER(mf.product) LIKE ?', ['%' . $productFilter . '%']);
+
+    // Extract "BB" from "BB (Billboard)", "TB" from "TB", etc.
+    $cleanProductFilter = '';
+    if ($productFilter !== '' && $productFilter !== 'ALL' && $productFilter !== 'ALL PRODUCTS') {
+        // Extract text before parenthesis or space: "BB (Billboard)" -> "BB"
+        if (preg_match('/^([A-Z]+)/', $productFilter, $matches)) {
+            $cleanProductFilter = $matches[1];
+        } else {
+            $cleanProductFilter = $productFilter;
+        }
     }
 
-    // === Month-aware join (mirror of index) ===
+    if ($cleanProductFilter !== '') {
+        $q->where(function ($w) use ($cleanProductFilter) {
+            $w->whereRaw('UPPER(mf.product) LIKE ?', ['%' . $cleanProductFilter . '%'])
+              ->orWhereRaw('UPPER(oi.sub_product) LIKE ?', ['%' . $cleanProductFilter . '%']);
+        });
+    }
+
+    // === Month-aware join (INNER JOIN to filter out items without data) ===
     if ($month) {
         $omd = DB::table('outdoor_monthly_details as md')
             ->select([
@@ -749,7 +766,10 @@ public function export(Request $request): StreamedResponse
             ->where('md.month', $month)
             ->groupBy('md.outdoor_item_id');
 
-        $q->leftJoinSub($omd, 'md', 'md.outdoor_item_id', '=', 'oi.id');
+        // FIXED: Changed from leftJoinSub to joinSub to filter out items without monthly data
+        $q->joinSub($omd, 'md', function ($j) {
+            $j->on('md.outdoor_item_id', '=', 'oi.id');
+        });
     } else {
         $octLatest = DB::table('outdoor_coordinator_trackings as oct')
             ->select(['oct.master_file_id','oct.outdoor_item_id', DB::raw('MAX(oct.id) AS oct_id')])
@@ -770,9 +790,11 @@ public function export(Request $request): StreamedResponse
             : "COALESCE(mf.client, oct.client) as person_in_charge"
         ),
         'mf.product as product',
+        'oi.sub_product as sub_product', // ADDED: for better classification
 
         DB::raw('oi.id as outdoor_item_id'),
-        DB::raw('loc.name as location_name'),
+DB::raw('loc.name as site'), // Changed: use location name as site
+DB::raw('loc.name as location_name'),
 
         DB::raw(($month ? 'md.status'  : 'oct.status as status')),
         DB::raw(($month ? 'md.remarks' : 'oct.remarks as remarks')),
@@ -805,18 +827,31 @@ public function export(Request $request): StreamedResponse
 
     // === Build the SAME site display as in Blade ===
     foreach ($rows as $r) {
-        $locName = trim((string)($r->location_name ?? ''));
-        $r->site_display = $locName !== '' ? $locName : '';
-    }
+    $locName = trim((string)($r->location_name ?? ''));
+    $r->site_display = $locName !== '' ? $locName : trim((string)($r->site ?? ''));
+}
 
-    // === Classify for sheets ===
-    $classifiedData = ['BB'=>[], 'TB'=>[], 'Buting'=>[], 'Other'=>[]];
-    foreach ($rows as $row) {
-        $p = strtoupper($row->product ?? '');
-        if (str_contains($p,'BB'))       $classifiedData['BB'][] = $row;
-        elseif (str_contains($p,'TB'))   $classifiedData['TB'][] = $row;
-        elseif (str_contains($p,'BUTING')) $classifiedData['Buting'][] = $row;
-        else                             $classifiedData['Other'][] = $row;
+    // === CRITICAL FIX: If product filter is active, DON'T re-classify! ===
+    if ($cleanProductFilter !== '') {
+        // Product filter is active - all results go to ONE sheet with clean category name
+        $classifiedData = [$cleanProductFilter => $rows->all()];
+    } else {
+        // No product filter - classify into multiple sheets as before
+        $classifiedData = ['BB'=>[], 'TB'=>[], 'Bunting'=>[], 'Signages'=>[], 'Other'=>[]];
+        foreach ($rows as $row) {
+            $subProd = strtoupper(trim((string)($row->sub_product ?? '')));
+
+            if (str_contains($subProd, 'BB'))            $classifiedData['BB'][] = $row;
+            elseif (str_contains($subProd, 'TB'))        $classifiedData['TB'][] = $row;
+            elseif (str_contains($subProd, 'BUNTING'))   $classifiedData['Bunting'][] = $row;
+            elseif (str_contains($subProd, 'SIGNAGES'))  $classifiedData['Signages'][] = $row;
+            else                                         $classifiedData['Other'][] = $row;
+        }
+
+        // Remove empty categories so they don't appear as sheets
+        $classifiedData = array_filter($classifiedData, function($items) {
+            return count($items) > 0;
+        });
     }
 
     $monthName  = $month ? "month-{$month}" : 'all';
@@ -831,7 +866,6 @@ public function export(Request $request): StreamedResponse
         'Cache-Control'       => 'no-cache, no-store, max-age=0',
     ]);
 }
-
 private function generateOutdoorCoordinatorXlsx($classifiedData, ?string $monthLabel): void
 {
     $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
@@ -924,7 +958,7 @@ private function generateOutdoorCoordinatorXlsx($classifiedData, ?string $monthL
         foreach ($rows as $row) {
             $siteValue = trim((string)($row->site_display ?? $row->location_name ?? ''));
 
-            // First data row (main data + TEXT/NOTES) ✅
+            // First data row (main data + TEXT/NOTES) âœ…
             $sheet->setCellValue('A'.$currentRow, $globalRowNo);
             $sheet->setCellValue('B'.$currentRow, $row->company ?? '');
             $sheet->setCellValue('C'.$currentRow, $row->person_in_charge ?? '');
@@ -942,7 +976,7 @@ private function generateOutdoorCoordinatorXlsx($classifiedData, ?string $monthL
             $sheet->setCellValue('O'.$currentRow, $row->status ?? '');
             $currentRow++;
 
-            // Second data row (DATES) ✅
+            // Second data row (DATES) âœ…
             $sheet->setCellValue('A'.$currentRow, '');
             $sheet->setCellValue('B'.$currentRow, '');
             $sheet->setCellValue('C'.$currentRow, '');

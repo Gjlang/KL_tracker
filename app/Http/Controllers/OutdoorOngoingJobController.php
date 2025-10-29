@@ -128,16 +128,22 @@ $q->where(function ($w) use ($yearStart, $yearEnd) {
         });
     }
 $rows = $q->select([
-        'mf.id',
-        'mf.company','mf.product','mf.product_category',
-        'mf.date','mf.date_finish','mf.month','mf.created_at',
-        'oi.id as outdoor_item_id','oi.site','oi.size','oi.coordinates','oi.district_council',
-        // NEW aliases for Blade:
-        'loc.name       as location_name',
-        // ⭐ ADD THESE TWO LINES - dates from outdoor_items
-        'oi.start_date',
-        'oi.end_date',
-    ])
+    'mf.id',
+    'mf.company','mf.product','mf.product_category',
+    'mf.date         as mf_start',
+    'mf.date_finish  as mf_end',
+    'mf.month','mf.created_at',
+
+    'oi.id           as outdoor_item_id',
+    'oi.site','oi.size','oi.coordinates','oi.district_council',
+
+    'loc.name        as location_name',
+
+    // use explicit OI aliases
+    'oi.start_date   as oi_start',
+    'oi.end_date     as oi_end',
+])
+
     ->whereNotNull('oi.id')
     // optional: sort by company then site_number if ada, else oi.site
     ->orderByRaw('LOWER(mf.company) ASC')
