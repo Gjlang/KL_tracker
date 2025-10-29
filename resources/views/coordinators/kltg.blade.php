@@ -850,7 +850,7 @@
                                                             class="table-input {{ $isNumeric ? 'text-right' : '' }} tabular-nums"
                                                             value="{{ $val }}"
                                                             data-master-file-id="{{ $r->id }}"
-                                                            data-subcategory="{{ $activeTab }}"
+                                                            data-subcategory="{{ ['print'=>'KLTG','video'=>'VIDEO','article'=>'ARTICLE','lb'=>'LB','em'=>'EM'][$activeTab] }}"
                                                             data-field="{{ $key }}" />
                                                     @else
                                                         <input type="text"
@@ -947,28 +947,64 @@
                     month
                 };
             }
+// ▼ Tambah di atas buildPayload (sebelum dipakai)
+const COLMAP = {
+  // KLTG/Print dates
+  artwork_reminder_date: 'artwork_reminder',
+  material_received_date: 'material_record',
+  artwork_done_date: 'artwork_done',
+  send_chop_sign_date: 'send_chop_sign',
+  chop_sign_approval_date: 'chop_sign_approval',
+  park_in_server_date: 'park_in_file_server',
 
-            function buildPayload(el) {
-                const masterId = Number(el.dataset.masterFileId);
-                const subcategory = el.dataset.subcategory;
-                const field = el.dataset.field;
+  // Video/Article/LB dates
+  video_done_date: 'video_done',
+  pending_approval_date: 'pending_approval',
+  video_approved_date: 'video_approved',
+  video_scheduled_date: 'video_scheduled',
+  video_posted_date: 'video_posted',
+  article_done_date: 'article_done',
+  article_approved_date: 'article_approved',
+  article_scheduled_date: 'article_scheduled',
+  article_posted_date: 'article_posted',
 
-                if (!masterId || !subcategory || !field) return null;
+  // Texts/links
+  material_reminder_text: 'material_reminder_text',
+  post_link: 'post_link',
+  blog_link: 'blog_link',
 
-                const value = el.value ?? '';
-                const ym = requireConcreteMonth();
-                if (!ym) return null;
+  // EM
+  em_date_write: 'em_date_write',
+  em_date_to_post: 'em_date_to_post',
+  em_post_date: 'em_post_date',
+  em_qty: 'em_qty',
+};
 
-                return {
-                    master_file_id: masterId,
-                    subcategory: subcategory,
-                    year: ym.year,
-                    month: ym.month,
-                    field: field,
-                    column: field,
-                    value: value
-                };
-            }
+// ▼ Update buildPayload: column pakai map
+function buildPayload(el) {
+  const masterId = Number(el.dataset.masterFileId);
+  const subcategory = el.dataset.subcategory;
+  const field = el.dataset.field;
+
+  if (!masterId || !subcategory || !field) return null;
+
+  const value = el.value ?? '';
+  const ym = requireConcreteMonth();
+  if (!ym) return null;
+
+  const column = COLMAP[field] || field;
+
+  return {
+    master_file_id: masterId,
+    subcategory: subcategory,
+    year: ym.year,
+    month: ym.month,
+    field: field,    // biarin sebagai meta UI
+    column: column,  // ← ini yang dipakai server untuk DB
+    value: value
+  };
+}
+
 
             const inputs = document.querySelectorAll('[data-master-file-id][data-field]');
 

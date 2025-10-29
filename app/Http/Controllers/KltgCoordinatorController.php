@@ -254,25 +254,33 @@ foreach ($candidates as $c) {
     // ========= Columns (unchanged) =========
     $columns = [
     'print' => [
-        ['key'=>'title','label'=>'Title','type'=>'text'],
-        ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
-        ['key'=>'x','label'=>'X (text)','type'=>'text'],
-        ['key'=>'edition','label'=>'Edition','type'=>'text'],
-        ['key'=>'publication','label'=>'Publication','type'=>'text'],
-        ['key'=>'artwork_party','label'=>'Artwork (BP/Client)','type'=>'text'],
-        ['key'=>'artwork_reminder_date','label'=>'Artwork Reminder','type'=>'date'],
-        ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
-        ['key'=>'artwork_done_date','label'=>'Artwork Done','type'=>'date'],
-        ['key'=>'send_chop_sign_date','label'=>'Send Chop & Sign','type'=>'date'],
-        ['key'=>'chop_sign_approval_date','label'=>'Chop & Sign Approval','type'=>'date'],
-        ['key'=>'park_in_server_date','label'=>'Park in file server','type'=>'date'],
-        ['key'=>'remarks','label'=>'Remarks','type'=>'text'],
-    ],
+    ['key'=>'title','label'=>'Title','type'=>'text'],
+    ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
+    ['key'=>'x','label'=>'X (text)','type'=>'text'],
+    ['key'=>'edition','label'=>'Edition','type'=>'text'],
+    ['key'=>'publication','label'=>'Publication','type'=>'text'],
+    ['key'=>'artwork_party','label'=>'Artwork (BP/Client)','type'=>'text'],
+
+    // ▼ pastikan label beda dan benar
+    ['key'=>'artwork_reminder_date','label'=>'Material Reminder','type'=>'date'],
+    ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
+
+    // (opsional) kalau mau tampilkan catatan juga:
+    // ['key'=>'material_reminder_text','label'=>'Material Reminder Notes','type'=>'text'],
+
+    ['key'=>'artwork_done_date','label'=>'Artwork Done','type'=>'date'],
+    ['key'=>'send_chop_sign_date','label'=>'Send Chop & Sign','type'=>'date'],
+    ['key'=>'chop_sign_approval_date','label'=>'Chop & Sign Approval','type'=>'date'],
+    ['key'=>'park_in_server_date','label'=>'Park in file server','type'=>'date'],
+    ['key'=>'remarks','label'=>'Remarks','type'=>'text'],
+],
+
 
     // Video (uses _dbcol mapping: video_* -> video_* columns)
     'video' => [
         ['key'=>'title','label'=>'Title','type'=>'text'],
         ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
+        ['key'=>'artwork_reminder_date','label'=>'Material Reminder','type'=>'date'],
         ['key'=>'material_reminder_text','label'=>'Material Reminder','type'=>'text'],
         ['key'=>'video_done_date','label'=>'Video Done','type'=>'date'],
         ['key'=>'pending_approval_date','label'=>'Pending Approval','type'=>'date'],
@@ -287,6 +295,8 @@ foreach ($candidates as $c) {
     'article' => [
         ['key'=>'title','label'=>'Title','type'=>'text'],
         ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
+        ['key'=>'artwork_reminder_date','label'=>'Material Reminder','type'=>'date'],
+        ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
         ['key'=>'article_done_date','label'=>'Article Done','type'=>'date'],
         ['key'=>'article_approved_date','label'=>'Article Approved','type'=>'date'],
         ['key'=>'article_scheduled_date','label'=>'Article Scheduled','type'=>'date'],
@@ -300,6 +310,7 @@ foreach ($candidates as $c) {
         ['key'=>'title','label'=>'Title','type'=>'text'],
         ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
         ['key'=>'material_reminder_text','label'=>'Material Reminder','type'=>'text'],
+        ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
         ['key'=>'video_done_date','label'=>'Production Done','type'=>'date'],
         ['key'=>'pending_approval_date','label'=>'Pending Approval','type'=>'date'],
         ['key'=>'video_approved_date','label'=>'Approved','type'=>'date'],
