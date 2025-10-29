@@ -1446,29 +1446,29 @@ class MasterFileController extends Controller
                 $locations = $request->input('locations', []);
 
                 foreach ($locations as $loc) {
-                    // Tangkap billboard_id (bisa numeric ID atau text manual)
-                    $billboardIdRaw = $loc['billboard_id'] ?? null;
-                    $billboardId = null;
-                    $typedSite = '';
+    // Tangkap billboard_id (bisa numeric ID atau text manual)
+    $billboardIdRaw = $loc['billboard_id'] ?? null;
+    $billboardId = null;
+    $typedSite = '';
 
-                    // Jika billboard_id adalah angka → user pilih dari dropdown
-                    if (is_numeric($billboardIdRaw)) {
-                        $billboardId = (int) $billboardIdRaw;
-                    }
-                    // Jika billboard_id adalah text → user ketik manual
-                    elseif (is_string($billboardIdRaw) && trim($billboardIdRaw) !== '') {
-                        $typedSite = trim($billboardIdRaw);
-                    }
+    // Jika billboard_id adalah angka → user pilih dari dropdown
+    if (is_numeric($billboardIdRaw)) {
+        $billboardId = (int) $billboardIdRaw;
+    }
+    // Jika billboard_id adalah text → user ketik manual
+    elseif (is_string($billboardIdRaw) && trim($billboardIdRaw) !== '') {
+        $typedSite = trim($billboardIdRaw);
+    }
 
-                    // Fallback: ambil dari field 'site' kalau ada
-                    if (!$billboardId && !$typedSite) {
-                        $typedSite = trim($loc['site'] ?? '');
-                    }
+    // Fallback: ambil dari field 'site' kalau ada
+    if (!$billboardId && !$typedSite) {
+        $typedSite = trim($loc['site'] ?? '');
+    }
 
-                    // Skip HANYA kalau kosong semua
-                    if (!$billboardId && $typedSite === '') {
-                        continue;
-                    }
+    // Skip HANYA kalau kosong semua
+    if (!$billboardId && $typedSite === '') {
+        continue;
+    }
                     // Check for overlapping bookings
                     $startDate = $loc['start_date'] ?? null;
                     $endDate = $loc['end_date'] ?? null;
@@ -1514,58 +1514,58 @@ class MasterFileController extends Controller
                 if ($isOutdoor && !empty($locationsToProcess)) {
 
                     foreach ($locationsToProcess as $processedLoc) {
-                        $loc = $processedLoc['location_data'];
-                        $billboardId = $processedLoc['billboard_id'];
-                        $typedSite = $processedLoc['typed_site'];
+    $loc = $processedLoc['location_data'];
+    $billboardId = $processedLoc['billboard_id'];
+    $typedSite = $processedLoc['typed_site'];
 
-                        // HAPUS skip check - sudah dihandle sebelum transaction
-                        // Row pasti ada site (dari billboard atau manual input)
+    // HAPUS skip check - sudah dihandle sebelum transaction
+    // Row pasti ada site (dari billboard atau manual input)
 
-                        $subProduct = $loc['sub_product'] ?? ($data['product'] ?? 'Outdoor');
-                        $size       = $loc['size'] ?? null;
-                        $area       = $loc['council'] ?? null;
-                        $coords     = $loc['coords'] ?? null;
-                        $remarks    = $loc['remarks'] ?? null;
-                        $startDate  = $loc['start_date'] ?? null;
-                        $endDate    = $loc['end_date'] ?? null;
-                        $outdoorStatus = $loc['outdoor_status'] ?? null;
+    $subProduct = $loc['sub_product'] ?? ($data['product'] ?? 'Outdoor');
+    $size       = $loc['size'] ?? null;
+    $area       = $loc['council'] ?? null;
+    $coords     = $loc['coords'] ?? null;
+    $remarks    = $loc['remarks'] ?? null;
+    $startDate  = $loc['start_date'] ?? null;
+    $endDate    = $loc['end_date'] ?? null;
+    $outdoorStatus = $loc['outdoor_status'] ?? null;
 
-                        // Prioritaskan typedSite (text manual dari user)
-                        $siteLabel = $typedSite;
+    // Prioritaskan typedSite (text manual dari user)
+    $siteLabel = $typedSite;
 
-                        // Hydrate dari billboard HANYA kalau billboard_id ada
-                        if ($billboardId) {
-                            $bb = \DB::table('billboards as b')
-                                ->leftJoin('locations as l', 'l.id', '=', 'b.location_id')
-                                ->where('b.id', $billboardId)
-                                ->first(['b.site_number', 'b.size', 'b.gps_latitude', 'b.gps_longitude', 'l.name as area_name']);
+    // Hydrate dari billboard HANYA kalau billboard_id ada
+    if ($billboardId) {
+        $bb = \DB::table('billboards as b')
+            ->leftJoin('locations as l', 'l.id', '=', 'b.location_id')
+            ->where('b.id', $billboardId)
+            ->first(['b.site_number', 'b.size', 'b.gps_latitude', 'b.gps_longitude', 'l.name as area_name']);
 
-                            if ($bb) {
-                                // Override dengan data billboard (fallback ke typedSite kalau kosong)
-                                $siteLabel = $bb->site_number ?: $typedSite;
-                                $size      = $size ?: ($bb->size ?? null);
-                                $area      = $area ?: ($bb->area_name ?? null);
-                                if (!$coords && $bb->gps_latitude && $bb->gps_longitude) {
-                                    $coords = $bb->gps_latitude . ',' . $bb->gps_longitude;
-                                }
-                            }
-                        }
+        if ($bb) {
+            // Override dengan data billboard (fallback ke typedSite kalau kosong)
+            $siteLabel = $bb->site_number ?: $typedSite;
+            $size      = $size ?: ($bb->size ?? null);
+            $area      = $area ?: ($bb->area_name ?? null);
+            if (!$coords && $bb->gps_latitude && $bb->gps_longitude) {
+                $coords = $bb->gps_latitude . ',' . $bb->gps_longitude;
+            }
+        }
+    }
 
-                        // Insert outdoor item (site pasti ada value)
-                        $masterFile->outdoorItems()->create([
-                            'sub_product'      => $subProduct,
-                            'qty'              => 1,
-                            'site'             => $siteLabel, // ✅ Pasti terisi (dari user atau billboard)
-                            'size'             => $size,
-                            'district_council' => $area,
-                            'coordinates'      => $coords,
-                            'remarks'          => $remarks,
-                            'start_date'       => $startDate ?: null,
-                            'end_date'         => $endDate   ?: null,
-                            'status'           => $outdoorStatus,
-                            'billboard_id'     => $billboardId, // ✅ Boleh NULL untuk manual entry
-                        ]);
-                    }
+    // Insert outdoor item (site pasti ada value)
+    $masterFile->outdoorItems()->create([
+        'sub_product'      => $subProduct,
+        'qty'              => 1,
+        'site'             => $siteLabel, // ✅ Pasti terisi (dari user atau billboard)
+        'size'             => $size,
+        'district_council' => $area,
+        'coordinates'      => $coords,
+        'remarks'          => $remarks,
+        'start_date'       => $startDate ?: null,
+        'end_date'         => $endDate   ?: null,
+        'status'           => $outdoorStatus,
+        'billboard_id'     => $billboardId, // ✅ Boleh NULL untuk manual entry
+    ]);
+}
 
                     return; // Done with repeater mode
                 }
@@ -1617,7 +1617,7 @@ class MasterFileController extends Controller
                         ];
                     }
 
-                    if (!empty($items)) {
+                   if (!empty($items)) {
                         $masterFile->outdoorItems()->createMany($items);
                     }
                 }
@@ -1693,8 +1693,40 @@ class MasterFileController extends Controller
         return back()->with('status', "Import done. Created: {$stats['created']}, Updated: {$stats['updated']}, Skipped: {$stats['skipped']}.");
     }
 
+    // [ADD THIS helper in your controller]
+private function buildKltgRemarks($file): array
+{
+    // Map labels → field names from master_files
+    $map = [
+        'Industry'                => 'kltg_industry',
+        'X (Reach/Impressions)'   => 'kltg_x',
+        'Edition'                 => 'kltg_edition',
+        'Material (CBP)'          => 'kltg_material_cbp',
+        'Print'                   => 'kltg_print',
+        'Article'                 => 'kltg_article',
+        'Video'                   => 'kltg_video',
+        'Leaderboard'             => 'kltg_leaderboard',
+        'QR Code'                 => 'kltg_qr_code',
+        'Blog'                    => 'kltg_blog',
+        'Email Marketing (eDM)'   => 'kltg_em',
+        'Remarks (KLTG)'          => 'kltg_remarks',
+    ];
 
+    $out = [];
+    foreach ($map as $label => $attr) {
+        $val = $file->{$attr} ?? null;
+        if (isset($val) && trim((string)$val) !== '') {
+            $out[$label] = $val;
+        }
+    }
 
+    // If you still want to carry the generic remarks too:
+    if (isset($file->remarks) && trim((string)$file->remarks) !== '') {
+        $out['General Remarks'] = $file->remarks;
+    }
+
+    return $out;
+}
 
 
     public function printAuto(MasterFile $file)
@@ -2288,8 +2320,8 @@ class MasterFileController extends Controller
                 DB::raw('mf.duration as duration'),
 
                 // dates (raw; we’ll format below)
-                DB::raw('oi.start_date as start'),
-                DB::raw('oi.end_date as end'),
+                DB::raw('mf.date as start'),
+                DB::raw('mf.date_finish as end'),
 
                 // size + coordinates
                 DB::raw('oi.size as outdoor_size'),

@@ -5,224 +5,384 @@
 <title>Publication Job Order Sheet — KLTG</title>
 <style>
   /* ===== PRINT / LAYOUT ===== */
-  @page { size: A4; margin: 12mm; }
-  body { font-family: Arial, Helvetica, sans-serif; font-size: 11.5px; color:#111; }
+  @page { size: A4; margin: 8mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 10px;
+    color:#111;
+    margin: 0;
+    padding: 0;
+  }
   .muted{ color:#666; }
-  .title { font-weight:700; text-align:center; font-size:16px; margin:6px 0 8px; letter-spacing:.3px; }
+  .title {
+    font-weight:700;
+    text-align:center;
+    font-size:14px;
+    margin:5px 0 8px;
+    letter-spacing:.3px;
+  }
 
   /* Basic table */
-  table { width:100%; border-collapse:collapse; table-layout: fixed; }
-  th, td { border:1px solid #000; padding:6px 6px; vertical-align:top; }
-  th { background:#efefef; text-align:left; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { border:1px solid #000; padding:4px 5px; vertical-align:top; font-size:10px; }
+  th { background:#efefef; text-align:left; font-weight:bold; }
 
   /* Header brand bar */
-  .brand-row { border:1px solid #000; padding:6px 8px; display:flex; align-items:center; justify-content:space-between; }
-  .brand-left { font-size:12px; line-height:1.3; }
-  .brand-left .name { font-size:16px; font-weight:700; }
-  .logo { height:34px; }
-
-  /* Two columns: left (70%) + right (30%) like photo */
-  .two-col { width:100%; border:0; }
-  .two-col td { border:0; vertical-align:top; }
-  .left { width:69.5%; padding-right:8px; }
-  .right{ width:30.5%; padding-left:0; }
+  .brand-row {
+    border:1px solid #000;
+    padding:5px 8px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom: 8px;
+  }
+  .brand-left { font-size:10px; line-height:1.2; }
+  .brand-left .name { font-size:13px; font-weight:700; }
+  .logo { height:30px; }
 
   /* Mini cells */
-  .cell { border:1px solid #000; padding:0; margin:0 0 6px; }
+  .cell { border:1px solid #000; padding:0; margin:0 0 8px; }
   .cell table { border-collapse:collapse; }
-  .cell th, .cell td { border:1px solid #000; padding:6px; }
+  .cell th, .cell td { border:1px solid #000; padding:4px 5px; }
 
-  /* Check cell (for small tick boxes like form) */
-  .tick { display:inline-block; width:12px; height:12px; border:1px solid #000; margin:0 4px -2px 0; }
+  /* Check cell */
+  .tick { display:inline-block; width:10px; height:10px; border:1px solid #000; margin:0 3px -1px 0; }
   .is-ticked{ background:#000; }
 
+  /* Layout: 3 columns */
+  .three-col-wrapper {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 4px;
+  }
+  .col-left { flex: 0 0 32%; }
+  .col-middle { flex: 0 0 38%; }
+  .col-right { flex: 0 0 30%; }
+
   /* Signatures */
-  .sig-wrap { margin-top:10px; }
-  .sig-table td { height:70px; border:1px dashed #777; position:relative; }
-  .sig-label { position:absolute; left:6px; bottom:4px; font-size:10px; color:#666; }
+  .sig-wrap { margin-top: 8px; }
+  .sig-table { width:100%; }
+  .sig-table td {
+    height:50px;
+    border:1px solid #000;
+    position:relative;
+    vertical-align: bottom;
+    padding: 4px 5px;
+  }
+  .sig-label { font-size:9px; color:#666; }
 
   /* Utility */
   .no-border th, .no-border td { border:0; }
-  .small { font-size:10px; }
+  .small { font-size:9px; }
 </style>
 </head>
 <body>
 
-  <!-- ==== HEADER (seperti foto: bar company + kontak) ==== -->
+  <!-- ==== HEADER ==== -->
   <div class="brand-row">
     <div class="brand-left">
       <div class="name">Bluedale Publishing (M) Sdn. Bhd.</div>
       <div class="small muted">Tel: +603-7886 9219 &nbsp; • &nbsp; Fax: +603-7886 1219 &nbsp; • &nbsp; Email: enquiry@bluedale.com.my</div>
       <div class="small muted">Website: www.bluedale.com.my</div>
     </div>
-    {{-- ganti path logo sesuai punya kamu --}}
-    <img class="logo" src="{{ public_path(path: 'logo.png') }}" alt="Logo">
+    <img class="logo" src="{{ public_path('logo.png') }}" alt="Logo">
   </div>
 
   <div class="title">PUBLICATION JOB ORDER SHEET</div>
 
-  <!-- ==== 2 COLUMN WRAPPER ==== -->
-  <table class="two-col">
-    <tr>
-      <!-- ================= LEFT SIDE ================= -->
-      <td class="left">
+  <!-- ==== TOP INFO BLOCK ==== -->
+  <div class="cell">
+    <table>
+      <tr>
+        <th style="width:12%;">CLIENT</th>
+        <td style="width:21%;">{{ $file->company }}</td>
+        <th style="width:15%;">JOB ORDER NO</th>
+        <td style="width:19%;">{{ $file->job_number }}</td>
+        <th style="width:10%;">PAYMENT</th>
+        <td style="width:23%;"></td>
+      </tr>
+      <tr>
+        <th>CONTACT PERSON</th>
+        <td>{{ $file->client ?? '' }}</td>
+        <th>JOB ORDER DATE</th>
+        <td>{{ $file->created_at ? \Carbon\Carbon::parse($file->created_at)->format('d/m/Y') : '' }}</td>
+        <td colspan="2" rowspan="3" style="vertical-align:top;">{{ $file->reference_no2 ?? '' }}</td>
+      </tr>
+      <tr>
+        <th>CONTACT NUMBER</th>
+        <td>{{ $file->contact_number ?? '' }}</td>
+        <th>SALES PERSON</th>
+        <td>{{ $file->sales_person ?? '' }}</td>
+      </tr>
+      <tr>
+        <th>EMAIL</th>
+        <td>{{ $file->email ?? '' }}</td>
+        <th>REFERENCE NUMBER</th>
+        <td>{{ $file->reference_no ?? '' }}</td>
+      </tr>
+    </table>
+  </div>
 
-        <!-- Top info block (Client/Contact ... Job No/Order Date/Ref No) -->
-        <div class="cell">
-          <table>
-            <tr>
-              <th style="width:18%;">COMPANY</th>
-              <td style="width:32%;">{{ $file->company }}</td>
-              <th style="width:20%;">JOB ORDER NO</th>
-              <td style="width:30%;">{{ $file->job_number }}</td>
-            </tr>
-            <tr>
-              <th>CONTACT PERSON</th>
-              <td>{{ $file->client ?? '' }}</td>
-              <th>JOB ORDER DATE</th>
-              <td>{{ $file->created_at ? \Carbon\Carbon::parse($file->created_at)->format('d/m/Y') : '' }}</td>
-            </tr>
-            <tr>
-              <th>CONTACT NUMBER</th>
-              <td>{{ $file->contact_number ?? '' }}</td>
-              <th>SALES PERSON</th>
-              <td>{{ $file->sales_person ?? '' }}</td>
-            </tr>
-            <tr>
-              <th>EMAIL</th>
-              <td>{{ $file->email ?? '' }}</td>
-              <th>REFERENCE NUMBER</th>
-              <td>{{ $file->reference_no ?? '' }}</td>
-            </tr>
-          </table>
-        </div>
+  <!-- ==== PRODUCT SELECTION ==== -->
+  <div class="cell">
+    <table>
+      <tr>
+        <th style="width:12%;">PUBLICATION</th>
+        <td style="width:21%;"></td>
+        <th style="width:15%;">TYPE OF SECTION</th>
+        <td style="width:19%;"></td>
+        <th style="width:10%;">REMARKS</th>
+        <td style="width:23%;"></td>
+      </tr>
+      <tr>
+        <th>KL The Guide</th>
+        <td><span class="tick {{ str_contains(strtolower($file->product ?? ''), 'guide') ? 'is-ticked' : '' }}"></span></td>
+        <th>Prelim</th>
+        <td></td>
+        <td colspan="2" rowspan="10" style="vertical-align:top; font-size:8px;">{!! nl2br(e($file->notes ?? '')) !!}</td>
+      </tr>
+      <tr>
+        <th>Klang Valley 4 Locals</th>
+        <td><span class="tick {{ str_contains(strtolower($file->product ?? ''), 'locals') ? 'is-ticked' : '' }}"></span></td>
+        <th>Sightseeing</th>
+        <td></td>
+      </tr>
+      <tr>
+        <th>Penang The Guide</th>
+        <td><span class="tick"></span></td>
+        <th>Medical</th>
+        <td></td>
+      </tr>
+      <tr>
+        <th>Ipoh The Guide</th>
+        <td><span class="tick"></span></td>
+        <th>Tourism/Health & Beauty</th>
+        <td></td>
+      </tr>
+      <tr>
+        <th>Others</th>
+        <td></td>
+        <th>Dining</th>
+        <td></td>
+      </tr>
+      <tr>
+        <th></th>
+        <td></td>
+        <th>Night Life</th>
+        <td></td>
+      </tr>
+      <tr>
+        <th></th>
+        <td></td>
+        <th>Shopping</th>
+        <td></td>
+      </tr>
+      <tr>
+        <th></th>
+        <td></td>
+        <th>Accommodations</th>
+        <td></td>
+      </tr>
+      <tr>
+        <th></th>
+        <td></td>
+        <th>Culture</th>
+        <td></td>
+      </tr>
+      <tr>
+        <th></th>
+        <td></td>
+        <th>Supplement</th>
+        <td></td>
+      </tr>
+    </table>
+  </div>
 
-        <!-- Product selection block (KL The Guide, KV 4 Locals, etc.) -->
-        <div class="cell">
-          <table>
-            <tr>
-              <th style="width:25%;">KL The Guide</th>
-              <td style="width:25%;">
-                <span class="tick {{ str_contains(strtolower($file->product ?? ''), 'guide') ? 'is-ticked' : '' }}"></span>
-              </td>
-              <th style="width:25%;">REFERENCE</th>
-              <td style="width:25%;">{{ $file->reference_no2 ?? '' }}</td>
-            </tr>
-            <tr>
-              <th>Klang Valley 4 Locals</th>
-              <td>
-                <span class="tick {{ str_contains(strtolower($file->product ?? ''), 'locals') ? 'is-ticked' : '' }}"></span>
-              </td>
-              <th>ISSUE</th>
-              <td></td>
-            </tr>
-            <tr>
-              <th>Listing</th>
-              <td><span class="tick {{ str_contains(strtolower($file->product ?? ''), 'listing') ? 'is-ticked' : '' }}"></span></td>
-              <th>&nbsp;</th>
-              <td>&nbsp;</td>
-            </tr>
-            <tr>
-              <th>e-Guide</th>
-              <td><span class="tick {{ str_contains(strtolower($file->product ?? ''), 'e-guide') ? 'is-ticked' : '' }}"></span></td>
-              <th>&nbsp;</th>
-              <td>&nbsp;</td>
-            </tr>
-          </table>
-        </div>
+  <!-- ==== REQUIREMENTS & KLTG REMARKS ==== -->
+  <div class="cell">
+    <table>
+      <tr>
+        <th style="width:15%;">REQUIREMENTS</th>
+        <td style="width:35%; font-size:10px;">{!! nl2br(e($file->requirements ?? '')) !!}</td>
+        <th style="width:15%;">KLTG REMARKS</th>
+        <td style="width:35%; font-size:10px;">
+          @php
+            $__map = [
+              'Industry'                => 'kltg_industry',
+              'X (Reach/Impressions)'   => 'kltg_x',
+              'Edition'                 => 'kltg_edition',
+              'Material (CBP)'          => 'kltg_material_cbp',
+              'Print'                   => 'kltg_print',
+              'Article'                 => 'kltg_article',
+              'Video'                   => 'kltg_video',
+              'Leaderboard'             => 'kltg_leaderboard',
+              'QR Code'                 => 'kltg_qr_code',
+              'Blog'                    => 'kltg_blog',
+              'Email Marketing (eDM)'   => 'kltg_em',
+              'Remarks (KLTG)'          => 'kltg_remarks',
+            ];
+            $__rows = [];
+            foreach ($__map as $__label => $__attr) {
+                $v = $file->{$__attr} ?? null;
+                if (isset($v) && trim((string)$v) !== '') {
+                    $__rows[] = [$__label, $v];
+                }
+            }
+            if (!empty($file->remarks)) {
+                $__rows[] = ['General Remarks', $file->remarks];
+            }
+          @endphp
 
-        <!-- Requirements -->
-        <div class="cell">
-          <table>
-            <tr>
-              <th style="width:30%;">REQUIREMENTS</th>
-              <td style="width:70%;">{!! nl2br(e($file->requirements ?? $file->remarks ?? '')) !!}</td>
-            </tr>
-            <tr>
-              <th>ARTWORK DEADLINE</th>
-              <td>{{ $file->artwork_deadline ?? '' }}</td>
-            </tr>
-          </table>
-        </div>
-
-        <!-- Contents grid (left wide box with many rows + middle remarks like the orange notes) -->
-        <div class="cell" style="padding:0;">
-          <table>
-            <tr>
-              <th style="width:22%;">Contents</th>
-              <th style="width:43%;">Remarks / Notes</th>
-              <th style="width:35%;">&nbsp;</th>
-            </tr>
-            @php
-              $rows = [
-                'IFC' => 'Prelim',
-                'IBC' => 'Sightseeing',
-                'BC'  => 'Dining',
-                'DPS' => 'Beauty/Health & Spa',
-                'FP'  => 'Night Life',
-                'HP'  => 'Shopping',
-                'QP'  => 'Accommodations',
-                'LISTING' => 'Culture / Supplement',
-                'WEB' => 'Outdoor Activity / Website',
-              ];
-            @endphp
-            @foreach($rows as $code => $label)
-              <tr>
-                <td>{{ $code }}</td>
-                <td>{{ $label }}</td>
-                <td>{!! nl2br(e($file->notes ?? '')) !!}</td>
-              </tr>
+          @if(!empty($__rows))
+            @foreach($__rows as [$lbl, $val])
+              <strong>{{ $lbl }}:</strong>
+              @if(str_contains(strtolower($lbl), 'remarks'))
+                {!! nl2br(e($val)) !!}
+              @else
+                {{ $val }}
+              @endif
+              @if(!$loop->last)<br>@endif
             @endforeach
-          </table>
-        </div>
+          @else
+            -
+          @endif
+        </td>
+      </tr>
+      <tr>
+        <th>Artwork Deadline</th>
+        <td style="font-size:10px;">{{ $file->artwork_deadline ?? '' }}</td>
+        <td colspan="2"></td>
+      </tr>
+    </table>
+  </div>
 
-        <!-- Signatures -->
-        <div class="sig-wrap">
-          <table class="sig-table" style="width:100%;">
-            <tr>
-              <td><span class="sig-label">Servicing — Signature</span></td>
-              <td><span class="sig-label">Artwork — Signature</span></td>
-              <td><span class="sig-label">Internal Team — Signature</span></td>
-            </tr>
-          </table>
-          <table class="no-border" style="width:100%; margin-top:4px;">
-            <tr>
-              <td class="no-border" style="width:33%;">Name: ____________________</td>
-              <td class="no-border" style="width:33%;">Name: ____________________</td>
-              <td class="no-border" style="width:34%;">Name: ____________________</td>
-            </tr>
-            <tr>
-              <td class="no-border">Date: {{ $date ?? '' }}</td>
-              <td class="no-border">Date: </td>
-              <td class="no-border">Date: </td>
-            </tr>
-          </table>
-        </div>
+  <!-- ==== COMBINED TABLE: TYPE OF ADVERT + TYPE OF SECTION + LEGEND ==== -->
+  <div class="cell">
+    <table>
+      <tr>
+        <th colspan="2" style="text-align:center; width:25%;">TYPE OF ADVERTISEMENT</th>
+        <th style="width:20%;">TYPE OF SECTION</th>
+        <th style="width:15%;">EDM</th>
+        <th style="width:20%;">REMARKS</th>
+        <th style="width:20%;"></th>
+      </tr>
+      <tr>
+        <td style="width:8%;"><b>IFC</b></td>
+        <td style="width:17%;"></td>
+        <td style="font-size:10px;">Prelim</td>
+        <td></td>
+        <td style="font-size:10px;"></td>
+        <td style="font-size:8px;"><b>IFC:</b> INSIDE FRONT COVER</td>
+      </tr>
+      <tr>
+        <td><b>IBC</b></td>
+        <td></td>
+        <td style="font-size:10px;">Sightseeing</td>
+        <td></td>
+        <td style="font-size:10px;"></td>
+        <td style="font-size:8px;"><b>IBC:</b> INSIDE BACK COVER</td>
+      </tr>
+      <tr>
+        <td><b>IFCS</b></td>
+        <td></td>
+        <td style="font-size:10px;">Dining</td>
+        <td></td>
+        <td style="font-size:10px;"></td>
+        <td style="font-size:8px;"><b>IFCS:</b> INSIDE FRONT COVER SPREAD</td>
+      </tr>
+      <tr>
+        <td><b>IBCS</b></td>
+        <td></td>
+        <td style="font-size:10px;">Beauty/Health & Spa</td>
+        <td></td>
+        <td style="font-size:10px;"></td>
+        <td style="font-size:8px;"><b>IBCS:</b> INSIDE BACK COVER SPREAD</td>
+      </tr>
+      <tr>
+        <td><b>BC</b></td>
+        <td></td>
+        <td style="font-size:10px;">Night Life</td>
+        <td></td>
+        <td style="font-size:10px;"></td>
+        <td style="font-size:8px;"><b>PG 1:</b> PAGE 1</td>
+      </tr>
+      <tr>
+        <td><b>DPS</b></td>
+        <td></td>
+        <td style="font-size:10px;">Shopping</td>
+        <td></td>
+        <td style="font-size:10px;"></td>
+        <td style="font-size:8px;"><b>BC:</b> BACK COVER</td>
+      </tr>
+      <tr>
+        <td><b>FP</b></td>
+        <td></td>
+        <td style="font-size:10px;">Accommodations</td>
+        <td></td>
+        <td style="font-size:10px;"></td>
+        <td style="font-size:8px;"><b>DPS:</b> DOUBLE PAGE SPREAD</td>
+      </tr>
+      <tr>
+        <td><b>HP</b></td>
+        <td></td>
+        <td style="font-size:10px;">Culture / Supplement</td>
+        <td></td>
+        <td style="font-size:10px;"></td>
+        <td style="font-size:8px;"><b>FP:</b> FULL PAGE</td>
+      </tr>
+      <tr>
+        <td><b>QP</b></td>
+        <td></td>
+        <td style="font-size:10px;">Outdoor Activity / Website</td>
+        <td></td>
+        <td style="font-size:10px;"></td>
+        <td style="font-size:8px;"><b>HP:</b> HALF PAGE</td>
+      </tr>
+      <tr>
+        <td><b>LISTING</b></td>
+        <td></td>
+        <td style="font-size:10px;">Essential Information</td>
+        <td></td>
+        <td style="font-size:10px;"></td>
+        <td style="font-size:8px;"><b>QP:</b> QUARTER PAGE</td>
+      </tr>
+      <tr>
+        <td><b>WEB</b></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td style="font-size:8px;"><b>WEB:</b> WEBSITE</td>
+      </tr>
+    </table>
+  </div>
 
-      </td>
-
-      <!-- ================= RIGHT SIDE ================= -->
-      <td class="right">
-
-        <!-- Right column block like “INSIDE FRONT COVER, INSIDE BACK COVER, DPS...” -->
-        <div class="cell">
-            <table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse; width:100%; font-family:Arial, sans-serif; font-size:12px;">
-                <tr><td><b>IFC</b></td><td>INSIDE FRONT COVER</td></tr>
-                <tr><td><b>IBC</b></td><td>INSIDE BACK COVER</td></tr>
-                <tr><td><b>IFCS</b></td><td>INSIDE FRONT COVER SPREAD</td></tr>
-                <tr><td><b>IBCS</b></td><td>INSIDE BACK COVER SPREAD</td></tr>
-                <tr><td><b>PG 1</b></td><td>PAGE 1</td></tr>
-                <tr><td><b>BC</b></td><td>BACK COVER</td></tr>
-                <tr><td><b>DPS</b></td><td>DOUBLE PAGE SPREAD</td></tr>
-                <tr><td><b>FP</b></td><td>FULL PAGE</td></tr>
-                <tr><td><b>HP</b></td><td>HALF PAGE</td></tr>
-                <tr><td><b>QP</b></td><td>QUARTER PAGE</td></tr>
-                <tr><td><b>WEB</b></td><td>WEBSITE</td></tr>
-            </table>
-        </div>
-      </td>
-    </tr>
-  </table>
+  <!-- ==== SIGNATURES ==== -->
+  <div class="sig-wrap">
+    <table class="sig-table">
+      <tr>
+        <td style="width:33%;">
+          <div class="sig-label">Servicing</div>
+          <div style="margin-top:22px; font-size:9px;">Signature: _________________</div>
+          <div style="font-size:9px;">Name: {{ $file->sales_person ?? '_________________' }}</div>
+          <div style="font-size:9px;">Date: {{ $date ?? '_________________' }}</div>
+        </td>
+        <td style="width:34%;">
+          <div class="sig-label">Artwork</div>
+          <div style="margin-top:22px; font-size:9px;">Signature: _________________</div>
+          <div style="font-size:9px;">Name: _________________</div>
+          <div style="font-size:9px;">Date: _________________</div>
+        </td>
+        <td style="width:33%;">
+          <div class="sig-label">Internal Team</div>
+          <div style="margin-top:22px; font-size:9px;">Signature: _________________</div>
+          <div style="font-size:9px;">Name: _________________</div>
+          <div style="font-size:9px;">Date: _________________</div>
+        </td>
+      </tr>
+    </table>
+  </div>
 
 </body>
 </html>
