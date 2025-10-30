@@ -848,6 +848,39 @@ public function getEligibleMasterFiles(Request $request)
 
         return response()->json(['eligible' => $eligible, 'subcategory' => $activeSubcat]);
     }
+private function storedToTab(string $stored): string
+{
+    $map = [
+        'KLTG' => 'print',
+        'VIDEO' => 'video',
+        'ARTICLE' => 'article',
+        'LB' => 'lb',
+        'EM' => 'em'
+    ];
+
+    return $map[$stored] ?? 'print';
+}
+
+private function kclBaseQuery(string $subcategory, ?int $year, ?int $month)
+{
+    // Subquery: ambil id terbaru per (mf, subcat, year, month)
+    $latestIds = DB::table('kltg_coordinator_lists')
+        ->selectRaw('MAX(id) AS id')
+        ->where('subcategory', $subcategory)
+        ->when($year, fn($q)=>$q->where('year', $year))
+        ->when($month, fn($q)=>$q->where('month', $month))
+        ->groupBy('master_file_id','subcategory','year','month');
+
+    // Join balik ke tabel utama → 1 baris pasti unik per (mf,year,month)
+    return DB::table('kltg_coordinator_lists as kcl')
+        ->joinSub($latestIds, 'L', 'L.id', '=', 'kcl.id')
+        // kalau perlu info perusahaan:
+        // ->leftJoin('master_files as mf','mf.id','=','kcl.master_file_id')
+        ->orderBy('kcl.year', 'desc')
+        ->orderBy('kcl.month', 'desc')
+        ->orderBy('kcl.master_file_id')
+        ->orderBy('kcl.id', 'desc');
+}
 
 
 
@@ -882,17 +915,19 @@ public function export(Request $request)
     ]);
 
     // ---- Filename (.xls for HTML-Excel)
-    $filename = sprintf(
-        'kltg_%s_%s.xls',
-        strtolower($activeSubcat),
-        now()->format('Ymd_His')
-    );
+  $filename = sprintf(
+    'kltg_%s_%s.xls',
+    strtolower($activeSubcat),
+    now()->format('Ymd_His')
+);
 
-    $headers = [
-        'Content-Type'        => 'application/vnd.ms-excel; charset=UTF-8',
-        'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-        'Cache-Control'       => 'no-store, no-cache',
-    ];
+$headers = [
+    'Content-Type'        => 'application/vnd.ms-excel',
+    'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+    'Pragma'              => 'no-cache',
+    'Cache-Control'       => 'must-revalidate, post-check=0, pre-check=0',
+    'Expires'             => '0',
+];
 
     // ---- Field columns + labels
     $columnsBySubcat = $this->getColumnsBySubcat();
@@ -913,9 +948,7 @@ public function export(Request $request)
     );
 }
 
-/**
- * Normalize subcategory from request
- */
+
 private function normalizeSubcat(?string $subcat): string
 {
     $map = [
@@ -930,27 +963,7 @@ private function normalizeSubcat(?string $subcat): string
     return $normalized;
 }
 
-/**
- * Convert stored subcategory back to tab key
- */
-private function storedToTab(string $stored): string
-{
-    $map = [
-        'KLTG' => 'print',
-        'VIDEO' => 'video',
-        'ARTICLE' => 'article',
-        'LB' => 'lb',
-        'EM' => 'em'
-    ];
 
-    return $map[$stored] ?? 'print';
-}
-
-/**
- * Normalize "month" & "year" from request and derive export scope.
- * Returns: [month:int|null, year:int|null, scope:string]
- * scope ∈ {'month_year','month_only','year_only','all'}
- */
 
 protected function normalizeMonthYearScope(Request $request): array
 {
@@ -1037,32 +1050,8 @@ protected function normalizeMonthYearScope(Request $request): array
     return [$month, $year, $scope];
 }
 
-private function kclBaseQuery(string $subcategory, ?int $year, ?int $month)
-{
-    // Subquery: ambil id terbaru per (mf, subcat, year, month)
-    $latestIds = DB::table('kltg_coordinator_lists')
-        ->selectRaw('MAX(id) AS id')
-        ->where('subcategory', $subcategory)
-        ->when($year, fn($q)=>$q->where('year', $year))
-        ->when($month, fn($q)=>$q->where('month', $month))
-        ->groupBy('master_file_id','subcategory','year','month');
-
-    // Join balik ke tabel utama → 1 baris pasti unik per (mf,year,month)
-    return DB::table('kltg_coordinator_lists as kcl')
-        ->joinSub($latestIds, 'L', 'L.id', '=', 'kcl.id')
-        // kalau perlu info perusahaan:
-        // ->leftJoin('master_files as mf','mf.id','=','kcl.master_file_id')
-        ->orderBy('kcl.year', 'desc')
-        ->orderBy('kcl.month', 'desc')
-        ->orderBy('kcl.master_file_id')
-        ->orderBy('kcl.id', 'desc');
-}
 
 
-/**
- * Build the export query from kltg_coordinator_lists, filtered by scope.
- * Joins master_files for meta columns, but selects all KCL fields so any column in $fields is available.
- */
 protected function buildExportQuery(string $activeSubcat, string $scope, ?int $month, ?int $year, $working = null)
 {
     $q = DB::table('kltg_coordinator_lists as kcl')
@@ -1103,87 +1092,194 @@ protected function buildExportQuery(string $activeSubcat, string $scope, ?int $m
     return $q;
 }
 
-/**
- * Stream HTML-XLS output to browser
- * Excel can open HTML files with styling and treat them as .xls files
- */
+
 private function streamXlsHtmlOutput($query, array $fields, array $labels, string $mainTitle, ?string $monthLabel, ?string $scope, ?string $working = null): void
 {
     // BOM for UTF-8
     echo "\xEF\xBB\xBF";
 
-    $colCount = count($fields);
-
-    // ====== OPEN HTML + STYLE (matching Outdoor Coordinator format) ======
-    echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
-        table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; }
-        th, td { border: 1px solid #000000; padding: 6px; vertical-align: middle; }
-        .title { background: #FFFF00; font-weight: bold; text-align: center; font-size: 14px; }
-        .header { background: #FFFF00; font-weight: bold; text-align: center; font-size: 12px; }
-        tbody td { font-size: 11px; }
-        .number { text-align: center; }
-    </style></head><body>';
-
-    // ====== COMPACT TITLE SECTION (2 rows like Outdoor Coordinator) ======
-    echo '<table>';
-
-    // Row 1: Main Title
-    echo '<tr><td class="title" colspan="'.$colCount.'">'.htmlspecialchars($mainTitle, ENT_QUOTES, 'UTF-8').'</td></tr>';
-
-    // Row 2: Combined info (Month Filter + Generated + Total Records + Working Status)
-    $timestamp = now()->format('Y-m-d H:i:s');
-    $filterText = $monthLabel ?: 'All Data';
-
     $rows = $query->get();
     $totalRecords = $rows->count();
 
-    $workingText = '';
-    if ($working === 'working') {
-        $workingText = ' - Status: Working';
-    } elseif ($working === 'completed') {
-        $workingText = ' - Status: Completed';
+    // ✅ Group fields: combine base + status into single logical column
+    $groupedFields = [];
+    $processedFields = [];
+
+    foreach ($fields as $field) {
+        // Skip _status and _color fields (will be combined with base field)
+        if (str_ends_with($field, '_status') || str_ends_with($field, '_color')) {
+            continue;
+        }
+
+        // Skip if already processed
+        if (in_array($field, $processedFields)) {
+            continue;
+        }
+
+        $groupedFields[] = $field;
+        $processedFields[] = $field;
     }
+
+    $colCount = count($groupedFields);
+
+    // ====== OPEN HTML WITH EXCEL NAMESPACES ======
+    echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+    echo '<head>';
+    echo '<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">';
+    echo '<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Sheet1</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->';
+    echo '<style>
+        table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; }
+        th, td { border: 1px solid #000000; padding: 8px; vertical-align: top; }
+        .title { background: #FFFF00; font-weight: bold; text-align: center; font-size: 14px; }
+        .header { background: #FFFF00; font-weight: bold; text-align: center; font-size: 11px; white-space: nowrap; }
+        tbody td { font-size: 10px; }
+        .number { text-align: center; }
+    </style></head><body>';
+
+    // ====== TITLE SECTION ======
+    echo '<table>';
+    echo '<tr><td class="title" colspan="'.$colCount.'">'.htmlspecialchars($mainTitle, ENT_QUOTES, 'UTF-8').'</td></tr>';
+
+    $timestamp = now()->format('Y-m-d H:i:s');
+    $filterText = $monthLabel ?: 'All Data';
+    $workingText = $working === 'working' ? ' - Status: Working' : ($working === 'completed' ? ' - Status: Completed' : '');
 
     echo '<tr><td class="title" colspan="'.$colCount.'">';
     echo htmlspecialchars("Month Filter: {$filterText} - Generated: {$timestamp} - Total Records: {$totalRecords}{$workingText}", ENT_QUOTES, 'UTF-8');
     echo '</td></tr>';
 
-    // Empty row (row 3)
     echo '<tr><td colspan="'.$colCount.'">&nbsp;</td></tr>';
 
-    // ====== HEADER ROW (single row with yellow background) ======
+    // ====== HEADER ROW ======
     echo '<tr>';
-    foreach ($fields as $field) {
+    foreach ($groupedFields as $field) {
         $label = $labels[$field] ?? Str::headline($field);
         echo '<th class="header">'.htmlspecialchars($label, ENT_QUOTES, 'UTF-8').'</th>';
     }
     echo '</tr>';
 
-    // ====== DATA ROWS (single row per record) ======
+    // ====== DATA ROWS ======
     $seq = 0;
     foreach ($rows as $row) {
         $seq++;
         echo '<tr>';
-        foreach ($fields as $field) {
+
+        foreach ($groupedFields as $field) {
             if ($field === '__no') {
                 echo '<td class="number">'.htmlspecialchars($seq, ENT_QUOTES, 'UTF-8').'</td>';
-            } else {
-                $value = $this->valueForField($row, $field);
-                echo '<td>'.htmlspecialchars($value, ENT_QUOTES, 'UTF-8').'</td>';
+                continue;
             }
+
+            // Check if this field has status/color
+            $statusField = $field . '_status';
+            $colorField = $field . '_color';
+
+            $statusValue = $row->{$statusField} ?? '';
+            $colorValue = $row->{$colorField} ?? '';
+            $dateValue = $this->valueForField($row, $field);
+
+            // Get the raw value for non-date fields
+            $rawValue = $this->valueForField($row, $field);
+
+            echo '<td style="vertical-align: top; padding: 4px; text-align: center;">';
+
+// ✅ If has status, render stacked (status box on top, date below)
+if ($statusValue && $colorValue) {
+    $bgColor = strtoupper($colorValue); // Excel likes uppercase hex
+    $textColor = $this->getContrastColor($bgColor);
+
+    // ✅ Use nested table with bgcolor attribute (Excel-compatible)
+    echo '<table width="100%" border="0" cellpadding="6" cellspacing="0">';
+    echo '<tr>';
+    echo '<td bgcolor="'.htmlspecialchars($bgColor, ENT_QUOTES, 'UTF-8').'" style="color: '.htmlspecialchars($textColor, ENT_QUOTES, 'UTF-8').'; font-weight: bold; font-size: 9pt; text-align: center; border: 1px solid #999;">';
+    echo htmlspecialchars($statusValue, ENT_QUOTES, 'UTF-8');
+    echo '</td>';
+    echo '</tr>';
+
+    // Date below (if exists)
+    if ($dateValue) {
+        echo '<tr>';
+        echo '<td style="font-size: 10pt; color: #1f2937; text-align: center; padding-top: 4px; font-weight: normal;">';
+        echo htmlspecialchars($dateValue, ENT_QUOTES, 'UTF-8');
+        echo '</td>';
+        echo '</tr>';
+    }
+    echo '</table>';
+}
+// ✅ If no color but has status (render without colored box)
+elseif ($statusValue && !$colorValue) {
+    echo '<table width="100%" border="0" cellpadding="6" cellspacing="0">';
+    echo '<tr>';
+    echo '<td bgcolor="#F3F4F6" style="color: #374151; font-weight: bold; font-size: 9pt; text-align: center; border: 1px solid #999;">';
+    echo htmlspecialchars($statusValue, ENT_QUOTES, 'UTF-8');
+    echo '</td>';
+    echo '</tr>';
+
+    if ($dateValue) {
+        echo '<tr>';
+        echo '<td style="font-size: 10pt; color: #1f2937; text-align: center; padding-top: 4px; font-weight: normal;">';
+        echo htmlspecialchars($dateValue, ENT_QUOTES, 'UTF-8');
+        echo '</td>';
+        echo '</tr>';
+    }
+    echo '</table>';
+}
+
+// ✅ If no color but has status (render without colored box)
+elseif ($statusValue && !$colorValue) {
+    echo '<div style="background-color: #f3f4f6; color: #374151; padding: 8px 12px; font-weight: bold; font-size: 9pt; text-align: center; border: 1px solid #d1d5db; margin-bottom: 6px; border-radius: 4px;">';
+    echo htmlspecialchars($statusValue, ENT_QUOTES, 'UTF-8');
+                echo '</div>';
+
+                if ($dateValue) {
+                    echo '<div style="font-size: 10pt; color: #1f2937; text-align: center; font-weight: normal;">'.htmlspecialchars($dateValue, ENT_QUOTES, 'UTF-8').'</div>';
+                }
+            }
+            // ✅ No status, just show raw value (date or text)
+            else {
+                echo '<div style="font-size: 10pt; color: #1f2937;">'.htmlspecialchars($rawValue, ENT_QUOTES, 'UTF-8').'</div>';
+            }
+
+            echo '</td>';
         }
+
         echo '</tr>';
     }
 
-    echo '</table>';
-
-    // ====== CLOSE HTML ======
-    echo '</body></html>';
+    echo '</table></body></html>';
 }
 
 /**
- * Extract value from row for a specific field
+ * Calculate contrast color for text (black or white) based on background
  */
+private function getContrastColor(string $hexColor): string
+{
+    // Remove # if present
+    $hex = ltrim($hexColor, '#');
+
+    // Handle short hex codes (e.g., #fff)
+    if (strlen($hex) === 3) {
+        $hex = $hex[0].$hex[0].$hex[1].$hex[1].$hex[2].$hex[2];
+    }
+
+    // Validate hex
+    if (strlen($hex) !== 6 || !ctype_xdigit($hex)) {
+        return '#000000'; // Default to black for invalid colors
+    }
+
+    $r = hexdec(substr($hex, 0, 2));
+    $g = hexdec(substr($hex, 2, 2));
+    $b = hexdec(substr($hex, 4, 2));
+
+    // Calculate relative luminance (WCAG formula)
+    $brightness = (($r * 299) + ($g * 587) + ($b * 114)) / 1000;
+
+    // Return white text for dark backgrounds, black for light backgrounds
+    return $brightness > 155 ? '#000000' : '#ffffff';
+}
+
+
+
 private function valueForField($row, string $field): string
 {
     switch ($field) {
@@ -1225,44 +1321,35 @@ private function valueForField($row, string $field): string
     }
 }
 
-/**
- * Define columns for each subcategory
- * (Keep these as DB/field keys used by valueForField)
- */
+
 private function getColumnsBySubcat(): array
 {
     return [
-       'print' => [
-    '__no',
-    '__date_created',
-    '__company',
-    '__pic',
-    'title_snapshot',
-    'client_bp',
-    'x',
-    'edition',
-    'publication',
-    'artwork_bp_client',
-    'artwork_reminder',
-    'artwork_reminder_status',    // ✅ ADD
-    'artwork_reminder_color',     // ✅ ADD
-    'material_record',
-    'material_record_status',     // ✅ ADD
-    'material_record_color',      // ✅ ADD
-    'artwork_done',
-    'artwork_done_status',        // ✅ ADD
-    'artwork_done_color',         // ✅ ADD
-    'send_chop_sign',
-    'send_chop_sign_status',      // ✅ ADD
-    'send_chop_sign_color',       // ✅ ADD
-    'chop_sign_approval',
-    'chop_sign_approval_status',  // ✅ ADD
-    'chop_sign_approval_color',   // ✅ ADD
-    'park_in_file_server',
-    'park_in_file_server_status', // ✅ ADD
-    'park_in_file_server_color',  // ✅ ADD
-    'remarks',
-],
+        'print' => [
+            '__no',
+            '__date_created',
+            '__company',
+            '__pic',
+            'title_snapshot',
+            'client_bp',
+            'x',
+            'edition',
+            'publication',
+            'artwork_bp_client',
+            'artwork_reminder',
+            'artwork_reminder_status',
+            'material_record',
+            'material_record_status',
+            'artwork_done',
+            'artwork_done_status',
+            'send_chop_sign',
+            'send_chop_sign_status',
+            'chop_sign_approval',
+            'chop_sign_approval_status',
+            'park_in_file_server',
+            'park_in_file_server_status',
+            'remarks',
+        ],
         'video' => [
             '__no',
             '__date_created',
@@ -1271,13 +1358,18 @@ private function getColumnsBySubcat(): array
             'title_snapshot',
             'client_bp',
             'x',
-            'artwork_reminder',         // ✅ Date field for Material Reminder
-            'material_reminder_text',   // ✅ Text/notes for Material Reminder
+            'artwork_reminder',
+            'artwork_reminder_status',
             'material_record',
+            'material_record_status',
             'video_done',
+            'video_done_status',
             'pending_approval',
+            'pending_approval_status',
             'video_scheduled',
+            'video_scheduled_status',
             'video_posted',
+            'video_posted_status',
             'post_link',
             'remarks',
         ],
@@ -1289,14 +1381,20 @@ private function getColumnsBySubcat(): array
             'title_snapshot',
             'client_bp',
             'x',
-            'artwork_reminder',         // ✅ Date field for Material Reminder
-            'material_reminder_text',   // ✅ Text/notes for Material Reminder
+            'artwork_reminder',
+            'artwork_reminder_status',
             'material_record',
+            'material_record_status',
             'article_done',
+            'article_done_status',
             'pending_approval',
+            'pending_approval_status',
             'article_approved',
+            'article_approved_status',
             'article_scheduled',
+            'article_scheduled_status',
             'article_posted',
+            'article_posted_status',
             'blog_link',
             'remarks',
         ],
@@ -1308,15 +1406,22 @@ private function getColumnsBySubcat(): array
             'title_snapshot',
             'client_bp',
             'x',
-            'artwork_reminder',         // ✅ Date field for Material Reminder
-            'material_reminder_text',   // ✅ Text/notes for Material Reminder
+            'artwork_reminder',
+            'artwork_reminder_status',
             'material_record',
+            'material_record_status',
             'video_done',
+            'video_done_status',
             'pending_approval',
+            'pending_approval_status',
             'video_approved',
+            'video_approved_status',
             'video_scheduled',
+            'video_scheduled_status',
             'video_posted',
+            'video_posted_status',
             'park_in_file_server',
+            'park_in_file_server_status',
             'post_link',
             'remarks',
         ],
@@ -1328,8 +1433,11 @@ private function getColumnsBySubcat(): array
             '__clients_from_mf',
             'title_snapshot',
             'em_date_write',
+            'em_date_write_status',
             'em_date_to_post',
+            'em_date_to_post_status',
             'em_post_date',
+            'em_post_date_status',
             'em_qty',
             'blog_link',
             'remarks',
@@ -1337,98 +1445,69 @@ private function getColumnsBySubcat(): array
     ];
 }
 
-/**
- * Define field labels for Excel headers
- */
+
 private function getFieldLabels(): array
 {
     return [
-        // special tokens
-        '__no'               => 'No',
-        '__date_created'     => 'Date Created',
-        '__company'          => 'Company',
-        '__pic'              => 'Person In Charge',
-        '__clients_from_mf'  => 'Clients',
+        '__no' => 'No',
+        '__date_created' => 'Date Created',
+        '__company' => 'Company',
+        '__pic' => 'Person In Charge',
+        '__clients_from_mf' => 'Clients',
+        'title_snapshot' => 'Title',
+        'client_bp' => 'Client/BP',
+        'x' => 'X',
+        'edition' => 'Edition',
+        'publication' => 'Publication',
+        'remarks' => 'Remarks',
 
-        // common columns
-        'title_snapshot'     => 'Title',
-        'client_bp'          => 'Client/BP',
-        'x'                  => 'X',
-        'edition'            => 'Edition',
-        'publication'        => 'Publication',
-        'remarks'            => 'Remarks',
+        // Date fields (labels without "Status" - will be auto-removed in export)
+        'artwork_reminder' => 'Material Reminder',
+        'artwork_reminder_status' => 'Material Reminder',
+        'material_record' => 'Material Received',
+        'material_record_status' => 'Material Received',
+        'artwork_done' => 'Artwork Done',
+        'artwork_done_status' => 'Artwork Done',
+        'send_chop_sign' => 'Send Chop & Sign',
+        'send_chop_sign_status' => 'Send Chop & Sign',
+        'chop_sign_approval' => 'Chop & Sign Approval',
+        'chop_sign_approval_status' => 'Chop & Sign Approval',
+        'park_in_file_server' => 'Park in File Server',
+        'park_in_file_server_status' => 'Park in File Server',
 
-        // Material Reminder fields (both date and text)
-        'artwork_reminder'         => 'Material Reminder',      // ✅ Date column
+        'artwork_bp_client' => 'Artwork (BP/Client)',
+        'video_done' => 'Video Done',
+        'video_done_status' => 'Video Done',
+        'pending_approval' => 'Pending Approval',
+        'pending_approval_status' => 'Pending Approval',
+        'video_approved' => 'Video Approved',
+        'video_approved_status' => 'Video Approved',
+        'video_scheduled' => 'Video Scheduled',
+        'video_scheduled_status' => 'Video Scheduled',
+        'video_posted' => 'Video Posted',
+        'video_posted_status' => 'Video Posted',
+        'post_link' => 'Post Link',
 
-        // Print-specific
-        'artwork_bp_client'        => 'Artwork (BP/Client)',
-        'material_record'          => 'Material Received',
-        'artwork_done'             => 'Artwork Done',
-        'send_chop_sign'           => 'Send Chop & Sign',
-        'chop_sign_approval'       => 'Chop & Sign Approval',
-        'park_in_file_server'      => 'Park in File Server',
-          'artwork_reminder_status'        => 'Mat. Reminder Status',
-        'artwork_reminder_color'         => 'Mat. Reminder Color',
-        'material_record_status'         => 'Mat. Received Status',
-        'material_record_color'          => 'Mat. Received Color',
-        'artwork_done_status'            => 'Artwork Done Status',
-        'artwork_done_color'             => 'Artwork Done Color',
-        'send_chop_sign_status'          => 'Chop & Sign Status',
-        'send_chop_sign_color'           => 'Chop & Sign Color',
-        'chop_sign_approval_status'      => 'Approval Status',
-        'chop_sign_approval_color'       => 'Approval Color',
-        'park_in_file_server_status'     => 'File Server Status',
-        'park_in_file_server_color'      => 'File Server Color',
-        'video_done_status'              => 'Video Done Status',
-        'video_done_color'               => 'Video Done Color',
-        'pending_approval_status'        => 'Pending Approval Status',
-        'pending_approval_color'         => 'Pending Approval Color',
-        'video_approved_status'          => 'Video Approved Status',
-        'video_approved_color'           => 'Video Approved Color',
-        'video_scheduled_status'         => 'Video Scheduled Status',
-        'video_scheduled_color'          => 'Video Scheduled Color',
-        'video_posted_status'            => 'Video Posted Status',
-        'video_posted_color'             => 'Video Posted Color',
-        'article_done_status'            => 'Article Done Status',
-        'article_done_color'             => 'Article Done Color',
-        'article_approved_status'        => 'Article Approved Status',
-        'article_approved_color'         => 'Article Approved Color',
-        'article_scheduled_status'       => 'Article Scheduled Status',
-        'article_scheduled_color'        => 'Article Scheduled Color',
-        'article_posted_status'          => 'Article Posted Status',
-        'article_posted_color'           => 'Article Posted Color',
-        'em_date_write_status'           => 'Date Write Status',
-        'em_date_write_color'            => 'Date Write Color',
-        'em_date_to_post_status'         => 'Date to Post Status',
-        'em_date_to_post_color'          => 'Date to Post Color',
-        'em_post_date_status'            => 'Post Date Status',
-        'em_post_date_color'             => 'Post Date Color',
+        'article_done' => 'Article Done',
+        'article_done_status' => 'Article Done',
+        'article_approved' => 'Article Approved',
+        'article_approved_status' => 'Article Approved',
+        'article_scheduled' => 'Article Scheduled',
+        'article_scheduled_status' => 'Article Scheduled',
+        'article_posted' => 'Article Posted',
+        'article_posted_status' => 'Article Posted',
+        'blog_link' => 'Blog Link',
 
-        // Video/Article/LB
-        'video_done'               => 'Video Done',
-        'pending_approval'         => 'Pending Approval',
-        'video_approved'           => 'Video Approved',
-        'video_scheduled'          => 'Video Scheduled',
-        'video_posted'             => 'Video Posted',
-        'post_link'                => 'Post Link',
-
-        'article_done'             => 'Article Done',
-        'article_approved'         => 'Article Approved',
-        'article_scheduled'        => 'Article Scheduled',
-        'article_posted'           => 'Article Posted',
-        'blog_link'                => 'Blog Link',
-
-        // EM
-        'em_date_write'            => 'Date Write',
-        'em_date_to_post'          => 'Date to Post',
-        'em_post_date'             => 'Post Date',
-        'em_qty'                   => 'Qty',
+        'em_date_write' => 'Date Write',
+        'em_date_write_status' => 'Date Write',
+        'em_date_to_post' => 'Date to Post',
+        'em_date_to_post_status' => 'Date to Post',
+        'em_post_date' => 'Post Date',
+        'em_post_date_status' => 'Post Date',
+        'em_qty' => 'Qty',
     ];
 }
-/**
- * Get subcategory title for display
- */
+
 private function subcatTitle(string $key): string
 {
     $map = [
@@ -1442,9 +1521,7 @@ private function subcatTitle(string $key): string
     return $map[$key] ?? Str::upper($key);
 }
 
-/**
- * Generate month filter label for Excel
- */
+
 private function monthFilterLabel(Request $request): ?string
 {
     $rawMonth = $request->input('month');
