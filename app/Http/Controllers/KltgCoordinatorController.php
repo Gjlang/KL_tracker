@@ -1074,50 +1074,53 @@ private function streamXlsHtmlOutput($query, array $fields, array $labels, strin
 
     $colCount = count($fields);
 
-    // ====== OPEN HTML + STYLE ======
+    // ====== OPEN HTML + STYLE (matching Outdoor Coordinator format) ======
     echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
         table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; }
-        th, td { border: 1px solid #CCCCCC; padding: 6px; vertical-align: middle; }
-        thead th { background: #FFF7AE; font-weight: 700; text-align: center; }
-        .title { background: #FFF200; font-weight: 700; text-align: center; font-size: 16px; }
-        .meta { text-align: center; font-size: 12px; }
+        th, td { border: 1px solid #000000; padding: 6px; vertical-align: middle; }
+        .title { background: #FFFF00; font-weight: bold; text-align: center; font-size: 14px; }
+        .header { background: #FFFF00; font-weight: bold; text-align: center; font-size: 12px; }
         tbody td { font-size: 11px; }
         .number { text-align: center; }
     </style></head><body>';
 
-    // ====== TITLE ROWS (MERGED) ======
+    // ====== COMPACT TITLE SECTION (2 rows like Outdoor Coordinator) ======
     echo '<table>';
+
+    // Row 1: Main Title
     echo '<tr><td class="title" colspan="'.$colCount.'">'.htmlspecialchars($mainTitle, ENT_QUOTES, 'UTF-8').'</td></tr>';
-    echo '<tr><td class="meta" colspan="'.$colCount.'">Generated: '.htmlspecialchars(now()->format('Y-m-d H:i:s'), ENT_QUOTES, 'UTF-8').'</td></tr>';
 
-    if ($monthLabel) {
-        echo '<tr><td class="meta" colspan="'.$colCount.'">Filter: '.htmlspecialchars($monthLabel, ENT_QUOTES, 'UTF-8').'</td></tr>';
-    }
+    // Row 2: Combined info (Month Filter + Generated + Total Records + Working Status)
+    $timestamp = now()->format('Y-m-d H:i:s');
+    $filterText = $monthLabel ?: 'All Data';
 
+    $rows = $query->get();
+    $totalRecords = $rows->count();
+
+    $workingText = '';
     if ($working === 'working') {
-        echo '<tr><td class="meta" colspan="'.$colCount.'">Status: Working</td></tr>';
+        $workingText = ' - Status: Working';
     } elseif ($working === 'completed') {
-        echo '<tr><td class="meta" colspan="'.$colCount.'">Status: Completed</td></tr>';
+        $workingText = ' - Status: Completed';
     }
 
-    // Spacer row
+    echo '<tr><td class="title" colspan="'.$colCount.'">';
+    echo htmlspecialchars("Month Filter: {$filterText} - Generated: {$timestamp} - Total Records: {$totalRecords}{$workingText}", ENT_QUOTES, 'UTF-8');
+    echo '</td></tr>';
+
+    // Empty row (row 3)
     echo '<tr><td colspan="'.$colCount.'">&nbsp;</td></tr>';
 
-    // ====== HEADER ROW ======
-    echo '<thead><tr>';
+    // ====== HEADER ROW (single row with yellow background) ======
+    echo '<tr>';
     foreach ($fields as $field) {
         $label = $labels[$field] ?? Str::headline($field);
-        echo '<th>'.htmlspecialchars($label, ENT_QUOTES, 'UTF-8').'</th>';
+        echo '<th class="header">'.htmlspecialchars($label, ENT_QUOTES, 'UTF-8').'</th>';
     }
-    echo '</tr></thead>';
+    echo '</tr>';
 
-    // ====== DATA ROWS ======
-    echo '<tbody>';
+    // ====== DATA ROWS (single row per record) ======
     $seq = 0;
-
-    // Get all rows first and then iterate
-    $rows = $query->get();
-
     foreach ($rows as $row) {
         $seq++;
         echo '<tr>';
@@ -1131,7 +1134,8 @@ private function streamXlsHtmlOutput($query, array $fields, array $labels, strin
         }
         echo '</tr>';
     }
-    echo '</tbody></table>';
+
+    echo '</table>';
 
     // ====== CLOSE HTML ======
     echo '</body></html>';
@@ -1189,34 +1193,94 @@ private function getColumnsBySubcat(): array
 {
     return [
         'print' => [ // KLTG / PRINT ARTWORK
-            '__no','__date_created','__company','__pic',
-            'title_snapshot','client_bp','x','edition','publication',
+            '__no',
+            '__date_created',
+            '__company',
+            '__pic',
+            'title_snapshot',
+            'client_bp',
+            'x',
+            'edition',
+            'publication',
             'artwork_bp_client',
-            'artwork_reminder','material_record','artwork_done',
-            'send_chop_sign','chop_sign_approval','park_in_file_server',
+            'artwork_reminder',      // ✅ Date field for Material Reminder
+            'material_record',       // Material Received
+            'artwork_done',
+            'send_chop_sign',
+            'chop_sign_approval',
+            'park_in_file_server',
+            'remarks',               // ✅ Add remarks if missing
         ],
         'video' => [
-            '__no','__date_created','__company','__pic',
-            'title_snapshot','client_bp','x',
-            'material_reminder_text','material_record',
-            'video_done','pending_approval','video_scheduled','video_posted','post_link',
+            '__no',
+            '__date_created',
+            '__company',
+            '__pic',
+            'title_snapshot',
+            'client_bp',
+            'x',
+            'artwork_reminder',         // ✅ Date field for Material Reminder
+            'material_reminder_text',   // ✅ Text/notes for Material Reminder
+            'material_record',
+            'video_done',
+            'pending_approval',
+            'video_scheduled',
+            'video_posted',
+            'post_link',
+            'remarks',
         ],
         'article' => [
-            '__no','__date_created','__company','__pic',
-            'title_snapshot','client_bp','x',
-            'material_reminder_text','material_record',
-            'article_done','pending_approval','article_approved','article_scheduled','article_posted','blog_link',  // ← Ganti post_link jadi blog_link
+            '__no',
+            '__date_created',
+            '__company',
+            '__pic',
+            'title_snapshot',
+            'client_bp',
+            'x',
+            'artwork_reminder',         // ✅ Date field for Material Reminder
+            'material_reminder_text',   // ✅ Text/notes for Material Reminder
+            'material_record',
+            'article_done',
+            'pending_approval',
+            'article_approved',
+            'article_scheduled',
+            'article_posted',
+            'blog_link',
+            'remarks',
         ],
         'lb' => [
-            '__no','__date_created','__company','__pic',
-            'title_snapshot','client_bp','x',
-            'material_reminder_text','material_record',
-            'video_done','pending_approval','video_approved','video_scheduled','video_posted','post_link',
+            '__no',
+            '__date_created',
+            '__company',
+            '__pic',
+            'title_snapshot',
+            'client_bp',
+            'x',
+            'artwork_reminder',         // ✅ Date field for Material Reminder
+            'material_reminder_text',   // ✅ Text/notes for Material Reminder
+            'material_record',
+            'video_done',
+            'pending_approval',
+            'video_approved',
+            'video_scheduled',
+            'video_posted',
+            'park_in_file_server',
+            'post_link',
+            'remarks',
         ],
         'em' => [
-            '__no','__date_created','__company','__pic',
+            '__no',
+            '__date_created',
+            '__company',
+            '__pic',
             '__clients_from_mf',
-            'em_date_write','em_date_to_post','em_post_date','em_qty','blog_link',
+            'title_snapshot',
+            'em_date_write',
+            'em_date_to_post',
+            'em_post_date',
+            'em_qty',
+            'blog_link',
+            'remarks',
         ],
     ];
 }
@@ -1232,26 +1296,29 @@ private function getFieldLabels(): array
         '__date_created'     => 'Date Created',
         '__company'          => 'Company',
         '__pic'              => 'Person In Charge',
-        '__clients_from_mf'  => 'Clients (from master_files)',
+        '__clients_from_mf'  => 'Clients',
 
-        // common/front columns
+        // common columns
         'title_snapshot'     => 'Title',
         'client_bp'          => 'Client/BP',
-        'x'                  => 'X (text)',
+        'x'                  => 'X',
         'edition'            => 'Edition',
         'publication'        => 'Publication',
+        'remarks'            => 'Remarks',
 
-        // print-specific labels
+        // Material Reminder fields (both date and text)
+        'artwork_reminder'         => 'Material Reminder',      // ✅ Date column
+        'material_reminder_text'   => 'Material Reminder Notes', // ✅ Text column
+
+        // Print-specific
         'artwork_bp_client'        => 'Artwork (BP/Client)',
-        'artwork_reminder'         => 'Artwork Reminder',
         'material_record'          => 'Material Received',
         'artwork_done'             => 'Artwork Done',
         'send_chop_sign'           => 'Send Chop & Sign',
         'chop_sign_approval'       => 'Chop & Sign Approval',
-        'park_in_file_server'      => 'Park in file server',
+        'park_in_file_server'      => 'Park in File Server',
 
-        // video/article/lb
-        'material_reminder_text'   => 'Material Reminder',
+        // Video/Article/LB
         'video_done'               => 'Video Done',
         'pending_approval'         => 'Pending Approval',
         'video_approved'           => 'Video Approved',
@@ -1263,16 +1330,15 @@ private function getFieldLabels(): array
         'article_approved'         => 'Article Approved',
         'article_scheduled'        => 'Article Scheduled',
         'article_posted'           => 'Article Posted',
+        'blog_link'                => 'Blog Link',
 
         // EM
         'em_date_write'            => 'Date Write',
-        'em_date_to_post'          => 'Date to post',
-        'em_post_date'             => 'Post date',
-        'em_qty'                   => 'EM-qty',
-        'blog_link'                => 'Blog Link',
+        'em_date_to_post'          => 'Date to Post',
+        'em_post_date'             => 'Post Date',
+        'em_qty'                   => 'Qty',
     ];
 }
-
 /**
  * Get subcategory title for display
  */
