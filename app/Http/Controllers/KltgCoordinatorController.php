@@ -1308,7 +1308,6 @@ private function getFieldLabels(): array
 
         // Material Reminder fields (both date and text)
         'artwork_reminder'         => 'Material Reminder',      // ✅ Date column
-        'material_reminder_text'   => 'Material Reminder Notes', // ✅ Text column
 
         // Print-specific
         'artwork_bp_client'        => 'Artwork (BP/Client)',

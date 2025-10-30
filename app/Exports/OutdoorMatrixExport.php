@@ -81,7 +81,7 @@ class OutdoorMatrixExport
             }
             $excelVal = \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel($dt->timestamp);
             $sheet->setCellValue($cell, $excelVal);
-            $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('DD/MM/YY');
+            $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('d/m/y');
         } catch (\Throwable $e) {
             // If really not parseable, write as blank (avoid text dates)
             $sheet->setCellValue($cell, '');
@@ -217,7 +217,7 @@ class OutdoorMatrixExport
         foreach ($dateCols as $i) {
             $c = $this->col($i);
             $sheet->getStyle("{$c}:{$c}")
-                ->getNumberFormat()->setFormatCode('DD/MM/YY');
+    ->getNumberFormat()->setFormatCode('d/m/y');
         }
 
         // ===== Body =====

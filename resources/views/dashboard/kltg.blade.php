@@ -263,36 +263,54 @@
                                     </td>
 
                                     @php
-                                        $fmt = function ($v, $fallbackYear) {
-                                            if (!$v) {
-                                                return '';
-                                            }
-                                            try {
-                                                if ($v instanceof \Carbon\Carbon) {
-                                                    return $v->format('d/m/y');
-                                                }
+                                        // AFTER (handles Y-m-d, d/m/Y, m/d/Y, d/m, m/d, 2- or 4-digit years → displays d/m/y)
+$fmt = function ($v, $fallbackYear) {
+    if (!$v) return '';
 
-                                                $s = trim((string) $v);
+    try {
+        if ($v instanceof \Carbon\Carbon) {
+            return $v->format('d/m/y');
+        }
 
-                                                if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $s)) {
-                                                    return \Carbon\Carbon::parse($s)->format('d/m/y'); // 2026-08-07
-                                                }
-                                                if (preg_match('/^\d{1,2}\/\d{1,2}\/\d{4}$/', $s)) {
-                                                    return \Carbon\Carbon::createFromFormat('d/m/y', $s)->format(
-                                                        'd/m/y',
-                                                    ); // 07/08/2026
-                                                }
-                                                if (preg_match('/^\d{1,2}\/\d{1,2}$/', $s)) {
-                                                    // only day/month provided → fall back to the row's year, not current year
-            return \Carbon\Carbon::createFromFormat(
-                'd/m/y',
-                $s . '/' . $fallbackYear,
-            )->format('d/m/y');
+        $s = trim((string) $v);
+        if ($s === '') return '';
+
+        // ISO (YYYY-MM-DD)
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $s)) {
+            return \Carbon\Carbon::createFromFormat('Y-m-d', $s)->format('d/m/y');
+        }
+
+        // Day/Month[/Year] or Month/Day[/Year]
+        // Try multiple masks; first one that parses wins
+        $tries = [
+            'd/m/Y', 'm/d/Y',
+            'd-m-Y', 'm-d-Y',
+            'd/m/y', 'm/d/y',
+            'd-m-y', 'm-d-y',
+        ];
+        foreach ($tries as $mask) {
+            try {
+                $dt = \Carbon\Carbon::createFromFormat($mask, $s);
+                if ($dt !== false) return $dt->format('d/m/y');
+            } catch (\Throwable $e) {}
+        }
+
+        // Only D/M provided → append fallback year (4-digit) then parse
+        if (preg_match('/^(\d{1,2})\/(\d{1,2})$/', $s)) {
+            $full = $s . '/' . (int)$fallbackYear;
+            return \Carbon\Carbon::createFromFormat('d/m/Y', $full)->format('d/m/y');
+        }
+        if (preg_match('/^(\d{1,2})-(\d{1,2})$/', $s)) {
+            $full = $s . '-' . (int)$fallbackYear;
+            return \Carbon\Carbon::createFromFormat('d-m-Y', $full)->format('d/m/y');
         }
     } catch (\Throwable $e) {
+        // fall through
     }
+
     return $s;
 };
+
 
 $rowYear = (int) ($r['year'] ?? ($year ?? date('Y')));
                                     @endphp

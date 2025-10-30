@@ -11,6 +11,8 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Color; // <-- ADD
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
+
 
 class KltgMatrixExport
 {
@@ -111,6 +113,9 @@ class KltgMatrixExport
             (new Xlsx($ss))->save('php://output');
         }, $filename, ['Content-Type'=>'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
     }
+
+
+
 
     /** ---------- MULTI YEAR (blok “YEAR – 2025”, dst.) ---------- */
     public function downloadByYear(array $byYear, string $filename): StreamedResponse
@@ -213,23 +218,54 @@ class KltgMatrixExport
         $row = $startRow;
 
         $s = $rec['summary'];
-        $fixed = [
-            $s['no'],
-            $s['month'],
-            $s['created_at'] ?? '',
-            $s['company'] ?? '',
-            $s['product'] ?? '',
-            $s['publication'] ?? '',
-            $s['edition'] ?? '',
-            $s['status'] ?? '',
-            $s['start'] ? Carbon::parse($s['start'])->format('m/d/Y') : '',
-            $s['end']   ? Carbon::parse($s['end'])->format('m/d/Y')   : '',
-        ];
         $colIdx = 1;
-        foreach ($fixed as $val) {
-            $sheet->setCellValue($this->col($colIdx).$row, $val);
-            $colIdx++;
-        }
+
+// A: No
+$sheet->setCellValue($this->col($colIdx++).$row, $s['no']);
+
+// B: Month (teks)
+$sheet->setCellValue($this->col($colIdx++).$row, $s['month']);
+
+// C: Created At (Excel date)
+if (!empty($s['created_at'])) {
+    $excelVal = ExcelDate::PHPToExcel(Carbon::parse($s['created_at'])->getTimestamp());
+    $cell = $this->col($colIdx).$row;
+    $sheet->setCellValue($cell, $excelVal);
+    $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('d/m/yy');
+} else {
+    $sheet->setCellValue($this->col($colIdx).$row, '');
+}
+$colIdx++;
+
+// D–H: Company, Product, Publication, Edition, Status (teks)
+$sheet->setCellValue($this->col($colIdx++).$row, $s['company'] ?? '');
+$sheet->setCellValue($this->col($colIdx++).$row, $s['product'] ?? '');
+$sheet->setCellValue($this->col($colIdx++).$row, $s['publication'] ?? '');
+$sheet->setCellValue($this->col($colIdx++).$row, $s['edition'] ?? '');
+$sheet->setCellValue($this->col($colIdx++).$row, $s['status'] ?? '');
+
+// I: Start (Excel date)
+if (!empty($s['start'])) {
+    $excelVal = ExcelDate::PHPToExcel(Carbon::parse($s['start'])->getTimestamp());
+    $cell = $this->col($colIdx).$row;
+    $sheet->setCellValue($cell, $excelVal);
+    $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('d/m/yy');
+} else {
+    $sheet->setCellValue($this->col($colIdx).$row, '');
+}
+$colIdx++;
+
+// J: End (Excel date)
+if (!empty($s['end'])) {
+    $excelVal = ExcelDate::PHPToExcel(Carbon::parse($s['end'])->getTimestamp());
+    $cell = $this->col($colIdx).$row;
+    $sheet->setCellValue($cell, $excelVal);
+    $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('d/m/yy');
+} else {
+    $sheet->setCellValue($this->col($colIdx).$row, '');
+}
+$colIdx++;
+
 
         // 12 bulan × n kategori → baris status (row) & baris tanggal (row+1)
         foreach ($rec['matrix'] as $m) {
@@ -263,12 +299,12 @@ class KltgMatrixExport
 
                 // Tanggal (di baris berikutnya)
                 $dateStr = '';
-                if (!empty($m['cats'][$k]['start'])) {
-                    $dateStr = Carbon::parse($m['cats'][$k]['start'])->format('m/d/Y');
-                }
-                if (!empty($m['cats'][$k]['end'])) {
-                    $dateStr = trim($dateStr.' – '.Carbon::parse($m['cats'][$k]['end'])->format('m/d/Y'));
-                }
+if (!empty($m['cats'][$k]['start'])) {
+    $dateStr = Carbon::parse($m['cats'][$k]['start'])->format('d/m/y');
+}
+if (!empty($m['cats'][$k]['end'])) {
+    $dateStr = trim($dateStr.' – '.Carbon::parse($m['cats'][$k]['end'])->format('d/m/y'));
+}
                 $sheet->setCellValue($this->col($colIdx).($row+1), $dateStr);
 
                 $colIdx++;
