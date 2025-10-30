@@ -277,48 +277,54 @@ foreach ($candidates as $c) {
 
 
     // Video (uses _dbcol mapping: video_* -> video_* columns)
-    'video' => [
-        ['key'=>'title','label'=>'Title','type'=>'text'],
-        ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
-        ['key'=>'artwork_reminder_date','label'=>'Material Reminder','type'=>'date'],
-        ['key'=>'material_reminder_text','label'=>'Material Reminder','type'=>'text'],
-        ['key'=>'video_done_date','label'=>'Video Done','type'=>'date'],
-        ['key'=>'pending_approval_date','label'=>'Pending Approval','type'=>'date'],
-        ['key'=>'video_approved_date','label'=>'Video Approved','type'=>'date'],
-        ['key'=>'video_scheduled_date','label'=>'Video Scheduled','type'=>'date'],
-        ['key'=>'video_posted_date','label'=>'Video Posted','type'=>'date'],
-        ['key'=>'post_link','label'=>'Post Link','type'=>'text'],
-        ['key'=>'remarks','label'=>'Remarks','type'=>'text'],
-    ],
+   'video' => [
+    ['key'=>'title','label'=>'Title','type'=>'text'],
+    ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
+    ['key'=>'x','label'=>'X','type'=>'text'],
+    ['key'=>'artwork_reminder_date','label'=>'Material Reminder','type'=>'date'],
+    ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
+    ['key'=>'video_done_date','label'=>'Video Done','type'=>'date'],
+    ['key'=>'pending_approval_date','label'=>'Pending Approval','type'=>'date'],
+    ['key'=>'video_scheduled_date','label'=>'Video Scheduled','type'=>'date'],
+    ['key'=>'video_posted_date','label'=>'Video Posted','type'=>'date'],
+    ['key'=>'post_link','label'=>'Post Link','type'=>'text'],
+    ['key'=>'remarks','label'=>'Remarks','type'=>'text'],
+],
 
     // Article (uses _dbcol mapping: article_* -> article_* columns)
     'article' => [
-        ['key'=>'title','label'=>'Title','type'=>'text'],
-        ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
-        ['key'=>'artwork_reminder_date','label'=>'Material Reminder','type'=>'date'],
-        ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
-        ['key'=>'article_done_date','label'=>'Article Done','type'=>'date'],
-        ['key'=>'article_approved_date','label'=>'Article Approved','type'=>'date'],
-        ['key'=>'article_scheduled_date','label'=>'Article Scheduled','type'=>'date'],
-        ['key'=>'article_posted_date','label'=>'Article Posted','type'=>'date'],
-        ['key'=>'blog_link','label'=>'Blog Link','type'=>'text'],
-        ['key'=>'remarks','label'=>'Remarks','type'=>'text'],
-    ],
+    ['key'=>'title','label'=>'Title','type'=>'text'],
+    ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
+    ['key'=>'x','label'=>'X','type'=>'text'],
+    ['key'=>'artwork_reminder_date','label'=>'Material Reminder','type'=>'date'],
+    ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
+    ['key'=>'article_done_date','label'=>'Article Done','type'=>'date'],
+    ['key'=>'pending_approval_date','label'=>'Pending Approval','type'=>'date'],
+    ['key'=>'article_approved_date','label'=>'Article Approved','type'=>'date'],
+    ['key'=>'article_scheduled_date','label'=>'Article Scheduled','type'=>'date'],
+    ['key'=>'article_posted_date','label'=>'Article Posted','type'=>'date'],
+    ['key'=>'blog_link','label'=>'Blog Link','type'=>'text'],
+    ['key'=>'remarks','label'=>'Remarks','type'=>'text'],
+],
 
     // LB — if your LB flow is closer to print, use print-style fields; if closer to video, keep this.
     'lb' => [
-        ['key'=>'title','label'=>'Title','type'=>'text'],
-        ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
-        ['key'=>'material_reminder_text','label'=>'Material Reminder','type'=>'text'],
-        ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
-        ['key'=>'video_done_date','label'=>'Production Done','type'=>'date'],
-        ['key'=>'pending_approval_date','label'=>'Pending Approval','type'=>'date'],
-        ['key'=>'video_approved_date','label'=>'Approved','type'=>'date'],
-        ['key'=>'video_scheduled_date','label'=>'Scheduled','type'=>'date'],
-        ['key'=>'video_posted_date','label'=>'Installed/Posted','type'=>'date'],
-        ['key'=>'post_link','label'=>'Proof Link','type'=>'text'],
-        ['key'=>'remarks','label'=>'Remarks','type'=>'text'],
-    ],
+    ['key'=>'title','label'=>'Title','type'=>'text'],
+    ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
+    ['key'=>'x','label'=>'X','type'=>'text'],
+
+    ['key'=>'artwork_reminder_date','label'=>'Material Reminder (Date)','type'=>'date'],
+    ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
+
+    ['key'=>'video_done_date','label'=>'Production Done','type'=>'date'],
+    ['key'=>'pending_approval_date','label'=>'Pending Approval','type'=>'date'],
+    ['key'=>'video_approved_date','label'=>'Approved','type'=>'date'],
+    ['key'=>'video_scheduled_date','label'=>'Scheduled','type'=>'date'],
+    ['key'=>'video_posted_date','label'=>'Installed/Posted','type'=>'date'],
+    ['key'=>'park_in_server_date','label'=>'Park in File Server','type'=>'text'],  // ← ADD THIS LINE
+    ['key'=>'post_link','label'=>'Proof Link','type'=>'text'],
+    ['key'=>'remarks','label'=>'Remarks','type'=>'text'],
+],
 
     // EM (Email/EDM) — uses EM fields defined in your Blade _dbcol map
     'em' => [
@@ -679,31 +685,31 @@ public function upsert(Request $request)
 
     // 5) Allowed DB columns per tab
     $allow = [
-        'print' => [
-            'title_snapshot','company_snapshot','client_bp','x','edition','publication',
-            'artwork_bp_client','artwork_reminder','material_record',
-            'send_chop_sign','chop_sign_approval','park_in_file_server','remarks','artwork_done'
-        ],
-        'video' => [
-            'title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text',
-            'material_record','video_done','pending_approval','video_approved',
-            'video_scheduled','video_posted','post_link'
-        ],
-        'article' => [
-            'title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text',
-            'material_record','article_done','pending_approval','article_approved',
-            'article_scheduled','article_posted','post_link','blog_link'
-        ],
-        'lb' => [
-            'title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text',
-            'material_record','video_done','pending_approval','video_approved',
-            'video_scheduled','video_posted','post_link'
-        ],
-        'em' => [
-            'company_snapshot','client_bp','remarks',
-            'em_date_write','em_date_to_post','em_post_date','em_qty','blog_link','title_snapshot'
-        ],
-    ];
+    'print' => [
+        'title_snapshot','company_snapshot','client_bp','x','edition','publication',
+        'artwork_bp_client','artwork_reminder','material_record',
+        'send_chop_sign','chop_sign_approval','park_in_file_server','remarks','artwork_done'
+    ],
+    'video' => [
+        'title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text',
+        'artwork_reminder','material_record','video_done','pending_approval',  // ← ADD artwork_reminder
+        'video_scheduled','video_posted','post_link'
+    ],
+    'article' => [
+        'title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text',
+        'artwork_reminder','material_record','article_done','pending_approval',  // ← ADD artwork_reminder
+        'article_approved','article_scheduled','article_posted','post_link','blog_link'
+    ],
+    'lb' => [
+        'title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text',
+        'artwork_reminder','material_record','video_done','pending_approval',  // ← ADD artwork_reminder
+        'video_approved','video_scheduled','video_posted','park_in_file_server','post_link'
+    ],
+    'em' => [
+        'company_snapshot','client_bp','remarks',
+        'em_date_write','em_date_to_post','em_post_date','em_qty','blog_link','title_snapshot'
+    ],
+];
     if (!in_array($column, $allow[$sub] ?? [], true)) {
         return response()->json([
             'ok' => false,

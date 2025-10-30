@@ -850,7 +850,8 @@
                                                             class="table-input {{ $isNumeric ? 'text-right' : '' }} tabular-nums"
                                                             value="{{ $val }}"
                                                             data-master-file-id="{{ $r->id }}"
-                                                            data-subcategory="{{ ['print'=>'KLTG','video'=>'VIDEO','article'=>'ARTICLE','lb'=>'LB','em'=>'EM'][$activeTab] }}"
+                                                            data-subcategory="{{ $activeTab }}"   {{-- always lowercase: print|video|article|lb|em --}}
+
                                                             data-field="{{ $key }}" />
                                                     @else
                                                         <input type="text"
