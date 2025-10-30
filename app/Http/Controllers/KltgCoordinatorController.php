@@ -251,82 +251,68 @@ foreach ($candidates as $c) {
     );
 }
 
-    // ========= Columns (unchanged) =========
     $columns = [
     'print' => [
-    ['key'=>'title','label'=>'Title','type'=>'text'],
-    ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
-    ['key'=>'x','label'=>'X (text)','type'=>'text'],
-    ['key'=>'edition','label'=>'Edition','type'=>'text'],
-    ['key'=>'publication','label'=>'Publication','type'=>'text'],
-    ['key'=>'artwork_party','label'=>'Artwork (BP/Client)','type'=>'text'],
+        ['key'=>'title','label'=>'Title','type'=>'text'],
+        ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
+        ['key'=>'x','label'=>'X (text)','type'=>'text'],
+        ['key'=>'edition','label'=>'Edition','type'=>'text'],
+        ['key'=>'publication','label'=>'Publication','type'=>'text'],
+        ['key'=>'artwork_party','label'=>'Artwork (BP/Client)','type'=>'text'],
+        ['key'=>'artwork_reminder','label'=>'Material Reminder','type'=>'date'],
+        ['key'=>'material_record','label'=>'Material Received','type'=>'date'],
+        ['key'=>'artwork_done','label'=>'Artwork Done','type'=>'date'],
+        ['key'=>'send_chop_sign','label'=>'Send Chop & Sign','type'=>'date'],
+        ['key'=>'chop_sign_approval','label'=>'Chop & Sign Approval','type'=>'date'],
+        ['key'=>'park_in_file_server','label'=>'Park in file server','type'=>'date'],
+        ['key'=>'remarks','label'=>'Remarks','type'=>'text'],
+    ],
 
-    // ▼ pastikan label beda dan benar
-    ['key'=>'artwork_reminder_date','label'=>'Material Reminder','type'=>'date'],
-    ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
+    'video' => [
+        ['key'=>'title','label'=>'Title','type'=>'text'],
+        ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
+        ['key'=>'x','label'=>'X','type'=>'text'],
+        ['key'=>'artwork_reminder','label'=>'Material Reminder','type'=>'date'],
+        ['key'=>'material_record','label'=>'Material Received','type'=>'date'],
+        ['key'=>'video_done','label'=>'Video Done','type'=>'date'],
+        ['key'=>'pending_approval','label'=>'Pending Approval','type'=>'date'],
+        ['key'=>'video_scheduled','label'=>'Video Scheduled','type'=>'date'],
+        ['key'=>'video_posted','label'=>'Video Posted','type'=>'date'],
+        ['key'=>'post_link','label'=>'Post Link','type'=>'text'],
+        ['key'=>'remarks','label'=>'Remarks','type'=>'text'],
+    ],
 
-    // (opsional) kalau mau tampilkan catatan juga:
-    // ['key'=>'material_reminder_text','label'=>'Material Reminder Notes','type'=>'text'],
-
-    ['key'=>'artwork_done_date','label'=>'Artwork Done','type'=>'date'],
-    ['key'=>'send_chop_sign_date','label'=>'Send Chop & Sign','type'=>'date'],
-    ['key'=>'chop_sign_approval_date','label'=>'Chop & Sign Approval','type'=>'date'],
-    ['key'=>'park_in_server_date','label'=>'Park in file server','type'=>'date'],
-    ['key'=>'remarks','label'=>'Remarks','type'=>'text'],
-],
-
-
-    // Video (uses _dbcol mapping: video_* -> video_* columns)
-   'video' => [
-    ['key'=>'title','label'=>'Title','type'=>'text'],
-    ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
-    ['key'=>'x','label'=>'X','type'=>'text'],
-    ['key'=>'artwork_reminder_date','label'=>'Material Reminder','type'=>'date'],
-    ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
-    ['key'=>'video_done_date','label'=>'Video Done','type'=>'date'],
-    ['key'=>'pending_approval_date','label'=>'Pending Approval','type'=>'date'],
-    ['key'=>'video_scheduled_date','label'=>'Video Scheduled','type'=>'date'],
-    ['key'=>'video_posted_date','label'=>'Video Posted','type'=>'date'],
-    ['key'=>'post_link','label'=>'Post Link','type'=>'text'],
-    ['key'=>'remarks','label'=>'Remarks','type'=>'text'],
-],
-
-    // Article (uses _dbcol mapping: article_* -> article_* columns)
     'article' => [
-    ['key'=>'title','label'=>'Title','type'=>'text'],
-    ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
-    ['key'=>'x','label'=>'X','type'=>'text'],
-    ['key'=>'artwork_reminder_date','label'=>'Material Reminder','type'=>'date'],
-    ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
-    ['key'=>'article_done_date','label'=>'Article Done','type'=>'date'],
-    ['key'=>'pending_approval_date','label'=>'Pending Approval','type'=>'date'],
-    ['key'=>'article_approved_date','label'=>'Article Approved','type'=>'date'],
-    ['key'=>'article_scheduled_date','label'=>'Article Scheduled','type'=>'date'],
-    ['key'=>'article_posted_date','label'=>'Article Posted','type'=>'date'],
-    ['key'=>'blog_link','label'=>'Blog Link','type'=>'text'],
-    ['key'=>'remarks','label'=>'Remarks','type'=>'text'],
-],
+        ['key'=>'title','label'=>'Title','type'=>'text'],
+        ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
+        ['key'=>'x','label'=>'X','type'=>'text'],
+        ['key'=>'artwork_reminder','label'=>'Material Reminder','type'=>'date'],
+        ['key'=>'material_record','label'=>'Material Received','type'=>'date'],
+        ['key'=>'article_done','label'=>'Article Done','type'=>'date'],
+        ['key'=>'pending_approval','label'=>'Pending Approval','type'=>'date'],
+        ['key'=>'article_approved','label'=>'Article Approved','type'=>'date'],
+        ['key'=>'article_scheduled','label'=>'Article Scheduled','type'=>'date'],
+        ['key'=>'article_posted','label'=>'Article Posted','type'=>'date'],
+        ['key'=>'blog_link','label'=>'Blog Link','type'=>'text'],
+        ['key'=>'remarks','label'=>'Remarks','type'=>'text'],
+    ],
 
-    // LB — if your LB flow is closer to print, use print-style fields; if closer to video, keep this.
     'lb' => [
-    ['key'=>'title','label'=>'Title','type'=>'text'],
-    ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
-    ['key'=>'x','label'=>'X','type'=>'text'],
+        ['key'=>'title','label'=>'Title','type'=>'text'],
+        ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
+        ['key'=>'x','label'=>'X','type'=>'text'],
+        ['key'=>'artwork_reminder','label'=>'Material Reminder (Date)','type'=>'date'],
+        ['key'=>'material_record','label'=>'Material Received','type'=>'date'],
+        ['key'=>'video_done','label'=>'Production Done','type'=>'date'],
+        ['key'=>'pending_approval','label'=>'Pending Approval','type'=>'date'],
+        ['key'=>'video_approved','label'=>'Approved','type'=>'date'],
+        ['key'=>'video_scheduled','label'=>'Scheduled','type'=>'date'],
+        ['key'=>'video_posted','label'=>'Installed/Posted','type'=>'date'],
+        ['key'=>'park_in_file_server','label'=>'Park in File Server','type'=>'text'],
+        ['key'=>'post_link','label'=>'Proof Link','type'=>'text'],
+        ['key'=>'remarks','label'=>'Remarks','type'=>'text'],
+    ],
 
-    ['key'=>'artwork_reminder_date','label'=>'Material Reminder (Date)','type'=>'date'],
-    ['key'=>'material_received_date','label'=>'Material Received','type'=>'date'],
-
-    ['key'=>'video_done_date','label'=>'Production Done','type'=>'date'],
-    ['key'=>'pending_approval_date','label'=>'Pending Approval','type'=>'date'],
-    ['key'=>'video_approved_date','label'=>'Approved','type'=>'date'],
-    ['key'=>'video_scheduled_date','label'=>'Scheduled','type'=>'date'],
-    ['key'=>'video_posted_date','label'=>'Installed/Posted','type'=>'date'],
-    ['key'=>'park_in_server_date','label'=>'Park in File Server','type'=>'text'],  // ← ADD THIS LINE
-    ['key'=>'post_link','label'=>'Proof Link','type'=>'text'],
-    ['key'=>'remarks','label'=>'Remarks','type'=>'text'],
-],
-
-    // EM (Email/EDM) — uses EM fields defined in your Blade _dbcol map
     'em' => [
         ['key'=>'title','label'=>'Title','type'=>'text'],
         ['key'=>'client_bp','label'=>'Client/BP','type'=>'text'],
@@ -338,6 +324,7 @@ foreach ($candidates as $c) {
         ['key'=>'remarks','label'=>'Remarks','type'=>'text'],
     ],
 ];
+
 
 
     $monthlyTable = 'kltg_monthly_details';
@@ -684,32 +671,85 @@ public function upsert(Request $request)
     $column = $aliases[$field] ?? $field;
 
     // 5) Allowed DB columns per tab
-    $allow = [
-    'print' => [
-        'title_snapshot','company_snapshot','client_bp','x','edition','publication',
-        'artwork_bp_client','artwork_reminder','material_record',
-        'send_chop_sign','chop_sign_approval','park_in_file_server','remarks','artwork_done'
-    ],
-    'video' => [
-        'title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text',
-        'artwork_reminder','material_record','video_done','pending_approval',  // ← ADD artwork_reminder
-        'video_scheduled','video_posted','post_link'
-    ],
-    'article' => [
-        'title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text',
-        'artwork_reminder','material_record','article_done','pending_approval',  // ← ADD artwork_reminder
-        'article_approved','article_scheduled','article_posted','post_link','blog_link'
-    ],
-    'lb' => [
-        'title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text',
-        'artwork_reminder','material_record','video_done','pending_approval',  // ← ADD artwork_reminder
-        'video_approved','video_scheduled','video_posted','park_in_file_server','post_link'
-    ],
-    'em' => [
-        'company_snapshot','client_bp','remarks',
-        'em_date_write','em_date_to_post','em_post_date','em_qty','blog_link','title_snapshot'
-    ],
+$allow = [
+ 'print' => [
+   'title_snapshot','company_snapshot','client_bp','x','edition','publication',
+   'artwork_bp_client','artwork_reminder','material_record','send_chop_sign',
+   'chop_sign_approval','park_in_file_server','remarks','artwork_done',
+
+   // ✅ ADD STACKED FIELDS
+   'artwork_reminder_status','artwork_reminder_color',
+   'material_record_status','material_record_color',
+   'artwork_done_status','artwork_done_color',
+   'send_chop_sign_status','send_chop_sign_color',
+   'chop_sign_approval_status','chop_sign_approval_color',
+   'park_in_file_server_status','park_in_file_server_color',
+ ],
+
+'video' => [
+   'title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text',
+   'artwork_reminder','material_record','video_done','pending_approval','video_approved',
+   'video_scheduled','video_posted','post_link',
+
+   // ✅ COMPLETE STACKED FIELDS
+   'artwork_reminder_status','artwork_reminder_color',
+   'material_reminder_text_status','material_reminder_text_color',
+   'material_record_status','material_record_color',
+   'video_done_status','video_done_color',
+   'pending_approval_status','pending_approval_color',
+   'video_approved_status','video_approved_color',
+   'video_scheduled_status','video_scheduled_color',
+   'video_posted_status','video_posted_color',  // ← INI YANG KURANG!
+   'post_link_status','post_link_color',
+ ],
+
+'article' => [
+   'title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text',
+   'artwork_reminder','material_record','article_done','pending_approval',
+   'article_approved','article_scheduled','article_posted','post_link','blog_link',
+
+   // ✅ COMPLETE STACKED FIELDS
+   'artwork_reminder_status','artwork_reminder_color',
+   'material_reminder_text_status','material_reminder_text_color',
+   'material_record_status','material_record_color',
+   'article_done_status','article_done_color',
+   'pending_approval_status','pending_approval_color',
+   'article_approved_status','article_approved_color',
+   'article_scheduled_status','article_scheduled_color',
+   'article_posted_status','article_posted_color',
+   'post_link_status','post_link_color',
+   'blog_link_status','blog_link_color',
+ ],
+
+
+'lb' => [
+   'title_snapshot','company_snapshot','client_bp','x','remarks','material_reminder_text',
+   'artwork_reminder','material_record','video_done','pending_approval','video_approved',
+   'video_scheduled','video_posted','park_in_file_server','post_link',
+
+   // ✅ COMPLETE STACKED FIELDS
+   'artwork_reminder_status','artwork_reminder_color',
+   'material_reminder_text_status','material_reminder_text_color',
+   'material_record_status','material_record_color',
+   'video_done_status','video_done_color',
+   'pending_approval_status','pending_approval_color',
+   'video_approved_status','video_approved_color',
+   'video_scheduled_status','video_scheduled_color',
+   'video_posted_status','video_posted_color',
+   'park_in_file_server_status','park_in_file_server_color',
+   'post_link_status','post_link_color',
+ ],
+'em' => [
+   '__clients_from_mf','title_snapshot','company_snapshot','client_bp','remarks',
+   'em_date_write','em_date_to_post','em_post_date','em_qty','blog_link',
+
+   // ✅ ADD STACKED FIELDS
+   'em_date_write_status','em_date_write_color',
+   'em_date_to_post_status','em_date_to_post_color',
+   'em_post_date_status','em_post_date_color',
+ ],
 ];
+
     if (!in_array($column, $allow[$sub] ?? [], true)) {
         return response()->json([
             'ok' => false,
@@ -1192,25 +1232,37 @@ private function valueForField($row, string $field): string
 private function getColumnsBySubcat(): array
 {
     return [
-        'print' => [ // KLTG / PRINT ARTWORK
-            '__no',
-            '__date_created',
-            '__company',
-            '__pic',
-            'title_snapshot',
-            'client_bp',
-            'x',
-            'edition',
-            'publication',
-            'artwork_bp_client',
-            'artwork_reminder',      // ✅ Date field for Material Reminder
-            'material_record',       // Material Received
-            'artwork_done',
-            'send_chop_sign',
-            'chop_sign_approval',
-            'park_in_file_server',
-            'remarks',               // ✅ Add remarks if missing
-        ],
+       'print' => [
+    '__no',
+    '__date_created',
+    '__company',
+    '__pic',
+    'title_snapshot',
+    'client_bp',
+    'x',
+    'edition',
+    'publication',
+    'artwork_bp_client',
+    'artwork_reminder',
+    'artwork_reminder_status',    // ✅ ADD
+    'artwork_reminder_color',     // ✅ ADD
+    'material_record',
+    'material_record_status',     // ✅ ADD
+    'material_record_color',      // ✅ ADD
+    'artwork_done',
+    'artwork_done_status',        // ✅ ADD
+    'artwork_done_color',         // ✅ ADD
+    'send_chop_sign',
+    'send_chop_sign_status',      // ✅ ADD
+    'send_chop_sign_color',       // ✅ ADD
+    'chop_sign_approval',
+    'chop_sign_approval_status',  // ✅ ADD
+    'chop_sign_approval_color',   // ✅ ADD
+    'park_in_file_server',
+    'park_in_file_server_status', // ✅ ADD
+    'park_in_file_server_color',  // ✅ ADD
+    'remarks',
+],
         'video' => [
             '__no',
             '__date_created',
@@ -1316,6 +1368,42 @@ private function getFieldLabels(): array
         'send_chop_sign'           => 'Send Chop & Sign',
         'chop_sign_approval'       => 'Chop & Sign Approval',
         'park_in_file_server'      => 'Park in File Server',
+          'artwork_reminder_status'        => 'Mat. Reminder Status',
+        'artwork_reminder_color'         => 'Mat. Reminder Color',
+        'material_record_status'         => 'Mat. Received Status',
+        'material_record_color'          => 'Mat. Received Color',
+        'artwork_done_status'            => 'Artwork Done Status',
+        'artwork_done_color'             => 'Artwork Done Color',
+        'send_chop_sign_status'          => 'Chop & Sign Status',
+        'send_chop_sign_color'           => 'Chop & Sign Color',
+        'chop_sign_approval_status'      => 'Approval Status',
+        'chop_sign_approval_color'       => 'Approval Color',
+        'park_in_file_server_status'     => 'File Server Status',
+        'park_in_file_server_color'      => 'File Server Color',
+        'video_done_status'              => 'Video Done Status',
+        'video_done_color'               => 'Video Done Color',
+        'pending_approval_status'        => 'Pending Approval Status',
+        'pending_approval_color'         => 'Pending Approval Color',
+        'video_approved_status'          => 'Video Approved Status',
+        'video_approved_color'           => 'Video Approved Color',
+        'video_scheduled_status'         => 'Video Scheduled Status',
+        'video_scheduled_color'          => 'Video Scheduled Color',
+        'video_posted_status'            => 'Video Posted Status',
+        'video_posted_color'             => 'Video Posted Color',
+        'article_done_status'            => 'Article Done Status',
+        'article_done_color'             => 'Article Done Color',
+        'article_approved_status'        => 'Article Approved Status',
+        'article_approved_color'         => 'Article Approved Color',
+        'article_scheduled_status'       => 'Article Scheduled Status',
+        'article_scheduled_color'        => 'Article Scheduled Color',
+        'article_posted_status'          => 'Article Posted Status',
+        'article_posted_color'           => 'Article Posted Color',
+        'em_date_write_status'           => 'Date Write Status',
+        'em_date_write_color'            => 'Date Write Color',
+        'em_date_to_post_status'         => 'Date to Post Status',
+        'em_date_to_post_color'          => 'Date to Post Color',
+        'em_post_date_status'            => 'Post Date Status',
+        'em_post_date_color'             => 'Post Date Color',
 
         // Video/Article/LB
         'video_done'               => 'Video Done',

@@ -273,18 +273,74 @@
         }
 
         /* Table Inputs */
-        .table-input {
-            height: 2.25rem;
-            font-size: 0.875rem;
-            padding: 0 0.75rem;
-            border-radius: 0.5rem;
-            border: 1px solid #E5E7EB;
-            width: 100%;
-            transition: all 150ms ease;
-            min-width: 100px;
-            background: white;
-        }
+        /* Table Inputs */
+.table-input {
+    height: 2.25rem;
+    font-size: 0.875rem;
+    padding: 0 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid #E5E7EB;
+    width: 100%;
+    transition: all 150ms ease;
+    min-width: 100px;
+    background: white;
+}
 
+/* Stacked Input Container */
+.stacked-input-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    min-width: 140px;
+}
+
+.stacked-row {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+}
+
+.stacked-status-input {
+    flex: 1;
+    height: 1.75rem;
+    font-size: 0.75rem;
+    padding: 0 0.5rem;
+    border-radius: 0.375rem;
+    border: 1px solid #D1D5DB;
+    transition: all 150ms ease;
+    font-weight: 600;
+}
+
+/* Auto adjust text color based on background */
+.stacked-status-input[data-has-color="true"] {
+    color: white;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+.stacked-color-input {
+    width: 2.5rem;
+    height: 1.75rem;
+    border-radius: 0.375rem;
+    border: 1px solid #D1D5DB;
+    cursor: pointer;
+    padding: 0.125rem;
+}
+
+.stacked-date-input {
+    height: 2rem;
+    font-size: 0.875rem;
+    padding: 0 0.5rem;
+    border-radius: 0.375rem;
+    border: 1px solid #D1D5DB;
+    width: 100%;
+}
+
+.stacked-status-input:focus,
+.stacked-date-input:focus {
+    outline: none;
+    border-color: #4bbbed;
+    box-shadow: 0 0 0 2px rgba(75, 187, 237, 0.1);
+}
         .table-input:focus {
             outline: none;
             border-color: #4bbbed;
@@ -471,49 +527,107 @@
     /** @var \Illuminate\Support\Collection $rows */
     /** @var \Illuminate\Support\Collection $existing */
 
-    function _dbcol($k)
-    {
-        static $map = [
-            // umum
-            'title' => 'title_snapshot',
-            'company' => 'company_snapshot',
-            'client_bp' => 'client_bp',
-            'x' => 'x',
-            'edition' => 'edition',
-            'publication' => 'publication',
-            'remarks' => 'remarks',
-            'artwork_party' => 'artwork_bp_client',
+  function _dbcol(string $k): string
+{
+    static $map = [
+        // ------- Umum / Common -------
+        'title'         => 'title_snapshot',
+        'company'       => 'company_snapshot',
+        'client_bp'     => 'client_bp',
+        'x'             => 'x',
+        'edition'       => 'edition',
+        'publication'   => 'publication',
+        'remarks'       => 'remarks',
+        'artwork_party' => 'artwork_bp_client',
 
-            // KLTG/Print dates (di DB disimpan tanpa _date)
-            'artwork_reminder_date' => 'artwork_reminder',
-            'material_received_date' => 'material_record',
-            'artwork_done_date' => 'artwork_done',
-            'send_chop_sign_date' => 'send_chop_sign',
-            'chop_sign_approval_date' => 'chop_sign_approval',
-            'park_in_server_date' => 'park_in_file_server',
+        // ------- KLTG/Print dates (DB stores without "_date") -------
+        'artwork_reminder_date'   => 'artwork_reminder',
+        'material_received_date'  => 'material_record',
+        'artwork_done_date'       => 'artwork_done',
+        'send_chop_sign_date'     => 'send_chop_sign',
+        'chop_sign_approval_date' => 'chop_sign_approval',
+        'park_in_server_date'     => 'park_in_file_server',
 
-            // Video/LB/Article
-            'material_reminder_text' => 'material_reminder_text',
-            'video_done_date' => 'video_done',
-            'pending_approval_date' => 'pending_approval',
-            'video_approved_date' => 'video_approved',
-            'video_scheduled_date' => 'video_scheduled',
-            'video_posted_date' => 'video_posted',
-            'article_done_date' => 'article_done',
-            'article_approved_date' => 'article_approved',
-            'article_scheduled_date' => 'article_scheduled',
-            'article_posted_date' => 'article_posted',
-            'post_link' => 'post_link',
+        // ------- Video / LB / Article (text+dates) -------
+        'material_reminder_text'  => 'material_reminder_text',
+        'video_done_date'         => 'video_done',
+        'pending_approval_date'   => 'pending_approval',
+        'video_approved_date'     => 'video_approved',
+        'video_scheduled_date'    => 'video_scheduled',
+        'video_posted_date'       => 'video_posted',
+        'article_done_date'       => 'article_done',
+        'article_approved_date'   => 'article_approved',
+        'article_scheduled_date'  => 'article_scheduled',
+        'article_posted_date'     => 'article_posted',
+        'post_link'               => 'post_link',
 
-            // EM
-            'em_date_write' => 'em_date_write',
-            'em_date_to_post' => 'em_date_to_post',
-            'em_post_date' => 'em_post_date',
-            'em_qty' => 'em_qty',
-            'blog_link' => 'blog_link',
-        ];
-        return $map[$k] ?? $k;
+        // ------- EM (already DB-native names) -------
+        'em_date_write'    => 'em_date_write',
+        'em_date_to_post'  => 'em_date_to_post',
+        'em_post_date'     => 'em_post_date',
+        'em_qty'           => 'em_qty',
+        'blog_link'        => 'blog_link',
+    ];
+
+    // 1) Exact mapping first
+    if (isset($map[$k])) {
+        return $map[$k];
     }
+
+    // 2) Generic rule: if UI key ends with "_date", map to base column without suffix
+    //    (works for any future fields you add that follow this pattern)
+    if (substr($k, -5) === '_date') {
+        return substr($k, 0, -5);
+    }
+
+    // 3) Pass-through (covers *_status and *_color columns which already match DB)
+    return $k;
+}
+
+    function stackedVals($existing, $row, $key, $type, $activeTab)
+{
+    // compose record key
+    $masterId = $row->master_file_id ?? $row->id;
+    $year = $row->activity_year;
+    $month = $row->activity_month;
+
+    $subcategoryMap = [
+        'print'   => 'KLTG',
+        'video'   => 'VIDEO',
+        'article' => 'ARTICLE',
+        'lb'      => 'LB',
+        'em'      => 'EM',
+    ];
+    $subcategory = $subcategoryMap[$activeTab] ?? strtoupper($activeTab);
+    $record = $existing->get($masterId . '_' . $subcategory . '_' . $year . '_' . $month);
+    if (!$record) return ['base'=>'','status'=>'','color'=>'','#baseCol'=>null,'#statusCol'=>null,'#colorCol'=>null];
+
+    // base DB column for the UI key
+    $baseCol = _dbcol($key);
+    $statusCol = $baseCol . '_status';
+    $colorCol  = $baseCol . '_color';
+
+    // read values
+    $base   = $record->{$baseCol} ?? '';
+    $status = $record->{$statusCol} ?? '';
+    $color  = $record->{$colorCol} ?? '';
+
+    // normalize date for <input type=date>
+    if ($type === 'date' && $base) {
+        try {
+            if (is_string($base) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $base)) {
+                // ok
+            } else {
+                $base = \Carbon\Carbon::parse($base)->format('Y-m-d');
+            }
+        } catch (\Throwable $e) {
+            $base = '';
+        }
+    }
+
+    return ['base'=>$base,'status'=>$status,'color'=>$color,'#baseCol'=>$baseCol,'#statusCol'=>$statusCol,'#colorCol'=>$colorCol];
+}
+
 
     function cellVal($existing, $row, $key, $type, $activeTab)
 {
@@ -841,28 +955,46 @@
                                                         <span class="placeholder-dash">—</span>
                                                     @endif
                                                 </td>
-                                            @else
-                                                @php $val = cellVal($existing, $r, $key, $type, $activeTab); @endphp
-                                                <td class="col-standard {{ $isNumeric ? 'text-right' : '' }}"
-                                                    style="{{ $cellStyle }}">
-                                                    @if ($type === 'date')
-                                                        <input type="date"
-                                                            class="table-input {{ $isNumeric ? 'text-right' : '' }} tabular-nums"
-                                                            value="{{ $val }}"
-                                                            data-master-file-id="{{ $r->id }}"
-                                                            data-subcategory="{{ $activeTab }}"   {{-- always lowercase: print|video|article|lb|em --}}
-
-                                                            data-field="{{ $key }}" />
-                                                    @else
-                                                        <input type="text"
-                                                            class="table-input {{ $isNumeric ? 'text-right tabular-nums' : '' }}"
-                                                            value="{{ $val }}" placeholder="—"
-                                                            data-master-file-id="{{ $r->id }}"
-                                                            data-subcategory="{{ $activeTab }}"
-                                                            data-field="{{ $key }}" />
-                                                    @endif
-                                                </td>
-                                            @endif
+                                           @else
+    <td class="col-standard {{ $isNumeric ? 'text-right' : '' }}" style="{{ $cellStyle }}">
+        @if ($type === 'date')
+            @php $vals = stackedVals($existing, $r, $key, $type, $activeTab); @endphp
+            <div class="stacked-input-container">
+                <!-- Status + Color Row -->
+                <div class="stacked-row">
+                    <input type="text"
+                        class="stacked-status-input"
+                        value="{{ $vals['status'] }}"
+                        placeholder="Status"
+                        data-master-file-id="{{ $r->id }}"
+                        data-subcategory="{{ $activeTab }}"
+                        data-field="{{ $key }}_status" />
+                    <input type="color"
+                        class="stacked-color-input"
+                        value="{{ $vals['color'] ?: '#4bbbed' }}"
+                        data-master-file-id="{{ $r->id }}"
+                        data-subcategory="{{ $activeTab }}"
+                        data-field="{{ $key }}_color" />
+                </div>
+                <!-- Date Row -->
+                <input type="date"
+                    class="stacked-date-input tabular-nums"
+                    value="{{ $vals['base'] }}"
+                    data-master-file-id="{{ $r->id }}"
+                    data-subcategory="{{ $activeTab }}"
+                    data-field="{{ $key }}" />
+            </div>
+        @else
+            @php $val = cellVal($existing, $r, $key, $type, $activeTab); @endphp
+            <input type="text"
+                class="table-input {{ $isNumeric ? 'text-right tabular-nums' : '' }}"
+                value="{{ $val }}" placeholder="—"
+                data-master-file-id="{{ $r->id }}"
+                data-subcategory="{{ $activeTab }}"
+                data-field="{{ $key }}" />
+        @endif
+    </td>
+@endif
                                         @endforeach
                                     </tr>
                                 @endforeach
@@ -948,71 +1080,143 @@
                     month
                 };
             }
-// ▼ Tambah di atas buildPayload (sebelum dipakai)
-const COLMAP = {
-  // KLTG/Print dates
-  artwork_reminder_date: 'artwork_reminder',
-  material_received_date: 'material_record',
-  artwork_done_date: 'artwork_done',
-  send_chop_sign_date: 'send_chop_sign',
-  chop_sign_approval_date: 'chop_sign_approval',
-  park_in_server_date: 'park_in_file_server',
 
-  // Video/Article/LB dates
-  video_done_date: 'video_done',
-  pending_approval_date: 'pending_approval',
-  video_approved_date: 'video_approved',
-  video_scheduled_date: 'video_scheduled',
-  video_posted_date: 'video_posted',
-  article_done_date: 'article_done',
-  article_approved_date: 'article_approved',
-  article_scheduled_date: 'article_scheduled',
-  article_posted_date: 'article_posted',
+            // ✅ Column mapping for date fields
+            const COLMAP = {
+    // Date field mappings (UI key -> DB column)
+    artwork_reminder_date: 'artwork_reminder',
+    material_received_date: 'material_record',
+    artwork_done_date: 'artwork_done',
+    send_chop_sign_date: 'send_chop_sign',
+    chop_sign_approval_date: 'chop_sign_approval',
+    park_in_server_date: 'park_in_file_server',
 
-  // Texts/links
-  material_reminder_text: 'material_reminder_text',
-  post_link: 'post_link',
-  blog_link: 'blog_link',
+    video_done_date: 'video_done',
+    pending_approval_date: 'pending_approval',
+    video_approved_date: 'video_approved',
+    video_scheduled_date: 'video_scheduled',
+    video_posted_date: 'video_posted',
 
-  // EM
-  em_date_write: 'em_date_write',
-  em_date_to_post: 'em_date_to_post',
-  em_post_date: 'em_post_date',
-  em_qty: 'em_qty',
+    article_done_date: 'article_done',
+    article_approved_date: 'article_approved',
+    article_scheduled_date: 'article_scheduled',
+    article_posted_date: 'article_posted',
+
+    // ✅ ADD: Non-date fields that also need mapping
+    material_reminder_text: 'material_reminder_text',
+    post_link: 'post_link',
+    blog_link: 'blog_link',
+
+    em_date_write: 'em_date_write',
+    em_date_to_post: 'em_date_to_post',
+    em_post_date: 'em_post_date',
+    em_qty: 'em_qty',
+
+    // ✅ ADD: Direct mappings (when Blade uses base name without _date suffix)
+    artwork_reminder: 'artwork_reminder',
+    material_record: 'material_record',
+    artwork_done: 'artwork_done',
+    send_chop_sign: 'send_chop_sign',
+    chop_sign_approval: 'chop_sign_approval',
+    park_in_file_server: 'park_in_file_server',
+    video_done: 'video_done',
+    pending_approval: 'pending_approval',
+    video_approved: 'video_approved',
+    video_scheduled: 'video_scheduled',
+    video_posted: 'video_posted',
+    article_done: 'article_done',
+    article_approved: 'article_approved',
+    article_scheduled: 'article_scheduled',
+    article_posted: 'article_posted',
 };
 
-// ▼ Update buildPayload: column pakai map
-function buildPayload(el) {
-  const masterId = Number(el.dataset.masterFileId);
-  const subcategory = el.dataset.subcategory;
-  const field = el.dataset.field;
+// ✅ Auto-handle *_status and *_color fields
+function normalizeField(field) {
+    // Handle status/color fields
+    if (field.endsWith('_status')) {
+        let base = field.replace(/_status$/, ''); // Remove _status
+        let dbBase = COLMAP[base] || base; // Map to DB column
+        return dbBase + '_status'; // Add _status back
+    }
 
-  if (!masterId || !subcategory || !field) return null;
+    if (field.endsWith('_color')) {
+        let base = field.replace(/_color$/, ''); // Remove _color
+        let dbBase = COLMAP[base] || base; // Map to DB column
+        return dbBase + '_color'; // Add _color back
+    }
 
-  const value = el.value ?? '';
-  const ym = requireConcreteMonth();
-  if (!ym) return null;
-
-  const column = COLMAP[field] || field;
-
-  return {
-    master_file_id: masterId,
-    subcategory: subcategory,
-    year: ym.year,
-    month: ym.month,
-    field: field,    // biarin sebagai meta UI
-    column: column,  // ← ini yang dipakai server untuk DB
-    value: value
-  };
+    // Handle regular fields
+    return COLMAP[field] || field;
 }
+            // ✅ Build payload for autosave
+            function buildPayload(el) {
+                const masterId = Number(el.dataset.masterFileId);
+                const subcategory = el.dataset.subcategory;
+                const field = el.dataset.field;
 
+                if (!masterId || !subcategory || !field) return null;
+
+                const value = el.value ?? '';
+                const ym = requireConcreteMonth();
+                if (!ym) return null;
+
+                const column = normalizeField(field);
+
+                return {
+                    master_file_id: masterId,
+                    subcategory: subcategory,
+                    year: ym.year,
+                    month: ym.month,
+                    field: field,
+                    column: column,
+                    value: value
+                };
+            }
 
             const inputs = document.querySelectorAll('[data-master-file-id][data-field]');
 
-            inputs.forEach(el => {
-                el.addEventListener('change', () => save(el));
-                el.addEventListener('blur', () => save(el));
-            });
+inputs.forEach(el => {
+    el.addEventListener('change', () => save(el));
+    el.addEventListener('blur', () => save(el));
+});
+
+// ✅ ADD: Sync color picker to status background
+function syncColorToStatus(colorInput) {
+    const container = colorInput.closest('.stacked-input-container');
+    if (!container) return;
+
+    const statusInput = container.querySelector('.stacked-status-input');
+    if (!statusInput) return;
+
+    const color = colorInput.value || '#ffffff';
+    statusInput.style.backgroundColor = color;
+    statusInput.setAttribute('data-has-color', 'true');
+
+    // Auto adjust text color (light bg = dark text, dark bg = light text)
+    const hex = color.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+
+    statusInput.style.color = brightness > 155 ? '#1C1E26' : '#ffffff';
+}
+
+// Apply on page load for existing colors
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.stacked-color-input').forEach(colorInput => {
+        syncColorToStatus(colorInput);
+
+        // Sync on change
+        colorInput.addEventListener('input', function() {
+            syncColorToStatus(this);
+        });
+
+        colorInput.addEventListener('change', function() {
+            syncColorToStatus(this);
+        });
+    });
+});
 
             async function save(el) {
                 const payload = buildPayload(el);
