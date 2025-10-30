@@ -9,9 +9,10 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Style\Color; // <-- ADD
+use PhpOffice\PhpSpreadsheet\Style\Color;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
 
 class KltgMatrixExport
@@ -88,6 +89,46 @@ class KltgMatrixExport
         return $yiq >= 150 ? Color::COLOR_BLACK : Color::COLOR_WHITE;
     }
 
+    /** Shade every other row (odd rows) with a super-light blue */
+    private function shadeOddRows(Worksheet $sheet, int $firstDataRow, ?int $lastDataRow = null, int $firstCol = 1, ?int $lastCol = null): void {
+        $lastDataRow = $lastDataRow ?: (int)$sheet->getHighestRow();
+        $lastCol     = $lastCol ?: Coordinate::columnIndexFromString($sheet->getHighestColumn());
+
+        // very light blue (ARGB)
+        $argb = 'FFEFF7FF';
+        for ($r = $firstDataRow; $r <= $lastDataRow; $r += 2) {
+            $range = $this->col($firstCol) . $r . ':' . $this->col($lastCol) . $r;
+            $sheet->getStyle($range)->getFill()
+                  ->setFillType(Fill::FILL_SOLID)
+                  ->getStartColor()->setARGB($argb);
+        }
+    }
+
+    /** Draw thick borders around each month block (5 columns per month) */
+    private function outlineMonths(
+        Worksheet $sheet,
+        int $firstMonthColIndex,  // e.g. K==11
+        int $firstDataRow,        // first row of data (not header)
+        ?int $lastDataRow = null,
+        int $colsPerMonth = 5,
+        int $months = 12
+    ): void {
+        $lastDataRow = $lastDataRow ?: (int)$sheet->getHighestRow();
+
+        for ($m = 0; $m < $months; $m++) {
+            $left  = $firstMonthColIndex + ($m * $colsPerMonth);
+            $right = $left + $colsPerMonth - 1;
+
+            // Thick left border for the month
+            $sheet->getStyle($this->col($left)  . $firstDataRow . ':' . $this->col($left)  . $lastDataRow)
+                  ->getBorders()->getLeft()->setBorderStyle(Border::BORDER_MEDIUM);
+
+            // Thick right border for the month
+            $sheet->getStyle($this->col($right) . $firstDataRow . ':' . $this->col($right) . $lastDataRow)
+                  ->getBorders()->getRight()->setBorderStyle(Border::BORDER_MEDIUM);
+        }
+    }
+
     /** ---------- SINGLE YEAR (tetap seperti punyamu) ---------- */
     public function download(string $filename): StreamedResponse
     {
@@ -105,9 +146,26 @@ class KltgMatrixExport
             $row += 0;
         }
 
+        // Apply styling
+        $firstDataRow = 3;
+        $firstCol = 1;
+        $firstMonthColIndex = 11; // K = 11 (A-J are fixed columns)
+
+        // 1) Shade odd rows with super-light blue (only A-J columns)
+        $this->shadeOddRows($sheet, $firstDataRow, null, $firstCol, 10);
+
+        // 2) Add thick borders around each month block
+        $this->outlineMonths($sheet, $firstMonthColIndex, $firstDataRow, null, count($this->catLabels), 12);
+
+        // 3) Make the month header rows have thick bottom border
+        $headerTopRow = 1;
+        $headerLabelRow = 2;
+        $sheet->getStyle($this->col($firstMonthColIndex).$headerTopRow.':'.$this->col($lastColIdx).$headerLabelRow)
+              ->getBorders()->getBottom()->setBorderStyle(Border::BORDER_MEDIUM);
+
         // Autosize + freeze
         for ($i=1; $i<=$lastColIdx; $i++) $sheet->getColumnDimension($this->col($i))->setAutoSize(true);
-        $sheet->freezePane('A3');
+        $sheet->freezePane('K3'); // Freeze columns A-J (No to End) and rows 1-2 (headers)
 
         return response()->streamDownload(function () use ($ss) {
             (new Xlsx($ss))->save('php://output');
@@ -117,7 +175,7 @@ class KltgMatrixExport
 
 
 
-    /** ---------- MULTI YEAR (blok “YEAR – 2025”, dst.) ---------- */
+    /** ---------- MULTI YEAR (blok "YEAR – 2025", dst.) ---------- */
     public function downloadByYear(array $byYear, string $filename): StreamedResponse
     {
         $ss    = new Spreadsheet();
@@ -148,8 +206,11 @@ class KltgMatrixExport
             $row += 1;
 
             // Header 2 baris
+            $headerStartRow = $row;
             [$lastColIdx, $lastCol] = $this->writeHeader($sheet, $row, $months);
             $row += 2;
+
+            $firstDataRow = $row;
 
             // Data rows
             if (empty($records)) {
@@ -161,10 +222,31 @@ class KltgMatrixExport
                 }
             }
 
+            $lastDataRow = $row - 1;
+
+            // Apply styling for this year's block
+            $firstCol = 1;
+            $firstMonthColIndex = 11; // K = 11
+
+            // 1) Shade odd rows with super-light blue (only A-J columns)
+            $this->shadeOddRows($sheet, $firstDataRow, $lastDataRow, $firstCol, 10);
+
+            // 2) Add thick borders around each month block
+            $this->outlineMonths($sheet, $firstMonthColIndex, $firstDataRow, $lastDataRow, count($this->catLabels), count($months));
+
+            // 3) Make the month header rows have thick bottom border
+            $headerTopRow = $headerStartRow;
+            $headerLabelRow = $headerStartRow + 1;
+            $sheet->getStyle($this->col($firstMonthColIndex).$headerTopRow.':'.$this->col($lastColIdx).$headerLabelRow)
+                  ->getBorders()->getBottom()->setBorderStyle(Border::BORDER_MEDIUM);
+
             $row += 1; // spacer antar tahun
         }
 
         for ($i=1; $i<=$lastColIdx; $i++) $sheet->getColumnDimension($this->col($i))->setAutoSize(true);
+
+        // Freeze columns A-J so they stay visible when scrolling right
+        $sheet->freezePane('K1');
 
         return response()->streamDownload(function () use ($ss) {
             (new Xlsx($ss))->save('php://output');
@@ -220,51 +302,51 @@ class KltgMatrixExport
         $s = $rec['summary'];
         $colIdx = 1;
 
-// A: No
-$sheet->setCellValue($this->col($colIdx++).$row, $s['no']);
+        // A: No
+        $sheet->setCellValue($this->col($colIdx++).$row, $s['no']);
 
-// B: Month (teks)
-$sheet->setCellValue($this->col($colIdx++).$row, $s['month']);
+        // B: Month (teks)
+        $sheet->setCellValue($this->col($colIdx++).$row, $s['month']);
 
-// C: Created At (Excel date)
-if (!empty($s['created_at'])) {
-    $excelVal = ExcelDate::PHPToExcel(Carbon::parse($s['created_at'])->getTimestamp());
-    $cell = $this->col($colIdx).$row;
-    $sheet->setCellValue($cell, $excelVal);
-    $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('d/m/yy');
-} else {
-    $sheet->setCellValue($this->col($colIdx).$row, '');
-}
-$colIdx++;
+        // C: Created At (Excel date)
+        if (!empty($s['created_at'])) {
+            $excelVal = ExcelDate::PHPToExcel(Carbon::parse($s['created_at'])->getTimestamp());
+            $cell = $this->col($colIdx).$row;
+            $sheet->setCellValue($cell, $excelVal);
+            $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('d/m/yy');
+        } else {
+            $sheet->setCellValue($this->col($colIdx).$row, '');
+        }
+        $colIdx++;
 
-// D–H: Company, Product, Publication, Edition, Status (teks)
-$sheet->setCellValue($this->col($colIdx++).$row, $s['company'] ?? '');
-$sheet->setCellValue($this->col($colIdx++).$row, $s['product'] ?? '');
-$sheet->setCellValue($this->col($colIdx++).$row, $s['publication'] ?? '');
-$sheet->setCellValue($this->col($colIdx++).$row, $s['edition'] ?? '');
-$sheet->setCellValue($this->col($colIdx++).$row, $s['status'] ?? '');
+        // D–H: Company, Product, Publication, Edition, Status (teks)
+        $sheet->setCellValue($this->col($colIdx++).$row, $s['company'] ?? '');
+        $sheet->setCellValue($this->col($colIdx++).$row, $s['product'] ?? '');
+        $sheet->setCellValue($this->col($colIdx++).$row, $s['publication'] ?? '');
+        $sheet->setCellValue($this->col($colIdx++).$row, $s['edition'] ?? '');
+        $sheet->setCellValue($this->col($colIdx++).$row, $s['status'] ?? '');
 
-// I: Start (Excel date)
-if (!empty($s['start'])) {
-    $excelVal = ExcelDate::PHPToExcel(Carbon::parse($s['start'])->getTimestamp());
-    $cell = $this->col($colIdx).$row;
-    $sheet->setCellValue($cell, $excelVal);
-    $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('d/m/yy');
-} else {
-    $sheet->setCellValue($this->col($colIdx).$row, '');
-}
-$colIdx++;
+        // I: Start (Excel date)
+        if (!empty($s['start'])) {
+            $excelVal = ExcelDate::PHPToExcel(Carbon::parse($s['start'])->getTimestamp());
+            $cell = $this->col($colIdx).$row;
+            $sheet->setCellValue($cell, $excelVal);
+            $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('d/m/yy');
+        } else {
+            $sheet->setCellValue($this->col($colIdx).$row, '');
+        }
+        $colIdx++;
 
-// J: End (Excel date)
-if (!empty($s['end'])) {
-    $excelVal = ExcelDate::PHPToExcel(Carbon::parse($s['end'])->getTimestamp());
-    $cell = $this->col($colIdx).$row;
-    $sheet->setCellValue($cell, $excelVal);
-    $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('d/m/yy');
-} else {
-    $sheet->setCellValue($this->col($colIdx).$row, '');
-}
-$colIdx++;
+        // J: End (Excel date)
+        if (!empty($s['end'])) {
+            $excelVal = ExcelDate::PHPToExcel(Carbon::parse($s['end'])->getTimestamp());
+            $cell = $this->col($colIdx).$row;
+            $sheet->setCellValue($cell, $excelVal);
+            $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('d/m/yy');
+        } else {
+            $sheet->setCellValue($this->col($colIdx).$row, '');
+        }
+        $colIdx++;
 
 
         // 12 bulan × n kategori → baris status (row) & baris tanggal (row+1)
@@ -299,12 +381,12 @@ $colIdx++;
 
                 // Tanggal (di baris berikutnya)
                 $dateStr = '';
-if (!empty($m['cats'][$k]['start'])) {
-    $dateStr = Carbon::parse($m['cats'][$k]['start'])->format('d/m/y');
-}
-if (!empty($m['cats'][$k]['end'])) {
-    $dateStr = trim($dateStr.' – '.Carbon::parse($m['cats'][$k]['end'])->format('d/m/y'));
-}
+                if (!empty($m['cats'][$k]['start'])) {
+                    $dateStr = Carbon::parse($m['cats'][$k]['start'])->format('d/m/y');
+                }
+                if (!empty($m['cats'][$k]['end'])) {
+                    $dateStr = trim($dateStr.' – '.Carbon::parse($m['cats'][$k]['end'])->format('d/m/y'));
+                }
                 $sheet->setCellValue($this->col($colIdx).($row+1), $dateStr);
 
                 $colIdx++;

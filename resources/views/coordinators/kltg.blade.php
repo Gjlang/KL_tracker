@@ -971,7 +971,7 @@
                         data-field="{{ $key }}_status" />
                     <input type="color"
                         class="stacked-color-input"
-                        value="{{ $vals['color'] ?: '#4bbbed' }}"
+                        value="{{ $vals['color'] ?: '#ffffff' }}"
                         data-master-file-id="{{ $r->id }}"
                         data-subcategory="{{ $activeTab }}"
                         data-field="{{ $key }}_color" />

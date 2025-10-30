@@ -624,7 +624,7 @@ public function cloneYear(Request $request)
         $recordsByYear[$year] = $records;
     }
 
-    $fileName = 'kltg_matrix_'.now('Asia/Kuala_Lumpur')->format('Ymd_His').'.xlsx';
+    $fileName = 'kltg_monthly_'.now('Asia/Kuala_Lumpur')->format('Ymd_His').'.xlsx';
     $export = new KltgMatrixExport([], $catLabels, $catKeys);
     return $export->downloadByYear($recordsByYear, $fileName);
 }
