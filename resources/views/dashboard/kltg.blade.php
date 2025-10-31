@@ -192,7 +192,9 @@
                             <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">No</th>
                             <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">Created At</th>
                             <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">Month</th>
-                            <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">Company</th>
+                            <th class="hairline px-4 py-3 header-label whitespace-nowrap text-left sticky left-0 z-30 bg-white shadow-[2px_0_0_rgba(0,0,0,0.06)] min-w-[220px]">
+    Company
+</th>
                             <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">Product</th>
                             <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">Publication</th>
                             <th class="hairline px-4 py-3 header-label whitespace-nowrap text-center">Edition</th>
@@ -225,10 +227,12 @@
                                         {{ $r['created_at'] ?? '' }}</td>
                                     <td class="hairline px-4 py-3 align-top ink">{{ $r['month_name'] ?? '' }}</td>
 
-                                    <td class="hairline px-4 py-3 align-top ink" style="max-width:150px;">
-                                        <div class="truncate pr-1" title="{{ $r['company'] ?? '' }}">
-                                            {{ $r['company'] ?? 'N/A' }}</div>
-                                    </td>
+                                    <td class="hairline px-4 py-3 align-top ink sticky left-0 z-20 bg-white shadow-[2px_0_0_rgba(0,0,0,0.06)] min-w-[220px]">
+    <div class="truncate pr-1" title="{{ $r['company'] ?? '' }}">
+        {{ $r['company'] ?? 'N/A' }}
+    </div>
+</td>
+
 
                                     <td class="hairline px-4 py-3 align-top">
                                         <span

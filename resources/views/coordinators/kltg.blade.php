@@ -872,8 +872,11 @@
                                         style="background: #F3F4F6; border-bottom: 3px solid #D1D5DB; border-right: 2px solid #D1D5DB; padding: 1.25rem 1rem; font-weight: 700;">
                                         Date Created</th>
                                     <th class="col-company caps-header"
-                                        style="background: #F3F4F6; border-bottom: 3px solid #D1D5DB; border-right: 2px solid #D1D5DB; padding: 1.25rem 1rem; font-weight: 700;">
-                                        Company</th>
+    style="background: #F3F4F6; border-bottom: 3px solid #D1D5DB; border-right: 2px solid #D1D5DB; padding: 1.25rem 1rem; font-weight: 700;
+           position: sticky; left: 180px; z-index: 12; box-shadow: 2px 0 0 rgba(209,213,219,1);">
+    Company
+</th>
+
                                     <th class="col-person caps-header"
                                         style="background: #F3F4F6; border-bottom: 3px solid #D1D5DB; border-right: 2px solid #D1D5DB; padding: 1.25rem 1rem; font-weight: 700;">
                                         Person In Charge</th>
@@ -917,10 +920,13 @@
                                             {{ optional($r->date ?? null)->format('Y-m-d') ?? optional($r->created_at)->format('Y-m-d') }}
                                         </td>
                                         <td class="col-company ink font-medium"
-                                            style="padding: 1.25rem 1rem; border-bottom: 1px solid #D1D5DB; border-right: 1px solid #D1D5DB; background: white;">
-                                            <div class="truncate" title="{{ $r->company_name }}">
-                                                {{ $r->company_name }}</div>
-                                        </td>
+    style="padding: 1.25rem 1rem; border-bottom: 1px solid #D1D5DB; border-right: 1px solid #D1D5DB; background: white;
+           position: sticky; left: 180px; z-index: 11; box-shadow: 2px 0 0 rgba(209,213,219,1);">
+    <div class="truncate" title="{{ $r->company_name }}">
+        {{ $r->company_name }}
+    </div>
+</td>
+
                                         <td class="col-person ink"
                                             style="padding: 1.25rem 1rem; border-bottom: 1px solid #D1D5DB; border-right: 1px solid #D1D5DB; background: white;">
                                             {{ $r->client }}</td>

@@ -540,7 +540,7 @@ $statusLabel = $bb?->status ?? ($item->status ?? '');
                                                 {{-- Size --}}
                                                 <td class="px-4 py-3 text-neutral-900">{{ $sizeLabel }}</td>
 
-                                                {{-- Start/End from outdoor_items (as requested) --}}
+                                                {{-- Start/End from outdoor_items  --}}
                                                 <td class="px-4 py-3 text-neutral-900">
                                                     {{ $item->start_date?->format('d/m/y') ?? '' }}</td>
                                                 <td class="px-4 py-3 text-neutral-900">

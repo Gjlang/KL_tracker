@@ -1694,39 +1694,39 @@ class MasterFileController extends Controller
     }
 
     // [ADD THIS helper in your controller]
-private function buildKltgRemarks($file): array
-{
-    // Map labels → field names from master_files
-    $map = [
-        'Industry'                => 'kltg_industry',
-        'X (Reach/Impressions)'   => 'kltg_x',
-        'Edition'                 => 'kltg_edition',
-        'Material (CBP)'          => 'kltg_material_cbp',
-        'Print'                   => 'kltg_print',
-        'Article'                 => 'kltg_article',
-        'Video'                   => 'kltg_video',
-        'Leaderboard'             => 'kltg_leaderboard',
-        'QR Code'                 => 'kltg_qr_code',
-        'Blog'                    => 'kltg_blog',
-        'Email Marketing (eDM)'   => 'kltg_em',
-        'Remarks (KLTG)'          => 'kltg_remarks',
-    ];
+// private function buildKltgRemarks($file): array
+// {
+//     // Map labels → field names from master_files
+//     $map = [
+//         'Industry'                => 'kltg_industry',
+//         'X (Reach/Impressions)'   => 'kltg_x',
+//         'Edition'                 => 'kltg_edition',
+//         'Material (CBP)'          => 'kltg_material_cbp',
+//         'Print'                   => 'kltg_print',
+//         'Article'                 => 'kltg_article',
+//         'Video'                   => 'kltg_video',
+//         'Leaderboard'             => 'kltg_leaderboard',
+//         'QR Code'                 => 'kltg_qr_code',
+//         'Blog'                    => 'kltg_blog',
+//         'Email Marketing (eDM)'   => 'kltg_em',
+//         'Remarks (KLTG)'          => 'kltg_remarks',
+//     ];
 
-    $out = [];
-    foreach ($map as $label => $attr) {
-        $val = $file->{$attr} ?? null;
-        if (isset($val) && trim((string)$val) !== '') {
-            $out[$label] = $val;
-        }
-    }
+//     $out = [];
+//     foreach ($map as $label => $attr) {
+//         $val = $file->{$attr} ?? null;
+//         if (isset($val) && trim((string)$val) !== '') {
+//             $out[$label] = $val;
+//         }
+//     }
 
-    // If you still want to carry the generic remarks too:
-    if (isset($file->remarks) && trim((string)$file->remarks) !== '') {
-        $out['General Remarks'] = $file->remarks;
-    }
+//     // If you still want to carry the generic remarks too:
+//     if (isset($file->remarks) && trim((string)$file->remarks) !== '') {
+//         $out['General Remarks'] = $file->remarks;
+//     }
 
-    return $out;
-}
+//     return $out;
+// }
 
 
     public function printAuto(MasterFile $file)
